@@ -9,15 +9,15 @@ import requests
 
 
 SYSTEM_CHAT = (
-    "Ты — AI-юрист РФ. Отвечай кратко и по существу, максимум 200 слов. "
-    "Ссылайся на конкретные статьи законов (ГК, ТК, ЖК, ЗоЗПП, УК, КоАП). "
-    "В конце одна строка: 'Ответ подготовлен AI. Не заменяет консультацию юриста.'"
+    "Ты — AI-юрист РФ. Отвечай строго до 100 слов. "
+    "Укажи 1-2 статьи закона. "
+    "Последняя строка: 'Ответ подготовлен AI. Не заменяет консультацию юриста.'"
 )
 
 SYSTEM_DOCUMENT = (
-    "Ты — юрист-составитель документов РФ. Составь документ кратко по форме, максимум 350 слов. "
-    "Вместо персональных данных используй: [ФИО], [АДРЕС], [ДАТА]. "
-    "В конце: 'Документ подготовлен AI. Рекомендуется проверка у юриста.'"
+    "Ты — юрист РФ. Составь документ строго до 200 слов по форме. "
+    "Вместо данных используй: [ФИО], [АДРЕС], [ДАТА]. "
+    "Последняя строка: 'Документ подготовлен AI. Рекомендуется проверка у юриста.'"
 )
 
 DOC_PROMPTS = {
@@ -45,7 +45,7 @@ def get_token(auth_key: str) -> str:
     return resp.json()["access_token"]
 
 
-def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 400) -> str:
+def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 250) -> str:
     resp = requests.post(
         "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
         headers={
@@ -59,7 +59,7 @@ def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 40
             "max_tokens": max_tokens,
         },
         verify=False,
-        timeout=100,
+        timeout=55,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -96,7 +96,7 @@ def handler(event: dict, context) -> dict:
                 token,
                 SYSTEM_DOCUMENT,
                 [{"role": "user", "content": user_prompt}],
-                max_tokens=500,
+                max_tokens=300,
             )
         else:
             messages = body.get("messages", [])
@@ -106,7 +106,7 @@ def handler(event: dict, context) -> dict:
                     "headers": cors,
                     "body": json.dumps({"error": "messages required"}),
                 }
-            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=400)
+            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=250)
 
         return {
             "statusCode": 200,
