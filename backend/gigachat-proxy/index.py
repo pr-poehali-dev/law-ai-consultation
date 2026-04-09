@@ -1,5 +1,5 @@
 """
-Прокси для GigaChat API — консультации и генерация юридических документов.
+Прокси для AI-юриста — консультации и генерация юридических документов.
 mode: "chat" (консультация) | "document" (генерация документа)
 """
 import json
@@ -12,16 +12,18 @@ SYSTEM_CHAT = (
     "Ты — AI-юрист, обученный на реальной судебной практике Российской Федерации. "
     "Отвечай строго по законодательству РФ: ГК, ТК, ЖК, ЗоЗПП, УК, КоАП и другим актуальным нормам. "
     "Давай чёткие, структурированные ответы с ссылками на конкретные статьи законов. "
-    "В конце каждого ответа добавляй дисклеймер: "
+    "Ответ не более 400 слов. "
+    "В конце добавляй дисклеймер: "
     "'Ответ подготовлен AI на основе базы знаний юристов и не заменяет индивидуальную консультацию специалиста.'"
 )
 
 SYSTEM_DOCUMENT = (
-    "Ты — опытный юрист-составитель документов. Твоя задача — генерировать профессиональные юридические документы "
+    "Ты — опытный юрист-составитель документов. Генерируй профессиональные юридические документы "
     "по законодательству Российской Федерации. "
-    "Составляй документы строго по установленным формам: с реквизитами, шапкой, датой, подписями. "
-    "Используй официальный юридический язык. Там где нужны данные пользователя — вставляй плейсхолдеры в формате [ФИО], [АДРЕС] и т.п. "
-    "Добавляй в конце: 'Документ сгенерирован AI. Рекомендуется проверка у практикующего юриста.'"
+    "Составляй документы по установленным формам: с реквизитами, шапкой, датой, подписями. "
+    "Используй официальный юридический язык. Вместо персональных данных используй плейсхолдеры: [ФИО], [АДРЕС] и т.п. "
+    "Документ не более 500 слов. "
+    "В конце: 'Документ подготовлен AI на основе базы знаний юристов. Рекомендуется проверка у практикующего юриста.'"
 )
 
 DOC_PROMPTS = {
@@ -29,7 +31,7 @@ DOC_PROMPTS = {
     "complaint": "Составь жалобу в Роспотребнадзор. Тема: {details}",
     "pretension": "Составь досудебную претензию. Тема: {details}",
     "contract": "Составь договор гражданско-правового характера (ГПХ). Тема: {details}",
-    "business_contract": "Составь юридически грамотный договор для бизнеса. Тема: {details}",
+    "business_contract": "Составь договор для бизнеса. Тема: {details}",
 }
 
 
@@ -43,13 +45,13 @@ def get_token(auth_key: str) -> str:
         },
         data={"scope": "GIGACHAT_API_PERS"},
         verify=False,
-        timeout=15,
+        timeout=10,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
 
 
-def call_gigachat(token: str, system_prompt: str, messages: list, max_tokens: int = 2048) -> str:
+def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 700) -> str:
     resp = requests.post(
         "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
         headers={
@@ -63,7 +65,7 @@ def call_gigachat(token: str, system_prompt: str, messages: list, max_tokens: in
             "max_tokens": max_tokens,
         },
         verify=False,
-        timeout=55,
+        timeout=40,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -96,11 +98,11 @@ def handler(event: dict, context) -> dict:
                 }
             prompt_template = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"])
             user_prompt = prompt_template.format(details=details)
-            answer = call_gigachat(
+            answer = call_ai(
                 token,
                 SYSTEM_DOCUMENT,
                 [{"role": "user", "content": user_prompt}],
-                max_tokens=2048,
+                max_tokens=900,
             )
         else:
             messages = body.get("messages", [])
@@ -110,7 +112,7 @@ def handler(event: dict, context) -> dict:
                     "headers": cors,
                     "body": json.dumps({"error": "messages required"}),
                 }
-            answer = call_gigachat(token, SYSTEM_CHAT, messages, max_tokens=1024)
+            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=700)
 
         return {
             "statusCode": 200,
@@ -119,10 +121,11 @@ def handler(event: dict, context) -> dict:
         }
 
     except requests.HTTPError as e:
+        code = e.response.status_code if e.response is not None else 0
         return {
             "statusCode": 502,
             "headers": cors,
-            "body": json.dumps({"error": f"GigaChat error: {e.response.status_code}"}),
+            "body": json.dumps({"error": f"Ошибка AI-сервиса: {code}"}),
         }
     except Exception as e:
         return {

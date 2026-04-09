@@ -254,7 +254,7 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
                   <div className="flex items-center gap-1.5">
                     <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isTyping ? "bg-amber-400" : "bg-green-400"}`} />
                     <span className="text-xs text-muted-foreground">
-                      {isTyping ? "Формирует ответ..." : "Онлайн · GigaChat · Обучен юристами"}
+                      {isTyping ? "AI-юрист формирует ответ..." : "Онлайн · Обучен реальными юристами"}
                     </span>
                   </div>
                 </div>

@@ -17,7 +17,7 @@ const DOC_TYPES = [
 
 interface ChatMsg { role: "ai" | "user"; text: string; }
 
-const WELCOME = "Добрый день! Я AI-юрист на базе GigaChat, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
+const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
 export default function Cabinet() {
   const navigate = useNavigate();
@@ -239,7 +239,7 @@ export default function Cabinet() {
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${typing ? "bg-amber-400 animate-pulse" : "bg-green-400 animate-pulse"}`} />
                 <span className="text-xs text-muted-foreground">
-                  {typing ? "GigaChat формирует ответ..." : "AI-юрист онлайн · GigaChat"}
+                  {typing ? "AI-юрист формирует ответ..." : "AI-юрист онлайн · обучен реальными юристами"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
