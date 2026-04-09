@@ -9,9 +9,10 @@ const SERVICES = [
   {
     icon: "MessageCircle",
     title: "AI-консультация",
-    desc: "Задайте любой правовой вопрос. AI отвечает мгновенно на основе актуальной судебной практики.",
+    desc: "Задайте любой правовой вопрос. AI отвечает мгновенно на основе актуальной судебной практики. 3 вопроса бесплатно.",
     tags: ["Трудовое право", "Семейное", "ЖКХ", "Кредиты"],
-    price: "от 499 ₽",
+    price: "100 ₽",
+    priceNote: "3 вопроса",
     time: "2–3 мин",
     color: "from-blue-500/10 to-blue-600/5",
     accent: "text-blue-600",
@@ -20,9 +21,10 @@ const SERVICES = [
   {
     icon: "FileSignature",
     title: "Готовые документы",
-    desc: "Исковые заявления, договоры, претензии — AI генерирует документ по вашим данным.",
-    tags: ["Исковое", "Договор ГПХ", "Претензия", "Жалоба"],
-    price: "от 799 ₽",
+    desc: "Исковые заявления, претензии, жалобы — AI генерирует полный документ по вашим данным за минуты.",
+    tags: ["Исковое", "Претензия", "Жалоба"],
+    price: "500 ₽",
+    priceNote: "за документ",
     time: "3–5 мин",
     color: "from-amber-500/10 to-amber-600/5",
     accent: "text-amber-600",
@@ -31,9 +33,10 @@ const SERVICES = [
   {
     icon: "UserCheck",
     title: "Проверка юристом",
-    desc: "Живой юрист проверит ответ AI и даст профессиональное заключение по вашему делу.",
-    tags: ["Сложные дела", "Проверка", "Заключение"],
-    price: "от 1990 ₽",
+    desc: "Живой эксперт-юрист проверит ответ AI и выдаст письменное профессиональное заключение по вашему делу.",
+    tags: ["Сложные дела", "Заключение"],
+    price: "1 500 ₽",
+    priceNote: "с заключением",
     time: "до 24 ч",
     color: "from-emerald-500/10 to-emerald-600/5",
     accent: "text-emerald-600",
@@ -42,10 +45,11 @@ const SERVICES = [
   {
     icon: "Building2",
     title: "Для бизнеса",
-    desc: "Корпоративные договоры, трудовые споры, защита интеллектуальной собственности.",
+    desc: "Корпоративные договоры, трудовые соглашения, защита интеллектуальной собственности.",
     tags: ["Корпоративное", "IP", "HR"],
-    price: "от 4990 ₽",
-    time: "по запросу",
+    price: "1 000 ₽",
+    priceNote: "за договор",
+    time: "5–10 мин",
     color: "from-purple-500/10 to-purple-600/5",
     accent: "text-purple-600",
     badge: "bg-purple-50 text-purple-700",
@@ -124,7 +128,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
               <div className="flex items-center justify-between pt-4 border-t border-border/60">
                 <div>
                   <div className="font-semibold text-navy-800">{service.price}</div>
-                  <div className="text-xs text-muted-foreground">{service.time}</div>
+                  <div className="text-xs text-muted-foreground">{"priceNote" in service ? (service as {priceNote: string}).priceNote : service.time}</div>
                 </div>
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${hovered === i ? "bg-navy-700 text-white" : "bg-navy-100 text-navy-600"}`}>
                   <Icon name="ArrowRight" size={16} />

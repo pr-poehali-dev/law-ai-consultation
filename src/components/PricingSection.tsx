@@ -2,21 +2,21 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
 interface PricingSectionProps {
-  onSelectPlan: (plan: string, price: string) => void;
+  onSelectPlan: (plan: string, price: string, serviceType: string) => void;
 }
 
 const PLANS = [
   {
-    id: "basic",
-    name: "Базовый",
-    price: "499",
-    period: "разово",
-    desc: "Одна AI-консультация по любому правовому вопросу",
+    id: "consultation",
+    name: "Консультация",
+    price: "100",
+    period: "3 вопроса",
+    desc: "Задайте 3 вопроса AI-юристу по любой правовой теме",
     features: [
-      "1 консультация AI",
-      "Ответ за 2–3 минуты",
+      "3 вопроса AI-юристу",
+      "Ответ с ссылками на законы",
       "История в кабинете",
-      "Уточняющий вопрос",
+      "Уточняющие вопросы",
     ],
     notIncluded: ["Документы", "Проверка юриста"],
     popular: false,
@@ -26,51 +26,48 @@ const PLANS = [
   {
     id: "document",
     name: "Документ",
-    price: "799",
+    price: "500",
     period: "за документ",
-    desc: "Готовый юридический документ по вашим данным",
+    desc: "Готовый юридический документ: иск, претензия или жалоба",
     features: [
-      "1 документ любого типа",
-      "Персонализация данных",
-      "Скачать PDF / DOCX",
-      "1 правка бесплатно",
+      "Исковое заявление",
+      "Претензия / жалоба",
+      "Скачать готовый файл",
+      "Составлен по нормам РФ",
     ],
-    notIncluded: ["Консультации в наборе", "Проверка юриста"],
+    notIncluded: ["Консультации", "Проверка юриста"],
     popular: false,
     icon: "FileText",
     color: "bg-amber-50/60",
   },
   {
-    id: "profi",
-    name: "Профи",
-    price: "1 990",
-    period: "в месяц",
-    desc: "Подписка для активных пользователей",
+    id: "business",
+    name: "Для бизнеса",
+    price: "1 000",
+    period: "за договор",
+    desc: "Договоры и юридические документы для бизнеса",
     features: [
-      "5 консультаций AI / мес",
-      "2 документа / мес",
-      "Приоритетная обработка",
-      "История и архив",
-      "Уведомления об изменениях закона",
+      "Договор ГПХ / услуг",
+      "Корпоративные соглашения",
+      "Трудовые договоры",
+      "Скачать готовый файл",
     ],
     notIncluded: ["Проверка живым юристом"],
     popular: true,
-    icon: "Star",
+    icon: "Briefcase",
     color: "",
   },
   {
     id: "expert",
-    name: "Эксперт",
-    price: "4 990",
-    period: "в месяц",
-    desc: "Максимальная защита: AI + живой юрист",
+    name: "Проверка юристом",
+    price: "1 500",
+    period: "разово",
+    desc: "Живой эксперт-юрист проверит ответ AI и даст заключение",
     features: [
       "Безлимит консультаций AI",
-      "5 документов / мес",
-      "Проверка живым юристом",
-      "Юридическое заключение",
-      "Персональный менеджер",
-      "Приоритетная поддержка 24/7",
+      "Письменное заключение",
+      "Анализ рисков и рекомендации",
+      "Ответ в течение 24 часов",
     ],
     notIncluded: [],
     popular: false,
@@ -158,7 +155,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
 
               <div className="p-7 pt-0">
                 <button
-                  onClick={() => onSelectPlan(plan.name, plan.price)}
+                  onClick={() => onSelectPlan(plan.name, plan.price, plan.id)}
                   className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 ${
                     plan.popular
                       ? "btn-gold"

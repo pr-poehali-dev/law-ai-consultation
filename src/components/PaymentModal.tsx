@@ -1,48 +1,127 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import func2url from "../../backend/func2url.json";
+
+const CREATE_URL = func2url["payment-create"];
+const CHECK_URL = func2url["payment-check"];
+
+export type ServiceType = "consultation" | "document" | "expert" | "business";
 
 interface PaymentModalProps {
-  planName: string;
-  planPrice: string;
+  serviceType: ServiceType;
+  serviceName: string;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (serviceType: ServiceType) => void;
 }
 
-export default function PaymentModal({ planName, planPrice, onClose, onSuccess }: PaymentModalProps) {
-  const [step, setStep] = useState<"form" | "processing" | "success">("form");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [name, setName] = useState("");
+const SERVICE_PRICES: Record<ServiceType, number> = {
+  consultation: 100,
+  document: 500,
+  expert: 1500,
+  business: 1000,
+};
 
-  const formatCard = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(.{4})/g, "$1 ").trim();
+const SERVICE_DETAILS: Record<ServiceType, string> = {
+  consultation: "3 юридических вопроса AI-юристу",
+  document: "Один юридический документ (исковое, претензия или жалоба)",
+  expert: "Проверка ответа AI экспертом-юристом с письменным заключением",
+  business: "Подготовка договора и юридических документов для бизнеса",
+};
+
+type Step = "method" | "waiting" | "polling" | "success" | "error";
+type Method = "bank_card" | "sbp";
+
+export default function PaymentModal({ serviceType, serviceName, onClose, onSuccess }: PaymentModalProps) {
+  const [step, setStep] = useState<Step>("method");
+  const [method, setMethod] = useState<Method>("bank_card");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [confirmationUrl, setConfirmationUrl] = useState("");
+  const [paymentId, setPaymentId] = useState("");
+
+  const price = SERVICE_PRICES[serviceType];
+
+  const handlePay = async () => {
+    if (!email.includes("@")) {
+      setErrorMsg("Введите корректный email — на него придёт чек");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(CREATE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_type: serviceType,
+          payment_method: method,
+          email,
+          return_url: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка создания платежа");
+
+      setPaymentId(data.payment_id);
+      setConfirmationUrl(data.confirmation_url);
+      setStep("waiting");
+
+      // Открываем ЮKassa в новой вкладке
+      window.open(data.confirmation_url, "_blank");
+
+      // Начинаем поллинг статуса
+      startPolling(data.payment_id);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Ошибка оплаты");
+      setStep("error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatExpiry = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 2) return digits.slice(0, 2) + "/" + digits.slice(2);
-    return digits;
-  };
+  const startPolling = (pid: string) => {
+    setStep("polling");
+    let attempts = 0;
+    const maxAttempts = 24; // 2 минуты (каждые 5 сек)
 
-  const handlePay = () => {
-    setStep("processing");
-    setTimeout(() => {
-      setStep("success");
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
-    }, 2000);
-  };
+    const poll = async () => {
+      attempts++;
+      try {
+        const res = await fetch(`${CHECK_URL}?payment_id=${pid}`);
+        const data = await res.json();
+        if (data.paid || data.status === "succeeded") {
+          setStep("success");
+          setTimeout(() => onSuccess(serviceType), 2000);
+          return;
+        }
+        if (data.status === "canceled") {
+          setErrorMsg("Платёж отменён. Попробуйте ещё раз.");
+          setStep("error");
+          return;
+        }
+      } catch {
+        // продолжаем поллинг
+      }
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 5000);
+      } else {
+        setErrorMsg("Время ожидания истекло. Если вы оплатили — обновите страницу.");
+        setStep("error");
+      }
+    };
 
-  const isValid = cardNumber.replace(/\s/g, "").length === 16 && expiry.length === 5 && cvv.length === 3 && name.length > 2;
+    setTimeout(poll, 5000);
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={step !== "polling" && step !== "waiting" ? onClose : undefined} />
       <div className="relative bg-card rounded-3xl border border-border shadow-2xl w-full max-w-md animate-scale-in">
-        {step !== "success" && (
+
+        {/* Close */}
+        {step !== "success" && step !== "polling" && (
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors z-10"
@@ -51,119 +130,170 @@ export default function PaymentModal({ planName, planPrice, onClose, onSuccess }
           </button>
         )}
 
-        {step === "form" && (
+        {/* === STEP: METHOD === */}
+        {step === "method" && (
           <div className="p-8">
-            <div className="mb-6">
-              <div className="inline-flex items-center gap-2 bg-navy-50 rounded-xl px-3 py-1.5 mb-4">
-                <Icon name="Shield" size={14} className="text-navy-600" />
-                <span className="text-xs text-navy-600 font-medium">Защищённая оплата</span>
+            <div className="mb-5">
+              <div className="inline-flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-1.5 mb-4">
+                <Icon name="ShieldCheck" size={14} className="text-emerald-600" />
+                <span className="text-xs text-emerald-700 font-medium">Защищённая оплата · ЮKassa</span>
               </div>
-              <h3 className="font-cormorant font-bold text-2xl text-navy-800">Оплата тарифа</h3>
-              <p className="text-muted-foreground text-sm mt-1">
-                {planName} — <span className="font-semibold text-navy-700">{planPrice} ₽</span>
-              </p>
+              <h3 className="font-cormorant font-bold text-2xl text-navy-800">Оплата услуги</h3>
+              <p className="text-muted-foreground text-sm mt-1">{serviceName}</p>
             </div>
 
-            {/* Card preview */}
-            <div className="gradient-navy rounded-2xl p-5 mb-6 relative overflow-hidden">
-              <div className="orb w-40 h-40 bg-white/5 -top-10 -right-10" />
-              <div className="flex justify-between items-start mb-8">
-                <Icon name="CreditCard" size={28} className="text-white/70" />
-                <div className="text-white/50 text-xs font-medium">
-                  {cardNumber.slice(0, 4) || "****"}
-                </div>
+            {/* Summary */}
+            <div className="bg-navy-50 rounded-2xl p-4 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
+                <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
               </div>
-              <div className="text-white font-mono text-lg tracking-widest mb-3">
-                {cardNumber || "**** **** **** ****"}
-              </div>
-              <div className="flex justify-between text-white/60 text-xs">
-                <span>{name || "CARDHOLDER NAME"}</span>
-                <span>{expiry || "MM/YY"}</span>
-              </div>
+              <p className="text-xs text-muted-foreground">{SERVICE_DETAILS[serviceType]}</p>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-navy-700 mb-1.5 block">Номер карты</label>
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(formatCard(e.target.value))}
-                  placeholder="0000 0000 0000 0000"
-                  className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-navy-400 transition-colors"
-                />
-              </div>
+            {/* Method selector */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-navy-700 uppercase tracking-wider mb-3">Способ оплаты</p>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-navy-700 mb-1.5 block">Срок действия</label>
-                  <input
-                    type="text"
-                    value={expiry}
-                    onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                    placeholder="MM/YY"
-                    className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-navy-400 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-navy-700 mb-1.5 block">CVV</label>
-                  <input
-                    type="password"
-                    value={cvv}
-                    onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                    placeholder="•••"
-                    className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-navy-400 transition-colors"
-                  />
-                </div>
+                <button
+                  onClick={() => setMethod("bank_card")}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                    method === "bank_card"
+                      ? "border-navy-600 bg-navy-50"
+                      : "border-border hover:border-navy-200"
+                  }`}
+                >
+                  <Icon name="CreditCard" size={24} className={method === "bank_card" ? "text-navy-700" : "text-muted-foreground"} />
+                  <span className={`text-sm font-medium ${method === "bank_card" ? "text-navy-800" : "text-muted-foreground"}`}>
+                    Банковская карта
+                  </span>
+                  <span className="text-xs text-muted-foreground">Visa, МИР, MC</span>
+                </button>
+                <button
+                  onClick={() => setMethod("sbp")}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                    method === "sbp"
+                      ? "border-navy-600 bg-navy-50"
+                      : "border-border hover:border-navy-200"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${method === "sbp" ? "bg-navy-700 text-white" : "bg-slate-200 text-navy-600"}`}>
+                    СБП
+                  </div>
+                  <span className={`text-sm font-medium ${method === "sbp" ? "text-navy-800" : "text-muted-foreground"}`}>
+                    СБП
+                  </span>
+                  <span className="text-xs text-muted-foreground">Быстрые платежи</span>
+                </button>
               </div>
-              <div>
-                <label className="text-xs font-medium text-navy-700 mb-1.5 block">Имя на карте</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value.toUpperCase())}
-                  placeholder="IVAN IVANOV"
-                  className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm font-mono uppercase outline-none focus:border-navy-400 transition-colors"
-                />
-              </div>
-
-              <button
-                onClick={handlePay}
-                disabled={!isValid}
-                className="btn-gold w-full py-4 rounded-2xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Icon name="Lock" size={16} />
-                Оплатить {planPrice} ₽
-              </button>
-              <p className="text-center text-xs text-muted-foreground">
-                Тестовая оплата — данные не передаются
-              </p>
             </div>
+
+            {/* Email */}
+            <div className="mb-5">
+              <label className="text-xs font-medium text-navy-700 mb-1.5 block">
+                Email для чека <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ivan@example.ru"
+                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors"
+              />
+            </div>
+
+            {errorMsg && (
+              <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              onClick={handlePay}
+              disabled={loading || !email}
+              className="btn-gold w-full py-4 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
+                </>
+              ) : (
+                <>
+                  <Icon name="Lock" size={16} />
+                  Оплатить {price} ₽
+                </>
+              )}
+            </button>
+
+            <p className="text-center text-xs text-muted-foreground mt-3">
+              Нажимая «Оплатить», вы соглашаетесь с условиями оферты
+            </p>
           </div>
         )}
 
-        {step === "processing" && (
+        {/* === STEP: WAITING / POLLING === */}
+        {(step === "waiting" || step === "polling") && (
           <div className="p-12 text-center">
             <div className="w-16 h-16 gradient-navy rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <Icon name="CreditCard" size={28} className="text-gold-400" />
+              <Icon name="Loader" size={28} className="text-gold-400" />
             </div>
-            <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-3">Обрабатываем платёж...</h3>
-            <p className="text-muted-foreground text-sm">Подождите несколько секунд</p>
-            <div className="flex justify-center gap-2 mt-6">
+            <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-3">
+              {step === "waiting" ? "Открываем страницу оплаты..." : "Ожидаем подтверждения..."}
+            </h3>
+            <p className="text-muted-foreground text-sm mb-2">
+              {step === "waiting"
+                ? "Страница ЮKassa открылась в новой вкладке. Завершите оплату там."
+                : "Проверяем статус платежа каждые 5 секунд"}
+            </p>
+            <div className="flex justify-center gap-2 mt-4 mb-6">
               <span className="typing-dot w-2.5 h-2.5 bg-navy-400 rounded-full inline-block" />
               <span className="typing-dot w-2.5 h-2.5 bg-navy-400 rounded-full inline-block" />
               <span className="typing-dot w-2.5 h-2.5 bg-navy-400 rounded-full inline-block" />
             </div>
+            {confirmationUrl && (
+              <a
+                href={confirmationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 font-medium underline"
+              >
+                <Icon name="ExternalLink" size={14} />
+                Открыть страницу оплаты снова
+              </a>
+            )}
           </div>
         )}
 
+        {/* === STEP: SUCCESS === */}
         {step === "success" && (
           <div className="p-12 text-center">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-scale-in">
               <Icon name="CheckCircle" size={40} className="text-emerald-500" />
             </div>
             <h3 className="font-cormorant font-bold text-3xl text-navy-800 mb-3">Оплачено!</h3>
-            <p className="text-muted-foreground mb-2">Тариф <span className="font-semibold text-navy-700">{planName}</span> активирован.</p>
-            <p className="text-sm text-muted-foreground">Доступ открыт в личном кабинете</p>
+            <p className="text-navy-700 font-medium mb-1">{serviceName}</p>
+            <p className="text-sm text-muted-foreground">Доступ открыт в личном кабинете. Чек отправлен на {email}</p>
+          </div>
+        )}
+
+        {/* === STEP: ERROR === */}
+        {step === "error" && (
+          <div className="p-10 text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Icon name="AlertCircle" size={32} className="text-red-500" />
+            </div>
+            <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-3">Что-то пошло не так</h3>
+            <p className="text-muted-foreground text-sm mb-6">{errorMsg}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setStep("method")} className="flex-1 btn-gold py-3 rounded-xl font-semibold text-sm">
+                Попробовать снова
+              </button>
+              <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-border text-navy-600 hover:bg-slate-50 transition-colors text-sm font-medium">
+                Закрыть
+              </button>
+            </div>
           </div>
         )}
       </div>

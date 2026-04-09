@@ -5,42 +5,56 @@ import ServicesSection from "@/components/ServicesSection";
 import PricingSection from "@/components/PricingSection";
 import CabinetSection from "@/components/CabinetSection";
 import FooterSection from "@/components/FooterSection";
-import PaymentModal from "@/components/PaymentModal";
+import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import LoginModal from "@/components/LoginModal";
 import CookieBanner from "@/components/CookieBanner";
+
+const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
+  consultation: "consultation",
+  document: "document",
+  business: "business",
+  expert: "expert",
+  "AI-консультация": "consultation",
+  "Готовые документы": "document",
+  "Исковое заявление": "document",
+  "Претензия": "document",
+  "Жалоба в Роспотребнадзор": "document",
+  "Договор ГПХ": "document",
+  "Проверка юристом": "expert",
+  "Для бизнеса": "business",
+};
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("home");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState({ name: "", price: "" });
+  const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
+    type: "consultation",
+    name: "AI-консультация",
+  });
 
   const handleNavigate = (section: string) => {
     setActiveSection(section);
     const el = document.getElementById(section === "home" ? "hero" : section);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleSelectPlan = (name: string, price: string) => {
-    setSelectedPlan({ name, price });
+  const openPayment = (name: string, serviceTypeId?: string) => {
+    const type = (serviceTypeId && SERVICE_TYPE_MAP[serviceTypeId])
+      || SERVICE_TYPE_MAP[name]
+      || "consultation";
+    setSelectedService({ type, name });
     setShowPayment(true);
   };
 
-  const handlePaymentSuccess = () => {
-    setTimeout(() => {
-      setShowPayment(false);
+  const handlePaymentSuccess = (svcType: ServiceType) => {
+    setShowPayment(false);
+    if (!isLoggedIn) {
       setIsLoggedIn(true);
-      handleNavigate("cabinet");
-    }, 2500);
-  };
-
-  const handleLoginSuccess = () => {
-    setShowLogin(false);
-    setIsLoggedIn(true);
-    handleNavigate("cabinet");
+    }
+    setTimeout(() => handleNavigate("cabinet"), 300);
+    void svcType;
   };
 
   return (
@@ -48,37 +62,26 @@ export default function Index() {
       <Header
         activeSection={activeSection}
         onNavigate={handleNavigate}
-        onLoginClick={() => {
-          if (isLoggedIn) {
-            handleNavigate("cabinet");
-          } else {
-            setShowLogin(true);
-          }
-        }}
+        onLoginClick={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
       />
 
       <div id="hero">
         <HeroSection
-          onConsult={() => {
-            if (isLoggedIn) handleNavigate("cabinet");
-            else setShowLogin(true);
-          }}
+          onConsult={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
           onDocument={() => handleNavigate("services")}
         />
       </div>
 
       <ServicesSection
         onSelectService={(service) => {
-          if (isLoggedIn) {
-            handleNavigate("cabinet");
-          } else {
-            setSelectedPlan({ name: service, price: "499" });
-            setShowPayment(true);
-          }
+          if (isLoggedIn) handleNavigate("cabinet");
+          else openPayment(service);
         }}
       />
 
-      <PricingSection onSelectPlan={handleSelectPlan} />
+      <PricingSection
+        onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
+      />
 
       <CabinetSection
         isLoggedIn={isLoggedIn}
@@ -89,8 +92,8 @@ export default function Index() {
 
       {showPayment && (
         <PaymentModal
-          planName={selectedPlan.name}
-          planPrice={selectedPlan.price}
+          serviceType={selectedService.type}
+          serviceName={selectedService.name}
           onClose={() => setShowPayment(false)}
           onSuccess={handlePaymentSuccess}
         />
@@ -99,7 +102,11 @@ export default function Index() {
       {showLogin && (
         <LoginModal
           onClose={() => setShowLogin(false)}
-          onSuccess={handleLoginSuccess}
+          onSuccess={() => {
+            setShowLogin(false);
+            setIsLoggedIn(true);
+            handleNavigate("cabinet");
+          }}
         />
       )}
 
