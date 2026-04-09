@@ -56,7 +56,7 @@ export function addPaidService(serviceType: string): void {
 export function consumeQuestion(): boolean {
   const user = getUser();
   if (!user) return false;
-  if (user.freeQuestionsUsed < 3) {
+  if (user.freeQuestionsUsed < 30) {
     user.freeQuestionsUsed += 1;
     saveUser(user);
     return true;
@@ -72,11 +72,11 @@ export function consumeQuestion(): boolean {
 export function canAskQuestion(): boolean {
   const user = getUser();
   if (!user) return false;
-  return user.freeQuestionsUsed < 3 || user.paidQuestions > 0;
+  return user.freeQuestionsUsed < 30 || user.paidQuestions > 0;
 }
 
 export function getFreeLeft(): number {
   const user = getUser();
-  if (!user) return 3;
-  return Math.max(0, 3 - user.freeQuestionsUsed);
+  if (!user) return 30;
+  return Math.max(0, 30 - user.freeQuestionsUsed);
 }

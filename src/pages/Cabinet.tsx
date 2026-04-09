@@ -507,7 +507,7 @@ export default function Cabinet() {
 
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Бесплатных вопросов", value: `${getFreeLeft()} из 3`, icon: "Gift", color: "text-emerald-600 bg-emerald-50" },
+                  { label: "Бесплатных вопросов", value: `${getFreeLeft()} из 30`, icon: "Gift", color: "text-emerald-600 bg-emerald-50" },
                   { label: "Платных вопросов", value: user.paidQuestions ?? 0, icon: "MessageCircle", color: "text-blue-600 bg-blue-50" },
                   { label: "Создано документов", value: genDocs.length, icon: "FileText", color: "text-amber-600 bg-amber-50" },
                   { label: "Проверок юристом", value: user.paidExpert ? "Активно" : "Нет", icon: "Shield", color: "text-purple-600 bg-purple-50" },

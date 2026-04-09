@@ -5,7 +5,7 @@ import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
-const FREE_QUESTIONS_LIMIT = 3;
+const FREE_QUESTIONS_LIMIT = 30;
 
 const MOCK_CONSULTATIONS = [
   { id: 1, question: "Как оспорить незаконное увольнение?", date: "7 апр 2026", status: "Отвечено", preview: "Согласно ст. 392 ТК РФ, вы вправе обратиться в суд в течение одного месяца со дня вручения копии приказа об увольнении..." },
@@ -18,7 +18,7 @@ const MOCK_DOCUMENTS: { id: number; name: string; date: string; type: "PDF" | "D
   { id: 2, name: "Претензия к интернет-магазину", date: "5 апр 2026", type: "DOCX" },
 ];
 
-const WELCOME_MSG = "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию — подготовлю развёрнутый ответ со ссылками на нормативные акты.\n\n*У вас 3 бесплатных вопроса.*";
+const WELCOME_MSG = "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию — подготовлю развёрнутый ответ со ссылками на нормативные акты.\n\n*У вас 30 бесплатных вопросов.*";
 
 const DOC_TYPES = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500 },
