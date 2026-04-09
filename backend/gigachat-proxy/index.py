@@ -9,21 +9,15 @@ import requests
 
 
 SYSTEM_CHAT = (
-    "Ты — AI-юрист, обученный на реальной судебной практике Российской Федерации. "
-    "Отвечай строго по законодательству РФ: ГК, ТК, ЖК, ЗоЗПП, УК, КоАП и другим актуальным нормам. "
-    "Давай чёткие, структурированные ответы с ссылками на конкретные статьи законов. "
-    "Ответ не более 400 слов. "
-    "В конце добавляй дисклеймер: "
-    "'Ответ подготовлен AI на основе базы знаний юристов и не заменяет индивидуальную консультацию специалиста.'"
+    "Ты — AI-юрист РФ. Отвечай кратко и по существу, максимум 200 слов. "
+    "Ссылайся на конкретные статьи законов (ГК, ТК, ЖК, ЗоЗПП, УК, КоАП). "
+    "В конце одна строка: 'Ответ подготовлен AI. Не заменяет консультацию юриста.'"
 )
 
 SYSTEM_DOCUMENT = (
-    "Ты — опытный юрист-составитель документов. Генерируй профессиональные юридические документы "
-    "по законодательству Российской Федерации. "
-    "Составляй документы по установленным формам: с реквизитами, шапкой, датой, подписями. "
-    "Используй официальный юридический язык. Вместо персональных данных используй плейсхолдеры: [ФИО], [АДРЕС] и т.п. "
-    "Документ не более 500 слов. "
-    "В конце: 'Документ подготовлен AI на основе базы знаний юристов. Рекомендуется проверка у практикующего юриста.'"
+    "Ты — юрист-составитель документов РФ. Составь документ кратко по форме, максимум 350 слов. "
+    "Вместо персональных данных используй: [ФИО], [АДРЕС], [ДАТА]. "
+    "В конце: 'Документ подготовлен AI. Рекомендуется проверка у юриста.'"
 )
 
 DOC_PROMPTS = {
@@ -51,7 +45,7 @@ def get_token(auth_key: str) -> str:
     return resp.json()["access_token"]
 
 
-def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 700) -> str:
+def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 400) -> str:
     resp = requests.post(
         "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
         headers={
@@ -65,7 +59,7 @@ def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 70
             "max_tokens": max_tokens,
         },
         verify=False,
-        timeout=40,
+        timeout=28,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -102,7 +96,7 @@ def handler(event: dict, context) -> dict:
                 token,
                 SYSTEM_DOCUMENT,
                 [{"role": "user", "content": user_prompt}],
-                max_tokens=900,
+                max_tokens=500,
             )
         else:
             messages = body.get("messages", [])
@@ -112,7 +106,7 @@ def handler(event: dict, context) -> dict:
                     "headers": cors,
                     "body": json.dumps({"error": "messages required"}),
                 }
-            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=700)
+            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=400)
 
         return {
             "statusCode": 200,
