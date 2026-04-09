@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { getUser, addPaidService } from "@/lib/auth";
 import HeroSection from "@/components/HeroSection";
 import ServicesSection from "@/components/ServicesSection";
 import PricingSection from "@/components/PricingSection";
-import CabinetSection from "@/components/CabinetSection";
 import FooterSection from "@/components/FooterSection";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import LoginModal from "@/components/LoginModal";
@@ -25,8 +26,8 @@ const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
 };
 
 export default function Index() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("home");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
@@ -34,8 +35,11 @@ export default function Index() {
     name: "AI-консультация",
   });
 
+  const isLoggedIn = !!getUser();
+
   const handleNavigate = (section: string) => {
     setActiveSection(section);
+    if (section === "cabinet") { navigate("/cabinet"); return; }
     const el = document.getElementById(section === "home" ? "hero" : section);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -49,12 +53,9 @@ export default function Index() {
   };
 
   const handlePaymentSuccess = (svcType: ServiceType) => {
+    addPaidService(svcType);
     setShowPayment(false);
-    if (!isLoggedIn) {
-      setIsLoggedIn(true);
-    }
-    setTimeout(() => handleNavigate("cabinet"), 300);
-    void svcType;
+    navigate("/cabinet");
   };
 
   return (
@@ -83,11 +84,6 @@ export default function Index() {
         onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
       />
 
-      <CabinetSection
-        isLoggedIn={isLoggedIn}
-        onLogin={() => setShowLogin(true)}
-      />
-
       <FooterSection onNavigate={handleNavigate} />
 
       {showPayment && (
@@ -104,8 +100,7 @@ export default function Index() {
           onClose={() => setShowLogin(false)}
           onSuccess={() => {
             setShowLogin(false);
-            setIsLoggedIn(true);
-            handleNavigate("cabinet");
+            navigate("/cabinet");
           }}
         />
       )}

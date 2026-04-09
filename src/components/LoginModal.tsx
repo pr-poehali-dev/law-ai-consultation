@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { login } from "@/lib/auth";
 
 interface LoginModalProps {
   onClose: () => void;
@@ -17,9 +18,10 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
     if (!email || !password) return;
     setLoading(true);
     setTimeout(() => {
+      login(email, name || email.split("@")[0]);
       setLoading(false);
       onSuccess();
-    }, 1200);
+    }, 800);
   };
 
   return (
