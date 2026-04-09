@@ -1,5 +1,8 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import func2url from "../../backend/func2url.json";
+
+const GIGACHAT_URL = func2url["gigachat-proxy"];
 
 const MOCK_CONSULTATIONS = [
   {
@@ -31,12 +34,7 @@ const MOCK_DOCUMENTS = [
   { id: 3, name: "Договор аренды жилья", date: "2 апр 2026", type: "PDF" },
 ];
 
-const AI_RESPONSES = [
-  "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию, и я подготовлю развёрнутый ответ с ссылками на нормативные акты.",
-  "Согласно действующему законодательству РФ, в данной ситуации вы вправе... Рекомендую обратить внимание на статьи ГК РФ, регулирующие данные правоотношения. Ответ сгенерирован AI на основе базы знаний юристов.",
-  "По вашему вопросу существует устойчивая судебная практика. Суды, как правило, встают на сторону истца при наличии следующих доказательств... Ответ подготовлен AI на основе 50 000+ дел.",
-  "Для решения вашей проблемы я рекомендую следующий порядок действий: 1) Направьте досудебную претензию... 2) При отказе — обратитесь в Роспотребнадзор... 3) В случае игнорирования — подайте иск. Ответ сгенерирован AI на основе базы знаний юристов.",
-];
+const WELCOME_MSG = "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию — подготовлю развёрнутый ответ со ссылками на нормативные акты.";
 
 interface CabinetSectionProps {
   isLoggedIn: boolean;
@@ -46,23 +44,43 @@ interface CabinetSectionProps {
 export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionProps) {
   const [activeTab, setActiveTab] = useState<"chat" | "history" | "docs">("chat");
   const [chatMessages, setChatMessages] = useState([
-    { role: "ai", text: AI_RESPONSES[0] },
+    { role: "ai", text: WELCOME_MSG },
   ]);
+  const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [expandedConsult, setExpandedConsult] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const sendMessage = async () => {
+    if (!input.trim() || isTyping) return;
     const userMsg = input.trim();
     setInput("");
+    setError(null);
     setChatMessages((prev) => [...prev, { role: "user", text: userMsg }]);
     setIsTyping(true);
-    setTimeout(() => {
-      const response = AI_RESPONSES[Math.floor(Math.random() * (AI_RESPONSES.length - 1)) + 1];
-      setChatMessages((prev) => [...prev, { role: "ai", text: response }]);
+
+    const newHistory = [...chatHistory, { role: "user", content: userMsg }];
+    setChatHistory(newHistory);
+
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newHistory }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка сервера");
+      const aiText = data.answer as string;
+      setChatMessages((prev) => [...prev, { role: "ai", text: aiText }]);
+      setChatHistory((prev) => [...prev, { role: "assistant", content: aiText }]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Не удалось получить ответ";
+      setError(msg);
+      setChatMessages((prev) => [...prev, { role: "ai", text: "Извините, произошла ошибка при обращении к AI. Попробуйте ещё раз." }]);
+    } finally {
       setIsTyping(false);
-    }, 1800 + Math.random() * 1200);
+    }
   };
 
   const tabs = [
@@ -147,8 +165,10 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
               <div>
                 <div className="font-semibold text-navy-800 text-sm">AI-Юрист</div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-muted-foreground">Онлайн · Обучен реальными юристами</span>
+                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isTyping ? "bg-amber-400" : "bg-green-400"}`} />
+                  <span className="text-xs text-muted-foreground">
+                    {isTyping ? "Формирует ответ..." : "Онлайн · GigaChat · Обучен юристами"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -186,14 +206,20 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
               )}
             </div>
 
+            {error && (
+              <div className="mx-4 mb-0 mt-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                {error}
+              </div>
+            )}
             <div className="p-4 border-t border-border flex gap-3">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
                 placeholder="Задайте юридический вопрос..."
-                className="flex-1 bg-slate-50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-navy-400 transition-colors"
+                disabled={isTyping}
+                className="flex-1 bg-slate-50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
               />
               <button
                 onClick={sendMessage}

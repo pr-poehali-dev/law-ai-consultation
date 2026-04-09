@@ -1,0 +1,23 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Send legal question",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "messages": [
+          {"role": "user", "content": "Что такое исковая давность?"}
+        ]
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"answer": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
