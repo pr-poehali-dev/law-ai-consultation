@@ -1,5 +1,5 @@
 """
-AI-юрист на базе GigaChat API (Сбер).
+AI-юрист на базе GigaChat API (Сбер). v2
 mode: "chat" (консультация) | "document" (генерация документа)
 """
 import json
