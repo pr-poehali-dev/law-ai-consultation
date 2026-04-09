@@ -29,7 +29,7 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
           ? "py-3 glass-light shadow-lg shadow-navy-900/10"
-          : "py-5 bg-transparent"
+          : "py-5 bg-navy-900/30 backdrop-blur-sm"
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
@@ -38,14 +38,14 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
           onClick={() => onNavigate("home")}
           className="flex items-center gap-3 group"
         >
-          <div className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shadow-lg group-hover:shadow-navy-700/40 transition-all duration-300">
+          <div className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shadow-lg group-hover:shadow-navy-700/40 transition-all duration-300 border border-white/20">
             <Icon name="Scale" size={18} className="text-gold-400" />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="font-cormorant font-bold text-xl text-navy-700 tracking-tight">
+            <span className={`font-cormorant font-bold text-xl tracking-tight transition-colors ${scrolled ? "text-navy-700" : "text-white"}`}>
               Юрист<span className="text-gradient-gold"> AI</span>
             </span>
-            <span className="text-[10px] text-muted-foreground font-golos uppercase tracking-widest">
+            <span className={`text-[10px] font-golos uppercase tracking-widest transition-colors ${scrolled ? "text-muted-foreground" : "text-white/60"}`}>
               Правовая помощь
             </span>
           </div>
@@ -58,14 +58,18 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
-                activeSection === item.id
-                  ? "text-navy-700 bg-navy-50"
-                  : "text-navy-600 hover:text-navy-800 hover:bg-navy-50/60"
+                scrolled
+                  ? activeSection === item.id
+                    ? "text-navy-700 bg-navy-100"
+                    : "text-navy-600 hover:text-navy-800 hover:bg-navy-50"
+                  : activeSection === item.id
+                  ? "text-white bg-white/15"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
               }`}
             >
               {item.label}
               {activeSection === item.id && (
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-gold-500 rounded-full" />
+                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-gold-400 rounded-full" />
               )}
             </button>
           ))}
@@ -75,7 +79,7 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={onLoginClick}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-navy-700 hover:text-navy-900 transition-colors"
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${scrolled ? "text-navy-700 hover:text-navy-900" : "text-white/80 hover:text-white"}`}
           >
             <Icon name="User" size={16} />
             Войти
@@ -90,10 +94,10 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
 
         {/* Mobile burger */}
         <button
-          className="md:hidden p-2 rounded-lg hover:bg-navy-50 transition-colors"
+          className={`md:hidden p-2 rounded-lg transition-colors ${scrolled ? "hover:bg-navy-50" : "hover:bg-white/10"}`}
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          <Icon name={mobileOpen ? "X" : "Menu"} size={22} className="text-navy-700" />
+          <Icon name={mobileOpen ? "X" : "Menu"} size={22} className={scrolled ? "text-navy-700" : "text-white"} />
         </button>
       </div>
 
