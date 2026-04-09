@@ -6,10 +6,10 @@ import json
 import os
 import uuid
 import base64
+import warnings
 import requests
-import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings("ignore")
 
 
 SYSTEM_CHAT = (
@@ -38,23 +38,13 @@ DOC_PROMPTS = {
 
 def get_auth_header() -> str:
     """
-    Формирует правильный Base64 ключ для GigaChat.
-    В секрете GIGACHAT_AUTH_KEY может храниться:
-    1. Готовый Base64 ключ (скопирован кнопкой из кабинета Сбера) — используем как есть
-    2. Только Client ID (UUID вида xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) — кодируем ClientID:ClientSecret
-       Но тогда нужен и Client Secret — читаем из GIGACHAT_CLIENT_SECRET если есть
+    Формирует Base64(ClientID:ClientSecret) для GigaChat Basic Auth.
+    Читает CLIENT_ID и GIGACHAT_CLIENT_SECRET из секретов.
     """
-    raw = os.environ["GIGACHAT_AUTH_KEY"].strip()
-
-    # Если это UUID — значит передан только Client ID, нужно сформировать Base64
-    is_uuid = len(raw) == 36 and raw.count("-") == 4
-    if is_uuid:
-        client_secret = os.environ.get("GIGACHAT_CLIENT_SECRET", raw)
-        credentials = f"{raw}:{client_secret}"
-        return base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-
-    # Иначе — уже готовый Base64
-    return raw
+    client_id = os.environ["CLIENT_ID"].strip()
+    client_secret = os.environ["GIGACHAT_CLIENT_SECRET"].strip()
+    credentials = f"{client_id}:{client_secret}"
+    return base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
 
 
 def get_token() -> str:
