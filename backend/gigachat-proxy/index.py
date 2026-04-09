@@ -39,7 +39,7 @@ def get_token(auth_key: str) -> str:
         },
         data={"scope": "GIGACHAT_API_PERS"},
         verify=False,
-        timeout=10,
+        timeout=15,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
@@ -59,7 +59,7 @@ def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 40
             "max_tokens": max_tokens,
         },
         verify=False,
-        timeout=28,
+        timeout=100,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
