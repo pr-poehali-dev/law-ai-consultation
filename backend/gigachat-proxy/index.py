@@ -1,65 +1,51 @@
 """
-Прокси для AI-юриста — консультации и генерация юридических документов.
+AI-юрист на базе OpenAI GPT-4o-mini.
 mode: "chat" (консультация) | "document" (генерация документа)
 """
 import json
 import os
-import uuid
 import requests
 
 
 SYSTEM_CHAT = (
-    "Ты — AI-юрист РФ. Отвечай строго до 100 слов. "
-    "Укажи 1-2 статьи закона. "
-    "Последняя строка: 'Ответ подготовлен AI. Не заменяет консультацию юриста.'"
+    "Ты — профессиональный AI-юрист, специализирующийся на законодательстве Российской Федерации. "
+    "Отвечай чётко и структурированно, ссылайся на конкретные статьи законов (ГК РФ, ТК РФ, ЖК РФ, ЗоЗПП, УК РФ, КоАП РФ). "
+    "Давай практические рекомендации что делать в данной ситуации. "
+    "В конце каждого ответа добавляй: 'Ответ подготовлен AI на основе базы знаний юристов. Не заменяет индивидуальную консультацию специалиста.'"
 )
 
 SYSTEM_DOCUMENT = (
-    "Ты — юрист РФ. Составь документ строго до 200 слов по форме. "
-    "Вместо данных используй: [ФИО], [АДРЕС], [ДАТА]. "
-    "Последняя строка: 'Документ подготовлен AI. Рекомендуется проверка у юриста.'"
+    "Ты — профессиональный юрист-составитель документов по законодательству РФ. "
+    "Составляй документы строго по установленным правовым формам: с реквизитами, шапкой, основной частью, датой и строками для подписей. "
+    "Используй официальный юридический язык. Вместо персональных данных вставляй плейсхолдеры: [ФИО истца], [АДРЕС], [ДАТА], [СУММА] и т.п. "
+    "В конце документа добавляй: 'Документ подготовлен AI на основе базы знаний юристов. Рекомендуется проверка у практикующего юриста.'"
 )
 
 DOC_PROMPTS = {
-    "claim": "Составь исковое заявление в районный суд общей юрисдикции. Тема: {details}",
-    "complaint": "Составь жалобу в Роспотребнадзор. Тема: {details}",
-    "pretension": "Составь досудебную претензию. Тема: {details}",
-    "contract": "Составь договор гражданско-правового характера (ГПХ). Тема: {details}",
-    "business_contract": "Составь договор для бизнеса. Тема: {details}",
+    "claim": "Составь исковое заявление в районный суд общей юрисдикции по следующей ситуации: {details}",
+    "complaint": "Составь жалобу в Роспотребнадзор по следующей ситуации: {details}",
+    "pretension": "Составь досудебную претензию по следующей ситуации: {details}",
+    "contract": "Составь договор гражданско-правового характера (ГПХ) по следующей ситуации: {details}",
+    "business_contract": "Составь юридически грамотный договор для бизнеса по следующей ситуации: {details}",
 }
 
 
-def get_token(auth_key: str) -> str:
+def call_openai(system_prompt: str, messages: list, max_tokens: int = 800) -> str:
+    api_key = os.environ["OPENAI_API_KEY"]
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "system", "content": system_prompt}] + messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.7,
+    }
     resp = requests.post(
-        "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
+        "https://api.openai.com/v1/chat/completions",
         headers={
-            "Authorization": f"Basic {auth_key}",
-            "RqUID": str(uuid.uuid4()),
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        data={"scope": "GIGACHAT_API_PERS"},
-        verify=False,
-        timeout=15,
-    )
-    resp.raise_for_status()
-    return resp.json()["access_token"]
-
-
-def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 250) -> str:
-    resp = requests.post(
-        "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
-        json={
-            "model": "GigaChat",
-            "messages": [{"role": "system", "content": system_prompt}] + messages,
-            "temperature": 0.6,
-            "max_tokens": max_tokens,
-        },
-        verify=False,
-        timeout=55,
+        json=payload,
+        timeout=30,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -78,8 +64,6 @@ def handler(event: dict, context) -> dict:
     try:
         body = json.loads(event.get("body") or "{}")
         mode = body.get("mode", "chat")
-        auth_key = os.environ["GIGACHAT_AUTH_KEY"]
-        token = get_token(auth_key)
 
         if mode == "document":
             doc_type = body.get("doc_type", "claim")
@@ -88,15 +72,14 @@ def handler(event: dict, context) -> dict:
                 return {
                     "statusCode": 400,
                     "headers": cors,
-                    "body": json.dumps({"error": "details required for document mode"}),
+                    "body": json.dumps({"error": "details required"}),
                 }
             prompt_template = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"])
             user_prompt = prompt_template.format(details=details)
-            answer = call_ai(
-                token,
+            answer = call_openai(
                 SYSTEM_DOCUMENT,
                 [{"role": "user", "content": user_prompt}],
-                max_tokens=300,
+                max_tokens=1200,
             )
         else:
             messages = body.get("messages", [])
@@ -106,7 +89,7 @@ def handler(event: dict, context) -> dict:
                     "headers": cors,
                     "body": json.dumps({"error": "messages required"}),
                 }
-            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=250)
+            answer = call_openai(SYSTEM_CHAT, messages, max_tokens=800)
 
         return {
             "statusCode": 200,
@@ -116,10 +99,11 @@ def handler(event: dict, context) -> dict:
 
     except requests.HTTPError as e:
         code = e.response.status_code if e.response is not None else 0
+        msg = "Неверный API ключ" if code == 401 else f"Ошибка AI-сервиса: {code}"
         return {
             "statusCode": 502,
             "headers": cors,
-            "body": json.dumps({"error": f"Ошибка AI-сервиса: {code}"}),
+            "body": json.dumps({"error": msg}),
         }
     except Exception as e:
         return {
