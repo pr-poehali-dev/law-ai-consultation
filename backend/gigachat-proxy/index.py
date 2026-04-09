@@ -1,51 +1,94 @@
 """
-AI-юрист на базе OpenAI GPT-4o-mini.
+AI-юрист на базе GigaChat API (Сбер).
 mode: "chat" (консультация) | "document" (генерация документа)
 """
 import json
 import os
+import uuid
+import base64
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 SYSTEM_CHAT = (
     "Ты — профессиональный AI-юрист, специализирующийся на законодательстве Российской Федерации. "
     "Отвечай чётко и структурированно, ссылайся на конкретные статьи законов (ГК РФ, ТК РФ, ЖК РФ, ЗоЗПП, УК РФ, КоАП РФ). "
-    "Давай практические рекомендации что делать в данной ситуации. "
-    "В конце каждого ответа добавляй: 'Ответ подготовлен AI на основе базы знаний юристов. Не заменяет индивидуальную консультацию специалиста.'"
+    "Давай практические рекомендации. Ответ до 300 слов. "
+    "В конце: 'Ответ подготовлен AI на основе базы знаний юристов. Не заменяет консультацию специалиста.'"
 )
 
 SYSTEM_DOCUMENT = (
     "Ты — профессиональный юрист-составитель документов по законодательству РФ. "
-    "Составляй документы строго по установленным правовым формам: с реквизитами, шапкой, основной частью, датой и строками для подписей. "
-    "Используй официальный юридический язык. Вместо персональных данных вставляй плейсхолдеры: [ФИО истца], [АДРЕС], [ДАТА], [СУММА] и т.п. "
-    "В конце документа добавляй: 'Документ подготовлен AI на основе базы знаний юристов. Рекомендуется проверка у практикующего юриста.'"
+    "Составляй документы по установленным формам: реквизиты, шапка, основная часть, дата, подписи. "
+    "Вместо персональных данных используй: [ФИО], [АДРЕС], [ДАТА], [СУММА]. "
+    "Ответ до 400 слов. "
+    "В конце: 'Документ подготовлен AI. Рекомендуется проверка у практикующего юриста.'"
 )
 
 DOC_PROMPTS = {
-    "claim": "Составь исковое заявление в районный суд общей юрисдикции по следующей ситуации: {details}",
-    "complaint": "Составь жалобу в Роспотребнадзор по следующей ситуации: {details}",
-    "pretension": "Составь досудебную претензию по следующей ситуации: {details}",
-    "contract": "Составь договор гражданско-правового характера (ГПХ) по следующей ситуации: {details}",
-    "business_contract": "Составь юридически грамотный договор для бизнеса по следующей ситуации: {details}",
+    "claim": "Составь исковое заявление в районный суд по ситуации: {details}",
+    "complaint": "Составь жалобу в Роспотребнадзор по ситуации: {details}",
+    "pretension": "Составь досудебную претензию по ситуации: {details}",
+    "contract": "Составь договор ГПХ по ситуации: {details}",
+    "business_contract": "Составь договор для бизнеса по ситуации: {details}",
 }
 
 
-def call_openai(system_prompt: str, messages: list, max_tokens: int = 800) -> str:
-    api_key = os.environ["OPENAI_API_KEY"]
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [{"role": "system", "content": system_prompt}] + messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7,
-    }
+def get_auth_header() -> str:
+    """
+    Формирует правильный Base64 ключ для GigaChat.
+    В секрете GIGACHAT_AUTH_KEY может храниться:
+    1. Готовый Base64 ключ (скопирован кнопкой из кабинета Сбера) — используем как есть
+    2. Только Client ID (UUID вида xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) — кодируем ClientID:ClientSecret
+       Но тогда нужен и Client Secret — читаем из GIGACHAT_CLIENT_SECRET если есть
+    """
+    raw = os.environ["GIGACHAT_AUTH_KEY"].strip()
+
+    # Если это UUID — значит передан только Client ID, нужно сформировать Base64
+    is_uuid = len(raw) == 36 and raw.count("-") == 4
+    if is_uuid:
+        client_secret = os.environ.get("GIGACHAT_CLIENT_SECRET", raw)
+        credentials = f"{raw}:{client_secret}"
+        return base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+
+    # Иначе — уже готовый Base64
+    return raw
+
+
+def get_token() -> str:
+    auth_header = get_auth_header()
     resp = requests.post(
-        "https://api.openai.com/v1/chat/completions",
+        "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
         headers={
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Basic {auth_header}",
+            "RqUID": str(uuid.uuid4()),
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={"scope": "GIGACHAT_API_PERS"},
+        verify=False,
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return resp.json()["access_token"]
+
+
+def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+    resp = requests.post(
+        "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
-        json=payload,
-        timeout=30,
+        json={
+            "model": "GigaChat",
+            "messages": [{"role": "system", "content": system_prompt}] + messages,
+            "temperature": 0.7,
+            "max_tokens": max_tokens,
+        },
+        verify=False,
+        timeout=50,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -64,32 +107,20 @@ def handler(event: dict, context) -> dict:
     try:
         body = json.loads(event.get("body") or "{}")
         mode = body.get("mode", "chat")
+        token = get_token()
 
         if mode == "document":
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "")
             if not details:
-                return {
-                    "statusCode": 400,
-                    "headers": cors,
-                    "body": json.dumps({"error": "details required"}),
-                }
-            prompt_template = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"])
-            user_prompt = prompt_template.format(details=details)
-            answer = call_openai(
-                SYSTEM_DOCUMENT,
-                [{"role": "user", "content": user_prompt}],
-                max_tokens=1200,
-            )
+                return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "details required"})}
+            prompt = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"]).format(details=details)
+            answer = call_ai(token, SYSTEM_DOCUMENT, [{"role": "user", "content": prompt}], max_tokens=600)
         else:
             messages = body.get("messages", [])
             if not messages:
-                return {
-                    "statusCode": 400,
-                    "headers": cors,
-                    "body": json.dumps({"error": "messages required"}),
-                }
-            answer = call_openai(SYSTEM_CHAT, messages, max_tokens=800)
+                return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "messages required"})}
+            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=512)
 
         return {
             "statusCode": 200,
@@ -99,11 +130,14 @@ def handler(event: dict, context) -> dict:
 
     except requests.HTTPError as e:
         code = e.response.status_code if e.response is not None else 0
-        msg = "Неверный API ключ" if code == 401 else f"Ошибка AI-сервиса: {code}"
+        try:
+            detail = e.response.json()
+        except Exception:
+            detail = e.response.text[:300] if e.response else ""
         return {
             "statusCode": 502,
             "headers": cors,
-            "body": json.dumps({"error": msg}),
+            "body": json.dumps({"error": f"HTTP {code}: {detail}"}, ensure_ascii=False),
         }
     except Exception as e:
         return {
