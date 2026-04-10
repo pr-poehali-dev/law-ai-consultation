@@ -1,6 +1,7 @@
 """
-AI-юрист на базе GigaChat API (Сбер). v2
+AI-юрист на базе GigaChat (Сбер) и YandexGPT. v3
 mode: "chat" (консультация) | "document" (генерация документа)
+engine: "gigachat" (по умолчанию) | "yandex"
 """
 import json
 import os
@@ -34,22 +35,15 @@ DOC_PROMPTS = {
     "business_contract": "Составь договор для бизнеса по ситуации: {details}",
 }
 
-
-def get_auth_header() -> str:
-    """
-    Возвращает готовый Authorization key из секрета GIGACHAT_AUTH_KEY.
-    Это Base64-строка из кабинета Сбера (кнопка 'Скопировать ключ авторизации').
-    Используется напрямую в заголовке: Authorization: Basic <key>
-    """
-    return os.environ["GIGACHAT_AUTH_KEY"].strip()
+YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
 
 
-def get_token() -> str:
-    auth_header = get_auth_header()
+def get_gigachat_token() -> str:
+    auth_key = os.environ["GIGACHAT_AUTH_KEY"].strip()
     resp = requests.post(
         "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
         headers={
-            "Authorization": f"Basic {auth_header}",
+            "Authorization": f"Basic {auth_key}",
             "RqUID": str(uuid.uuid4()),
             "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -61,7 +55,8 @@ def get_token() -> str:
     return resp.json()["access_token"]
 
 
-def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+def call_gigachat(system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+    token = get_gigachat_token()
     resp = requests.post(
         "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
         headers={
@@ -81,7 +76,35 @@ def call_ai(token: str, system_prompt: str, messages: list, max_tokens: int = 51
     return resp.json()["choices"][0]["message"]["content"]
 
 
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+    yandex_messages = [{"role": "system", "text": system_prompt}]
+    for msg in messages:
+        role = "user" if msg.get("role") == "user" else "assistant"
+        yandex_messages.append({"role": role, "text": msg.get("content", "")})
+    resp = requests.post(
+        "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+        headers={
+            "Authorization": f"Api-Key {iam_token}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "modelUri": YANDEX_MODEL,
+            "completionOptions": {
+                "stream": False,
+                "temperature": 0.7,
+                "maxTokens": max_tokens,
+            },
+            "messages": yandex_messages,
+        },
+        timeout=50,
+    )
+    resp.raise_for_status()
+    return resp.json()["result"]["alternatives"][0]["message"]["text"]
+
+
 def handler(event: dict, context) -> dict:
+    """AI-юрист: поддерживает GigaChat и YandexGPT. Параметр engine: 'gigachat' | 'yandex'."""
     cors = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -94,7 +117,7 @@ def handler(event: dict, context) -> dict:
     try:
         body = json.loads(event.get("body") or "{}")
         mode = body.get("mode", "chat")
-        token = get_token()
+        engine = body.get("engine", "yandex")
 
         if mode == "document":
             doc_type = body.get("doc_type", "claim")
@@ -102,12 +125,20 @@ def handler(event: dict, context) -> dict:
             if not details:
                 return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "details required"})}
             prompt = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"]).format(details=details)
-            answer = call_ai(token, SYSTEM_DOCUMENT, [{"role": "user", "content": prompt}], max_tokens=600)
+            user_messages = [{"role": "user", "content": prompt}]
+            system = SYSTEM_DOCUMENT
+            max_tokens = 600
         else:
-            messages = body.get("messages", [])
-            if not messages:
+            user_messages = body.get("messages", [])
+            if not user_messages:
                 return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "messages required"})}
-            answer = call_ai(token, SYSTEM_CHAT, messages, max_tokens=512)
+            system = SYSTEM_CHAT
+            max_tokens = 512
+
+        if engine == "yandex":
+            answer = call_yandex(system, user_messages, max_tokens)
+        else:
+            answer = call_gigachat(system, user_messages, max_tokens)
 
         return {
             "statusCode": 200,
