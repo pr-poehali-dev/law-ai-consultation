@@ -27,8 +27,18 @@ export default function Cabinet() {
   const [tab, setTab] = useState<"chat" | "docs" | "history" | "profile">("chat");
 
   // Chat
-  const [messages, setMessages] = useState<ChatMsg[]>([{ role: "ai", text: WELCOME }]);
-  const [history, setHistory] = useState<{ role: string; content: string }[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>(() => {
+    try {
+      const saved = localStorage.getItem("cabinet_messages");
+      return saved ? JSON.parse(saved) : [{ role: "ai", text: WELCOME }];
+    } catch { return [{ role: "ai", text: WELCOME }]; }
+  });
+  const [history, setHistory] = useState<{ role: string; content: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("cabinet_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [chatErr, setChatErr] = useState("");
@@ -37,7 +47,12 @@ export default function Cabinet() {
   // Docs
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [docDetails, setDocDetails] = useState("");
-  const [genDocs, setGenDocs] = useState<{ id: number; name: string; content: string; date: string }[]>([]);
+  const [genDocs, setGenDocs] = useState<{ id: number; name: string; content: string; date: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("cabinet_docs");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [docErr, setDocErr] = useState("");
   const [viewDoc, setViewDoc] = useState<null | { name: string; content: string }>(null);
@@ -55,6 +70,18 @@ export default function Cabinet() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
+
+  useEffect(() => {
+    localStorage.setItem("cabinet_messages", JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem("cabinet_history", JSON.stringify(history));
+  }, [history]);
+
+  useEffect(() => {
+    localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
+  }, [genDocs]);
 
   const refreshUser = () => setUser(getUser());
 
