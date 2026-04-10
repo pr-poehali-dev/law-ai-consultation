@@ -1,5 +1,5 @@
 """
-AI-юрист на базе GigaChat (Сбер) и YandexGPT. v3
+AI-юрист на базе GigaChat (Сбер) и YandexGPT. v4
 mode: "chat" (консультация) | "document" (генерация документа)
 engine: "gigachat" (по умолчанию) | "yandex"
 """
