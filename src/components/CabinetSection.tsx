@@ -2,6 +2,8 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import { saveAs } from "file-saver";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
@@ -110,6 +112,23 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const downloadDocx = async (name: string, content: string) => {
+    const lines = content.split("\n");
+    const paragraphs = lines.map((line) =>
+      line.trim() === ""
+        ? new Paragraph({ text: "" })
+        : new Paragraph({ children: [new TextRun({ text: line, size: 24, font: "Times New Roman" })] })
+    );
+    const doc = new Document({
+      sections: [{ children: [
+        new Paragraph({ text: name, heading: HeadingLevel.HEADING_1, spacing: { after: 300 } }),
+        ...paragraphs,
+      ]}],
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${name}.docx`);
   };
 
   const handleGenerateDoc = async (dtId: string) => {
@@ -392,18 +411,11 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
                     <span className="font-semibold text-navy-800">{docType.label} — готов!</span>
                   </div>
                   <button
-                    onClick={() => {
-                      const blob = new Blob([generatedDoc], { type: "text/plain;charset=utf-8" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `${docType.label}.txt`;
-                      a.click();
-                    }}
+                    onClick={() => downloadDocx(docType.label, generatedDoc)}
                     className="flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 font-medium px-3 py-1.5 rounded-xl hover:bg-navy-50 transition-colors"
                   >
                     <Icon name="Download" size={15} />
-                    Скачать
+                    Скачать .docx
                   </button>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-4 text-sm text-navy-700 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto scrollbar-hide font-mono text-xs">
@@ -429,20 +441,11 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
                         </div>
                       </div>
                       <button
-                        onClick={() => {
-                          if (doc.content) {
-                            const blob = new Blob([doc.content], { type: "text/plain;charset=utf-8" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `${doc.name}.txt`;
-                            a.click();
-                          }
-                        }}
+                        onClick={() => doc.content && downloadDocx(doc.name, doc.content)}
                         className="flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 font-medium transition-colors px-3 py-1.5 rounded-lg hover:bg-navy-50"
                       >
                         <Icon name="Download" size={15} />
-                        Скачать
+                        Скачать .docx
                       </button>
                     </div>
                   ))}

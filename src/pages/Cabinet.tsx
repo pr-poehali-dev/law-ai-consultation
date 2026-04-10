@@ -4,6 +4,8 @@ import Icon from "@/components/ui/icon";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import { getUser, logout, addPaidService, consumeQuestion, canAskQuestion, getFreeLeft, type User } from "@/lib/auth";
 import func2url from "../../backend/func2url.json";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import { saveAs } from "file-saver";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
@@ -138,12 +140,27 @@ export default function Cabinet() {
     setPayment({ type: dt.serviceType, name: dt.label });
   };
 
-  const downloadDoc = (name: string, content: string) => {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${name}.txt`; a.click();
-    URL.revokeObjectURL(url);
+  const downloadDoc = async (name: string, content: string) => {
+    const lines = content.split("\n");
+    const paragraphs = lines.map((line) =>
+      line.trim() === ""
+        ? new Paragraph({ text: "" })
+        : new Paragraph({
+            children: [new TextRun({ text: line, size: 24, font: "Times New Roman" })],
+          })
+    );
+    const doc = new Document({
+      sections: [{ children: [
+        new Paragraph({
+          text: name,
+          heading: HeadingLevel.HEADING_1,
+          spacing: { after: 300 },
+        }),
+        ...paragraphs,
+      ]}],
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${name}.docx`);
   };
 
   if (!user) return null;
@@ -382,28 +399,10 @@ export default function Cabinet() {
             {/* Right — result / list */}
             <div className="space-y-4">
               {viewDoc && (
-                <div className="bg-white rounded-3xl border border-emerald-200 shadow-sm overflow-hidden">
-                  <div className="p-4 border-b border-emerald-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon name="CheckCircle" size={16} className="text-emerald-500" />
-                      <span className="font-medium text-navy-800 text-sm">{viewDoc.name}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => downloadDoc(viewDoc.name, viewDoc.content)}
-                        className="flex items-center gap-1.5 text-xs text-navy-600 hover:text-navy-800 font-medium px-3 py-1.5 rounded-xl hover:bg-navy-50 transition-colors"
-                      >
-                        <Icon name="Download" size={13} />
-                        Скачать
-                      </button>
-                      <button onClick={() => setViewDoc(null)} className="text-muted-foreground hover:text-navy-700 p-1.5 rounded-xl hover:bg-slate-100">
-                        <Icon name="X" size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4 max-h-80 overflow-y-auto scrollbar-hide">
-                    <pre className="text-xs text-navy-700 leading-relaxed whitespace-pre-wrap font-mono">{viewDoc.content}</pre>
-                  </div>
+                <div className="bg-emerald-50 rounded-3xl border border-emerald-200 p-4 flex items-center gap-3">
+                  <Icon name="CheckCircle" size={18} className="text-emerald-500 shrink-0" />
+                  <span className="text-sm font-medium text-navy-800 flex-1">{viewDoc.name} — готов</span>
+                  <button onClick={() => setViewDoc(viewDoc)} className="text-xs text-navy-600 hover:text-navy-800 px-3 py-1.5 rounded-xl hover:bg-white transition-colors font-medium">Открыть</button>
                 </div>
               )}
 
@@ -568,6 +567,34 @@ export default function Cabinet() {
           onClose={() => { setPayment(null); setPendingDocId(null); }}
           onSuccess={handlePaySuccess}
         />
+      )}
+
+      {viewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewDoc(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Icon name="FileText" size={18} className="text-navy-600" />
+                <span className="font-semibold text-navy-800">{viewDoc.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => downloadDoc(viewDoc.name, viewDoc.content)}
+                  className="flex items-center gap-1.5 text-sm text-navy-600 hover:text-navy-800 font-medium px-3 py-1.5 rounded-xl hover:bg-navy-50 transition-colors"
+                >
+                  <Icon name="Download" size={15} />
+                  Скачать .docx
+                </button>
+                <button onClick={() => setViewDoc(null)} className="p-1.5 rounded-xl hover:bg-slate-100 text-muted-foreground hover:text-navy-700">
+                  <Icon name="X" size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <pre className="text-sm text-navy-700 leading-relaxed whitespace-pre-wrap font-sans">{viewDoc.content}</pre>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
