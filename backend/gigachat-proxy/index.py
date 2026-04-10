@@ -49,7 +49,7 @@ def get_gigachat_token() -> str:
         },
         data={"scope": "GIGACHAT_API_PERS"},
         verify=False,
-        timeout=15,
+        timeout=10,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
@@ -70,7 +70,7 @@ def call_gigachat(system_prompt: str, messages: list, max_tokens: int = 512) -> 
             "max_tokens": max_tokens,
         },
         verify=False,
-        timeout=50,
+        timeout=20,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -97,7 +97,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> st
             },
             "messages": yandex_messages,
         },
-        timeout=50,
+        timeout=20,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
@@ -127,7 +127,7 @@ def handler(event: dict, context) -> dict:
             prompt = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"]).format(details=details)
             user_messages = [{"role": "user", "content": prompt}]
             system = SYSTEM_DOCUMENT
-            max_tokens = 600
+            max_tokens = 800
         else:
             user_messages = body.get("messages", [])
             if not user_messages:
