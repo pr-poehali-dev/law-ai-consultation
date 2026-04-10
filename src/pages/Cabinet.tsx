@@ -367,14 +367,14 @@ export default function Cabinet() {
               )}
 
               <button
-                onClick={() => requestDoc(docType)}
+                onClick={() => generateDoc(docType.id)}
                 disabled={generatingDoc || !docDetails.trim()}
                 className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {generatingDoc ? (
                   <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
                 ) : (
-                  <><Icon name="Zap" size={16} />Создать за {docType.price} ₽</>
+                  <><Icon name="Zap" size={16} />Создать бесплатно</>
                 )}
               </button>
             </div>

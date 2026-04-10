@@ -364,7 +364,7 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
               )}
 
               <button
-                onClick={() => requestDocPayment(docType)}
+                onClick={() => handleGenerateDoc(docType.id)}
                 disabled={generatingDoc || !docDetails.trim()}
                 className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
               >
@@ -377,7 +377,7 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
                 ) : (
                   <>
                     <Icon name="Zap" size={16} />
-                    Создать {docType.label} — {docType.price} ₽
+                    Создать бесплатно
                   </>
                 )}
               </button>
