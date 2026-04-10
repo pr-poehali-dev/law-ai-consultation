@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 interface FooterSectionProps {
@@ -5,6 +6,7 @@ interface FooterSectionProps {
 }
 
 export default function FooterSection({ onNavigate }: FooterSectionProps) {
+  const navigate = useNavigate();
   return (
     <footer className="gradient-navy text-white">
       <div className="container mx-auto px-4 py-16">
@@ -93,12 +95,16 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
             <p className="text-white/35 text-xs text-center md:text-left max-w-2xl leading-relaxed">
               © 2026 Юрист AI. Информация на сайте носит справочный характер и не является юридической офертой. AI не заменяет живого юриста. По сложным делам рекомендуем консультацию у специалиста.
             </p>
-            <div className="flex items-center gap-5 shrink-0">
-              {["Политика конфиденциальности", "Пользовательское соглашение"].map((link) => (
-                <button key={link} className="text-white/40 text-xs hover:text-white/70 transition-colors whitespace-nowrap">
-                  {link}
-                </button>
-              ))}
+            <div className="flex items-center gap-5 shrink-0 flex-wrap justify-center md:justify-end">
+              <button onClick={() => navigate("/privacy")} className="text-white/40 text-xs hover:text-white/70 transition-colors whitespace-nowrap">
+                Политика конфиденциальности
+              </button>
+              <button onClick={() => navigate("/terms")} className="text-white/40 text-xs hover:text-white/70 transition-colors whitespace-nowrap">
+                Пользовательское соглашение
+              </button>
+              <button onClick={() => navigate("/offer")} className="text-white/40 text-xs hover:text-white/70 transition-colors whitespace-nowrap">
+                Публичная оферта
+              </button>
             </div>
           </div>
         </div>

@@ -228,7 +228,10 @@ export default function PaymentModal({ serviceType, serviceName, onClose, onSucc
             </button>
 
             <p className="text-center text-xs text-muted-foreground mt-3">
-              Нажимая «Оплатить», вы соглашаетесь с условиями оферты
+              Нажимая «Оплатить», вы соглашаетесь с{" "}
+              <a href="/offer" target="_blank" className="underline hover:text-navy-700 transition-colors">публичной офертой</a>
+              {" "}и{" "}
+              <a href="/privacy" target="_blank" className="underline hover:text-navy-700 transition-colors">политикой конфиденциальности</a>
             </p>
           </div>
         )}
