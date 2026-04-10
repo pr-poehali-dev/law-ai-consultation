@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { getUser, addPaidService } from "@/lib/auth";
@@ -35,7 +35,8 @@ export default function Index() {
     name: "AI-консультация",
   });
 
-  const isLoggedIn = !!getUser();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  useEffect(() => { getUser().then((u) => setIsLoggedIn(!!u)); }, []);
 
   const handleNavigate = (section: string) => {
     setActiveSection(section);
@@ -52,8 +53,8 @@ export default function Index() {
     setShowPayment(true);
   };
 
-  const handlePaymentSuccess = (svcType: ServiceType) => {
-    addPaidService(svcType);
+  const handlePaymentSuccess = async (svcType: ServiceType) => {
+    await addPaidService(svcType);
     setShowPayment(false);
     navigate("/cabinet");
   };

@@ -62,9 +62,10 @@ export default function Cabinet() {
   const [pendingDocId, setPendingDocId] = useState<string | null>(null);
 
   useEffect(() => {
-    const u = getUser();
-    if (!u) { navigate("/"); return; }
-    setUser(u);
+    getUser().then((u) => {
+      if (!u) { navigate("/"); return; }
+      setUser(u);
+    });
   }, [navigate]);
 
   useEffect(() => {
@@ -83,13 +84,14 @@ export default function Cabinet() {
     localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
   }, [genDocs]);
 
-  const refreshUser = () => setUser(getUser());
+  const refreshUser = () => getUser().then((u) => { if (u) setUser(u); });
 
   const sendMessage = async () => {
     if (!input.trim() || typing) return;
     const userMsg = input.trim();
 
-    if (!canAskQuestion()) {
+    const canAsk = await canAskQuestion();
+    if (!canAsk) {
       setMessages((p) => [...p, {
         role: "ai",
         text: "⚠️ Вы использовали все бесплатные вопросы. Оплатите консультацию — 100 ₽ за 3 вопроса.",
@@ -105,7 +107,7 @@ export default function Cabinet() {
 
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
-    consumeQuestion();
+    await consumeQuestion();
     refreshUser();
 
     try {
@@ -151,8 +153,8 @@ export default function Cabinet() {
     }
   };
 
-  const handlePaySuccess = (svcType: ServiceType) => {
-    addPaidService(svcType);
+  const handlePaySuccess = async (svcType: ServiceType) => {
+    await addPaidService(svcType);
     refreshUser();
     setPayment(null);
     if (pendingDocId) {
@@ -192,7 +194,7 @@ export default function Cabinet() {
 
   if (!user) return null;
 
-  const freeLeft = getFreeLeft();
+  const freeLeft = getFreeLeft(user);
   const totalLeft = freeLeft + (user.paidQuestions ?? 0);
 
   return (
@@ -242,7 +244,7 @@ export default function Cabinet() {
               {user.name?.[0] ?? "U"}
             </div>
             <button
-              onClick={() => { logout(); navigate("/"); }}
+              onClick={async () => { await logout(); navigate("/"); }}
               className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-navy-700 transition-colors"
             >
               <Icon name="LogOut" size={14} />
@@ -577,7 +579,7 @@ export default function Cabinet() {
             </div>
 
             <button
-              onClick={() => { logout(); navigate("/"); }}
+              onClick={async () => { await logout(); navigate("/"); }}
               className="w-full py-3 rounded-2xl border border-border text-muted-foreground hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all text-sm font-medium flex items-center justify-center gap-2"
             >
               <Icon name="LogOut" size={15} />

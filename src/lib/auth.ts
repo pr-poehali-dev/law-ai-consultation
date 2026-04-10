@@ -1,4 +1,10 @@
+import func2url from "../../backend/func2url.json";
+
+const API_URL = func2url["gigachat-proxy"];
+const TOKEN_KEY = "yurist_ai_token";
+
 export interface User {
+  id: number;
   email: string;
   name: string;
   freeQuestionsUsed: number;
@@ -8,75 +14,92 @@ export interface User {
   paidBusiness: number;
 }
 
-const KEY = "yurist_ai_user";
+export function getToken(): string {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
 
-export function getUser(): User | null {
+function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+async function apiCall(body: object): Promise<Response> {
+  const token = getToken();
+  return fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "X-Auth-Token": token } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function sendOtp(email: string): Promise<{ error?: string }> {
+  const res = await apiCall({ action: "send-otp", email });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка отправки кода" };
+  return {};
+}
+
+export async function verifyOtp(
+  email: string,
+  code: string,
+  name?: string
+): Promise<{ user?: User; error?: string }> {
+  const res = await apiCall({ action: "verify-otp", email, code, name });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Неверный код" };
+  setToken(data.token);
+  return { user: data.user };
+}
+
+export async function getUser(): Promise<User | null> {
+  const token = getToken();
+  if (!token) return null;
   try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
+    const res = await apiCall({ action: "me" });
+    if (!res.ok) {
+      clearToken();
+      return null;
+    }
+    const data = await res.json();
+    return data.user || null;
   } catch {
     return null;
   }
 }
 
-export function saveUser(user: User): void {
-  localStorage.setItem(KEY, JSON.stringify(user));
+export async function logout(): Promise<void> {
+  await apiCall({ action: "logout" });
+  clearToken();
 }
 
-export function login(email: string, name: string): User {
-  const existing = getUser();
-  if (existing && existing.email === email) return existing;
-  const user: User = {
-    email,
-    name: name || email.split("@")[0],
-    freeQuestionsUsed: 0,
-    paidQuestions: 0,
-    paidDocs: 0,
-    paidExpert: false,
-    paidBusiness: 0,
-  };
-  saveUser(user);
-  return user;
+export async function updateProfile(name: string): Promise<User | null> {
+  const res = await apiCall({ action: "update-profile", name });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.user || null;
 }
 
-export function logout(): void {
-  localStorage.removeItem(KEY);
+export async function consumeQuestion(): Promise<boolean> {
+  const res = await apiCall({ action: "consume-question" });
+  return res.ok;
 }
 
-export function addPaidService(serviceType: string): void {
-  const user = getUser();
-  if (!user) return;
-  if (serviceType === "consultation") user.paidQuestions += 3;
-  if (serviceType === "document") user.paidDocs += 1;
-  if (serviceType === "expert") user.paidExpert = true;
-  if (serviceType === "business") user.paidBusiness += 1;
-  saveUser(user);
-}
-
-export function consumeQuestion(): boolean {
-  const user = getUser();
-  if (!user) return false;
-  if (user.freeQuestionsUsed < 30) {
-    user.freeQuestionsUsed += 1;
-    saveUser(user);
-    return true;
-  }
-  if (user.paidQuestions > 0) {
-    user.paidQuestions -= 1;
-    saveUser(user);
-    return true;
-  }
-  return false;
-}
-
-export function canAskQuestion(): boolean {
-  const user = getUser();
+export async function canAskQuestion(): Promise<boolean> {
+  const user = await getUser();
   if (!user) return false;
   return user.freeQuestionsUsed < 30 || user.paidQuestions > 0;
 }
 
-export function getFreeLeft(): number {
-  const user = getUser();
-  if (!user) return 30;
+export async function addPaidService(serviceType: string): Promise<void> {
+  await apiCall({ action: "add-paid-service", service_type: serviceType });
+}
+
+export function getFreeLeft(user: User): number {
   return Math.max(0, 30 - user.freeQuestionsUsed);
 }

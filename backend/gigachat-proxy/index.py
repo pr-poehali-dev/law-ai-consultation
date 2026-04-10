@@ -1,16 +1,22 @@
 """
-AI-юрист на базе GigaChat (Сбер) и YandexGPT. v4
-mode: "chat" (консультация) | "document" (генерация документа)
-engine: "gigachat" (по умолчанию) | "yandex"
+Единый API: AI-юрист (GigaChat/YandexGPT) + авторизация через OTP.
+mode: "chat" | "document"
+auth paths: /send-otp, /verify-otp, /me, /logout, /update-profile, /consume-question, /add-paid-service
 """
 import json
 import os
 import uuid
 import warnings
 import requests
+import psycopg2
+
+from auth_handler import (
+    handle_send_otp, handle_verify_otp, handle_me,
+    handle_logout, handle_update_profile,
+    handle_consume_question, handle_add_paid_service,
+)
 
 warnings.filterwarnings("ignore")
-
 
 SYSTEM_CHAT = (
     "Ты — профессиональный AI-юрист, специализирующийся на законодательстве Российской Федерации. "
@@ -36,6 +42,12 @@ DOC_PROMPTS = {
 }
 
 YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
+
+CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token",
+}
 
 
 def get_gigachat_token() -> str:
@@ -104,18 +116,50 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> st
 
 
 def handler(event: dict, context) -> dict:
-    """AI-юрист: поддерживает GigaChat и YandexGPT. Параметр engine: 'gigachat' | 'yandex'."""
-    cors = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+    """Единый API: AI-юрист + авторизация (OTP по email)."""
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": CORS, "body": ""}
+
+    method = event.get("httpMethod", "POST")
+    headers = event.get("headers") or {}
+    token = headers.get("X-Auth-Token") or headers.get("x-auth-token", "")
+
+    body = {}
+    if event.get("body"):
+        try:
+            body = json.loads(event["body"])
+        except Exception:
+            pass
+
+    # --- Auth actions via body.action ---
+    action = body.get("action", "")
+    auth_actions = {
+        "send-otp": lambda: handle_send_otp(body),
+        "verify-otp": lambda: handle_verify_otp(body),
+        "me": lambda: handle_me(token),
+        "logout": lambda: handle_logout(token),
+        "update-profile": lambda: handle_update_profile(token, body),
+        "consume-question": lambda: handle_consume_question(token),
+        "add-paid-service": lambda: handle_add_paid_service(token, body),
     }
 
-    if event.get("httpMethod") == "OPTIONS":
-        return {"statusCode": 200, "headers": cors, "body": ""}
+    if action in auth_actions:
+        result = auth_actions[action]()
+        status = result.get("status", 200)
+        if "error" in result:
+            return {
+                "statusCode": status,
+                "headers": {**CORS, "Content-Type": "application/json"},
+                "body": json.dumps({"error": result["error"]}, ensure_ascii=False),
+            }
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps(result.get("data", {}), ensure_ascii=False),
+        }
 
+    # --- AI chat / document ---
     try:
-        body = json.loads(event.get("body") or "{}")
         mode = body.get("mode", "chat")
         engine = body.get("engine", "yandex")
 
@@ -123,7 +167,7 @@ def handler(event: dict, context) -> dict:
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "")
             if not details:
-                return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "details required"})}
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
             prompt = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"]).format(details=details)
             user_messages = [{"role": "user", "content": prompt}]
             system = SYSTEM_DOCUMENT
@@ -131,7 +175,7 @@ def handler(event: dict, context) -> dict:
         else:
             user_messages = body.get("messages", [])
             if not user_messages:
-                return {"statusCode": 400, "headers": cors, "body": json.dumps({"error": "messages required"})}
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
             system = SYSTEM_CHAT
             max_tokens = 512
 
@@ -142,7 +186,7 @@ def handler(event: dict, context) -> dict:
 
         return {
             "statusCode": 200,
-            "headers": {**cors, "Content-Type": "application/json"},
+            "headers": {**CORS, "Content-Type": "application/json"},
             "body": json.dumps({"answer": answer}, ensure_ascii=False),
         }
 
@@ -154,12 +198,12 @@ def handler(event: dict, context) -> dict:
             detail = e.response.text[:300] if e.response else ""
         return {
             "statusCode": 502,
-            "headers": cors,
+            "headers": CORS,
             "body": json.dumps({"error": f"HTTP {code}: {detail}"}, ensure_ascii=False),
         }
     except Exception as e:
         return {
             "statusCode": 500,
-            "headers": cors,
+            "headers": CORS,
             "body": json.dumps({"error": str(e)}),
         }
