@@ -174,7 +174,7 @@ REFUSAL_MARKERS = [
 
 # URI модели: берём из переменной окружения (можно менять без деплоя),
 # либо используем YandexGPT по умолчанию.
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest")
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
 
 # ───────────────────────────────────────────────
 # СИСТЕМНЫЙ ПРОМПТ — АНАЛИЗ ДОКУМЕНТА
@@ -257,24 +257,36 @@ def extract_docx_text(data: bytes) -> str:
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:12000]
 
 
-def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    user_content = f"Вопрос пользователя: {comment}\n\n" if comment else ""
-    user_content += f"Содержимое документа:\n\n{text[:10000]}"
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3) -> str:
+    """Вызов через OpenAI-совместимый API Яндекса (нужен для DeepSeek и др. сторонних моделей)."""
+    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     resp = requests.post(
-        "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+        "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
         json={
-            "modelUri": YANDEX_MODEL,
-            "completionOptions": {"stream": False, "temperature": 0.2, "maxTokens": 2000},
-            "messages": [
-                {"role": "system", "text": SYSTEM_FILE_ANALYZE},
-                {"role": "user", "text": user_content},
-            ],
+            "model": YANDEX_MODEL,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
         },
         timeout=60,
     )
     resp.raise_for_status()
-    return resp.json()["result"]["alternatives"][0]["message"]["text"]
+    return resp.json()["choices"][0]["message"]["content"]
+
+
+def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
+    user_content = f"Вопрос пользователя: {comment}\n\n" if comment else ""
+    user_content += f"Содержимое документа:\n\n{text[:10000]}"
+    return _call_openai_compat(
+        messages=[
+            {"role": "system", "content": SYSTEM_FILE_ANALYZE},
+            {"role": "user", "content": user_content},
+        ],
+        max_tokens=2000,
+        temperature=0.2,
+    )
 
 
 CORS = {
@@ -289,23 +301,15 @@ def is_refusal(text: str) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-def _call_yandex_raw(system_prompt: str, yandex_messages: list, max_tokens: int) -> str:
-    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-    resp = requests.post(
-        "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
-        json={
-            "modelUri": YANDEX_MODEL,
-            "completionOptions": {"stream": False, "temperature": 0.3, "maxTokens": max_tokens},
-            "messages": [{"role": "system", "text": system_prompt}] + yandex_messages,
-        },
-        timeout=60,
-    )
-    resp.raise_for_status()
-    return resp.json()["result"]["alternatives"][0]["message"]["text"]
+def _call_yandex_raw(system_prompt: str, messages: list, max_tokens: int) -> str:
+    openai_messages = [{"role": "system", "content": system_prompt}] + [
+        {"role": m.get("role", "user"), "content": m.get("text", m.get("content", ""))}
+        for m in messages
+    ]
+    return _call_openai_compat(openai_messages, max_tokens)
 
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 600) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1000) -> str:
     yandex_messages = [
         {"role": "user" if m.get("role") == "user" else "assistant", "text": m.get("content", "")}
         for m in messages
