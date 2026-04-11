@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; }
 
 interface ChatTabProps {
   user: User;
@@ -17,6 +17,7 @@ interface ChatTabProps {
   onInputChange: (v: string) => void;
   onSend: () => void;
   onSendFile: () => void;
+  onContinueChat: (partialText: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAttachClick: () => void;
   onClearFile: () => void;
@@ -181,6 +182,7 @@ export default function ChatTab({
   onInputChange,
   onSend,
   onSendFile,
+  onContinueChat,
   onFileSelect,
   onAttachClick,
   onClearFile,
@@ -283,6 +285,16 @@ export default function ChatTab({
                     >
                       <Icon name="FileText" size={14} />
                       Перейти в раздел «Документы»
+                    </button>
+                  )}
+                  {/* Кнопка «Читать дальше» при обрыве ответа */}
+                  {msg.truncated && i === lastAiIdx && !typing && (
+                    <button
+                      onClick={() => onContinueChat(msg.text)}
+                      className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl transition-all w-full justify-center"
+                    >
+                      <Icon name="ChevronDown" size={14} />
+                      Читать дальше
                     </button>
                   )}
                 </div>

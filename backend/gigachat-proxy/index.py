@@ -5,11 +5,13 @@ auth actions: register, login, me, logout, update-profile, consume-question, add
 """
 import json
 import os
+import re
 import warnings
 import requests
 import base64
 import io
 import time
+import threading
 import boto3
 from datetime import date
 
@@ -179,7 +181,7 @@ SYSTEM_DOC_BY_TYPE = {
 6. Приложение (нумерованный список документов)
 7. Дата и подпись справа
 
-Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: минимум 600 слов.""",
+Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: 400–600 слов.""",
 
     "pretension": f"""Ты — юрист по договорному и претензионному праву. Составь досудебную претензию строго по данным пользователя. Дата: {TODAY}.
 
@@ -197,7 +199,7 @@ SYSTEM_DOC_BY_TYPE = {
 9. Приложение (перечень прилагаемых документов)
 10. Дата и подпись справа
 
-Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: минимум 500 слов.""",
+Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: 350–550 слов.""",
 
     "complaint": f"""Ты — юрист по гражданскому, арбитражному и административному процессу. Составь жалобу строго по данным пользователя. Тип жалобы определяет пользователь. Дата: {TODAY}.
 
@@ -207,7 +209,7 @@ SYSTEM_DOC_BY_TYPE = {
 
 Для апелляционной/кассационной жалобы: шапка — в [суд апелляционной/кассационной инстанции]; заявитель с процессуальным статусом; доводы незаконности (нарушение норм материального/процессуального права); ПРОШУ — отменить решение.
 
-Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: минимум 500 слов.""",
+Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: 350–550 слов.""",
 
     "contract": f"""Ты — юрист по договорному праву с опытом в сфере гражданско-правовых отношений. Составь договор ГПХ строго по данным пользователя. Тип договора определяет пользователь (подряд, возмездное оказание услуг, авторский заказ и т.д.). Дата: {TODAY}.
 
@@ -229,7 +231,7 @@ SYSTEM_DOC_BY_TYPE = {
 
 ВАЖНО: договор ГПХ не должен содержать признаков трудового договора (нет должности, нет штатного расписания, нет социальных гарантий). Результат — конкретный, овеществлённый. Акт приёма-передачи — обязательное приложение.
 
-Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: минимум 700 слов.""",
+Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: 500–700 слов.""",
 
     "business_contract": f"""Ты — корпоративный юрист с опытом сопровождения B2B-сделок. Составь договор для бизнеса строго по данным пользователя. Тип договора определяет пользователь (поставка, подряд, аренда, услуги, комиссия, агентский, лизинг, займ и т.д.). Дата: {TODAY}.
 
@@ -252,7 +254,7 @@ SYSTEM_DOC_BY_TYPE = {
 
 ВАЖНО: чёткое определение предмета (без «иные услуги»); претензионный порядок обязателен; подсудность — арбитражный суд; договор считается заключённым с момента подписания.
 
-Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: минимум 800 слов.""",
+Неизвестные реквизиты — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. Запрещены [...] и ___. Объём: 600–800 слов.""",
 }
 
 # ───────────────────────────────────────────────
@@ -359,7 +361,7 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
             "temperature": temperature,
             "stream": False,
         },
-        timeout=90,
+        timeout=180,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -477,7 +479,6 @@ def handler(event: dict, context) -> dict:
 
         # ── Генерация документа из описания пользователя ──
         if mode == "doc_generate":
-            import re
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "").strip()
             if not details:
@@ -498,7 +499,7 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2200)
             # Определяем обрыв: заканчивается без подписи/реквизитов
             truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
@@ -507,7 +508,6 @@ def handler(event: dict, context) -> dict:
 
         # ── Продолжение обрезанного документа ──
         elif mode == "doc_continue":
-            import re
             doc_type = body.get("doc_type", "claim")
             partial = body.get("partial", "").strip()
             if not partial:
@@ -554,7 +554,6 @@ def handler(event: dict, context) -> dict:
             # Сохраняем в S3; очистку старых файлов запускаем в фоне (не блокирует ответ)
             s3 = get_s3()
             s3_key = save_temp_file(s3, file_data, filename, content_type)
-            import threading
             threading.Thread(target=cleanup_temp_files, args=(s3,), daemon=True).start()
 
             # Извлекаем текст
@@ -580,22 +579,39 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"deleted": len(deleted), "keys": deleted}, ensure_ascii=False)}
 
+        # ── Продолжение обрезанного ответа в чате ──
+        elif mode == "chat_continue":
+            messages = body.get("messages", [])
+            partial = body.get("partial", "").strip()
+            if not partial:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "partial required"})}
+            # Добавляем в историю частичный ответ и просим продолжить
+            cont_messages = list(messages) + [
+                {"role": "assistant", "content": partial},
+                {"role": "user", "content": "Продолжи ответ с того места, где остановился. Не повторяй уже написанное."},
+            ]
+            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=1200)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": answer}, ensure_ascii=False)}
+
         # ── Обычный чат-консультация ──
         else:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
             answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=1800)
+            # Эвристика обрыва: ответ заканчивается не на знак препинания/раздел
+            truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
 
-    except requests.HTTPError as e:
-        code = e.response.status_code if e.response is not None else 0
-        try:
-            detail = e.response.json()
-        except Exception:
-            detail = e.response.text[:300] if e.response else ""
-        return {"statusCode": 502, "headers": CORS,
-                "body": json.dumps({"error": f"HTTP {code}: {detail}"}, ensure_ascii=False)}
     except Exception as e:
+        if hasattr(e, "response") and e.response is not None:
+            code = e.response.status_code
+            try:
+                detail = e.response.json()
+            except Exception:
+                detail = e.response.text[:300]
+            return {"statusCode": 502, "headers": CORS,
+                    "body": json.dumps({"error": f"HTTP {code}: {detail}"}, ensure_ascii=False)}
         return {"statusCode": 500, "headers": CORS, "body": json.dumps({"error": str(e)})}

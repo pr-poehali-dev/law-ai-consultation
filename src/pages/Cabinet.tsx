@@ -136,13 +136,47 @@ export default function Cabinet() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       const aiText = data.answer as string;
-      setMessages((p) => [...p, { role: "ai", text: aiText }]);
+      const truncated = data.truncated as boolean | undefined;
+      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
     } finally {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      setTyping(false);
+      setTypingStatus("");
+    }
+  };
+
+  const continueChat = async (partialText: string) => {
+    if (typing) return;
+    setTyping(true);
+    setTypingStatus("Продолжаю ответ...");
+    // Снимаем флаг truncated с последнего сообщения
+    setMessages((p) => p.map((m, i) => i === p.length - 1 ? { ...m, truncated: false } : m));
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "chat_continue", messages: history, partial: partialText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка");
+      const continuation = data.answer as string;
+      const merged = partialText + "\n\n" + continuation;
+      setMessages((p) => p.map((m, i) =>
+        i === p.length - 1 ? { ...m, text: merged, truncated: false } : m
+      ));
+      setHistory((p) => {
+        const prev = [...p];
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant") prev[prev.length - 1] = { ...last, content: merged };
+        return prev;
+      });
+    } catch (e) {
+      setChatErr(e instanceof Error ? e.message : "Ошибка продолжения");
+    } finally {
       setTyping(false);
       setTypingStatus("");
     }
@@ -442,6 +476,7 @@ export default function Cabinet() {
             onInputChange={setInput}
             onSend={sendMessage}
             onSendFile={sendFileAnalysis}
+            onContinueChat={continueChat}
             onFileSelect={handleFileSelect}
             onAttachClick={() => fileInputRef.current?.click()}
             onClearFile={() => setAttachedFile(null)}
