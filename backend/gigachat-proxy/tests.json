@@ -7,12 +7,12 @@
       "expectedStatus": 200
     },
     {
-      "name": "register — missing name",
+      "name": "register — missing email",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "name": "", "email": "test@example.com", "phone": "+79991234567", "password": "secret123", "agreed_to_terms": true},
+      "body": {"action": "register", "email": "notanemail", "password": "secret123", "agreed_to_terms": true},
       "expectedStatus": 400,
-      "expectedBody": {"error": "Введите имя"},
+      "expectedBody": {"error": "Некорректный email"},
       "bodyMatcher": "partial"
     },
     {

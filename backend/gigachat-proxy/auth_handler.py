@@ -424,43 +424,25 @@ def handle_verify_otp(body: dict) -> dict:
 
 
 def handle_register(body: dict) -> dict:
-    name = sanitize_str(body.get("name") or "")
+    """Регистрация: обязательны только email и пароль. ФИО и телефон — опционально."""
+    name = sanitize_str(body.get("name") or "Пользователь")
     email = sanitize_str(body.get("email") or "").lower()
     phone = sanitize_str(body.get("phone") or "")
     password = body.get("password") or ""
     agreed = body.get("agreed_to_terms", False)
-    otp_code = sanitize_str(body.get("otp_code") or "")
 
-    if not name:
-        return _err(400, "Введите имя")
     if not email or "@" not in email or len(email) > 254:
         return _err(400, "Некорректный email")
-    if not phone or len(phone) < 7:
-        return _err(400, "Введите корректный телефон")
     if len(password) < 6:
         return _err(400, "Пароль должен быть не менее 6 символов")
     if len(password) > 128:
         return _err(400, "Пароль слишком длинный")
     if not agreed:
         return _err(400, "Необходимо согласие на обработку персональных данных")
-    if not otp_code:
-        return _err(400, "Введите код подтверждения из письма")
 
-    # Проверяем OTP
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute(
-            f"""SELECT id FROM {SCHEMA}.otp_codes
-                WHERE email = %s AND code = %s AND used = FALSE AND expires_at > NOW()
-                ORDER BY created_at DESC LIMIT 1""",
-            (email, otp_code)
-        )
-        otp_row = cur.fetchone()
-        if not otp_row:
-            return _err(400, "Неверный или истёкший код подтверждения. Запросите новый.")
-        otp_id = otp_row[0]
-
         run_cleanup(conn)
         cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
         if cur.fetchone():
@@ -475,9 +457,6 @@ def handle_register(body: dict) -> dict:
             (email, name, phone, pw_hash, agreed, is_admin)
         )
         user_id = cur.fetchone()[0]
-
-        # Помечаем OTP как использованный
-        cur.execute(f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE id = %s", (otp_id,))
 
         token = generate_token()
         cur.execute(
