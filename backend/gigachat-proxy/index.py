@@ -1,5 +1,5 @@
 """
-Единый API: AI-юрист (YandexGPT) + авторизация.
+Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
@@ -172,7 +172,9 @@ REFUSAL_MARKERS = [
     "не предназначен для",
 ]
 
-YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
+# URI модели: берём из переменной окружения (можно менять без деплоя),
+# либо используем YandexGPT по умолчанию.
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest")
 
 # ───────────────────────────────────────────────
 # СИСТЕМНЫЙ ПРОМПТ — АНАЛИЗ ДОКУМЕНТА
@@ -257,19 +259,19 @@ def extract_docx_text(data: bytes) -> str:
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     user_content = f"Вопрос пользователя: {comment}\n\n" if comment else ""
-    user_content += f"Содержимое документа:\n\n{text[:8000]}"
+    user_content += f"Содержимое документа:\n\n{text[:10000]}"
     resp = requests.post(
         "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
         headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
         json={
             "modelUri": YANDEX_MODEL,
-            "completionOptions": {"stream": False, "temperature": 0.3, "maxTokens": 1200},
+            "completionOptions": {"stream": False, "temperature": 0.2, "maxTokens": 2000},
             "messages": [
                 {"role": "system", "text": SYSTEM_FILE_ANALYZE},
                 {"role": "user", "text": user_content},
             ],
         },
-        timeout=55,
+        timeout=60,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
@@ -294,10 +296,10 @@ def _call_yandex_raw(system_prompt: str, yandex_messages: list, max_tokens: int)
         headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
         json={
             "modelUri": YANDEX_MODEL,
-            "completionOptions": {"stream": False, "temperature": 0.4, "maxTokens": max_tokens},
+            "completionOptions": {"stream": False, "temperature": 0.3, "maxTokens": max_tokens},
             "messages": [{"role": "system", "text": system_prompt}] + yandex_messages,
         },
-        timeout=55,
+        timeout=60,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
@@ -322,7 +324,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 600) -> st
 
 
 def handler(event: dict, context) -> dict:
-    """AI-юрист (YandexGPT) + авторизация. Режимы: chat, doc_chat, doc_generate."""
+    """AI-юрист (DeepSeek V3) + авторизация. Режимы: chat, doc_chat, doc_generate."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -388,7 +390,7 @@ def handler(event: dict, context) -> dict:
                 f"{{{{ИНН}}}}, {{{{СУММА}}}}, {{{{ДАТА}}}}. "
                 f"Метки должны быть чёткими и понятными — пользователь заполнит их вручную."
             )
-            answer = call_yandex(SYSTEM_DOC_GENERATE, [{"role": "user", "content": prompt}], max_tokens=1500)
+            answer = call_yandex(SYSTEM_DOC_GENERATE, [{"role": "user", "content": prompt}], max_tokens=2500)
             # Извлекаем все метки {{...}} для передачи на фронт
             import re
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
@@ -452,7 +454,7 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=700)
+            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=1000)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
