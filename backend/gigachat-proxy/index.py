@@ -17,46 +17,58 @@ from auth_handler import (
 warnings.filterwarnings("ignore")
 
 SYSTEM_CHAT = (
-    "Ты — профессиональный AI-юрист, специализирующийся на законодательстве Российской Федерации. "
-    "Отвечай чётко и структурированно, ссылайся на конкретные статьи законов (ГК РФ, ТК РФ, ЖК РФ, ЗоЗПП, УК РФ, КоАП РФ). "
-    "Давай практические рекомендации. Ответ до 300 слов. "
-    "В конце: 'Ответ подготовлен AI на основе базы знаний юристов. Не заменяет консультацию специалиста.'"
+    "Ты — информационный ассистент, который помогает разобраться в нормах законодательства РФ. "
+    "Твоя задача — объяснять, какие законы и статьи регулируют описанную ситуацию, "
+    "и какие действия предусмотрены по закону. "
+    "Ссылайся на конкретные статьи (ГК РФ, ТК РФ, ЖК РФ, ЗоЗПП, УК РФ, КоАП РФ). "
+    "Отвечай структурированно, до 300 слов. "
+    "В конце добавь: 'Информация носит справочный характер. Для решения конкретной ситуации рекомендуется консультация специалиста.'"
 )
 
 SYSTEM_DOCUMENT = (
-    "Ты — профессиональный юрист-составитель документов по законодательству Российской Федерации. "
-    "Составляй юридические документы строго по установленным формам: "
-    "шапка с реквизитами сторон, основная часть со ссылками на нормы закона, дата, место для подписей. "
-    "ОБЯЗАТЕЛЬНО используй все переданные реквизиты сторон (ФИО, адреса, ИНН, названия организаций и т.д.) — "
-    "вставляй их непосредственно в текст документа, не заменяй заглушками вроде [ФИО] или [АДРЕС]. "
-    "Если реквизит не указан — оставь пустое поле для заполнения: ___________. "
-    "Объём документа — 400–700 слов. "
-    "В конце: 'Документ подготовлен AI-юристом. Рекомендуется проверка у практикующего юриста.'"
+    "Ты — ассистент по подготовке типовых текстовых документов в соответствии с законодательством РФ. "
+    "Формируй документ по структуре: шапка с реквизитами сторон, основная часть, дата, строки для подписей. "
+    "Все переданные реквизиты (ФИО, адреса, ИНН, названия, суммы, даты) вставляй непосредственно в текст — "
+    "никаких заглушек [ФИО] или [АДРЕС]. "
+    "Незаполненные поля обозначай: ___________. "
+    "Объём — 400–700 слов. "
+    "В конце: 'Документ сформирован автоматически. Рекомендуется проверка у специалиста.'"
 )
+
+# Фразы-признаки отказа YandexGPT
+REFUSAL_MARKERS = [
+    "не могу обсуждать",
+    "не могу помочь",
+    "не в состоянии",
+    "давайте поговорим о чём",
+    "предлагаю сменить тему",
+    "не буду обсуждать",
+    "нет возможности",
+]
 
 DOC_PROMPTS = {
     "claim": (
-        "Составь исковое заявление в районный суд.\n"
+        "Сформируй текст искового заявления в районный суд.\n"
         "Реквизиты сторон:\n{requisites}\n"
         "Обстоятельства дела: {details}"
     ),
     "complaint": (
-        "Составь жалобу в Роспотребнадзор.\n"
+        "Сформируй текст жалобы в Роспотребнадзор.\n"
         "Реквизиты заявителя и ответчика:\n{requisites}\n"
         "Обстоятельства: {details}"
     ),
     "pretension": (
-        "Составь досудебную претензию.\n"
+        "Сформируй текст досудебной претензии.\n"
         "Реквизиты сторон:\n{requisites}\n"
         "Обстоятельства и требования: {details}"
     ),
     "contract": (
-        "Составь договор гражданско-правового характера (ГПХ).\n"
+        "Сформируй текст договора ГПХ.\n"
         "Реквизиты сторон:\n{requisites}\n"
-        "Предмет и условия договора: {details}"
+        "Предмет и условия: {details}"
     ),
     "business_contract": (
-        "Составь коммерческий договор.\n"
+        "Сформируй текст коммерческого договора.\n"
         "Реквизиты сторон:\n{requisites}\n"
         "Предмет и условия сделки: {details}"
     ),
@@ -71,12 +83,13 @@ CORS = {
 }
 
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+def is_refusal(text: str) -> bool:
+    low = text.lower()
+    return any(m in low for m in REFUSAL_MARKERS)
+
+
+def _call_yandex_raw(system_prompt: str, yandex_messages: list, max_tokens: int) -> str:
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-    yandex_messages = [{"role": "system", "text": system_prompt}]
-    for msg in messages:
-        role = "user" if msg.get("role") == "user" else "assistant"
-        yandex_messages.append({"role": role, "text": msg.get("content", "")})
     resp = requests.post(
         "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
         headers={
@@ -85,17 +98,36 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> st
         },
         json={
             "modelUri": YANDEX_MODEL,
-            "completionOptions": {
-                "stream": False,
-                "temperature": 0.5,
-                "maxTokens": max_tokens,
-            },
-            "messages": yandex_messages,
+            "completionOptions": {"stream": False, "temperature": 0.4, "maxTokens": max_tokens},
+            "messages": [{"role": "system", "text": system_prompt}] + yandex_messages,
         },
         timeout=25,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
+
+
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 512) -> str:
+    yandex_messages = []
+    for msg in messages:
+        role = "user" if msg.get("role") == "user" else "assistant"
+        yandex_messages.append({"role": role, "text": msg.get("content", "")})
+
+    answer = _call_yandex_raw(system_prompt, yandex_messages, max_tokens)
+
+    # Если модель отказала — повторяем с переформулировкой последнего сообщения
+    if is_refusal(answer) and yandex_messages:
+        last = yandex_messages[-1]["text"]
+        rephrased = yandex_messages[:-1] + [{
+            "role": "user",
+            "text": (
+                f"Пожалуйста, объясни в общих чертах, какие нормы законодательства РФ "
+                f"применяются в следующей ситуации (только факты и статьи, без оценок): {last}"
+            )
+        }]
+        answer = _call_yandex_raw(system_prompt, rephrased, max_tokens)
+
+    return answer
 
 
 def handler(event: dict, context) -> dict:
