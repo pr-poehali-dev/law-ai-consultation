@@ -9,6 +9,7 @@ interface ChatTabProps {
   messages: ChatMsg[];
   input: string;
   typing: boolean;
+  typingStatus?: string;
   chatErr: string;
   attachedFile: { name: string; b64: string; size: string } | null;
   fileUploading: boolean;
@@ -25,83 +26,94 @@ interface ChatTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
-/** Рендер markdown-подобного текста юридического ответа */
+// ─── Рендер юридического текста ───────────────────────────────────
 function LegalText({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
-  let i = 0;
+  const paragraphs = text.split(/\n{2,}/);
 
-  while (i < lines.length) {
-    const line = lines[i];
+  return (
+    <div className="space-y-3 font-golos">
+      {paragraphs.map((para, pi) => {
+        const lines = para.split("\n").filter(Boolean);
+        if (!lines.length) return null;
 
-    // Пустая строка — разрыв
-    if (!line.trim()) { elements.push(<div key={i} className="h-2" />); i++; continue; }
+        // Нумерованный раздел: "1. ПРАВОВАЯ КВАЛИФИКАЦИЯ"
+        const sectionMatch = lines[0].match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s/]{3,})(.*)/);
+        if (sectionMatch) {
+          return (
+            <div key={pi} className="mt-4 first:mt-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-5 h-5 rounded-md bg-navy-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {sectionMatch[1]}
+                </span>
+                <span className="text-[12px] font-bold text-navy-700 uppercase tracking-wider">
+                  {sectionMatch[2]}{sectionMatch[3]}
+                </span>
+              </div>
+              {lines.slice(1).map((l, li) => (
+                <p key={li} className="text-[13.5px] text-navy-700 leading-[1.8] pl-7">
+                  {renderInline(l)}
+                </p>
+              ))}
+            </div>
+          );
+        }
 
-    // Заголовки разделов (нумерованные или CAPS)
-    const sectionMatch = line.match(/^(\d+)\.\s+([А-ЯA-Z\s/]{4,})(.*)/);
-    if (sectionMatch) {
-      elements.push(
-        <div key={i} className="flex items-start gap-2.5 mt-4 first:mt-0">
-          <div className="w-6 h-6 rounded-lg bg-navy-700 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-            {sectionMatch[1]}
+        // Bullet / список
+        if (lines.every(l => /^[-•·–]\s/.test(l))) {
+          return (
+            <ul key={pi} className="space-y-1.5 pl-1">
+              {lines.map((l, li) => (
+                <li key={li} className="flex items-start gap-2 text-[13.5px] text-navy-700 leading-[1.8]">
+                  <span className="text-gold-500 font-bold mt-0.5 shrink-0 text-base leading-none">·</span>
+                  <span>{renderInline(l.replace(/^[-•·–]\s/, ""))}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        // Строка со ссылкой на статью — выделяем блоком
+        if (lines.length === 1 && /ст\.\s*\d+|статья\s+\d+/i.test(lines[0]) && lines[0].length < 150) {
+          return (
+            <div key={pi} className="flex items-start gap-2 bg-navy-50 border-l-2 border-navy-300 rounded-r-xl px-3 py-2">
+              <Icon name="BookOpen" size={13} className="text-navy-400 mt-0.5 shrink-0" />
+              <p className="text-[12.5px] text-navy-600 font-medium leading-relaxed">{renderInline(lines[0])}</p>
+            </div>
+          );
+        }
+
+        // Обычный абзац
+        return (
+          <div key={pi} className="space-y-1">
+            {lines.map((l, li) => (
+              <p key={li} className="text-[13.5px] text-navy-700 leading-[1.8]">{renderInline(l)}</p>
+            ))}
           </div>
-          <p className="font-semibold text-navy-800 text-[13.5px] leading-5 tracking-wide uppercase">
-            {sectionMatch[2]}{sectionMatch[3]}
-          </p>
-        </div>
-      );
-      i++; continue;
-    }
-
-    // Пункты с тире или bullet
-    if (/^[-•–]\s/.test(line)) {
-      elements.push(
-        <div key={i} className="flex items-start gap-2 ml-2">
-          <span className="text-gold-500 font-bold mt-1 shrink-0">·</span>
-          <p className="text-[13px] text-navy-700 leading-relaxed">{renderInline(line.replace(/^[-•–]\s/, ""))}</p>
-        </div>
-      );
-      i++; continue;
-    }
-
-    // Ссылки на статьи (жирным)
-    if (/ст\.\s*\d+|статья\s+\d+/i.test(line) && line.length < 120) {
-      elements.push(
-        <p key={i} className="text-[13px] text-navy-600 leading-relaxed font-medium bg-navy-50/60 rounded-lg px-3 py-1.5 border-l-2 border-navy-200">
-          {renderInline(line)}
-        </p>
-      );
-      i++; continue;
-    }
-
-    // Обычный абзац
-    elements.push(
-      <p key={i} className="text-[13.5px] text-navy-700 leading-[1.75] tracking-wide">
-        {renderInline(line)}
-      </p>
-    );
-    i++;
-  }
-
-  return <div className="space-y-1.5 font-golos">{elements}</div>;
+        );
+      })}
+    </div>
+  );
 }
 
-/** Выделяем **жирное**, ст. XXX, номера статей */
 function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*|статьи?\s+\d+[\w.-]*)/gi);
+  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*(?:\s*ГК|ТК|СК|НК|КоАП|АПК|ГПК|КАС|УК)?(?:\s*РФ)?|статьи?\s+\d+[\w.-]*)/gi);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={i} className="font-semibold text-navy-800">{part.slice(2, -2)}</strong>;
     }
-    if (/^(ст\.|статьи?)/i.test(part)) {
-      return <span key={i} className="font-semibold text-navy-700 bg-gold-400/15 px-1 rounded">{part}</span>;
+    if (/^(ст\.|статьи?)\s*\d+/i.test(part)) {
+      return (
+        <span key={i} className="font-semibold text-navy-700 bg-gold-400/20 px-1 py-0.5 rounded text-[12.5px]">
+          {part}
+        </span>
+      );
     }
     return part;
   });
 }
 
-/** Плавный typewriter — посимвольно, но с переменной скоростью */
-function AnimatedMessage({ text, animate, onDone }: { text: string; animate: boolean; onDone?: () => void }) {
+// ─── Плавный typewriter ───────────────────────────────────────────
+function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
   const [displayed, setDisplayed] = useState(animate ? "" : text);
   const [done, setDone] = useState(!animate);
 
@@ -110,34 +122,58 @@ function AnimatedMessage({ text, animate, onDone }: { text: string; animate: boo
     setDisplayed("");
     setDone(false);
     let i = 0;
-    // Переменная скорость: быстрее в середине, медленнее в начале/конце
     const tick = () => {
-      if (i >= text.length) { setDone(true); onDone?.(); return; }
-      const chunk = Math.min(3, text.length - i);
-      i += chunk;
+      if (i >= text.length) { setDone(true); return; }
+      i += Math.min(5, text.length - i);
       setDisplayed(text.slice(0, i));
-      setTimeout(tick, 18);
+      setTimeout(tick, 16);
     };
-    const t = setTimeout(tick, 120); // небольшая задержка перед стартом
+    const t = setTimeout(tick, 80);
     return () => clearTimeout(t);
-  }, [text, animate, onDone]);
+  }, [text, animate]);
 
   if (done) return <LegalText text={text} />;
+
   return (
-    <div className="space-y-1.5 font-golos">
-      <p className="text-[13.5px] text-navy-700 leading-[1.75] whitespace-pre-wrap">
+    <div className="font-golos">
+      <p className="text-[13.5px] text-navy-700 leading-[1.8] whitespace-pre-wrap">
         {displayed}
-        <span className="inline-block w-0.5 h-4 bg-gold-500 ml-0.5 animate-pulse align-middle" />
+        <span className="inline-block w-0.5 h-4 bg-gold-500 ml-0.5 animate-pulse align-middle rounded-full" />
       </p>
     </div>
   );
 }
 
+// ─── Анимированный статус "AI думает" ────────────────────────────
+function TypingIndicator({ status }: { status: string }) {
+  return (
+    <div className="flex gap-3 items-start animate-fade-in">
+      <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+        <Icon name="Scale" size={15} className="text-gold-400" />
+      </div>
+      <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-5 py-3.5 shadow-sm min-w-[220px]">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1">
+            <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+            <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+            <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+          </div>
+          <span className="text-[12px] text-muted-foreground italic transition-all duration-500">
+            {status || "анализирует..."}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Главный компонент ────────────────────────────────────────────
 export default function ChatTab({
   user,
   messages,
   input,
   typing,
+  typingStatus,
   chatErr,
   attachedFile,
   fileUploading,
@@ -164,7 +200,6 @@ export default function ChatTab({
   }, [lastAiIdx]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Авторесайз textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -175,7 +210,7 @@ export default function ChatTab({
   return (
     <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
 
-      {/* ── Шапка статуса ── */}
+      {/* Шапка статуса */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2.5">
           <div className="relative">
@@ -187,7 +222,7 @@ export default function ChatTab({
           <div>
             <p className="text-xs font-semibold text-navy-800">AI-юрист</p>
             <p className="text-[11px] text-muted-foreground">
-              {typing ? "Анализирует ситуацию..." : "Онлайн · законодательство РФ"}
+              {typing && typingStatus ? typingStatus : typing ? "Анализирует запрос..." : "Онлайн · законодательство РФ"}
             </p>
           </div>
         </div>
@@ -207,9 +242,8 @@ export default function ChatTab({
         </div>
       </div>
 
-      {/* ── Лента сообщений ── */}
+      {/* Лента сообщений */}
       <div className="flex-1 overflow-y-auto rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-5 space-y-5 scrollbar-hide">
-
         {messages.map((msg, i) => {
           const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
           const doAnimate = msg.role === "ai" && !typing && shouldAnimate(i);
@@ -219,11 +253,11 @@ export default function ChatTab({
               <div key={i} className="flex gap-3 justify-end items-end animate-fade-in">
                 <div className="max-w-[75%]">
                   <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap font-golos">{msg.text}</p>
+                    <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap font-golos">{msg.text}</p>
                   </div>
                   {msg.isFile && (
                     <p className="text-[11px] text-muted-foreground mt-1 text-right flex items-center justify-end gap-1">
-                      <Icon name="Paperclip" size={10} />докум��нт приложен
+                      <Icon name="Paperclip" size={10} />документ приложен
                     </p>
                   )}
                 </div>
@@ -234,7 +268,6 @@ export default function ChatTab({
             );
           }
 
-          // AI message
           return (
             <div key={i} className="flex gap-3 items-start animate-fade-in">
               <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -253,30 +286,13 @@ export default function ChatTab({
                     </button>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground/60 mt-1.5 ml-1">AI-юрист</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-1 ml-1">AI-юрист</p>
               </div>
             </div>
           );
         })}
 
-        {/* Typing indicator */}
-        {typing && (
-          <div className="flex gap-3 items-start animate-fade-in">
-            <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <Icon name="Scale" size={15} className="text-gold-400" />
-            </div>
-            <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
-                  <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-                  <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
-                </div>
-                <span className="text-xs text-muted-foreground italic">анализирует законодательство...</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {typing && <TypingIndicator status={typingStatus || ""} />}
         <div ref={chatEndRef} />
       </div>
 
@@ -295,7 +311,7 @@ export default function ChatTab({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-navy-800 truncate">{attachedFile.name}</p>
-            <p className="text-[11px] text-muted-foreground">{attachedFile.size} · удалится че��ез 30 мин</p>
+            <p className="text-[11px] text-muted-foreground">{attachedFile.size} · удалится через 30 мин</p>
           </div>
           <button onClick={onClearFile} className="text-muted-foreground hover:text-red-500 transition-colors p-1">
             <Icon name="X" size={14} />
@@ -303,7 +319,7 @@ export default function ChatTab({
         </div>
       )}
 
-      {/* ── Поле ввода ── */}
+      {/* Поле ввода */}
       <div className="mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
         <div className="flex items-end gap-2 px-3 py-2.5">
           <input
@@ -337,11 +353,11 @@ export default function ChatTab({
             }}
             disabled={typing}
             placeholder={
-              attachedFile ? "Задайте вопрос к докуме��ту или отправьте без вопроса..." :
+              attachedFile ? "Задайте вопрос к документу или отправьте без вопроса..." :
               (user.isAdmin || totalLeft > 0) ? "Опишите вашу ситуацию или задайте вопрос..." :
-              "Оп��атите консультацию — 100 ₽ за 3 вопроса"
+              "Оплатите консультацию — 100 ₽ за 3 вопроса"
             }
-            className="flex-1 bg-transparent text-sm text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
+            className="flex-1 bg-transparent text-[13.5px] text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
             style={{ minHeight: "36px", maxHeight: "140px" }}
           />
           <button
@@ -353,12 +369,8 @@ export default function ChatTab({
           </button>
         </div>
         <div className="px-4 pb-2 flex items-center justify-between">
-          <p className="text-[10.5px] text-muted-foreground/70">
-            Enter — отправить · Shift+Enter — новая строка
-          </p>
-          <p className="text-[10.5px] text-muted-foreground/70">
-            Ответы носят информационный характер
-          </p>
+          <p className="text-[10.5px] text-muted-foreground/60">Enter — отправить · Shift+Enter — новая строка</p>
+          <p className="text-[10.5px] text-muted-foreground/60">Ответы носят информационный характер</p>
         </div>
       </div>
     </div>

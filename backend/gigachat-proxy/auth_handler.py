@@ -331,15 +331,29 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     msg["From"] = smtp_from
     msg["To"] = to_email
 
+    last_err = None
+    # Попытка 1: SSL 465
     try:
         with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
             server.login(smtp_from, smtp_pass)
             server.sendmail(smtp_from, [to_email], msg.as_string())
-    except Exception:
+        return  # успех
+    except Exception as e:
+        last_err = f"SSL-465: {e}"
+
+    # Попытка 2: STARTTLS 587
+    try:
         with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(smtp_from, smtp_pass)
             server.sendmail(smtp_from, [to_email], msg.as_string())
+        return  # успех
+    except Exception as e:
+        last_err = f"{last_err} | STARTTLS-587: {e}"
+
+    raise RuntimeError(f"Не удалось отправить письмо: {last_err}")
 
 
 def handle_send_otp(body: dict) -> dict:

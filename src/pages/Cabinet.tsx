@@ -34,6 +34,7 @@ export default function Cabinet() {
   });
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [typingStatus, setTypingStatus] = useState("");
   const [chatErr, setChatErr] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,11 +102,17 @@ export default function Cabinet() {
     setChatErr("");
     setMessages((p) => [...p, { role: "user", text: userMsg }]);
     setTyping(true);
+    setTypingStatus("Анализирую запрос...");
 
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
     await consumeQuestion();
-    refreshUser(); // fire-and-forget — счётчик обновится в фоне
+    refreshUser();
+
+    // Сменяем статусы по таймеру для живости
+    const t1 = setTimeout(() => setTypingStatus("Изучаю судебную практику..."), 3000);
+    const t2 = setTimeout(() => setTypingStatus("Подбираю нормы законодательства..."), 7000);
+    const t3 = setTimeout(() => setTypingStatus("Формирую ответ..."), 12000);
 
     try {
       const res = await fetch(GIGACHAT_URL, {
@@ -122,7 +129,9 @@ export default function Cabinet() {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
     } finally {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
+      setTypingStatus("");
     }
   };
 
@@ -170,8 +179,14 @@ export default function Cabinet() {
       isFile: true,
     } as ChatMsg]);
     setTyping(true);
+    setTypingStatus("Читаю документ...");
     await consumeQuestion();
     refreshUser();
+
+    const t1 = setTimeout(() => setTypingStatus("Анализирую структуру и содержание..."), 3000);
+    const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 8000);
+    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 14000);
+
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
@@ -190,7 +205,9 @@ export default function Cabinet() {
       setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
       setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
     } finally {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
+      setTypingStatus("");
     }
   };
 
@@ -358,6 +375,7 @@ export default function Cabinet() {
             messages={messages}
             input={input}
             typing={typing}
+            typingStatus={typingStatus}
             chatErr={chatErr}
             attachedFile={attachedFile}
             fileUploading={fileUploading}
