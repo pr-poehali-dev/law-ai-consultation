@@ -21,7 +21,7 @@ const DOC_TYPES = [
   { id: "business_contract", label: "Договор для бизнеса", icon: "Briefcase", price: 1000, serviceType: "business" as ServiceType },
 ];
 
-interface ChatMsg { role: "ai" | "user"; text: string; }
+interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; }
 
 type DocPhase = "form" | "generating" | "filling" | "done";
 
@@ -175,6 +175,9 @@ export default function Cabinet() {
   const [typing, setTyping] = useState(false);
   const [chatErr, setChatErr] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; b64: string; size: string } | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
 
   // Docs
   const [docType, setDocType] = useState(DOC_TYPES[0]);
@@ -259,6 +262,75 @@ export default function Cabinet() {
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
+    } finally {
+      setTyping(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["application/pdf", "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|jpg|jpeg|png)$/i)) {
+      setChatErr("Допустимые форматы: PDF, DOC, DOCX, JPEG, PNG");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) { setChatErr("Файл слишком большой. Максимум 10 МБ."); return; }
+    setFileUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = (reader.result as string).split(",")[1];
+      const sizeStr = file.size < 1024 * 1024
+        ? `${Math.round(file.size / 1024)} КБ`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
+      setAttachedFile({ name: file.name, b64, size: sizeStr });
+      setFileUploading(false);
+      setChatErr("");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const sendFileAnalysis = async () => {
+    if (!attachedFile || typing) return;
+    const canAsk = await canAskQuestion();
+    if (!canAsk) {
+      setMessages((p) => [...p, { role: "ai", text: "⚠️ Вы использовали все бесплатные вопросы. Оплатите консультацию — 100 ₽ за 3 вопроса." }]);
+      setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+      return;
+    }
+    const comment = input.trim();
+    const file = attachedFile;
+    setAttachedFile(null);
+    setInput("");
+    setChatErr("");
+    setMessages((p) => [...p, {
+      role: "user",
+      text: `📎 ${file.name}${comment ? `\n${comment}` : ""}`,
+      isFile: true,
+    } as ChatMsg]);
+    setTyping(true);
+    await consumeQuestion();
+    refreshUser();
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "file_analyze", file: file.b64, filename: file.name, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка анализа");
+      const aiText = data.answer as string;
+      setMessages((p) => [...p, { role: "ai", text: aiText }]);
+      setHistory((p) => [...p,
+        { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}` },
+        { role: "assistant", content: aiText },
+      ]);
+    } catch (e) {
+      setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
+      setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
     } finally {
       setTyping(false);
     }
@@ -691,30 +763,78 @@ export default function Cabinet() {
             </div>
 
             {chatErr && (
-              <div className="mt-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{chatErr}</div>
+              <div className="mt-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+                <Icon name="AlertCircle" size={13} className="shrink-0" />{chatErr}
+              </div>
+            )}
+
+            {/* Превью прикреплённого файла */}
+            {attachedFile && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-navy-50 border border-navy-200 rounded-2xl">
+                <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
+                  <Icon name="FileText" size={14} className="text-navy-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-navy-800 truncate">{attachedFile.name}</div>
+                  <div className="text-xs text-muted-foreground">{attachedFile.size} · будет удалён через 30 мин</div>
+                </div>
+                <button onClick={() => setAttachedFile(null)} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
+                  <Icon name="X" size={14} />
+                </button>
+              </div>
             )}
 
             {/* Input */}
             <div className="mt-3 flex gap-2">
+              {/* Скрытый file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              {/* Кнопка прикрепить файл */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={typing || fileUploading}
+                title="Прикрепить документ (PDF, DOC, DOCX, JPEG, PNG)"
+                className="w-12 h-12 rounded-2xl border border-border bg-white hover:bg-slate-50 hover:border-navy-300 flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
+              >
+                {fileUploading
+                  ? <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full animate-pulse" />
+                  : <Icon name="Paperclip" size={18} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
+                }
+              </button>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) sendMessage(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    if (attachedFile) { sendFileAnalysis(); } else { sendMessage(); }
+                  }
+                }}
                 disabled={typing}
-                placeholder={totalLeft > 0 ? "Задайте юридический вопрос... (Enter для отправки)" : "Оплатите консультацию для продолжения"}
+                placeholder={
+                  attachedFile
+                    ? "Задайте вопрос к документу или отправьте без вопроса..."
+                    : totalLeft > 0
+                      ? "Задайте юридический вопрос или прикрепите документ..."
+                      : "Оплатите консультацию для продолжения"
+                }
                 className="flex-1 bg-white border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
               />
               <button
-                onClick={sendMessage}
-                disabled={!input.trim() || typing}
+                onClick={attachedFile ? sendFileAnalysis : sendMessage}
+                disabled={(!input.trim() && !attachedFile) || typing}
                 className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50"
               >
                 <Icon name="Send" size={18} />
               </button>
             </div>
             <p className="text-center text-xs text-muted-foreground mt-2">
-              Ответы AI не заменяют консультацию практикующего юриста
+              Ответы AI не заменяют консультацию практикующего юриста · Файлы удаляются через 30 минут
             </p>
           </div>
         )}

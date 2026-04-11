@@ -63,6 +63,23 @@
       "expectedStatus": 200,
       "expectedBody": {"answer": "string"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "file_analyze — missing file",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_analyze", "filename": "test.pdf"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "file required"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "file_analyze — unsupported format",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_analyze", "file": "dGVzdA==", "filename": "test.txt"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
     }
   ]
 }

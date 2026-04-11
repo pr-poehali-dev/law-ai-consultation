@@ -1,12 +1,16 @@
 """
 Единый API: AI-юрист (YandexGPT) + авторизация.
-mode: "chat" | "doc_chat" | "doc_generate"
+mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
 import json
 import os
 import warnings
 import requests
+import base64
+import io
+import time
+import boto3
 from datetime import date
 
 from auth_handler import (
@@ -169,6 +173,107 @@ REFUSAL_MARKERS = [
 
 YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
 
+# ───────────────────────────────────────────────
+# СИСТЕМНЫЙ ПРОМПТ — АНАЛИЗ ДОКУМЕНТА
+# ───────────────────────────────────────────────
+SYSTEM_FILE_ANALYZE = f"""Ты — юрист широкого профиля (гражданское, семейное, трудовое, жилищное, административное, налоговое, процессуальное право).
+Тебе передан текст или содержимое документа для юридического анализа. Текущая дата: {date.today().strftime("%d.%m.%Y")}.
+
+Дай структурированное юридическое заключение:
+
+1. ТИП ДОКУМЕНТА — определи вид (договор, иск, претензия, справка, акт и т.д.)
+2. СТОРОНЫ — кто участвует, их роли и реквизиты
+3. ПРЕДМЕТ И СУТЬ — о чём документ, ключевые условия и договорённости
+4. ЮРИДИЧЕСКИЕ РИСКИ — что может быть оспорено или нарушено (со ссылками на статьи)
+5. СООТВЕТСТВИЕ ЗАКОНУ — соответствует ли документ применимым нормам (ст. 432 ГК РФ для договоров, ст. 131 ГПК РФ для исков и т.д.)
+6. РЕКОМЕНДАЦИИ — что исправить, добавить или уточнить
+
+Каждый вывод подкрепляй ссылкой на конкретную статью закона РФ.
+Запрещены фразы «по закону», «согласно законодательству».
+Ответ до 600 слов."""
+
+# ───────────────────────────────────────────────
+# S3 и файловые утилиты
+# ───────────────────────────────────────────────
+FILE_TTL = 1800  # 30 минут
+FILE_BUCKET = "files"
+FILE_PREFIX = "temp-docs/"
+MAX_FILE_MB = 10
+ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png"}
+
+
+def get_s3():
+    return boto3.client(
+        "s3",
+        endpoint_url="https://bucket.poehali.dev",
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
+
+
+def save_temp_file(s3, data: bytes, filename: str, content_type: str) -> str:
+    ts = int(time.time())
+    key = f"{FILE_PREFIX}{ts}_{filename}"
+    s3.put_object(Bucket=FILE_BUCKET, Key=key, Body=data, ContentType=content_type,
+                  Metadata={"uploaded_at": str(ts)})
+    return key
+
+
+def cleanup_temp_files(s3) -> list:
+    deleted = []
+    now = int(time.time())
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=FILE_BUCKET, Prefix=FILE_PREFIX):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                basename = key.replace(FILE_PREFIX, "")
+                parts = basename.split("_", 1)
+                try:
+                    uploaded_at = int(parts[0])
+                    if now - uploaded_at >= FILE_TTL:
+                        s3.delete_object(Bucket=FILE_BUCKET, Key=key)
+                        deleted.append(key)
+                except (ValueError, IndexError):
+                    pass
+    except Exception:
+        pass
+    return deleted
+
+
+def extract_pdf_text(data: bytes) -> str:
+    import PyPDF2
+    reader = PyPDF2.PdfReader(io.BytesIO(data))
+    pages = [p.extract_text() or "" for p in reader.pages[:20]]
+    return "\n".join(pages).strip()
+
+
+def extract_docx_text(data: bytes) -> str:
+    from docx import Document as DocxDocument
+    doc = DocxDocument(io.BytesIO(data))
+    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:12000]
+
+
+def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
+    user_content = f"Вопрос пользователя: {comment}\n\n" if comment else ""
+    user_content += f"Содержимое документа:\n\n{text[:8000]}"
+    resp = requests.post(
+        "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+        json={
+            "modelUri": YANDEX_MODEL,
+            "completionOptions": {"stream": False, "temperature": 0.3, "maxTokens": 1200},
+            "messages": [
+                {"role": "system", "text": SYSTEM_FILE_ANALYZE},
+                {"role": "user", "text": user_content},
+            ],
+        },
+        timeout=40,
+    )
+    resp.raise_for_status()
+    return resp.json()["result"]["alternatives"][0]["message"]["text"]
+
+
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -283,6 +388,58 @@ def handler(event: dict, context) -> dict:
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders}, ensure_ascii=False)}
+
+        # ── Анализ загруженного файла ──
+        elif mode == "file_analyze":
+            file_b64 = body.get("file", "")
+            filename = body.get("filename", "document")
+            comment = body.get("comment", "").strip()
+
+            if not file_b64:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "file required"}, ensure_ascii=False)}
+
+            file_data = base64.b64decode(file_b64)
+            if len(file_data) > MAX_FILE_MB * 1024 * 1024:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": f"Файл слишком большой. Максимум {MAX_FILE_MB} МБ."}, ensure_ascii=False)}
+
+            ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+            if ext not in ALLOWED_EXTS:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": f"Формат .{ext} не поддерживается. Допустимые: PDF, DOCX, DOC, JPEG, JPG, PNG."}, ensure_ascii=False)}
+
+            mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png"}
+            content_type = mime_map.get(ext, "application/octet-stream")
+
+            # Сохраняем в S3 и сразу запускаем фоновую очистку
+            s3 = get_s3()
+            s3_key = save_temp_file(s3, file_data, filename, content_type)
+            cleanup_temp_files(s3)  # удаляем устаревшие файлы заодно
+
+            # Извлекаем текст
+            if ext == "pdf":
+                text = extract_pdf_text(file_data)
+            elif ext in ("docx", "doc"):
+                text = extract_docx_text(file_data)
+            else:
+                # Для изображений передаём base64 напрямую в промпт как описание
+                text = f"[Изображение формата {ext.upper()}. Анализируй как юридический документ на фото.]"
+
+            iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+            answer = analyze_file_with_yandex(text, comment, iam_token)
+
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": answer, "filename": filename,
+                                        "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+
+        # ── Очистка временных файлов (вызывается по крону или вручную) ──
+        elif mode == "file_cleanup":
+            s3 = get_s3()
+            deleted = cleanup_temp_files(s3)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"deleted": len(deleted), "keys": deleted}, ensure_ascii=False)}
 
         # ── Обычный чат-консультация ──
         else:
