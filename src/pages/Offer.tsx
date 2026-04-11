@@ -88,7 +88,7 @@ export default function Offer() {
               <p><strong>Исполнитель:</strong> Поварчук Илья Валентинович</p>
               <p><strong>Статус:</strong> Самозанятый (плательщик налога на профессиональный доход)</p>
               <p><strong>ИНН:</strong> 910403132709</p>
-              <p><strong>Email:</strong> help@yurist-ai.ru</p>
+              <p><strong>Email:</strong> povpartner@mail.ru</p>
               <p><strong>Телефон:</strong> +7 (800) 555-01-20</p>
             </section>
           </div>
