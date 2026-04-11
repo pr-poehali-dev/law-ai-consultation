@@ -24,6 +24,7 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registered, setRegistered] = useState(false);
 
   const switchMode = (m: Mode) => {
     setMode(m);
@@ -55,7 +56,7 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
     const res = await register({ name, email, phone, password, agreed_to_terms: true });
     setLoading(false);
     if (res.error) { setError(res.error); return; }
-    onSuccess();
+    setRegistered(true);
   };
 
   const inputClass = "w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors";
@@ -72,6 +73,30 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
         </button>
 
         <div className="p-8">
+          {/* Success screen after registration */}
+          {registered && (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Icon name="MailCheck" size={28} className="text-emerald-600" />
+              </div>
+              <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Аккаунт создан!</h3>
+              <p className="text-sm text-muted-foreground mb-1">Вы зарегистрированы как</p>
+              <p className="font-medium text-navy-800 mb-1">{name}</p>
+              <p className="text-sm text-muted-foreground mb-6">{email}</p>
+              <p className="text-xs text-muted-foreground bg-slate-50 rounded-xl p-3 mb-6">
+                На вашу почту отправлено письмо с подтверждением. Проверьте папку «Входящие» или «Спам».
+              </p>
+              <button
+                onClick={onSuccess}
+                className="w-full py-3 rounded-2xl bg-navy-800 text-white font-medium text-sm hover:bg-navy-700 transition-colors"
+              >
+                Войти в кабинет
+              </button>
+            </div>
+          )}
+
+          {/* Form */}
+          {!registered && (<>
           {/* Header */}
           <div className="text-center mb-6">
             <div className="w-14 h-14 gradient-navy rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -272,6 +297,7 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
               )}
             </button>
           </div>
+          </>)}
         </div>
       </div>
     </div>
