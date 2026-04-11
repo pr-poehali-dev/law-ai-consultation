@@ -218,30 +218,12 @@ def handler(event: dict, context) -> dict:
     try:
         mode = body.get("mode", "chat")
 
-        # ── Первое сообщение диалога документа ──
-        if mode == "doc_start":
+        # ── Генерация документа из описания пользователя ──
+        if mode == "doc_generate":
             doc_type = body.get("doc_type", "claim")
-            starter = DOC_STARTERS.get(doc_type, DOC_STARTERS["claim"])
-            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": starter, "ready": False}, ensure_ascii=False)}
-
-        # ── Диалог сбора данных для документа ──
-        elif mode == "doc_chat":
-            messages = body.get("messages", [])
-            if not messages:
-                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            answer = call_yandex(SYSTEM_DOC_CHAT, messages, max_tokens=400)
-            ready = "##READY##" in answer
-            clean = answer.replace("##READY##", "").strip()
-            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": clean, "ready": ready}, ensure_ascii=False)}
-
-        # ── Генерация готового документа ──
-        elif mode == "doc_generate":
-            doc_type = body.get("doc_type", "claim")
-            messages = body.get("messages", [])
-            if not messages:
-                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
+            details = body.get("details", "").strip()
+            if not details:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
             doc_labels = {
                 "claim": "исковое заявление",
                 "pretension": "досудебную претензию",
@@ -250,18 +232,21 @@ def handler(event: dict, context) -> dict:
                 "business_contract": "коммерческий договор",
             }
             label = doc_labels.get(doc_type, "документ")
-            history_text = "\n".join(
-                f"{'Пользователь' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-                for m in messages
-            )
+            # Реквизиты будут заполнены позже — используем заглушки
             prompt = (
-                f"На основании следующего диалога составь {label}.\n\n"
-                f"=== ДАННЫЕ ИЗ ДИАЛОГА ===\n{history_text}\n\n"
-                f"Составь полный документ со всеми обязательными реквизитами."
+                f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
+                f"Там где не хватает конкретных данных о сторонах (ФИО, адрес, ИНН и т.д.) — "
+                f"используй чёткие метки-заглушки в формате {{{{ПОЛЕ}}}}, например: "
+                f"{{{{ФИО_ИСТЦА}}}}, {{{{АДРЕС_ИСТЦА}}}}, {{{{ФИО_ОТВЕТЧИКА}}}}, {{{{АДРЕС_ОТВЕТЧИКА}}}}, "
+                f"{{{{ИНН}}}}, {{{{СУММА}}}}, {{{{ДАТА}}}}. "
+                f"Метки должны быть чёткими и понятными — пользователь заполнит их вручную."
             )
             answer = call_yandex(SYSTEM_DOC_GENERATE, [{"role": "user", "content": prompt}], max_tokens=1500)
+            # Извлекаем все метки {{...}} для передачи на фронт
+            import re
+            placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "placeholders": placeholders}, ensure_ascii=False)}
 
         # ── Обычный чат-консультация ──
         else:

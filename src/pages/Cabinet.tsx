@@ -19,7 +19,16 @@ const DOC_TYPES = [
 
 interface ChatMsg { role: "ai" | "user"; text: string; }
 
-type DocPhase = "select" | "dialog" | "done";
+type DocPhase = "form" | "generating" | "filling" | "done";
+
+interface GenDoc {
+  id: number;
+  name: string;
+  content: string; // текст с метками {{...}}
+  filled: string;  // текст с заполненными метками
+  date: string;
+  placeholders: string[]; // список меток
+}
 
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
@@ -48,21 +57,19 @@ export default function Cabinet() {
 
   // Docs
   const [docType, setDocType] = useState(DOC_TYPES[0]);
-  const [docPhase, setDocPhase] = useState<DocPhase>("select");
-  const [docDialogMsgs, setDocDialogMsgs] = useState<ChatMsg[]>([]);
-  const [docDialogHistory, setDocDialogHistory] = useState<{ role: string; content: string }[]>([]);
-  const [docInput, setDocInput] = useState("");
-  const [docTyping, setDocTyping] = useState(false);
+  const [docPhase, setDocPhase] = useState<DocPhase>("form");
+  const [docDetails, setDocDetails] = useState("");
   const [docGenerating, setDocGenerating] = useState(false);
   const [docErr, setDocErr] = useState("");
-  const docEndRef = useRef<HTMLDivElement>(null);
-  const [genDocs, setGenDocs] = useState<{ id: number; name: string; content: string; date: string }[]>(() => {
+  const [currentDoc, setCurrentDoc] = useState<GenDoc | null>(null);
+  const [fillValues, setFillValues] = useState<Record<string, string>>({});
+  const [genDocs, setGenDocs] = useState<GenDoc[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_docs");
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [viewDoc, setViewDoc] = useState<null | { name: string; content: string }>(null);
+  const [viewDoc, setViewDoc] = useState<null | GenDoc>(null);
 
   // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
@@ -90,10 +97,6 @@ export default function Cabinet() {
   useEffect(() => {
     localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
   }, [genDocs]);
-
-  useEffect(() => {
-    docEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [docDialogMsgs, docTyping, docGenerating]);
 
   const refreshUser = () => getUser().then((u) => { if (u) setUser(u); });
 
@@ -140,92 +143,52 @@ export default function Cabinet() {
     }
   };
 
-  const startDocDialog = async (dt: typeof DOC_TYPES[0]) => {
-    setDocType(dt);
-    setDocDialogMsgs([]);
-    setDocDialogHistory([]);
-    setDocInput("");
-    setDocErr("");
-    setDocPhase("dialog");
-    setDocTyping(true);
-    try {
-      const res = await fetch(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "doc_start", doc_type: dt.id }),
-      });
-      const data = await res.json();
-      const aiMsg = data.answer as string;
-      setDocDialogMsgs([{ role: "ai", text: aiMsg }]);
-      setDocDialogHistory([{ role: "assistant", content: aiMsg }]);
-    } catch {
-      setDocDialogMsgs([{ role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
-    } finally {
-      setDocTyping(false);
-    }
-  };
-
-  const sendDocMsg = async () => {
-    if (!docInput.trim() || docTyping || docGenerating) return;
-    const text = docInput.trim();
-    setDocInput("");
-    const userMsg = { role: "user" as const, text };
-    const newMsgs = [...docDialogMsgs, userMsg];
-    setDocDialogMsgs(newMsgs);
-    const newHist = [...docDialogHistory, { role: "user", content: text }];
-    setDocDialogHistory(newHist);
-    setDocTyping(true);
-    try {
-      const res = await fetch(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "doc_chat", messages: newHist }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Ошибка");
-      const aiText = data.answer as string;
-      const updHist = [...newHist, { role: "assistant", content: aiText }];
-      setDocDialogHistory(updHist);
-      if (data.ready) {
-        setDocDialogMsgs((p) => [...p, { role: "ai", text: "Все данные собраны. Генерирую документ..." }]);
-        setDocTyping(false);
-        await generateDocFromHistory(updHist);
-      } else {
-        setDocDialogMsgs((p) => [...p, { role: "ai", text: aiText }]);
-        setDocTyping(false);
-      }
-    } catch (e) {
-      setDocDialogMsgs((p) => [...p, { role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
-      setDocTyping(false);
-    }
-  };
-
-  const generateDocFromHistory = async (hist: { role: string; content: string }[]) => {
+  const generateDoc = async () => {
+    if (!docDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
     setDocGenerating(true);
+    setDocPhase("generating");
     setDocErr("");
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, messages: hist }),
+        body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, details: docDetails }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
-      const newDoc = { id: Date.now(), name: docType.label, content: data.answer, date: new Date().toLocaleDateString("ru-RU") };
-      setGenDocs((p) => [newDoc, ...p]);
-      setViewDoc(newDoc);
-      setDocPhase("done");
+      const placeholders: string[] = data.placeholders || [];
+      const newDoc: GenDoc = {
+        id: Date.now(),
+        name: docType.label,
+        content: data.answer,
+        filled: data.answer,
+        date: new Date().toLocaleDateString("ru-RU"),
+        placeholders,
+      };
+      setCurrentDoc(newDoc);
+      setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
+      setGenDocs((prev) => [newDoc, ...prev]);
+      setDocPhase(placeholders.length > 0 ? "filling" : "done");
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
-      setDocDialogMsgs((p) => [...p, { role: "ai", text: "Не удалось сгенерировать документ. Попробуйте ещё раз." }]);
+      setDocPhase("form");
     } finally {
       setDocGenerating(false);
     }
   };
 
-  const handleDocDoneMessage = () => {
-    // Если пользователь пишет после завершения — переводим на чат консультации
-    setTab("chat");
+  // Применяет заполненные реквизиты к тексту документа
+  const applyFillValues = () => {
+    if (!currentDoc) return;
+    let filled = currentDoc.content;
+    Object.entries(fillValues).forEach(([key, val]) => {
+      const replacement = val.trim() || `{{${key}}}`;
+      filled = filled.replaceAll(`{{${key}}}`, replacement);
+    });
+    const updated = { ...currentDoc, filled };
+    setCurrentDoc(updated);
+    setGenDocs((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+    setDocPhase("done");
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
@@ -233,14 +196,9 @@ export default function Cabinet() {
     refreshUser();
     setPayment(null);
     if (pendingDocType) {
-      startDocDialog(pendingDocType);
+      setDocType(pendingDocType);
       setPendingDocType(null);
     }
-  };
-
-  const requestDoc = (dt: typeof DOC_TYPES[0]) => {
-    setPendingDocType(dt);
-    setPayment({ type: dt.serviceType, name: dt.label });
   };
 
   const downloadDoc = async (name: string, content: string) => {
@@ -450,42 +408,65 @@ export default function Cabinet() {
         {tab === "docs" && (
           <div className="max-w-4xl mx-auto">
 
-            {/* ФАЗА 1: выбор типа документа */}
-            {docPhase === "select" && (
+            {/* ФАЗА: форма запроса */}
+            {(docPhase === "form" || docPhase === "generating") && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
                   <h2 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">Создать документ</h2>
-                  <p className="text-sm text-muted-foreground mb-5">AI-юрист задаст уточняющие вопросы и составит полный документ с реквизитами</p>
-                  <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
+                  <div className="space-y-2 mb-4">
                     {DOC_TYPES.map((dt) => (
                       <button
                         key={dt.id}
-                        onClick={() => startDocDialog(dt)}
-                        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border hover:border-navy-400 hover:bg-navy-50 transition-all group"
+                        onClick={() => { setDocType(dt); setDocErr(""); }}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
+                          docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200 hover:bg-slate-50"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-slate-100 group-hover:bg-navy-100 rounded-xl flex items-center justify-center transition-colors">
-                            <Icon name={dt.icon} size={15} className="text-navy-500" />
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
+                            <Icon name={dt.icon} size={15} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
                           </div>
-                          <span className="text-sm font-medium text-navy-800">{dt.label}</span>
+                          <span className={`text-sm font-medium ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-navy-500">{dt.price} ₽</span>
-                          <Icon name="ChevronRight" size={14} className="text-muted-foreground group-hover:text-navy-600 transition-colors" />
-                        </div>
+                        <span className="text-xs font-semibold text-navy-500">{dt.price} ₽</span>
                       </button>
                     ))}
                   </div>
-                  <div className="mt-4 px-4 py-3 bg-blue-50 rounded-2xl border border-blue-100">
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      AI задаст вопросы о реквизитах сторон и обстоятельствах — затем подготовит готовый документ со ссылками на законы.
+                  <textarea
+                    value={docDetails}
+                    onChange={(e) => setDocDetails(e.target.value)}
+                    disabled={docGenerating}
+                    placeholder={`Опишите ситуацию для «${docType.label}»...\n\nНапример: что произошло, с кем, когда, какой результат нужен. Реквизиты сторон можно добавить после генерации документа.`}
+                    rows={6}
+                    className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
+                  />
+                  {docErr && (
+                    <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+                      <Icon name="AlertCircle" size={13} className="shrink-0" />{docErr}
+                    </div>
+                  )}
+                  <button
+                    onClick={generateDoc}
+                    disabled={docGenerating || !docDetails.trim()}
+                    className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {docGenerating ? (
+                      <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+                    ) : (
+                      <><Icon name="Zap" size={16} />Сгенерировать документ</>
+                    )}
+                  </button>
+                  {docGenerating && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      AI-юрист составляет документ... После генерации вы сможете заполнить реквизиты сторон.
                     </p>
-                  </div>
+                  )}
                 </div>
 
-                {/* Ранее созданные */}
+                {/* Правая колонка — история документов */}
                 <div className="space-y-4">
-                  {genDocs.length > 0 && (
+                  {genDocs.length > 0 ? (
                     <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
                       <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
                       <div className="space-y-2">
@@ -496,8 +477,8 @@ export default function Cabinet() {
                               <div className="text-xs text-muted-foreground">{doc.date}</div>
                             </div>
                             <div className="flex gap-1.5">
-                              <button onClick={() => setViewDoc(doc)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Просмотр</button>
-                              <button onClick={() => downloadDoc(doc.name, doc.content)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
+                              <button onClick={() => { setCurrentDoc(doc); setFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); setDocPhase("filling"); }} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Реквизиты</button>
+                              <button onClick={() => downloadDoc(doc.name, doc.filled)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
                                 <Icon name="Download" size={12} />Скачать
                               </button>
                             </div>
@@ -505,181 +486,150 @@ export default function Cabinet() {
                         ))}
                       </div>
                     </div>
-                  )}
-                  {genDocs.length === 0 && (
+                  ) : (
                     <div className="bg-white rounded-3xl border border-border shadow-sm p-10 text-center">
                       <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                         <Icon name="FileText" size={22} className="text-navy-400" />
                       </div>
-                      <p className="text-sm text-muted-foreground">Выберите тип документа, чтобы начать</p>
+                      <p className="text-sm text-muted-foreground">Опишите ситуацию — AI составит документ</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ФАЗА 2: диалог с AI */}
-            {docPhase === "dialog" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-border shadow-sm flex flex-col" style={{ height: "calc(100vh - 180px)" }}>
-                  {/* Шапка */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center">
-                        <Icon name="Scale" size={14} className="text-gold-400" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-navy-800">{docType.label}</div>
-                        <div className="text-xs text-muted-foreground">AI-юрист задаёт уточняющие вопросы</div>
-                      </div>
+            {/* ФАЗА: автозаполнение реквизитов */}
+            {docPhase === "filling" && currentDoc && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Форма реквизитов */}
+                <div className="bg-white rounded-3xl border border-border shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="font-cormorant font-bold text-2xl text-navy-800">Заполнить реквизиты</h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">{currentDoc.name}</p>
                     </div>
                     <button
-                      onClick={() => setDocPhase("select")}
+                      onClick={() => setDocPhase("form")}
                       className="text-xs text-muted-foreground hover:text-navy-700 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors"
                     >
                       <Icon name="ArrowLeft" size={13} />Назад
                     </button>
                   </div>
 
-                  {/* Сообщения */}
-                  <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
-                    {docDialogMsgs.map((msg, i) => (
-                      <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                        {msg.role === "ai" && (
-                          <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                            <Icon name="Scale" size={14} className="text-gold-400" />
-                          </div>
-                        )}
-                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                          msg.role === "user" ? "bg-navy-700 text-white rounded-br-sm" : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
-                        }`}>{msg.text}</div>
-                        {msg.role === "user" && (
-                          <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
-                            {user.name?.[0] ?? "U"}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {(docTyping || docGenerating) && (
-                      <div className="flex gap-3">
-                        <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
-                          <Icon name="Scale" size={14} className="text-gold-400" />
-                        </div>
-                        <div className="bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
-                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-                        </div>
-                      </div>
-                    )}
-                    <div ref={docEndRef} />
-                  </div>
-
-                  {docErr && (
-                    <div className="mx-5 mb-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{docErr}</div>
-                  )}
-
-                  {/* Ввод */}
-                  <div className="p-4 border-t border-border shrink-0">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={docInput}
-                        onChange={(e) => setDocInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") sendDocMsg(); }}
-                        disabled={docTyping || docGenerating}
-                        placeholder="Ответьте на вопрос AI-юриста..."
-                        className="flex-1 bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
-                      />
-                      <button
-                        onClick={sendDocMsg}
-                        disabled={!docInput.trim() || docTyping || docGenerating}
-                        className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50"
-                      >
-                        <Icon name="Send" size={18} />
-                      </button>
+                  {currentDoc.placeholders.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Icon name="CheckCircle" size={32} className="text-emerald-500 mx-auto mb-2" />
+                      <p className="text-sm text-navy-700 font-medium">Все реквизиты уже заполнены</p>
+                      <p className="text-xs text-muted-foreground mt-1">AI внёс данные из вашего описания в документ</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Отвечайте на вопросы — AI составит документ автоматически
-                    </p>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4 border border-blue-100">
+                        <p className="text-xs text-blue-700 leading-relaxed">
+                          AI выделил поля, которые нужно заполнить. Введите данные — документ обновится автоматически.
+                        </p>
+                      </div>
+                      <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                        {currentDoc.placeholders.map((key) => (
+                          <div key={key}>
+                            <label className="text-xs font-medium text-navy-700 mb-1 block">
+                              {key.replace(/_/g, " ")}
+                            </label>
+                            <input
+                              type="text"
+                              value={fillValues[key] || ""}
+                              onChange={(e) => setFillValues((p) => ({ ...p, [key]: e.target.value }))}
+                              placeholder={`Введите ${key.replace(/_/g, " ").toLowerCase()}`}
+                              className="w-full bg-slate-50 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-navy-400 transition-colors"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={applyFillValues}
+                        className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 mt-5"
+                      >
+                        <Icon name="CheckCircle" size={16} />Применить реквизиты
+                      </button>
+                    </>
+                  )}
                 </div>
 
-                {/* Подсказки */}
-                <div className="space-y-4">
-                  <div className="bg-amber-50 rounded-3xl border border-amber-200 p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Icon name="Lightbulb" size={15} className="text-amber-600" />
-                      <span className="text-sm font-semibold text-amber-800">Что потребуется</span>
+                {/* Предпросмотр документа */}
+                <div className="bg-white rounded-3xl border border-border shadow-sm flex flex-col overflow-hidden" style={{ maxHeight: "calc(100vh - 200px)" }}>
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
+                    <span className="text-sm font-semibold text-navy-800">Предпросмотр</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setViewDoc(currentDoc)}
+                        className="text-xs text-navy-600 hover:text-navy-800 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+                      >
+                        Полный экран
+                      </button>
+                      <button
+                        onClick={() => downloadDoc(currentDoc.name, currentDoc.filled)}
+                        className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+                      >
+                        <Icon name="Download" size={12} />Скачать
+                      </button>
                     </div>
-                    <ul className="space-y-1.5 text-xs text-amber-700">
-                      {["ФИО всех сторон", "Адреса регистрации", "ИНН / ОГРН (для бизнеса)", "Суммы и даты", "Суть ситуации"].map((t) => (
-                        <li key={t} className="flex items-center gap-2">
-                          <Icon name="Check" size={11} className="text-amber-500 shrink-0" />{t}
-                        </li>
-                      ))}
-                    </ul>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-5">
+                    <pre className="text-xs text-navy-800 leading-relaxed whitespace-pre-wrap font-sans">
+                      {currentDoc.filled.replace(/\{\{([^}]+)\}\}/g, (_, k) =>
+                        fillValues[k]?.trim()
+                          ? `[${fillValues[k].trim()}]`
+                          : `⬜ ${k.replace(/_/g, " ")}`
+                      )}
+                    </pre>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ФАЗА 3: документ готов */}
-            {docPhase === "done" && viewDoc && (
+            {/* ФАЗА: готово */}
+            {docPhase === "done" && currentDoc && (
               <div className="max-w-2xl mx-auto space-y-4">
                 <div className="bg-emerald-50 rounded-3xl border border-emerald-200 p-5 flex items-center gap-4">
                   <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
                     <Icon name="CheckCircle" size={22} className="text-emerald-600" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-navy-800">{viewDoc.name} — готов</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Документ составлен AI-юристом с учётом всех реквизитов</div>
+                    <div className="font-semibold text-navy-800">{currentDoc.name} — готов</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Реквизиты заполнены и применены к документу</div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-end">
                     <button
-                      onClick={() => setViewDoc(viewDoc)}
-                      className="text-xs text-navy-600 hover:text-navy-800 px-3 py-2 rounded-xl hover:bg-white border border-emerald-200 transition-colors font-medium"
+                      onClick={() => setViewDoc(currentDoc)}
+                      className="text-xs text-navy-600 hover:text-navy-800 px-3 py-2 rounded-xl border border-emerald-200 hover:bg-white transition-colors font-medium"
                     >
                       Открыть
                     </button>
                     <button
-                      onClick={() => downloadDoc(viewDoc.name, viewDoc.content)}
+                      onClick={() => downloadDoc(currentDoc.name, currentDoc.filled)}
                       className="btn-gold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 font-medium"
                     >
                       <Icon name="Download" size={13} />Скачать .docx
                     </button>
                   </div>
                 </div>
-
-                {/* Блок завершения */}
-                <div className="bg-white rounded-3xl border border-border p-6 shadow-sm text-center">
-                  <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <Icon name="Scale" size={20} className="text-navy-600" />
-                  </div>
-                  <h3 className="font-semibold text-navy-800 mb-1">Документ готов к использованию</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Если есть вопросы по документу или нужна юридическая консультация — перейдите в чат с AI-юристом.
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={() => { setDocPhase("select"); setViewDoc(null); }}
-                      className="text-sm text-navy-600 hover:text-navy-800 px-4 py-2.5 rounded-xl border border-border hover:border-navy-300 transition-colors"
-                    >
-                      Создать ещё
-                    </button>
-                    <button
-                      onClick={handleDocDoneMessage}
-                      className="btn-gold text-sm px-5 py-2.5 rounded-xl flex items-center gap-2"
-                    >
-                      <Icon name="MessageCircle" size={15} />
-                      Задать вопрос юристу
-                    </button>
-                  </div>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => { setDocPhase("form"); setDocDetails(""); setCurrentDoc(null); }}
+                    className="text-sm text-navy-600 hover:text-navy-800 px-5 py-2.5 rounded-xl border border-border hover:border-navy-300 transition-colors"
+                  >
+                    Создать ещё
+                  </button>
+                  <button
+                    onClick={() => setTab("chat")}
+                    className="btn-gold text-sm px-5 py-2.5 rounded-xl flex items-center gap-2"
+                  >
+                    <Icon name="MessageCircle" size={15} />Задать вопрос юристу
+                  </button>
                 </div>
-
-                {genDocs.length > 1 && (
+                {genDocs.length > 0 && (
                   <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
-                    <h3 className="font-semibold text-navy-800 text-sm mb-3">Все созданные документы</h3>
+                    <h3 className="font-semibold text-navy-800 text-sm mb-3">Все документы</h3>
                     <div className="space-y-2">
                       {genDocs.map((doc) => (
                         <div key={doc.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
@@ -688,8 +638,8 @@ export default function Cabinet() {
                             <div className="text-xs text-muted-foreground">{doc.date}</div>
                           </div>
                           <div className="flex gap-1.5">
-                            <button onClick={() => setViewDoc(doc)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Просмотр</button>
-                            <button onClick={() => downloadDoc(doc.name, doc.content)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
+                            <button onClick={() => { setCurrentDoc(doc); setFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); setDocPhase("filling"); }} className="text-xs text-navy-600 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Реквизиты</button>
+                            <button onClick={() => downloadDoc(doc.name, doc.filled)} className="text-xs text-navy-600 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
                               <Icon name="Download" size={12} />Скачать
                             </button>
                           </div>
