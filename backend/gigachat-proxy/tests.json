@@ -89,6 +89,24 @@
       "expectedStatus": 401,
       "expectedBody": {"error": "Не авторизован"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "send-otp — bad email",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "send-otp", "email": "notanemail"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Некорректный email"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "verify-otp — wrong code",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "verify-otp", "email": "test@example.com", "code": "000000"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Неверный или истёкший код"},
+      "bodyMatcher": "partial"
     }
   ]
 }

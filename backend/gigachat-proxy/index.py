@@ -17,7 +17,7 @@ from auth_handler import (
     handle_register, handle_login, handle_me,
     handle_logout, handle_update_profile,
     handle_consume_question, handle_consume_doc, handle_add_paid_service,
-    handle_report, sanitize_str,
+    handle_report, handle_send_otp, handle_verify_otp, sanitize_str,
 )
 
 warnings.filterwarnings("ignore")
@@ -357,6 +357,8 @@ def handler(event: dict, context) -> dict:
         "consume-doc": lambda: handle_consume_doc(token),
         "add-paid-service": lambda: handle_add_paid_service(token, body),
         "report": lambda: handle_report(token, body),
+        "send-otp": lambda: handle_send_otp(body),
+        "verify-otp": lambda: handle_verify_otp(body),
     }
     if action in auth_actions:
         result = auth_actions[action]()
@@ -458,7 +460,7 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=1000)
+            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=3000)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 

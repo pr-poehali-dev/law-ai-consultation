@@ -48,6 +48,7 @@ export async function register(params: {
   phone: string;
   password: string;
   agreed_to_terms: boolean;
+  otp_code?: string;
 }): Promise<{ user?: User; error?: string }> {
   const res = await apiCall({ action: "register", ...params });
   const data = await res.json();
@@ -123,6 +124,20 @@ export async function canUseDoc(): Promise<boolean> {
 
 export async function addPaidService(serviceType: string): Promise<void> {
   await apiCall({ action: "add-paid-service", service_type: serviceType });
+}
+
+export async function sendOtp(email: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "send-otp", email });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка отправки кода" };
+  return { ok: true };
+}
+
+export async function verifyOtp(email: string, code: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "verify-otp", email, code });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Неверный код" };
+  return { ok: true };
 }
 
 export async function sendReport(message: string): Promise<{ ok?: boolean; error?: string }> {

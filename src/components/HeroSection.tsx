@@ -157,6 +157,34 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
               </div>
             ))}
           </div>
+
+          {/* AI capabilities banner */}
+          <div
+            className={`mt-8 max-w-2xl mx-auto transition-all duration-700 delay-600 ${
+              visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
+          >
+            <div className="glass rounded-2xl p-5 border border-white/10">
+              <p className="text-xs text-white/50 uppercase tracking-widest font-medium mb-3 text-center">Возможности AI-юриста</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { icon: "GraduationCap", title: "Обучен профессионалами", text: "Юристы с многолетней практикой заложили знания о действующем законодательстве РФ" },
+                  { icon: "FileSearch", title: "Анализ документов", text: "Проверяет договоры, иски, претензии на юридические риски и соответствие нормам" },
+                  { icon: "TrendingUp", title: "Судебная перспектива", text: "Оценивает шансы в споре с учётом актуальной судебной практики и позиций ВС РФ" },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon name={item.icon} size={15} className="text-gold-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white/90 mb-0.5">{item.title}</p>
+                      <p className="text-[11px] text-white/50 leading-relaxed">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

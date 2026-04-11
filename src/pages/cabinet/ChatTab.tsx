@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 
@@ -25,24 +25,112 @@ interface ChatTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
-/** Typewriter-анимация для последнего AI-ответа */
-function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
+/** Рендер markdown-подобного текста юридического ответа */
+function LegalText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Пустая строка — разрыв
+    if (!line.trim()) { elements.push(<div key={i} className="h-2" />); i++; continue; }
+
+    // Заголовки разделов (нумерованные или CAPS)
+    const sectionMatch = line.match(/^(\d+)\.\s+([А-ЯA-Z\s/]{4,})(.*)/);
+    if (sectionMatch) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2.5 mt-4 first:mt-0">
+          <div className="w-6 h-6 rounded-lg bg-navy-700 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+            {sectionMatch[1]}
+          </div>
+          <p className="font-semibold text-navy-800 text-[13.5px] leading-5 tracking-wide uppercase">
+            {sectionMatch[2]}{sectionMatch[3]}
+          </p>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Пункты с тире или bullet
+    if (/^[-•–]\s/.test(line)) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2">
+          <span className="text-gold-500 font-bold mt-1 shrink-0">·</span>
+          <p className="text-[13px] text-navy-700 leading-relaxed">{renderInline(line.replace(/^[-•–]\s/, ""))}</p>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Ссылки на статьи (жирным)
+    if (/ст\.\s*\d+|статья\s+\d+/i.test(line) && line.length < 120) {
+      elements.push(
+        <p key={i} className="text-[13px] text-navy-600 leading-relaxed font-medium bg-navy-50/60 rounded-lg px-3 py-1.5 border-l-2 border-navy-200">
+          {renderInline(line)}
+        </p>
+      );
+      i++; continue;
+    }
+
+    // Обычный абзац
+    elements.push(
+      <p key={i} className="text-[13.5px] text-navy-700 leading-[1.75] tracking-wide">
+        {renderInline(line)}
+      </p>
+    );
+    i++;
+  }
+
+  return <div className="space-y-1.5 font-golos">{elements}</div>;
+}
+
+/** Выделяем **жирное**, ст. XXX, номера статей */
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*|статьи?\s+\d+[\w.-]*)/gi);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-navy-800">{part.slice(2, -2)}</strong>;
+    }
+    if (/^(ст\.|статьи?)/i.test(part)) {
+      return <span key={i} className="font-semibold text-navy-700 bg-gold-400/15 px-1 rounded">{part}</span>;
+    }
+    return part;
+  });
+}
+
+/** Плавный typewriter — посимвольно, но с переменной скоростью */
+function AnimatedMessage({ text, animate, onDone }: { text: string; animate: boolean; onDone?: () => void }) {
   const [displayed, setDisplayed] = useState(animate ? "" : text);
+  const [done, setDone] = useState(!animate);
 
   useEffect(() => {
-    if (!animate) { setDisplayed(text); return; }
+    if (!animate) { setDisplayed(text); setDone(true); return; }
     setDisplayed("");
+    setDone(false);
     let i = 0;
-    // Скорость: ~4 символа за 16ms (≈250 симв/сек)
-    const interval = setInterval(() => {
-      i += 4;
+    // Переменная скорость: быстрее в середине, медленнее в начале/конце
+    const tick = () => {
+      if (i >= text.length) { setDone(true); onDone?.(); return; }
+      const chunk = Math.min(3, text.length - i);
+      i += chunk;
       setDisplayed(text.slice(0, i));
-      if (i >= text.length) clearInterval(interval);
-    }, 16);
-    return () => clearInterval(interval);
-  }, [text, animate]);
+      setTimeout(tick, 18);
+    };
+    const t = setTimeout(tick, 120); // небольшая задержка перед стартом
+    return () => clearTimeout(t);
+  }, [text, animate, onDone]);
 
-  return <span className="whitespace-pre-wrap">{displayed}</span>;
+  if (done) return <LegalText text={text} />;
+  return (
+    <div className="space-y-1.5 font-golos">
+      <p className="text-[13.5px] text-navy-700 leading-[1.75] whitespace-pre-wrap">
+        {displayed}
+        <span className="inline-block w-0.5 h-4 bg-gold-500 ml-0.5 animate-pulse align-middle" />
+      </p>
+    </div>
+  );
 }
 
 export default function ChatTab({
@@ -65,178 +153,214 @@ export default function ChatTab({
   chatEndRef,
   fileInputRef,
 }: ChatTabProps) {
-  // Индекс последнего AI-сообщения для анимации
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
-  // Запоминаем какой индекс уже был анимирован
   const animatedRef = useRef<number>(-1);
-  const shouldAnimate = (idx: number) => {
+
+  const shouldAnimate = useCallback((idx: number) => {
     if (idx !== lastAiIdx) return false;
     if (animatedRef.current === idx) return false;
     animatedRef.current = idx;
     return true;
-  };
+  }, [lastAiIdx]);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Авторесайз textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 140) + "px";
+    }
+  }, [input]);
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
-      {/* Status bar */}
+
+      {/* ── Шапка статуса ── */}
       <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${typing ? "bg-amber-400 animate-pulse" : "bg-green-400 animate-pulse"}`} />
-          <span className="text-xs text-muted-foreground">
-            {typing ? "AI-юрист формирует ответ..." : "AI-юрист онлайн · консультации по законодательству РФ"}
-          </span>
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
+              <Icon name="Scale" size={16} className="text-gold-400" />
+            </div>
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${typing ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-navy-800">AI-юрист</p>
+            <p className="text-[11px] text-muted-foreground">
+              {typing ? "Анализирует ситуацию..." : "Онлайн · законодательство РФ"}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div>
           {user.isAdmin ? (
-            <span className="text-xs px-2.5 py-1 rounded-xl font-medium bg-purple-50 text-purple-700">
-              Администратор
-            </span>
+            <span className="text-xs px-2.5 py-1 rounded-xl font-medium bg-purple-50 text-purple-700 border border-purple-100">Администратор</span>
           ) : totalLeft === 0 ? (
-            <button
-              onClick={onPayClick}
-              className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1"
-            >
-              <Icon name="Plus" size={12} />
-              100 ₽ / 3 вопроса
+            <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+              <Icon name="Plus" size={12} />100 ₽ / 3 вопроса
             </button>
           ) : (
-            <span className="text-xs px-2.5 py-1 rounded-xl font-medium bg-emerald-50 text-emerald-700">
-              {user.paidQuestions} вопр. осталось
-            </span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <Icon name="MessageCircle" size={12} className="text-emerald-600" />
+              <span className="text-xs font-medium text-emerald-700">{user.paidQuestions} вопр.</span>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-border shadow-sm p-5 space-y-4 scrollbar-hide">
+      {/* ── Лента сообщений ── */}
+      <div className="flex-1 overflow-y-auto rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-5 space-y-5 scrollbar-hide">
+
         {messages.map((msg, i) => {
           const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
           const doAnimate = msg.role === "ai" && !typing && shouldAnimate(i);
-          return (
-            <div
-              key={i}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
-            >
-              {msg.role === "ai" && (
-                <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                  <Icon name="Scale" size={14} className="text-gold-400" />
+
+          if (msg.role === "user") {
+            return (
+              <div key={i} className="flex gap-3 justify-end items-end animate-fade-in">
+                <div className="max-w-[75%]">
+                  <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap font-golos">{msg.text}</p>
+                  </div>
+                  {msg.isFile && (
+                    <p className="text-[11px] text-muted-foreground mt-1 text-right flex items-center justify-end gap-1">
+                      <Icon name="Paperclip" size={10} />докум��нт приложен
+                    </p>
+                  )}
                 </div>
-              )}
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-navy-700 text-white rounded-br-sm"
-                  : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
-              }`}>
-                {msg.role === "ai"
-                  ? <AnimatedMessage text={msg.text} animate={doAnimate} />
-                  : <span className="whitespace-pre-wrap">{msg.text}</span>
-                }
-                {isDocRedirect && (
-                  <button
-                    onClick={onGoToDocs}
-                    className="mt-3 flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl transition-colors w-full justify-center"
-                  >
-                    <Icon name="FileText" size={14} />
-                    Перейти в раздел «Документы»
-                  </button>
-                )}
-              </div>
-              {msg.role === "user" && (
-                <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
+                <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase shadow-sm">
                   {user.name?.[0] ?? "U"}
                 </div>
-              )}
+              </div>
+            );
+          }
+
+          // AI message
+          return (
+            <div key={i} className="flex gap-3 items-start animate-fade-in">
+              <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                <Icon name="Scale" size={15} className="text-gold-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
+                  <AnimatedMessage text={msg.text} animate={doAnimate} />
+                  {isDocRedirect && (
+                    <button
+                      onClick={onGoToDocs}
+                      className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl transition-all w-full justify-center shadow-sm hover:shadow-md"
+                    >
+                      <Icon name="FileText" size={14} />
+                      Перейти в раздел «Документы»
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground/60 mt-1.5 ml-1">AI-юрист</p>
+              </div>
             </div>
           );
         })}
+
+        {/* Typing indicator */}
         {typing && (
-          <div className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
-              <Icon name="Scale" size={14} className="text-gold-400" />
+          <div className="flex gap-3 items-start animate-fade-in">
+            <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+              <Icon name="Scale" size={15} className="text-gold-400" />
             </div>
-            <div className="bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
-              <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-              <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
-              <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+            <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+                </div>
+                <span className="text-xs text-muted-foreground italic">анализирует законодательство...</span>
+              </div>
             </div>
           </div>
         )}
         <div ref={chatEndRef} />
       </div>
 
+      {/* Ошибка */}
       {chatErr && (
-        <div className="mt-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+        <div className="mt-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
           <Icon name="AlertCircle" size={13} className="shrink-0" />{chatErr}
         </div>
       )}
 
-      {/* Превью прикреплённого файла */}
+      {/* Прикреплённый файл */}
       {attachedFile && (
-        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-navy-50 border border-navy-200 rounded-2xl">
-          <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
-            <Icon name="FileText" size={14} className="text-navy-600" />
+        <div className="mt-2 flex items-center gap-2.5 px-4 py-2.5 bg-navy-50 border border-navy-200 rounded-2xl">
+          <div className="w-9 h-9 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
+            <Icon name="FileText" size={15} className="text-navy-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-navy-800 truncate">{attachedFile.name}</div>
-            <div className="text-xs text-muted-foreground">{attachedFile.size} · будет удалён через 30 мин</div>
+            <p className="text-xs font-semibold text-navy-800 truncate">{attachedFile.name}</p>
+            <p className="text-[11px] text-muted-foreground">{attachedFile.size} · удалится че��ез 30 мин</p>
           </div>
-          <button onClick={onClearFile} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
+          <button onClick={onClearFile} className="text-muted-foreground hover:text-red-500 transition-colors p-1">
             <Icon name="X" size={14} />
           </button>
         </div>
       )}
 
-      {/* Input */}
-      <div className="mt-3 flex gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-          className="hidden"
-          onChange={onFileSelect}
-        />
-        <button
-          onClick={onAttachClick}
-          disabled={typing || fileUploading}
-          title="Прикрепить документ (PDF, DOC, DOCX, JPEG, PNG)"
-          className="w-12 h-12 rounded-2xl border border-border bg-white hover:bg-slate-50 hover:border-navy-300 flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"
-        >
-          {fileUploading
-            ? <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full animate-pulse" />
-            : <Icon name="Paperclip" size={18} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
-          }
-        </button>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (attachedFile) { onSendFile(); } else { onSend(); }
+      {/* ── Поле ввода ── */}
+      <div className="mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
+        <div className="flex items-end gap-2 px-3 py-2.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={onFileSelect}
+          />
+          <button
+            onClick={onAttachClick}
+            disabled={typing || fileUploading}
+            title="PDF, DOC, DOCX, JPEG, PNG · до 10 МБ"
+            className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+          >
+            {fileUploading
+              ? <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full animate-pulse" />
+              : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
             }
-          }}
-          disabled={typing}
-          placeholder={
-            attachedFile
-              ? "Задайте вопрос к документу или отправьте без вопроса..."
-              : (user.isAdmin || totalLeft > 0)
-                ? "Задайте юридический вопрос или прикрепите документ..."
-                : "Оплатите консультацию — 100 ₽ за 3 вопроса"
-          }
-          className="flex-1 bg-white border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
-        />
-        <button
-          onClick={attachedFile ? onSendFile : onSend}
-          disabled={(!input.trim() && !attachedFile) || typing}
-          className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50 transition-all hover:scale-105"
-        >
-          <Icon name="Send" size={18} />
-        </button>
+          </button>
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (attachedFile) onSendFile(); else onSend();
+              }
+            }}
+            disabled={typing}
+            placeholder={
+              attachedFile ? "Задайте вопрос к докуме��ту или отправьте без вопроса..." :
+              (user.isAdmin || totalLeft > 0) ? "Опишите вашу ситуацию или задайте вопрос..." :
+              "Оп��атите консультацию — 100 ₽ за 3 вопроса"
+            }
+            className="flex-1 bg-transparent text-sm text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
+            style={{ minHeight: "36px", maxHeight: "140px" }}
+          />
+          <button
+            onClick={attachedFile ? onSendFile : onSend}
+            disabled={(!input.trim() && !attachedFile) || typing}
+            className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shrink-0 disabled:opacity-30 transition-all hover:shadow-md hover:scale-105 active:scale-95"
+          >
+            <Icon name="Send" size={15} className="text-white ml-0.5" />
+          </button>
+        </div>
+        <div className="px-4 pb-2 flex items-center justify-between">
+          <p className="text-[10.5px] text-muted-foreground/70">
+            Enter — отправить · Shift+Enter — новая строка
+          </p>
+          <p className="text-[10.5px] text-muted-foreground/70">
+            Ответы носят информационный характер
+          </p>
+        </div>
       </div>
-      <p className="text-center text-xs text-muted-foreground mt-2">
-        Ответы AI носят информационный характер и не заменяют консультацию адвоката
-      </p>
     </div>
   );
 }
