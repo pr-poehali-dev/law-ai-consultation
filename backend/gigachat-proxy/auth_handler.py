@@ -8,11 +8,7 @@ SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
 ADMIN_EMAIL = "ilya.povarchuk@mail.ru"
 
-_SELECT_USER = """
-    SELECT u.id, u.email, u.name, u.phone,
-           u.free_questions_used, u.paid_questions,
-           u.paid_docs, u.paid_expert, u.paid_business, u.is_admin
-"""
+_SELECT_COLS = "id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business, is_admin"
 
 
 def get_conn():
@@ -35,10 +31,11 @@ def get_user_by_token(token: str) -> dict | None:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""{_SELECT_USER}
-                FROM {SCHEMA}.sessions s
-                JOIN {SCHEMA}.users u ON u.id = s.user_id
-                WHERE s.token = %s AND s.expires_at > NOW()""",
+            f"""SELECT {_SELECT_COLS} FROM {SCHEMA}.users
+                WHERE id = (
+                    SELECT user_id FROM {SCHEMA}.sessions
+                    WHERE token = %s AND expires_at > NOW()
+                )""",
             (token,)
         )
         row = cur.fetchone()
@@ -92,7 +89,7 @@ def handle_register(body: dict) -> dict:
         conn.commit()
 
         cur.execute(
-            f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         u = cur.fetchone()
@@ -133,7 +130,7 @@ def handle_login(body: dict) -> dict:
         conn.commit()
 
         cur.execute(
-            f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         u = cur.fetchone()
@@ -186,7 +183,7 @@ def handle_update_profile(token: str, body: dict) -> dict:
             elif new_phone:
                 cur.execute(f"UPDATE {SCHEMA}.users SET phone = %s WHERE id = %s", (new_phone, user["id"]))
             conn.commit()
-            cur.execute(f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s", (user["id"],))
+            cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user["id"],))
             u = cur.fetchone()
             return _ok({"user": _format_user(u)})
         finally:
@@ -205,11 +202,7 @@ def handle_consume_question(token: str) -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
-        if user["freeQuestionsUsed"] < 30:
-            cur.execute(f"UPDATE {SCHEMA}.users SET free_questions_used = free_questions_used + 1 WHERE id = %s", (user["id"],))
-            conn.commit()
-            return _ok({"ok": True})
-        elif user["paidQuestions"] > 0:
+        if user["paidQuestions"] > 0:
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s", (user["id"],))
             conn.commit()
             return _ok({"ok": True})

@@ -230,10 +230,6 @@ export default function Cabinet() {
 
     const canAsk = await canAskQuestion();
     if (!canAsk) {
-      setMessages((p) => [...p, {
-        role: "ai",
-        text: "⚠️ Вы использовали все бесплатные вопросы. Оплатите консультацию — 100 ₽ за 3 вопроса.",
-      }]);
       setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
       return;
     }
@@ -297,7 +293,6 @@ export default function Cabinet() {
     if (!attachedFile || typing) return;
     const canAsk = await canAskQuestion();
     if (!canAsk) {
-      setMessages((p) => [...p, { role: "ai", text: "⚠️ Вы использовали все бесплатные вопросы. Оплатите консультацию — 100 ₽ за 3 вопроса." }]);
       setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
       return;
     }
@@ -619,7 +614,7 @@ export default function Cabinet() {
   if (!user) return null;
 
   const freeLeft = getFreeLeft(user);
-  const totalLeft = freeLeft + (user.paidQuestions ?? 0);
+  const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 
   return (
     <div className="min-h-screen bg-slate-50 font-golos">
@@ -713,7 +708,11 @@ export default function Cabinet() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {totalLeft === 0 ? (
+                {user.isAdmin ? (
+                  <span className="text-xs px-2.5 py-1 rounded-xl font-medium bg-purple-50 text-purple-700">
+                    Администратор
+                  </span>
+                ) : totalLeft === 0 ? (
                   <button
                     onClick={() => setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" })}
                     className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1"
@@ -722,8 +721,8 @@ export default function Cabinet() {
                     100 ₽ / 3 вопроса
                   </button>
                 ) : (
-                  <span className={`text-xs px-2.5 py-1 rounded-xl font-medium ${freeLeft > 0 ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>
-                    {freeLeft > 0 ? `${freeLeft} бесплатных` : `${user.paidQuestions} платных`}
+                  <span className="text-xs px-2.5 py-1 rounded-xl font-medium bg-emerald-50 text-emerald-700">
+                    {user.paidQuestions} вопр. осталось
                   </span>
                 )}
               </div>
@@ -836,9 +835,9 @@ export default function Cabinet() {
                 placeholder={
                   attachedFile
                     ? "Задайте вопрос к документу или отправьте без вопроса..."
-                    : totalLeft > 0
+                    : (user.isAdmin || totalLeft > 0)
                       ? "Задайте юридический вопрос или прикрепите документ..."
-                      : "Оплатите консультацию для продолжения"
+                      : "Оплатите консультацию — 100 ₽ за 3 вопроса"
                 }
                 className="flex-1 bg-white border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
               />

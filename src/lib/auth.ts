@@ -102,7 +102,7 @@ export async function canAskQuestion(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
-  return user.freeQuestionsUsed < 30 || user.paidQuestions > 0;
+  return user.paidQuestions > 0;
 }
 
 /** Проверяет, может ли пользователь создать документ (есть оплаченный слот или он admin) */
@@ -124,5 +124,5 @@ export async function addPaidService(serviceType: string): Promise<void> {
 }
 
 export function getFreeLeft(user: User): number {
-  return Math.max(0, 30 - user.freeQuestionsUsed);
+  return user.isAdmin ? 999 : user.paidQuestions;
 }
