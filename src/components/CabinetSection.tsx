@@ -4,6 +4,9 @@ import func2url from "../../backend/func2url.json";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { saveAs } from "file-saver";
+import CabinetChatTab from "@/components/cabinet/CabinetChatTab";
+import CabinetDocsTab from "@/components/cabinet/CabinetDocsTab";
+import CabinetHistoryTab from "@/components/cabinet/CabinetHistoryTab";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
@@ -262,230 +265,42 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
 
         {/* === CHAT TAB === */}
         {activeTab === "chat" && (
-          <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-sm max-w-3xl">
-            <div className="p-5 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center">
-                  <Icon name="Bot" size={18} className="text-gold-400" />
-                </div>
-                <div>
-                  <div className="font-semibold text-navy-800 text-sm">AI-Юрист</div>
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isTyping ? "bg-amber-400" : "bg-green-400"}`} />
-                    <span className="text-xs text-muted-foreground">
-                      {isTyping ? "AI-юрист формирует ответ..." : "Онлайн · Обучен реальными юристами"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {!canAsk && (
-                <button
-                  onClick={() => { setPendingPaymentService("consultation"); setShowPayment(true); }}
-                  className="btn-gold px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1"
-                >
-                  <Icon name="Zap" size={12} />
-                  100 ₽ / 3 вопроса
-                </button>
-              )}
-            </div>
-
-            <div className="h-80 overflow-y-auto p-5 space-y-4 scrollbar-hide">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {msg.role === "ai" && (
-                    <div className="w-7 h-7 gradient-navy rounded-lg flex items-center justify-center mr-2 mt-1 shrink-0">
-                      <Icon name="Scale" size={13} className="text-gold-400" />
-                    </div>
-                  )}
-                  <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user" ? "bg-navy-700 text-white rounded-br-sm" : "chat-bubble-ai text-navy-800 rounded-bl-sm"
-                  }`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isTyping && (
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 gradient-navy rounded-lg flex items-center justify-center shrink-0">
-                    <Icon name="Scale" size={13} className="text-gold-400" />
-                  </div>
-                  <div className="chat-bubble-ai rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5">
-                    <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full inline-block" />
-                    <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full inline-block" />
-                    <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full inline-block" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {chatError && (
-              <div className="mx-4 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{chatError}</div>
-            )}
-
-            <div className="p-4 border-t border-border flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                placeholder={canAsk ? "Задайте юридический вопрос..." : "Оплатите консультацию для продолжения..."}
-                disabled={isTyping}
-                className="flex-1 bg-slate-50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || isTyping}
-                className="btn-gold px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Icon name="Send" size={16} />
-              </button>
-            </div>
-          </div>
+          <CabinetChatTab
+            chatMessages={chatMessages}
+            input={input}
+            isTyping={isTyping}
+            chatError={chatError}
+            canAsk={canAsk}
+            onInputChange={setInput}
+            onSend={sendMessage}
+            onPayClick={() => { setPendingPaymentService("consultation"); setShowPayment(true); }}
+          />
         )}
 
         {/* === DOCS TAB === */}
         {activeTab === "docs" && (
-          <div className="max-w-3xl space-y-6">
-            {/* Doc generator */}
-            <div className="bg-card rounded-3xl border border-border p-6">
-              <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">Создать документ</h3>
-              <p className="text-sm text-muted-foreground mb-5">AI сформирует готовый юридический документ по вашим данным</p>
-
-              {/* Type selector */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-5">
-                {DOC_TYPES.map((dt) => (
-                  <button
-                    key={dt.id}
-                    onClick={() => setDocType(dt)}
-                    className={`flex items-center gap-2 p-3 rounded-2xl border text-left transition-all ${
-                      docType.id === dt.id ? "border-navy-600 bg-navy-50" : "border-border hover:border-navy-200"
-                    }`}
-                  >
-                    <Icon name={dt.icon as any} size={16} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
-                    <div>
-                      <div className={`text-xs font-medium leading-tight ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</div>
-                      <div className="text-[10px] text-muted-foreground">{dt.price} ₽</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={docDetails}
-                onChange={(e) => setDocDetails(e.target.value)}
-                placeholder={`Опишите ситуацию для составления документа «${docType.label}»...\n\nНапример: Иванов И.И. должен мне 50 000 рублей по договору займа от 01.01.2025, срок возврата прошёл, на звонки не отвечает.`}
-                rows={4}
-                className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-4"
-              />
-
-              {docError && (
-                <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{docError}</div>
-              )}
-
-              <button
-                onClick={() => handleGenerateDoc(docType.id)}
-                disabled={generatingDoc || !docDetails.trim()}
-                className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {generatingDoc ? (
-                  <>
-                    <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
-                    <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
-                    <span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" />
-                  </>
-                ) : (
-                  <>
-                    <Icon name="Zap" size={16} />
-                    Создать бесплатно
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Generated doc */}
-            {generatedDoc && (
-              <div className="bg-card rounded-3xl border border-emerald-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Icon name="CheckCircle" size={18} className="text-emerald-500" />
-                    <span className="font-semibold text-navy-800">{docType.label} — готов!</span>
-                  </div>
-                  <button
-                    onClick={() => downloadDocx(docType.label, generatedDoc)}
-                    className="flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 font-medium px-3 py-1.5 rounded-xl hover:bg-navy-50 transition-colors"
-                  >
-                    <Icon name="Download" size={15} />
-                    Скачать .docx
-                  </button>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-4 text-sm text-navy-700 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto scrollbar-hide font-mono text-xs">
-                  {generatedDoc}
-                </div>
-              </div>
-            )}
-
-            {/* Doc history */}
-            {documents.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-navy-800 mb-3 text-sm">Ранее созданные документы</h4>
-                <div className="space-y-2">
-                  {documents.map((doc) => (
-                    <div key={doc.id} className="bg-card rounded-2xl border border-border p-4 flex items-center justify-between hover:border-navy-200 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${doc.type === "PDF" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
-                          {doc.type}
-                        </div>
-                        <div>
-                          <div className="font-medium text-navy-800 text-sm">{doc.name}</div>
-                          <div className="text-xs text-muted-foreground">{doc.date}</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => doc.content && downloadDocx(doc.name, doc.content)}
-                        className="flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 font-medium transition-colors px-3 py-1.5 rounded-lg hover:bg-navy-50"
-                      >
-                        <Icon name="Download" size={15} />
-                        Скачать .docx
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <CabinetDocsTab
+            docType={docType}
+            docTypes={DOC_TYPES}
+            docDetails={docDetails}
+            generatingDoc={generatingDoc}
+            generatedDoc={generatedDoc}
+            docError={docError}
+            documents={documents}
+            onDocTypeChange={setDocType}
+            onDocDetailsChange={setDocDetails}
+            onGenerate={() => handleGenerateDoc(docType.id)}
+            onDownload={downloadDocx}
+          />
         )}
 
         {/* === HISTORY TAB === */}
         {activeTab === "history" && (
-          <div className="space-y-3 max-w-3xl">
-            {MOCK_CONSULTATIONS.map((c) => (
-              <div key={c.id} className="bg-card rounded-2xl border border-border overflow-hidden">
-                <button
-                  className="w-full p-5 flex items-start justify-between gap-4 hover:bg-slate-50 transition-colors text-left"
-                  onClick={() => setExpandedConsult(expandedConsult === c.id ? null : c.id)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-navy-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon name="MessageCircle" size={17} className="text-navy-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-navy-800 text-sm mb-1">{c.question}</div>
-                      <div className="text-xs text-muted-foreground">{c.date}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-medium">{c.status}</span>
-                    <Icon name={expandedConsult === c.id ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground" />
-                  </div>
-                </button>
-                {expandedConsult === c.id && (
-                  <div className="px-5 pb-5 border-t border-border">
-                    <div className="mt-4 chat-bubble-ai rounded-2xl p-4 text-sm text-navy-700 leading-relaxed">{c.preview}</div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <CabinetHistoryTab
+            consultations={MOCK_CONSULTATIONS}
+            expandedId={expandedConsult}
+            onToggle={(id) => setExpandedConsult(expandedConsult === id ? null : id)}
+          />
         )}
       </div>
 
