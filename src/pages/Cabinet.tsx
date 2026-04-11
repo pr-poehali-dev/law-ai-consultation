@@ -642,27 +642,39 @@ export default function Cabinet() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-border shadow-sm p-5 space-y-4 scrollbar-hide">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {msg.role === "ai" && (
-                    <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon name="Scale" size={14} className="text-gold-400" />
+              {messages.map((msg, i) => {
+                const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
+                return (
+                  <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.role === "ai" && (
+                      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                        <Icon name="Scale" size={14} className="text-gold-400" />
+                      </div>
+                    )}
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                      msg.role === "user"
+                        ? "bg-navy-700 text-white rounded-br-sm"
+                        : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
+                    }`}>
+                      {msg.text}
+                      {isDocRedirect && (
+                        <button
+                          onClick={() => setTab("docs")}
+                          className="mt-3 flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl transition-colors w-full justify-center"
+                        >
+                          <Icon name="FileText" size={14} />
+                          Перейти в раздел «Документы»
+                        </button>
+                      )}
                     </div>
-                  )}
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-navy-700 text-white rounded-br-sm"
-                      : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
-                  }`}>
-                    {msg.text}
+                    {msg.role === "user" && (
+                      <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
+                        {user.name?.[0] ?? "U"}
+                      </div>
+                    )}
                   </div>
-                  {msg.role === "user" && (
-                    <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
-                      {user.name?.[0] ?? "U"}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {typing && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
