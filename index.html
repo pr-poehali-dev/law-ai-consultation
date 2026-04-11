@@ -1,22 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Юрист AI — юридическая помощь 24/7</title>
-    <meta name="description" content="Юридические консультации и готовые документы на основе AI, обученного реальными юристами"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&family=Cormorant:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-    <meta name="author" content="poehali.dev"/>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <meta property="og:title" content="Поехали!">
-    <meta property="og:description" content="Ваш личный программист, который делает сайты в 30 раз быстрее обычного.">
-    <meta property="og:image:width" content="4800">
-    <meta property="og:image:height" content="2520">
-    <meta property="og:image:alt" content="Поехали! — сервис разработки сайтов с помощью ИИ">
-    <meta property="og:image" content="https://cdn.poehali.dev/intertnal/img/og.png">
-    <meta name="twitter:image" content="https://cdn.poehali.dev/intertnal/img/og.png">
+
+    <!-- SEO: основные мета-теги -->
+    <title>Юрист AI — юридические консультации и документы онлайн 24/7</title>
+    <meta name="description" content="AI-юрист онлайн: консультации по гражданскому, трудовому, семейному и жилищному праву. Готовые иски, претензии, договоры за 3 минуты. Обучен на реальных делах."/>
+    <meta name="keywords" content="юрист онлайн, юридическая консультация, AI юрист, исковое заявление, претензия, договор, трудовое право, семейное право, гражданское право, жилищное право"/>
+    <meta name="author" content="Юрист AI"/>
+    <meta name="robots" content="index, follow"/>
+    <link rel="canonical" href="https://law-ai-consultation.poehali.dev/"/>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="https://law-ai-consultation.poehali.dev/"/>
+    <meta property="og:title" content="Юрист AI — юридическая помощь 24/7"/>
+    <meta property="og:description" content="Консультации и готовые юридические документы за минуты. AI обучен реальными юристами с многолетним опытом. Иски, претензии, договоры."/>
+    <meta property="og:image" content="https://law-ai-consultation.poehali.dev/og-image.png"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+    <meta property="og:image:alt" content="Юрист AI — юридические консультации онлайн"/>
+    <meta property="og:locale" content="ru_RU"/>
+    <meta property="og:site_name" content="Юрист AI"/>
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="Юрист AI — юридическая помощь 24/7"/>
+    <meta name="twitter:description" content="Консультации и документы за минуты. AI обучен реальными юристами."/>
+    <meta name="twitter:image" content="https://law-ai-consultation.poehali.dev/og-image.png"/>
+
+    <!-- Иконки -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    <link rel="apple-touch-icon" href="/favicon.svg"/>
+
+    <!-- Шрифты -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&family=Cormorant:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet"/>
+
+    <!-- Безопасность: Content Security Policy -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN"/>
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()"/>
+
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LegalService",
+      "name": "Юрист AI",
+      "description": "Онлайн-сервис юридических консультаций и подготовки документов на основе искусственного интеллекта",
+      "url": "https://law-ai-consultation.poehali.dev/",
+      "serviceType": ["Юридическая консультация", "Подготовка документов", "Правовой анализ"],
+      "areaServed": "RU",
+      "availableLanguage": "Russian",
+      "priceRange": "от 50 ₽",
+      "openingHours": "Mo-Su 00:00-24:00"
+    }
+    </script>
+
+    <!-- Structured Data: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Как получить юридическую консультацию?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Зарегистрируйтесь, задайте вопрос в чате — AI-юрист ответит со ссылками на законы РФ в течение минуты."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Как быстро готовится юридический документ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Документ (иск, претензия, договор) готовится за 2–5 минут после описания ситуации."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "По каким отраслям права работает сервис?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Гражданское, трудовое, семейное, жилищное, административное, налоговое и процессуальное право РФ."
+          }
+        }
+      ]
+    }
+    </script>
 
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS COMMENT! -->
 
@@ -27,8 +104,8 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS COMMENT! -->
 
     <meta name="pp-name" value="law-ai-consultation">
-      <script src="https://cdn.poehali.dev/intertnal/js/inspector-min.js"></script>
-  </head>
+    <script src="https://cdn.poehali.dev/intertnal/js/inspector-min.js"></script>
+</head>
 
 <body>
 <div id="root"></div>

@@ -119,7 +119,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
 
               <div className="p-7 flex-1">
                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-5 ${plan.popular ? "bg-white/15" : "bg-navy-100"}`}>
-                  <Icon name={plan.icon as any} size={22} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
+                  <Icon name={plan.icon} size={22} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
                 </div>
 
                 <div className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>
@@ -169,6 +169,55 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           ))}
         </div>
 
+        {/* Subscription plans */}
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[
+            {
+              id: "subscription_consult",
+              name: "Безлимитные консультации",
+              price: "1 990",
+              features: ["Неограниченные вопросы AI-юристу", "Все отрасли права", "История консультаций", "Приоритетная поддержка"],
+              icon: "MessageCircle",
+              badge: "🔥 Безлимит",
+            },
+            {
+              id: "subscription_docs",
+              name: "Безлимитные документы",
+              price: "4 990",
+              features: ["Неограниченная генерация документов", "Все типы документов", "Автозаполнение реквизитов", "Скачивание .docx"],
+              icon: "FileText",
+              badge: "🔥 Безлимит",
+            },
+          ].map((sub) => (
+            <div key={sub.id} className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-6 flex items-center gap-5 card-hover cursor-pointer group"
+              onClick={() => onSelectPlan(sub.name, sub.price, sub.id)}>
+              <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shrink-0">
+                <Icon name={sub.icon} size={22} className="text-gold-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-navy-800 text-sm">{sub.name}</span>
+                  <span className="text-[10px] font-bold bg-gold-400/20 text-gold-700 px-2 py-0.5 rounded-full">{sub.badge}</span>
+                </div>
+                <ul className="space-y-0.5 mb-2">
+                  {sub.features.map((f) => (
+                    <li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Icon name="Check" size={11} className="text-emerald-500 shrink-0" />{f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-cormorant font-bold text-2xl text-navy-800">{sub.price} ₽</div>
+                <div className="text-xs text-muted-foreground">в месяц</div>
+                <button className="mt-2 btn-gold text-xs px-3 py-1.5 rounded-xl group-hover:shadow-md transition-shadow">
+                  Подключить
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Trust badges */}
         <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
           {[
@@ -178,7 +227,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
             { icon: "HeadphonesIcon", text: "Поддержка 24/7" },
           ].map((badge) => (
             <div key={badge.text} className="flex items-center gap-2">
-              <Icon name={badge.icon as any} size={16} className="text-navy-400" />
+              <Icon name={badge.icon} size={16} className="text-navy-400" />
               <span>{badge.text}</span>
             </div>
           ))}

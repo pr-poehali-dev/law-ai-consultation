@@ -15,6 +15,8 @@ const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
   document: "document",
   business: "business",
   expert: "expert",
+  subscription_consult: "subscription_consult",
+  subscription_docs: "subscription_docs",
   "AI-консультация": "consultation",
   "Готовые документы": "document",
   "Исковое заявление": "document",
@@ -23,6 +25,8 @@ const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
   "Договор ГПХ": "document",
   "Проверка юристом": "expert",
   "Для бизнеса": "business",
+  "Безлимитные консультации": "subscription_consult",
+  "Безлимитные документы": "subscription_docs",
 };
 
 export default function Index() {
@@ -30,6 +34,8 @@ export default function Index() {
   const [activeSection, setActiveSection] = useState("home");
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  // После trial-оплаты предлагаем регистрацию
+  const [pendingTrialPaid, setPendingTrialPaid] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
     type: "consultation",
     name: "AI-консультация",
@@ -53,8 +59,23 @@ export default function Index() {
     setShowPayment(true);
   };
 
+  // Кнопка «Попробовать сейчас» — trial 1 вопрос за 50 ₽
+  const handleTryClick = () => {
+    if (isLoggedIn) {
+      navigate("/cabinet");
+      return;
+    }
+    setSelectedService({ type: "trial", name: "1 вопрос AI-юристу — вводный тариф" });
+    setShowPayment(true);
+  };
+
   const handlePaymentSuccess = async (svcType: ServiceType) => {
     await addPaidService(svcType);
+    if (svcType === "trial" && !isLoggedIn) {
+      // Показываем предложение зарегистрироваться внутри модала
+      setPendingTrialPaid(true);
+      return; // модал остаётся открытым — там покажем блок регистрации
+    }
     setShowPayment(false);
     navigate("/cabinet");
   };
@@ -65,6 +86,7 @@ export default function Index() {
         activeSection={activeSection}
         onNavigate={handleNavigate}
         onLoginClick={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
+        onTryClick={handleTryClick}
       />
 
       <div id="hero">
@@ -91,8 +113,14 @@ export default function Index() {
         <PaymentModal
           serviceType={selectedService.type}
           serviceName={selectedService.name}
-          onClose={() => setShowPayment(false)}
+          onClose={() => { setShowPayment(false); setPendingTrialPaid(false); }}
           onSuccess={handlePaymentSuccess}
+          showRegisterPrompt={pendingTrialPaid}
+          onRegisterAfterPay={() => {
+            setShowPayment(false);
+            setPendingTrialPaid(false);
+            setShowLogin(true);
+          }}
         />
       )}
 

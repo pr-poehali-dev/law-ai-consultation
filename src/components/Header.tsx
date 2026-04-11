@@ -5,9 +5,10 @@ interface HeaderProps {
   activeSection: string;
   onNavigate: (section: string) => void;
   onLoginClick: () => void;
+  onTryClick?: () => void;
 }
 
-export default function Header({ activeSection, onNavigate, onLoginClick }: HeaderProps) {
+export default function Header({ activeSection, onNavigate, onLoginClick, onTryClick }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -85,10 +86,11 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
             Войти
           </button>
           <button
-            onClick={() => onNavigate("cabinet")}
-            className="btn-gold px-5 py-2 rounded-xl text-sm"
+            onClick={onTryClick ?? (() => onNavigate("cabinet"))}
+            className="btn-gold px-5 py-2 rounded-xl text-sm flex items-center gap-1.5"
           >
-            Попробовать бесплатно
+            <Icon name="Zap" size={14} />
+            Попробовать сейчас
           </button>
         </div>
 
@@ -126,10 +128,11 @@ export default function Header({ activeSection, onNavigate, onLoginClick }: Head
                 Войти в кабинет
               </button>
               <button
-                onClick={() => { onNavigate("cabinet"); setMobileOpen(false); }}
-                className="btn-gold px-5 py-3 rounded-xl text-sm text-center"
+                onClick={() => { (onTryClick ?? (() => onNavigate("cabinet")))(); setMobileOpen(false); }}
+                className="btn-gold px-5 py-3 rounded-xl text-sm text-center flex items-center justify-center gap-1.5"
               >
-                Попробовать бесплатно
+                <Icon name="Zap" size={14} />
+                Попробовать сейчас
               </button>
             </div>
           </div>

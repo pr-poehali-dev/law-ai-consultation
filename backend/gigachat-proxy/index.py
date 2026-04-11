@@ -17,6 +17,7 @@ from auth_handler import (
     handle_register, handle_login, handle_me,
     handle_logout, handle_update_profile,
     handle_consume_question, handle_consume_doc, handle_add_paid_service,
+    handle_report, sanitize_str,
 )
 
 warnings.filterwarnings("ignore")
@@ -335,17 +336,21 @@ def handler(event: dict, context) -> dict:
         except Exception:
             pass
 
+    # --- Базовая защита: санитизация action ---
+    action = sanitize_str(body.get("action") or "", max_len=64)
+
     # --- Auth ---
-    action = body.get("action", "")
+    ip = (event.get("requestContext") or {}).get("identity", {}).get("sourceIp", "")
     auth_actions = {
         "register": lambda: handle_register(body),
-        "login": lambda: handle_login(body),
+        "login": lambda: handle_login(body, ip),
         "me": lambda: handle_me(token),
         "logout": lambda: handle_logout(token),
         "update-profile": lambda: handle_update_profile(token, body),
         "consume-question": lambda: handle_consume_question(token),
         "consume-doc": lambda: handle_consume_doc(token),
         "add-paid-service": lambda: handle_add_paid_service(token, body),
+        "report": lambda: handle_report(token, body),
     }
     if action in auth_actions:
         result = auth_actions[action]()

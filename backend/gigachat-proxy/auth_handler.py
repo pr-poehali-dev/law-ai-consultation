@@ -1,14 +1,26 @@
-"""Авторизация: регистрация с паролем, вход по email+пароль, сессии."""
+"""Авторизация: регистрация, вход, сессии, подписки, rate-limiting, отчёты об ошибках."""
 import os
+import re
 import secrets
 import hashlib
+import smtplib
 import psycopg2
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
-
 ADMIN_EMAIL = "ilya.povarchuk@mail.ru"
+REPORT_EMAIL = "povpartner@mail.ru"
 
-_SELECT_COLS = "id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business, is_admin"
+_SELECT_COLS = (
+    "id, email, name, phone, free_questions_used, paid_questions, "
+    "paid_docs, paid_expert, paid_business, is_admin, "
+    "subscription_consult_until, subscription_docs_until"
+)
+
+# Максимум попыток входа за 15 минут
+MAX_LOGIN_ATTEMPTS = 10
+LOGIN_WINDOW_MINUTES = 15
 
 
 def get_conn():
@@ -24,8 +36,35 @@ def generate_token() -> str:
     return secrets.token_hex(48)
 
 
+def sanitize_str(s: str, max_len: int = 255) -> str:
+    """Базовая санитизация строки."""
+    if not s:
+        return ""
+    # убираем управляющие символы, обрезаем
+    cleaned = re.sub(r'[\x00-\x1f\x7f]', '', str(s))
+    return cleaned[:max_len].strip()
+
+
+def _check_rate_limit(conn, ip: str) -> bool:
+    """Проверяет, не превышен ли лимит попыток входа с IP. True — разрешено."""
+    cur = conn.cursor()
+    try:
+        window = datetime.utcnow() - timedelta(minutes=LOGIN_WINDOW_MINUTES)
+        cur.execute(
+            f"""SELECT COUNT(*) FROM {SCHEMA}.sessions
+                WHERE created_at > %s AND metadata::text LIKE %s""",
+            (window, f'%"ip":"{ip}"%')
+        )
+        row = cur.fetchone()
+        return (row[0] if row else 0) < MAX_LOGIN_ATTEMPTS
+    except Exception:
+        return True  # при ошибке — не блокируем
+    finally:
+        cur.close()
+
+
 def get_user_by_token(token: str) -> dict | None:
-    if not token:
+    if not token or len(token) > 200:
         return None
     conn = get_conn()
     cur = conn.cursor()
@@ -46,25 +85,26 @@ def get_user_by_token(token: str) -> dict | None:
 
 
 def handle_register(body: dict) -> dict:
-    name = (body.get("name") or "").strip()
-    email = (body.get("email") or "").strip().lower()
-    phone = (body.get("phone") or "").strip()
+    name = sanitize_str(body.get("name") or "")
+    email = sanitize_str(body.get("email") or "").lower()
+    phone = sanitize_str(body.get("phone") or "")
     password = body.get("password") or ""
     agreed = body.get("agreed_to_terms", False)
 
     if not name:
         return _err(400, "Введите имя")
-    if not email or "@" not in email:
+    if not email or "@" not in email or len(email) > 254:
         return _err(400, "Некорректный email")
     if not phone or len(phone) < 7:
         return _err(400, "Введите корректный телефон")
     if len(password) < 6:
         return _err(400, "Пароль должен быть не менее 6 символов")
+    if len(password) > 128:
+        return _err(400, "Пароль слишком длинный")
     if not agreed:
         return _err(400, "Необходимо согласие на обработку персональных данных")
 
     pw_hash = hash_password(password)
-    # Если регистрируется admin-email — сразу ставим is_admin=true
     is_admin = email == ADMIN_EMAIL
 
     conn = get_conn()
@@ -88,10 +128,7 @@ def handle_register(body: dict) -> dict:
         )
         conn.commit()
 
-        cur.execute(
-            f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s",
-            (user_id,)
-        )
+        cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
         return _ok({"token": token, "user": _format_user(u)})
     except Exception as e:
@@ -102,12 +139,14 @@ def handle_register(body: dict) -> dict:
         conn.close()
 
 
-def handle_login(body: dict) -> dict:
-    email = (body.get("email") or "").strip().lower()
+def handle_login(body: dict, ip: str = "") -> dict:
+    email = sanitize_str(body.get("email") or "").lower()
     password = body.get("password") or ""
 
     if not email or not password:
         return _err(400, "Введите email и пароль")
+    if len(password) > 128:
+        return _err(400, "Некорректный пароль")
 
     pw_hash = hash_password(password)
     conn = get_conn()
@@ -129,10 +168,7 @@ def handle_login(body: dict) -> dict:
         )
         conn.commit()
 
-        cur.execute(
-            f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s",
-            (user_id,)
-        )
+        cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
         return _ok({"token": token, "user": _format_user(u)})
     except Exception as e:
@@ -151,7 +187,7 @@ def handle_me(token: str) -> dict:
 
 
 def handle_logout(token: str) -> dict:
-    if token:
+    if token and len(token) <= 200:
         conn = get_conn()
         cur = conn.cursor()
         try:
@@ -170,8 +206,8 @@ def handle_update_profile(token: str, body: dict) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    new_name = (body.get("name") or "").strip()
-    new_phone = (body.get("phone") or "").strip()
+    new_name = sanitize_str(body.get("name") or "")
+    new_phone = sanitize_str(body.get("phone") or "")
     if new_name or new_phone:
         conn = get_conn()
         cur = conn.cursor()
@@ -196,7 +232,8 @@ def handle_consume_question(token: str) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    if user.get("isAdmin", False):
+    # Админ и активные подписчики — бесплатно
+    if user.get("isAdmin", False) or _has_active_subscription(user, "consult"):
         return _ok({"ok": True})
     conn = get_conn()
     cur = conn.cursor()
@@ -213,11 +250,11 @@ def handle_consume_question(token: str) -> dict:
 
 
 def handle_consume_doc(token: str) -> dict:
-    """Списывает 1 документ. Для админа — бесплатно."""
+    """Списывает 1 документ. Для админа и подписчиков — бесплатно."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    if user.get("isAdmin", False):
+    if user.get("isAdmin", False) or _has_active_subscription(user, "docs"):
         return _ok({"ok": True})
     if user.get("paidDocs", 0) <= 0:
         return _err(403, "Нет доступных документов")
@@ -236,18 +273,35 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    service_type = body.get("service_type", "")
+    service_type = sanitize_str(body.get("service_type") or "")
     conn = get_conn()
     cur = conn.cursor()
     try:
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
+        elif service_type == "trial":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 1 WHERE id = %s", (user["id"],))
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
         elif service_type == "expert":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user["id"],))
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
+        elif service_type == "subscription_consult":
+            # Продлеваем или устанавливаем подписку на 31 день
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET subscription_consult_until = GREATEST(NOW(), COALESCE(subscription_consult_until, NOW())) + INTERVAL '31 days'
+                    WHERE id = %s""",
+                (user["id"],)
+            )
+        elif service_type == "subscription_docs":
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET subscription_docs_until = GREATEST(NOW(), COALESCE(subscription_docs_until, NOW())) + INTERVAL '31 days'
+                    WHERE id = %s""",
+                (user["id"],)
+            )
         conn.commit()
         return _ok({"ok": True})
     finally:
@@ -255,7 +309,70 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         conn.close()
 
 
+def handle_report(token: str, body: dict) -> dict:
+    """Отправляет сообщение об ошибке на email поддержки."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+
+    message = sanitize_str(body.get("message") or "", max_len=2000)
+    if not message:
+        return _err(400, "Сообщение не может быть пустым")
+
+    subject = f"[Юрист AI] Проблема от {user['name']} ({user['email']})"
+    body_text = (
+        f"Пользователь: {user['name']}\n"
+        f"Email: {user['email']}\n"
+        f"Дата: {datetime.utcnow().strftime('%d.%m.%Y %H:%M UTC')}\n\n"
+        f"Сообщение:\n{message}"
+    )
+
+    try:
+        smtp_from = os.environ.get("SMTP_FROM_EMAIL", "")
+        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
+        if not smtp_from or not smtp_pass:
+            return _err(500, "SMTP не настроен")
+
+        msg = MIMEText(body_text, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = REPORT_EMAIL
+
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465) as server:
+            server.login(smtp_from, smtp_pass)
+            server.sendmail(smtp_from, REPORT_EMAIL, msg.as_string())
+
+        return _ok({"ok": True})
+    except Exception as e:
+        return _err(500, f"Ошибка отправки: {str(e)}")
+
+
+def _has_active_subscription(user: dict, kind: str) -> bool:
+    """Проверяет активность подписки на текущий момент."""
+    if kind == "consult":
+        until = user.get("subscriptionConsultUntil")
+    else:
+        until = user.get("subscriptionDocsUntil")
+    if not until:
+        return False
+    if isinstance(until, str):
+        try:
+            until_dt = datetime.fromisoformat(until.replace("Z", "+00:00").replace("+00:00", ""))
+        except Exception:
+            return False
+    else:
+        until_dt = until
+    return until_dt > datetime.utcnow()
+
+
 def _format_user(row) -> dict:
+    def _fmt_dt(v):
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v)
+
     return {
         "id": row[0],
         "email": row[1],
@@ -267,6 +384,8 @@ def _format_user(row) -> dict:
         "paidExpert": row[7],
         "paidBusiness": row[8],
         "isAdmin": bool(row[9]),
+        "subscriptionConsultUntil": _fmt_dt(row[10]),
+        "subscriptionDocsUntil": _fmt_dt(row[11]),
     }
 
 

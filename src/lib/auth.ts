@@ -14,6 +14,8 @@ export interface User {
   paidExpert: boolean;
   paidBusiness: number;
   isAdmin: boolean;
+  subscriptionConsultUntil: string | null;
+  subscriptionDocsUntil: string | null;
 }
 
 export function getToken(): string {
@@ -98,31 +100,45 @@ export async function consumeQuestion(): Promise<boolean> {
   return res.ok;
 }
 
+export async function consumeDoc(): Promise<boolean> {
+  const res = await apiCall({ action: "consume-doc" });
+  return res.ok;
+}
+
 export async function canAskQuestion(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
+  if (hasActiveSubscription(user, "consult")) return true;
   return user.paidQuestions > 0;
 }
 
-/** Проверяет, может ли пользователь создать документ (есть оплаченный слот или он admin) */
 export async function canUseDoc(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
+  if (hasActiveSubscription(user, "docs")) return true;
   return user.paidDocs > 0;
-}
-
-/** Списывает 1 документ со счёта (для admin — бесплатно) */
-export async function consumeDoc(): Promise<boolean> {
-  const res = await apiCall({ action: "consume-doc" });
-  return res.ok;
 }
 
 export async function addPaidService(serviceType: string): Promise<void> {
   await apiCall({ action: "add-paid-service", service_type: serviceType });
 }
 
+export async function sendReport(message: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "report", message });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка отправки" };
+  return { ok: true };
+}
+
 export function getFreeLeft(user: User): number {
   return user.isAdmin ? 999 : user.paidQuestions;
+}
+
+/** Проверяет активную подписку на стороне клиента */
+export function hasActiveSubscription(user: User, kind: "consult" | "docs"): boolean {
+  const until = kind === "consult" ? user.subscriptionConsultUntil : user.subscriptionDocsUntil;
+  if (!until) return false;
+  return new Date(until) > new Date();
 }

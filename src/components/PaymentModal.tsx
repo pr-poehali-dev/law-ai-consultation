@@ -5,33 +5,54 @@ import func2url from "../../backend/func2url.json";
 const CREATE_URL = func2url["payment-create"];
 const CHECK_URL = func2url["payment-check"];
 
-export type ServiceType = "consultation" | "document" | "expert" | "business";
+export type ServiceType =
+  | "consultation"
+  | "trial"
+  | "document"
+  | "expert"
+  | "business"
+  | "subscription_consult"
+  | "subscription_docs";
 
 interface PaymentModalProps {
   serviceType: ServiceType;
   serviceName: string;
   onClose: () => void;
   onSuccess: (serviceType: ServiceType) => void;
+  showRegisterPrompt?: boolean;
+  onRegisterAfterPay?: () => void;
 }
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
   consultation: 100,
+  trial: 50,
   document: 500,
   expert: 1500,
   business: 1000,
+  subscription_consult: 1990,
+  subscription_docs: 4990,
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
   consultation: "3 юридических вопроса AI-юристу",
+  trial: "1 юридический вопрос AI-юристу — вводный тариф",
   document: "Один юридический документ (исковое, претензия или жалоба)",
   expert: "Проверка ответа AI экспертом-юристом с письменным заключением",
   business: "Подготовка договора и юридических документов для бизнеса",
+  subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
+  subscription_docs: "Безлимитная подготовка документов — 1 месяц",
+};
+
+const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
+  subscription_consult: "Выгодно",
+  subscription_docs: "Выгодно",
+  trial: "−50%",
 };
 
 type Step = "method" | "waiting" | "polling" | "success" | "error";
 type Method = "bank_card" | "sbp";
 
-export default function PaymentModal({ serviceType, serviceName, onClose, onSuccess }: PaymentModalProps) {
+export default function PaymentModal({ serviceType, serviceName, onClose, onSuccess, showRegisterPrompt, onRegisterAfterPay }: PaymentModalProps) {
   const [step, setStep] = useState<Step>("method");
   const [method, setMethod] = useState<Method>("bank_card");
   const [email, setEmail] = useState("");
@@ -145,10 +166,20 @@ export default function PaymentModal({ serviceType, serviceName, onClose, onSucc
             {/* Summary */}
             <div className="bg-navy-50 rounded-2xl p-4 mb-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
+                  {SERVICE_BADGE[serviceType] && (
+                    <span className="text-[10px] font-bold bg-gold-400/20 text-gold-700 px-2 py-0.5 rounded-full">
+                      {SERVICE_BADGE[serviceType]}
+                    </span>
+                  )}
+                </div>
                 <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
               </div>
               <p className="text-xs text-muted-foreground">{SERVICE_DETAILS[serviceType]}</p>
+              {(serviceType === "subscription_consult" || serviceType === "subscription_docs") && (
+                <p className="text-xs text-navy-500 mt-1.5 font-medium">Списывается ежемесячно · Отмена в любой момент</p>
+              )}
             </div>
 
             {/* Method selector */}
@@ -271,13 +302,39 @@ export default function PaymentModal({ serviceType, serviceName, onClose, onSucc
 
         {/* === STEP: SUCCESS === */}
         {step === "success" && (
-          <div className="p-12 text-center">
+          <div className="p-10 text-center">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-scale-in">
               <Icon name="CheckCircle" size={40} className="text-emerald-500" />
             </div>
             <h3 className="font-cormorant font-bold text-3xl text-navy-800 mb-3">Оплачено!</h3>
             <p className="text-navy-700 font-medium mb-1">{serviceName}</p>
-            <p className="text-sm text-muted-foreground">Доступ открыт в личном кабинете. Чек отправлен на {email}</p>
+            <p className="text-sm text-muted-foreground mb-5">Чек отправлен на {email}</p>
+
+            {showRegisterPrompt && onRegisterAfterPay ? (
+              <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon name="UserPlus" size={16} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-navy-800 mb-1">Зарегистрируйтесь, чтобы не потерять доступ</p>
+                    <p className="text-xs text-blue-700 mb-3">
+                      Без регистрации ваши консультации и документы не сохранятся. Регистрация занимает 30 секунд.
+                    </p>
+                    <button
+                      onClick={onRegisterAfterPay}
+                      className="btn-gold px-5 py-2 rounded-xl text-sm font-semibold w-full"
+                    >
+                      Зарегистрироваться
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button onClick={onClose} className="btn-gold px-8 py-3 rounded-xl font-semibold text-sm">
+                Перейти в кабинет
+              </button>
+            )}
           </div>
         )}
 

@@ -80,6 +80,15 @@
       "body": {"mode": "file_analyze", "file": "dGVzdA==", "filename": "test.txt"},
       "expectedStatus": 400,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "report — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "report", "message": "тест"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Не авторизован"},
+      "bodyMatcher": "partial"
     }
   ]
 }
