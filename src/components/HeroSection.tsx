@@ -75,7 +75,7 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
           >
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             <span className="text-xs text-white/80 font-medium tracking-wide">
-              Консультации и документы по законодательству РФ
+              50 000+ судебных дел и нормативных актов в базе знаний
             </span>
           </div>
 
@@ -96,7 +96,7 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
             }`}
           >
-            Консультации и готовые документы за минуты. Точные ответы по нормам ГК, ТК, СК и КоАП РФ.
+            Обучен практикующими юристами с многолетним опытом. Точные ответы со ссылками на статьи ГК, ТК, СК и КоАП РФ — готовые документы за минуты.
           </p>
 
           {/* Typing input */}
