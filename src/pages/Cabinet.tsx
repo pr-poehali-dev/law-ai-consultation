@@ -781,6 +781,21 @@ export default function Cabinet() {
 
                 {/* Правая колонка — история документов */}
                 <div className="space-y-4">
+                  {/* Баннер перехода в чат */}
+                  <button
+                    onClick={() => setTab("chat")}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 text-white rounded-2xl transition-all group"
+                  >
+                    <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
+                      <Icon name="MessageCircle" size={16} className="text-gold-400" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="text-sm font-semibold">Нужна консультация?</div>
+                      <div className="text-xs text-white/70">AI-юрист ответит на ваш вопрос</div>
+                    </div>
+                    <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
+                  </button>
+
                   {genDocs.length > 0 ? (
                     <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
                       <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
