@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, logout, addPaidService, consumeQuestion, canAskQuestion, getFreeLeft, type User } from "@/lib/auth";
+import { getUser, logout, addPaidService, consumeQuestion, consumeDoc, canAskQuestion, canUseDoc, getFreeLeft, type User } from "@/lib/auth";
 import func2url from "../../backend/func2url.json";
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
@@ -338,6 +338,13 @@ export default function Cabinet() {
 
   const generateDoc = async () => {
     if (!docDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
+    // Проверяем право на создание документа
+    const canDoc = await canUseDoc();
+    if (!canDoc) {
+      setPayment({ type: docType.serviceType, name: docType.label });
+      setPendingDocType(docType);
+      return;
+    }
     setDocGenerating(true);
     setDocPhase("generating");
     setDocErr("");
@@ -362,6 +369,9 @@ export default function Cabinet() {
         date: new Date().toLocaleDateString("ru-RU"),
         placeholders,
       };
+      // Списываем 1 документ со счёта (для admin — бесплатно)
+      await consumeDoc();
+      refreshUser();
       setCurrentDoc(newDoc);
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       setGenDocs((prev) => [newDoc, ...prev]);
@@ -392,8 +402,11 @@ export default function Cabinet() {
     await addPaidService(svcType);
     refreshUser();
     setPayment(null);
-    if (pendingDocType) {
-      setDocType(pendingDocType);
+    // Если ждала генерация документа — запускаем сразу
+    if (pendingDocType && (svcType === "document" || svcType === "business")) {
+      setPendingDocType(null);
+      setTimeout(() => generateDoc(), 100);
+    } else {
       setPendingDocType(null);
     }
   };
@@ -885,6 +898,37 @@ export default function Cabinet() {
                       <Icon name="AlertCircle" size={13} className="shrink-0" />{docErr}
                     </div>
                   )}
+
+                  {/* Баланс документов */}
+                  {user && !user.isAdmin && (
+                    <div className={`mb-3 flex items-center justify-between px-4 py-2.5 rounded-2xl border text-xs ${
+                      user.paidDocs > 0
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : "bg-amber-50 border-amber-200 text-amber-800"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <Icon name={user.paidDocs > 0 ? "CheckCircle" : "AlertCircle"} size={13} className="shrink-0" />
+                        {user.paidDocs > 0
+                          ? `Доступно документов: ${user.paidDocs}`
+                          : "Нет доступных документов"}
+                      </div>
+                      {user.paidDocs === 0 && (
+                        <button
+                          onClick={() => { setPayment({ type: docType.serviceType, name: docType.label }); setPendingDocType(docType); }}
+                          className="font-semibold underline hover:no-underline"
+                        >
+                          Оплатить {docType.price} ₽
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {user?.isAdmin && (
+                    <div className="mb-3 flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-800">
+                      <Icon name="ShieldCheck" size={13} />
+                      Администратор · все функции бесплатны
+                    </div>
+                  )}
+
                   <button
                     onClick={generateDoc}
                     disabled={docGenerating || !docDetails.trim()}
@@ -892,6 +936,8 @@ export default function Cabinet() {
                   >
                     {docGenerating ? (
                       <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+                    ) : user && !user.isAdmin && user.paidDocs === 0 ? (
+                      <><Icon name="Lock" size={16} />Оплатить и сгенерировать · {docType.price} ₽</>
                     ) : (
                       <><Icon name="Zap" size={16} />Сгенерировать документ</>
                     )}

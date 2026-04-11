@@ -13,6 +13,7 @@ export interface User {
   paidDocs: number;
   paidExpert: boolean;
   paidBusiness: number;
+  isAdmin: boolean;
 }
 
 export function getToken(): string {
@@ -100,7 +101,22 @@ export async function consumeQuestion(): Promise<boolean> {
 export async function canAskQuestion(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;
+  if (user.isAdmin) return true;
   return user.freeQuestionsUsed < 30 || user.paidQuestions > 0;
+}
+
+/** Проверяет, может ли пользователь создать документ (есть оплаченный слот или он admin) */
+export async function canUseDoc(): Promise<boolean> {
+  const user = await getUser();
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  return user.paidDocs > 0;
+}
+
+/** Списывает 1 документ со счёта (для admin — бесплатно) */
+export async function consumeDoc(): Promise<boolean> {
+  const res = await apiCall({ action: "consume-doc" });
+  return res.ok;
 }
 
 export async function addPaidService(serviceType: string): Promise<void> {

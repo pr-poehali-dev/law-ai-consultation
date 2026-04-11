@@ -16,7 +16,7 @@ from datetime import date
 from auth_handler import (
     handle_register, handle_login, handle_me,
     handle_logout, handle_update_profile,
-    handle_consume_question, handle_add_paid_service,
+    handle_consume_question, handle_consume_doc, handle_add_paid_service,
 )
 
 warnings.filterwarnings("ignore")
@@ -344,6 +344,7 @@ def handler(event: dict, context) -> dict:
         "logout": lambda: handle_logout(token),
         "update-profile": lambda: handle_update_profile(token, body),
         "consume-question": lambda: handle_consume_question(token),
+        "consume-doc": lambda: handle_consume_doc(token),
         "add-paid-service": lambda: handle_add_paid_service(token, body),
     }
     if action in auth_actions:

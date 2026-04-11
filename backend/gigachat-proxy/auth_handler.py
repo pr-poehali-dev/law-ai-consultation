@@ -6,6 +6,14 @@ import psycopg2
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
+ADMIN_EMAIL = "ilya.povarchuk@mail.ru"
+
+_SELECT_USER = """
+    SELECT u.id, u.email, u.name, u.phone,
+           u.free_questions_used, u.paid_questions,
+           u.paid_docs, u.paid_expert, u.paid_business, u.is_admin
+"""
+
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
@@ -27,8 +35,7 @@ def get_user_by_token(token: str) -> dict | None:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""SELECT u.id, u.email, u.name, u.phone, u.free_questions_used, u.paid_questions,
-                       u.paid_docs, u.paid_expert, u.paid_business
+            f"""{_SELECT_USER}
                 FROM {SCHEMA}.sessions s
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
                 WHERE s.token = %s AND s.expires_at > NOW()""",
@@ -60,6 +67,9 @@ def handle_register(body: dict) -> dict:
         return _err(400, "Необходимо согласие на обработку персональных данных")
 
     pw_hash = hash_password(password)
+    # Если регистрируется admin-email — сразу ставим is_admin=true
+    is_admin = email == ADMIN_EMAIL
+
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -68,9 +78,9 @@ def handle_register(body: dict) -> dict:
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
         cur.execute(
-            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id""",
-            (email, name, phone, pw_hash, agreed)
+            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms, is_admin)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+            (email, name, phone, pw_hash, agreed, is_admin)
         )
         user_id = cur.fetchone()[0]
 
@@ -82,7 +92,7 @@ def handle_register(body: dict) -> dict:
         conn.commit()
 
         cur.execute(
-            f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
+            f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         u = cur.fetchone()
@@ -123,7 +133,7 @@ def handle_login(body: dict) -> dict:
         conn.commit()
 
         cur.execute(
-            f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
+            f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         u = cur.fetchone()
@@ -176,10 +186,7 @@ def handle_update_profile(token: str, body: dict) -> dict:
             elif new_phone:
                 cur.execute(f"UPDATE {SCHEMA}.users SET phone = %s WHERE id = %s", (new_phone, user["id"]))
             conn.commit()
-            cur.execute(
-                f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
-                (user["id"],)
-            )
+            cur.execute(f"{_SELECT_USER} FROM {SCHEMA}.users WHERE id = %s", (user["id"],))
             u = cur.fetchone()
             return _ok({"user": _format_user(u)})
         finally:
@@ -192,6 +199,9 @@ def handle_consume_question(token: str) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
+    # Админ не тратит вопросы
+    if user.get("isAdmin"):
+        return _ok({"ok": True})
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -205,6 +215,26 @@ def handle_consume_question(token: str) -> dict:
             return _ok({"ok": True})
         else:
             return _err(403, "Нет доступных вопросов")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_consume_doc(token: str) -> dict:
+    """Списывает 1 документ. Для админа — бесплатно."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    if user.get("isAdmin"):
+        return _ok({"ok": True})
+    if user.get("paidDocs", 0) <= 0:
+        return _err(403, "Нет доступных документов")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs - 1 WHERE id = %s", (user["id"],))
+        conn.commit()
+        return _ok({"ok": True})
     finally:
         cur.close()
         conn.close()
@@ -244,6 +274,7 @@ def _format_user(row) -> dict:
         "paidDocs": row[6],
         "paidExpert": row[7],
         "paidBusiness": row[8],
+        "isAdmin": bool(row[9]),
     }
 
 
@@ -251,5 +282,5 @@ def _ok(data: dict) -> dict:
     return {"status": 200, "data": data}
 
 
-def _err(code: int, message: str) -> dict:
-    return {"status": code, "error": message}
+def _err(code: int, msg: str) -> dict:
+    return {"status": code, "error": msg}
