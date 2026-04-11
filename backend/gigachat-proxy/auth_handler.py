@@ -7,6 +7,7 @@ import smtplib
 import psycopg2
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
+from email.header import Header
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 ADMIN_EMAIL = "ilya.povarchuk@mail.ru"
@@ -18,9 +19,12 @@ _SELECT_COLS = (
     "subscription_consult_until, subscription_docs_until"
 )
 
-# Максимум попыток входа за 15 минут
 MAX_LOGIN_ATTEMPTS = 10
 LOGIN_WINDOW_MINUTES = 15
+
+# История хранится 3 месяца, профиль удаляется после 1 года неактивности
+HISTORY_TTL_DAYS = 92
+INACTIVE_PROFILE_DAYS = 365
 
 
 def get_conn():
@@ -37,28 +41,30 @@ def generate_token() -> str:
 
 
 def sanitize_str(s: str, max_len: int = 255) -> str:
-    """Базовая санитизация строки."""
     if not s:
         return ""
-    # убираем управляющие символы, обрезаем
     cleaned = re.sub(r'[\x00-\x1f\x7f]', '', str(s))
     return cleaned[:max_len].strip()
 
 
-def _check_rate_limit(conn, ip: str) -> bool:
-    """Проверяет, не превышен ли лимит попыток входа с IP. True — разрешено."""
+def run_cleanup(conn):
+    """Очищает старые сессии, устаревшие профили и пр. Запускается при каждом auth-запросе."""
     cur = conn.cursor()
     try:
-        window = datetime.utcnow() - timedelta(minutes=LOGIN_WINDOW_MINUTES)
+        # Удаляем истёкшие сессии старше 7 дней
         cur.execute(
-            f"""SELECT COUNT(*) FROM {SCHEMA}.sessions
-                WHERE created_at > %s AND metadata::text LIKE %s""",
-            (window, f'%"ip":"{ip}"%')
+            f"DELETE FROM {SCHEMA}.sessions WHERE expires_at < NOW() - INTERVAL '7 days'"
         )
-        row = cur.fetchone()
-        return (row[0] if row else 0) < MAX_LOGIN_ATTEMPTS
+        # Удаляем пользователей, которые не заходили более года (и не являются админами)
+        inactive_threshold = datetime.utcnow() - timedelta(days=INACTIVE_PROFILE_DAYS)
+        cur.execute(
+            f"""DELETE FROM {SCHEMA}.users
+                WHERE last_login_at < %s AND is_admin = FALSE""",
+            (inactive_threshold,)
+        )
+        conn.commit()
     except Exception:
-        return True  # при ошибке — не блокируем
+        conn.rollback()
     finally:
         cur.close()
 
@@ -110,13 +116,14 @@ def handle_register(body: dict) -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
+        run_cleanup(conn)
         cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
         cur.execute(
-            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms, is_admin)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms, is_admin, last_login_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id""",
             (email, name, phone, pw_hash, agreed, is_admin)
         )
         user_id = cur.fetchone()[0]
@@ -152,6 +159,7 @@ def handle_login(body: dict, ip: str = "") -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
+        run_cleanup(conn)
         cur.execute(
             f"SELECT id FROM {SCHEMA}.users WHERE email = %s AND password_hash = %s",
             (email, pw_hash)
@@ -161,6 +169,11 @@ def handle_login(body: dict, ip: str = "") -> dict:
             return _err(401, "Неверный email или пароль")
 
         user_id = row[0]
+        # Обновляем дату последнего входа
+        cur.execute(
+            f"UPDATE {SCHEMA}.users SET last_login_at = NOW() WHERE id = %s",
+            (user_id,)
+        )
         token = generate_token()
         cur.execute(
             f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
@@ -232,7 +245,6 @@ def handle_consume_question(token: str) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    # Админ и активные подписчики — бесплатно
     if user.get("isAdmin", False) or _has_active_subscription(user, "consult"):
         return _ok({"ok": True})
     conn = get_conn()
@@ -250,7 +262,6 @@ def handle_consume_question(token: str) -> dict:
 
 
 def handle_consume_doc(token: str) -> dict:
-    """Списывает 1 документ. Для админа и подписчиков — бесплатно."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
@@ -288,7 +299,6 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
         elif service_type == "subscription_consult":
-            # Продлеваем или устанавливаем подписку на 31 день
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET subscription_consult_until = GREATEST(NOW(), COALESCE(subscription_consult_until, NOW())) + INTERVAL '31 days'
@@ -319,6 +329,11 @@ def handle_report(token: str, body: dict) -> dict:
     if not message:
         return _err(400, "Сообщение не может быть пустым")
 
+    smtp_from = os.environ.get("SMTP_FROM_EMAIL", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_from or not smtp_pass:
+        return _err(500, "SMTP не настроен")
+
     subject = f"[Юрист AI] Проблема от {user['name']} ({user['email']})"
     body_text = (
         f"Пользователь: {user['name']}\n"
@@ -328,19 +343,22 @@ def handle_report(token: str, body: dict) -> dict:
     )
 
     try:
-        smtp_from = os.environ.get("SMTP_FROM_EMAIL", "")
-        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
-        if not smtp_from or not smtp_pass:
-            return _err(500, "SMTP не настроен")
-
         msg = MIMEText(body_text, "plain", "utf-8")
-        msg["Subject"] = subject
+        msg["Subject"] = Header(subject, "utf-8")
         msg["From"] = smtp_from
         msg["To"] = REPORT_EMAIL
+        msg["Reply-To"] = user["email"]
 
-        with smtplib.SMTP_SSL("smtp.yandex.ru", 465) as server:
-            server.login(smtp_from, smtp_pass)
-            server.sendmail(smtp_from, REPORT_EMAIL, msg.as_string())
+        # Пробуем SMTP_SSL (465), при ошибке — STARTTLS (587)
+        try:
+            with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
+                server.login(smtp_from, smtp_pass)
+                server.sendmail(smtp_from, [REPORT_EMAIL], msg.as_string())
+        except Exception:
+            with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
+                server.starttls()
+                server.login(smtp_from, smtp_pass)
+                server.sendmail(smtp_from, [REPORT_EMAIL], msg.as_string())
 
         return _ok({"ok": True})
     except Exception as e:
@@ -348,7 +366,6 @@ def handle_report(token: str, body: dict) -> dict:
 
 
 def _has_active_subscription(user: dict, kind: str) -> bool:
-    """Проверяет активность подписки на текущий момент."""
     if kind == "consult":
         until = user.get("subscriptionConsultUntil")
     else:

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 
@@ -25,6 +25,26 @@ interface ChatTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
+/** Typewriter-анимация для последнего AI-ответа */
+function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
+  const [displayed, setDisplayed] = useState(animate ? "" : text);
+
+  useEffect(() => {
+    if (!animate) { setDisplayed(text); return; }
+    setDisplayed("");
+    let i = 0;
+    // Скорость: ~4 символа за 16ms (≈250 симв/сек)
+    const interval = setInterval(() => {
+      i += 4;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, 16);
+    return () => clearInterval(interval);
+  }, [text, animate]);
+
+  return <span className="whitespace-pre-wrap">{displayed}</span>;
+}
+
 export default function ChatTab({
   user,
   messages,
@@ -45,6 +65,17 @@ export default function ChatTab({
   chatEndRef,
   fileInputRef,
 }: ChatTabProps) {
+  // Индекс последнего AI-сообщения для анимации
+  const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
+  // Запоминаем какой индекс уже был анимирован
+  const animatedRef = useRef<number>(-1);
+  const shouldAnimate = (idx: number) => {
+    if (idx !== lastAiIdx) return false;
+    if (animatedRef.current === idx) return false;
+    animatedRef.current = idx;
+    return true;
+  };
+
   return (
     <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
       {/* Status bar */}
@@ -52,7 +83,7 @@ export default function ChatTab({
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${typing ? "bg-amber-400 animate-pulse" : "bg-green-400 animate-pulse"}`} />
           <span className="text-xs text-muted-foreground">
-            {typing ? "AI-юрист формирует ответ..." : "AI-юрист онлайн · обучен реальными юристами"}
+            {typing ? "AI-юрист формирует ответ..." : "AI-юрист онлайн · консультации по законодательству РФ"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -80,19 +111,26 @@ export default function ChatTab({
       <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-border shadow-sm p-5 space-y-4 scrollbar-hide">
         {messages.map((msg, i) => {
           const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
+          const doAnimate = msg.role === "ai" && !typing && shouldAnimate(i);
           return (
-            <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              key={i}
+              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
+            >
               {msg.role === "ai" && (
                 <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
                   <Icon name="Scale" size={14} className="text-gold-400" />
                 </div>
               )}
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
                   ? "bg-navy-700 text-white rounded-br-sm"
                   : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
               }`}>
-                {msg.text}
+                {msg.role === "ai"
+                  ? <AnimatedMessage text={msg.text} animate={doAnimate} />
+                  : <span className="whitespace-pre-wrap">{msg.text}</span>
+                }
                 {isDocRedirect && (
                   <button
                     onClick={onGoToDocs}
@@ -112,7 +150,7 @@ export default function ChatTab({
           );
         })}
         {typing && (
-          <div className="flex gap-3">
+          <div className="flex gap-3 animate-fade-in">
             <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
               <Icon name="Scale" size={14} className="text-gold-400" />
             </div>
@@ -174,6 +212,7 @@ export default function ChatTab({
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
               if (attachedFile) { onSendFile(); } else { onSend(); }
             }
           }}
@@ -190,13 +229,13 @@ export default function ChatTab({
         <button
           onClick={attachedFile ? onSendFile : onSend}
           disabled={(!input.trim() && !attachedFile) || typing}
-          className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50"
+          className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50 transition-all hover:scale-105"
         >
           <Icon name="Send" size={18} />
         </button>
       </div>
       <p className="text-center text-xs text-muted-foreground mt-2">
-        Ответы AI не заменяют консультацию практикующего юриста · Файлы удаляются через 30 минут
+        Ответы AI носят информационный характер и не заменяют консультацию адвоката
       </p>
     </div>
   );

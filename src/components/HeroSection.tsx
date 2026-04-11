@@ -75,7 +75,7 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
           >
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             <span className="text-xs text-white/80 font-medium tracking-wide">
-              AI обучен на 50 000+ юридических дел
+              Консультации и документы по законодательству РФ
             </span>
           </div>
 
@@ -96,7 +96,7 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
             }`}
           >
-            Консультации и готовые документы за минуты. AI обучен реальными юристами с многолетним опытом.
+            Консультации и готовые документы за минуты. Точные ответы по нормам ГК, ТК, СК и КоАП РФ.
           </p>
 
           {/* Typing input */}

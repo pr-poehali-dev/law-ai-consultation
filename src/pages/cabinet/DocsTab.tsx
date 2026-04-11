@@ -17,7 +17,7 @@ export interface GenDoc {
 const DOC_TYPES = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500, serviceType: "document" as ServiceType },
   { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 500, serviceType: "document" as ServiceType },
-  { id: "complaint", label: "Жалоба (Роспотребнадзор)", icon: "Building", price: 500, serviceType: "document" as ServiceType },
+  { id: "complaint", label: "Жалоба", icon: "Building", price: 500, serviceType: "document" as ServiceType },
   { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 500, serviceType: "document" as ServiceType },
   { id: "business_contract", label: "Договор для бизнеса", icon: "Briefcase", price: 1000, serviceType: "business" as ServiceType },
 ];
