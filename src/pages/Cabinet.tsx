@@ -18,6 +18,7 @@ const DOC_TYPES = [
 ];
 
 interface ChatMsg { role: "ai" | "user"; text: string; }
+interface DocMsg { role: "ai" | "user"; text: string; }
 
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
@@ -46,7 +47,6 @@ export default function Cabinet() {
 
   // Docs
   const [docType, setDocType] = useState(DOC_TYPES[0]);
-  const [docDetails, setDocDetails] = useState("");
   const [genDocs, setGenDocs] = useState<{ id: number; name: string; content: string; date: string }[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_docs");
@@ -56,6 +56,14 @@ export default function Cabinet() {
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [docErr, setDocErr] = useState("");
   const [viewDoc, setViewDoc] = useState<null | { name: string; content: string }>(null);
+
+  // Doc dialog (clarify)
+  const [docDialogActive, setDocDialogActive] = useState(false);
+  const [docMessages, setDocMessages] = useState<DocMsg[]>([]);
+  const [docInput, setDocInput] = useState("");
+  const [docDialogTyping, setDocDialogTyping] = useState(false);
+  const [docClarifyHistory, setDocClarifyHistory] = useState<{ role: string; content: string }[]>([]);
+  const docDialogEndRef = useRef<HTMLDivElement>(null);
 
   // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
@@ -83,6 +91,10 @@ export default function Cabinet() {
   useEffect(() => {
     localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
   }, [genDocs]);
+
+  useEffect(() => {
+    docDialogEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [docMessages, docDialogTyping]);
 
   const refreshUser = () => getUser().then((u) => { if (u) setUser(u); });
 
@@ -129,15 +141,71 @@ export default function Cabinet() {
     }
   };
 
-  const generateDoc = async (dtId: string) => {
-    if (!docDetails.trim()) { setDocErr("Опишите ситуацию подробнее"); return; }
+  const startDocDialog = async (dt: typeof DOC_TYPES[0]) => {
+    setDocType(dt);
+    setDocDialogActive(true);
+    setDocMessages([]);
+    setDocClarifyHistory([]);
+    setDocErr("");
+    setDocDialogTyping(true);
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "clarify_start", doc_type: dt.id }),
+      });
+      const data = await res.json();
+      setDocMessages([{ role: "ai", text: data.answer }]);
+    } catch {
+      setDocMessages([{ role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
+    } finally {
+      setDocDialogTyping(false);
+    }
+  };
+
+  const sendDocMessage = async () => {
+    if (!docInput.trim() || docDialogTyping) return;
+    const userText = docInput.trim();
+    setDocInput("");
+    const newMsgs: DocMsg[] = [...docMessages, { role: "user", text: userText }];
+    setDocMessages(newMsgs);
+    setDocDialogTyping(true);
+
+    const newHist = [...docClarifyHistory, { role: "user", content: userText }];
+    setDocClarifyHistory(newHist);
+
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "clarify", doc_type: docType.id, messages: newHist }),
+      });
+      const data = await res.json();
+
+      if (data.ready && data.summary) {
+        setDocClarifyHistory((p) => [...p, { role: "assistant", content: data.answer || data.summary }]);
+        setDocMessages((p) => [...p, { role: "ai", text: "Все данные собраны. Генерирую документ..." }]);
+        setDocDialogTyping(false);
+        await generateDoc(docType.id, data.summary);
+      } else {
+        setDocClarifyHistory((p) => [...p, { role: "assistant", content: data.answer }]);
+        setDocMessages((p) => [...p, { role: "ai", text: data.answer }]);
+        setDocDialogTyping(false);
+      }
+    } catch {
+      setDocMessages((p) => [...p, { role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
+      setDocDialogTyping(false);
+    }
+  };
+
+  const generateDoc = async (dtId: string, details?: string) => {
     setGeneratingDoc(true);
     setDocErr("");
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "document", doc_type: dtId, details: docDetails }),
+        body: JSON.stringify({ mode: "document", doc_type: dtId, details: details || "" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
@@ -145,7 +213,7 @@ export default function Cabinet() {
       const newDoc = { id: Date.now(), name: dt.label, content: data.answer, date: new Date().toLocaleDateString("ru-RU") };
       setGenDocs((p) => [newDoc, ...p]);
       setViewDoc(newDoc);
-      setDocDetails("");
+      setDocDialogActive(false);
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
     } finally {
@@ -158,7 +226,7 @@ export default function Cabinet() {
     refreshUser();
     setPayment(null);
     if (pendingDocId) {
-      generateDoc(pendingDocId);
+      startDocDialog(DOC_TYPES.find((d) => d.id === pendingDocId)!);
       setPendingDocId(null);
     }
   };
@@ -374,55 +442,167 @@ export default function Cabinet() {
 
         {/* ===== DOCS TAB ===== */}
         {tab === "docs" && (
-          <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left — generator */}
+          <div className="max-w-4xl mx-auto">
+
+            {/* Dialog mode — AI collects requisites */}
+            {docDialogActive ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Chat dialog */}
+                <div className="lg:col-span-2 bg-white rounded-3xl border border-border shadow-sm flex flex-col" style={{ height: "calc(100vh - 180px)" }}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center">
+                        <Icon name="Scale" size={14} className="text-gold-400" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-navy-800">Сбор реквизитов — {docType.label}</div>
+                        <div className="text-xs text-muted-foreground">AI задаёт уточняющие вопросы</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDocDialogActive(false)}
+                      className="text-xs text-muted-foreground hover:text-navy-700 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    >
+                      <Icon name="ArrowLeft" size={13} />
+                      Назад
+                    </button>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
+                    {docMessages.map((msg, i) => (
+                      <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        {msg.role === "ai" && (
+                          <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                            <Icon name="Scale" size={14} className="text-gold-400" />
+                          </div>
+                        )}
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                          msg.role === "user"
+                            ? "bg-navy-700 text-white rounded-br-sm"
+                            : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
+                        }`}>
+                          {msg.text}
+                        </div>
+                        {msg.role === "user" && (
+                          <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
+                            {user.name?.[0] ?? "U"}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {(docDialogTyping || generatingDoc) && (
+                      <div className="flex gap-3">
+                        <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
+                          <Icon name="Scale" size={14} className="text-gold-400" />
+                        </div>
+                        <div className="bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={docDialogEndRef} />
+                  </div>
+
+                  {docErr && (
+                    <div className="mx-5 mb-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{docErr}</div>
+                  )}
+
+                  {/* Input */}
+                  <div className="p-4 border-t border-border shrink-0">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={docInput}
+                        onChange={(e) => setDocInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) sendDocMessage(); }}
+                        disabled={docDialogTyping || generatingDoc}
+                        placeholder="Введите ответ на вопрос AI..."
+                        className="flex-1 bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
+                      />
+                      <button
+                        onClick={sendDocMessage}
+                        disabled={!docInput.trim() || docDialogTyping || generatingDoc}
+                        className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50"
+                      >
+                        <Icon name="Send" size={18} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      После сбора всех данных AI автоматически сгенерирует документ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right — tips */}
+                <div className="space-y-4">
+                  <div className="bg-amber-50 rounded-3xl border border-amber-200 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Icon name="Lightbulb" size={16} className="text-amber-600 shrink-0" />
+                      <span className="text-sm font-semibold text-amber-800">Что подготовить</span>
+                    </div>
+                    <ul className="space-y-2 text-xs text-amber-700">
+                      <li className="flex items-start gap-2"><Icon name="Check" size={12} className="shrink-0 mt-0.5 text-amber-500" />ФИО всех сторон</li>
+                      <li className="flex items-start gap-2"><Icon name="Check" size={12} className="shrink-0 mt-0.5 text-amber-500" />Адреса регистрации</li>
+                      <li className="flex items-start gap-2"><Icon name="Check" size={12} className="shrink-0 mt-0.5 text-amber-500" />ИНН / ОГРН (для бизнеса)</li>
+                      <li className="flex items-start gap-2"><Icon name="Check" size={12} className="shrink-0 mt-0.5 text-amber-500" />Суммы и даты</li>
+                      <li className="flex items-start gap-2"><Icon name="Check" size={12} className="shrink-0 mt-0.5 text-amber-500" />Суть ситуации / предмет</li>
+                    </ul>
+                  </div>
+                  {genDocs.length > 0 && (
+                    <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
+                      <h3 className="font-semibold text-navy-800 text-sm mb-3">Ранее созданные</h3>
+                      <div className="space-y-2">
+                        {genDocs.slice(0, 3).map((doc) => (
+                          <button key={doc.id} onClick={() => setViewDoc(doc)} className="w-full flex items-center gap-2 py-2 text-left hover:bg-slate-50 rounded-xl px-2 transition-colors">
+                            <Icon name="FileText" size={13} className="text-navy-400 shrink-0" />
+                            <div>
+                              <div className="text-xs font-medium text-navy-800">{doc.name}</div>
+                              <div className="text-xs text-muted-foreground">{doc.date}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left — doc type selector */}
             <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
               <h2 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">Создать документ</h2>
-              <p className="text-sm text-muted-foreground mb-5">AI составит полный юридический документ по вашей ситуации</p>
+              <p className="text-sm text-muted-foreground mb-5">AI задаст уточняющие вопросы и составит документ с вашими реквизитами</p>
 
-              <div className="space-y-2 mb-5">
+              <div className="space-y-2">
                 {DOC_TYPES.map((dt) => (
                   <button
                     key={dt.id}
-                    onClick={() => setDocType(dt)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
-                      docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200"
-                    }`}
+                    onClick={() => startDocDialog(dt)}
+                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border hover:border-navy-400 hover:bg-navy-50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
-                        <Icon name={dt.icon as any} size={16} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-navy-100 flex items-center justify-center transition-colors">
+                        <Icon name={dt.icon} size={16} className="text-navy-500" />
                       </div>
-                      <span className={`text-sm font-medium ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
+                      <span className="text-sm font-medium text-navy-800">{dt.label}</span>
                     </div>
-                    <span className="text-xs font-semibold text-navy-600">{dt.price} ₽</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-navy-600">{dt.price} ₽</span>
+                      <Icon name="ChevronRight" size={14} className="text-muted-foreground group-hover:text-navy-500 transition-colors" />
+                    </div>
                   </button>
                 ))}
               </div>
 
-              <textarea
-                value={docDetails}
-                onChange={(e) => setDocDetails(e.target.value)}
-                placeholder={`Опишите вашу ситуацию для «${docType.label}»...\n\nЧем подробнее — тем точнее документ.`}
-                rows={5}
-                className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-4"
-              />
-
-              {docErr && (
-                <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{docErr}</div>
-              )}
-
-              <button
-                onClick={() => generateDoc(docType.id)}
-                disabled={generatingDoc || !docDetails.trim()}
-                className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {generatingDoc ? (
-                  <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
-                ) : (
-                  <><Icon name="Zap" size={16} />Создать бесплатно</>
-                )}
-              </button>
+              <div className="mt-5 px-4 py-3 bg-blue-50 rounded-2xl border border-blue-100">
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  <strong>Как это работает:</strong> AI задаст вам несколько уточняющих вопросов о реквизитах сторон и обстоятельствах — затем автоматически сгенерирует готовый документ.
+                </p>
+              </div>
             </div>
 
             {/* Right — result / list */}
@@ -465,10 +645,12 @@ export default function Cabinet() {
                   <div className="w-14 h-14 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Icon name="FileText" size={24} className="text-navy-400" />
                   </div>
-                  <p className="text-sm text-muted-foreground">Созданные документы появятся здесь</p>
+                  <p className="text-sm text-muted-foreground">Выберите тип документа слева, чтобы начать</p>
                 </div>
               )}
             </div>
+            </div>
+            )}
           </div>
         )}
 
@@ -542,7 +724,7 @@ export default function Cabinet() {
                 ].map((stat) => (
                   <div key={stat.label} className="rounded-2xl border border-border p-4">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${stat.color}`}>
-                      <Icon name={stat.icon as any} size={16} />
+                      <Icon name={stat.icon} size={16} />
                     </div>
                     <div className="font-bold text-navy-800 text-lg">{stat.value}</div>
                     <div className="text-xs text-muted-foreground">{stat.label}</div>
@@ -568,7 +750,7 @@ export default function Cabinet() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-navy-50 rounded-xl flex items-center justify-center group-hover:bg-navy-100 transition-colors">
-                        <Icon name={item.icon as any} size={15} className="text-navy-600" />
+                        <Icon name={item.icon} size={15} className="text-navy-600" />
                       </div>
                       <span className="text-sm font-medium text-navy-800">{item.label}</span>
                     </div>

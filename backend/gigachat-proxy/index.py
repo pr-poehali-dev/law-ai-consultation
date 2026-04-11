@@ -1,6 +1,6 @@
 """
 Единый API: AI-юрист (GigaChat/YandexGPT) + авторизация (email+пароль).
-mode: "chat" | "document"
+mode: "chat" | "document" | "clarify"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
 import json
@@ -27,17 +27,36 @@ SYSTEM_CHAT = (
 SYSTEM_DOCUMENT = (
     "Ты — профессиональный юрист-составитель документов по законодательству РФ. "
     "Составляй документы по установленным формам: реквизиты, шапка, основная часть, дата, подписи. "
-    "Вместо персональных данных используй: [ФИО], [АДРЕС], [ДАТА], [СУММА]. "
-    "Ответ до 400 слов. "
+    "Используй все предоставленные реквизиты сторон в полном объёме. "
+    "Ответ до 600 слов. "
     "В конце: 'Документ подготовлен AI. Рекомендуется проверка у практикующего юриста.'"
 )
 
+SYSTEM_CLARIFY = (
+    "Ты — опытный юрист, помогающий собрать реквизиты и данные для составления юридического документа. "
+    "Задавай уточняющие вопросы по одному за раз — чётко и конкретно. "
+    "Когда все необходимые данные собраны, ответь строго в формате JSON: "
+    '{\"ready\": true, \"summary\": \"краткое изложение всех собранных данных в одном абзаце\"}. '
+    "Не составляй сам документ на этапе сбора данных. "
+    "Для каждого типа документа обязательно собери: "
+    "ФИО и адрес заявителя/истца, ФИО/название и адрес ответчика/другой стороны, "
+    "суть спора или предмет договора, суммы и даты, иные существенные обстоятельства."
+)
+
 DOC_PROMPTS = {
-    "claim": "Составь исковое заявление в районный суд по ситуации: {details}",
-    "complaint": "Составь жалобу в Роспотребнадзор по ситуации: {details}",
-    "pretension": "Составь досудебную претензию по ситуации: {details}",
-    "contract": "Составь договор ГПХ по ситуации: {details}",
-    "business_contract": "Составь договор для бизнеса по ситуации: {details}",
+    "claim": "Составь исковое заявление в районный суд используя все предоставленные данные: {details}",
+    "complaint": "Составь жалобу в Роспотребнадзор используя все предоставленные данные: {details}",
+    "pretension": "Составь досудебную претензию используя все предоставленные данные: {details}",
+    "contract": "Составь договор ГПХ используя все предоставленные данные: {details}",
+    "business_contract": "Составь договор для бизнеса используя все предоставленные данные: {details}",
+}
+
+CLARIFY_STARTERS = {
+    "claim": "Помогу составить исковое заявление. Для начала — кто является истцом? Укажите ФИО и адрес проживания.",
+    "complaint": "Помогу составить жалобу в Роспотребнадзор. Для начала — укажите ваши ФИО и адрес регистрации.",
+    "pretension": "Помогу составить досудебную претензию. Для начала — укажите ваши ФИО и адрес, а также кому направляется претензия.",
+    "contract": "Помогу составить договор ГПХ. Для начала — укажите данные Заказчика: ФИО (или название организации) и адрес.",
+    "business_contract": "Помогу составить договор для бизнеса. Для начала — укажите данные первой стороны: название организации, ИНН, адрес и ФИО руководителя.",
 }
 
 YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
@@ -162,7 +181,46 @@ def handler(event: dict, context) -> dict:
         mode = body.get("mode", "chat")
         engine = body.get("engine", "yandex")
 
-        if mode == "document":
+        if mode == "clarify_start":
+            doc_type = body.get("doc_type", "claim")
+            starter = CLARIFY_STARTERS.get(doc_type, CLARIFY_STARTERS["claim"])
+            return {
+                "statusCode": 200,
+                "headers": {**CORS, "Content-Type": "application/json"},
+                "body": json.dumps({"answer": starter, "ready": False}, ensure_ascii=False),
+            }
+
+        elif mode == "clarify":
+            doc_type = body.get("doc_type", "claim")
+            messages = body.get("messages", [])
+            if not messages:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
+            system = SYSTEM_CLARIFY
+            user_messages = messages
+            max_tokens = 400
+            if engine == "yandex":
+                answer = call_yandex(system, user_messages, max_tokens)
+            else:
+                answer = call_gigachat(system, user_messages, max_tokens)
+            ready = False
+            summary = None
+            try:
+                start = answer.find("{")
+                end = answer.rfind("}") + 1
+                if start != -1 and end > start:
+                    parsed = json.loads(answer[start:end])
+                    if parsed.get("ready"):
+                        ready = True
+                        summary = parsed.get("summary", "")
+            except Exception:
+                pass
+            return {
+                "statusCode": 200,
+                "headers": {**CORS, "Content-Type": "application/json"},
+                "body": json.dumps({"answer": answer if not ready else summary, "ready": ready, "summary": summary}, ensure_ascii=False),
+            }
+
+        elif mode == "document":
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "")
             if not details:
@@ -170,7 +228,7 @@ def handler(event: dict, context) -> dict:
             prompt = DOC_PROMPTS.get(doc_type, DOC_PROMPTS["claim"]).format(details=details)
             user_messages = [{"role": "user", "content": prompt}]
             system = SYSTEM_DOCUMENT
-            max_tokens = 800
+            max_tokens = 1000
         else:
             user_messages = body.get("messages", [])
             if not user_messages:
