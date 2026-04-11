@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, logout, addPaidService, consumeQuestion, consumeDoc, canAskQuestion, canUseDoc, getFreeLeft, type User } from "@/lib/auth";
+import { getUser, logout, addPaidService, consumeQuestion, consumeDoc, canAskQuestion, canUseDoc, type User } from "@/lib/auth";
 import func2url from "../../backend/func2url.json";
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
-  AlignmentType, BorderStyle, TableRow, TableCell, Table,
-  WidthType, ShadingType,
+  AlignmentType, BorderStyle,
 } from "docx";
 import { saveAs } from "file-saver";
 
@@ -193,7 +192,7 @@ export default function Cabinet() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [viewDoc, setViewDoc] = useState<null | GenDoc>(null);
+
 
   // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
@@ -222,7 +221,7 @@ export default function Cabinet() {
     localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
   }, [genDocs]);
 
-  const refreshUser = () => getUser().then((u) => { if (u) setUser(u); });
+  const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 
   const sendMessage = async () => {
     if (!input.trim() || typing) return;
@@ -242,7 +241,7 @@ export default function Cabinet() {
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
     await consumeQuestion();
-    refreshUser();
+    refreshUser(); // fire-and-forget — счётчик обновится в фоне
 
     try {
       const res = await fetch(GIGACHAT_URL, {
@@ -366,7 +365,7 @@ export default function Cabinet() {
       };
       // Списываем 1 документ со счёта (для admin — бесплатно)
       await consumeDoc();
-      refreshUser();
+      await refreshUser(); // обновляем баланс сразу после списания
       setCurrentDoc(newDoc);
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       setGenDocs((prev) => [newDoc, ...prev]);
@@ -394,13 +393,16 @@ export default function Cabinet() {
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
-    await addPaidService(svcType);
-    refreshUser();
+    try {
+      await addPaidService(svcType);
+      await refreshUser(); // ждём обновления баланса перед генерацией
+    } catch {
+      // сервис уже оплачен — продолжаем
+    }
     setPayment(null);
-    // Если ждала генерация документа — запускаем сразу
     if (pendingDocType && (svcType === "document" || svcType === "business")) {
       setPendingDocType(null);
-      setTimeout(() => generateDoc(), 100);
+      setTimeout(() => generateDoc(), 300); // даём время React обновить state
     } else {
       setPendingDocType(null);
     }
@@ -613,7 +615,6 @@ export default function Cabinet() {
 
   if (!user) return null;
 
-  const freeLeft = getFreeLeft(user);
   const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 
   return (

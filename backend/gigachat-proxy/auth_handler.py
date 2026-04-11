@@ -196,13 +196,12 @@ def handle_consume_question(token: str) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    # Админ не тратит вопросы
-    if user.get("isAdmin"):
+    if user.get("isAdmin", False):
         return _ok({"ok": True})
     conn = get_conn()
     cur = conn.cursor()
     try:
-        if user["paidQuestions"] > 0:
+        if user.get("paidQuestions", 0) > 0:
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s", (user["id"],))
             conn.commit()
             return _ok({"ok": True})
@@ -218,7 +217,7 @@ def handle_consume_doc(token: str) -> dict:
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    if user.get("isAdmin"):
+    if user.get("isAdmin", False):
         return _ok({"ok": True})
     if user.get("paidDocs", 0) <= 0:
         return _err(403, "Нет доступных документов")
