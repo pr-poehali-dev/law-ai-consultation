@@ -34,7 +34,7 @@ export default function Offer() {
           <div className="prose prose-sm max-w-none space-y-6 text-navy-700 leading-relaxed">
             <section>
               <h2 className="font-semibold text-navy-800 text-lg mb-3">1. Общие положения</h2>
-              <p>Настоящий документ является публичной офертой ИП / ООО «Юрист AI» (далее — Исполнитель) и содержит все существенные условия договора об оказании информационных услуг.</p>
+              <p>Настоящий документ является публичной офертой самозанятого Поварчук Ильи Валентиновича (далее — Исполнитель) и содержит все существенные условия договора об оказании информационных услуг.</p>
               <p className="mt-2">Акцептом оферты считается совершение оплаты на сайте. С момента оплаты договор считается заключённым на условиях настоящей оферты.</p>
             </section>
 
@@ -84,9 +84,12 @@ export default function Offer() {
             </section>
 
             <section>
-              <h2 className="font-semibold text-navy-800 text-lg mb-3">8. Реквизиты</h2>
-              <p>Контактный email: help@yurist-ai.ru</p>
-              <p>Телефон поддержки: +7 (800) 555-01-20</p>
+              <h2 className="font-semibold text-navy-800 text-lg mb-3">8. Реквизиты Исполнителя</h2>
+              <p><strong>Исполнитель:</strong> Поварчук Илья Валентинович</p>
+              <p><strong>Статус:</strong> Самозанятый (плательщик налога на профессиональный доход)</p>
+              <p><strong>ИНН:</strong> 910403132709</p>
+              <p><strong>Email:</strong> help@yurist-ai.ru</p>
+              <p><strong>Телефон:</strong> +7 (800) 555-01-20</p>
             </section>
           </div>
         </div>
