@@ -1,17 +1,16 @@
 """
-Единый API: AI-юрист (GigaChat/YandexGPT) + авторизация через OTP.
+Единый API: AI-юрист (GigaChat/YandexGPT) + авторизация (email+пароль).
 mode: "chat" | "document"
-auth paths: /send-otp, /verify-otp, /me, /logout, /update-profile, /consume-question, /add-paid-service
+auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
 import json
 import os
 import uuid
 import warnings
 import requests
-import psycopg2
 
 from auth_handler import (
-    handle_send_otp, handle_verify_otp, handle_me,
+    handle_register, handle_login, handle_me,
     handle_logout, handle_update_profile,
     handle_consume_question, handle_add_paid_service,
 )
@@ -134,8 +133,8 @@ def handler(event: dict, context) -> dict:
     # --- Auth actions via body.action ---
     action = body.get("action", "")
     auth_actions = {
-        "send-otp": lambda: handle_send_otp(body),
-        "verify-otp": lambda: handle_verify_otp(body),
+        "register": lambda: handle_register(body),
+        "login": lambda: handle_login(body),
         "me": lambda: handle_me(token),
         "logout": lambda: handle_logout(token),
         "update-profile": lambda: handle_update_profile(token, body),

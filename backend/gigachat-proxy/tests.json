@@ -7,25 +7,43 @@
       "expectedStatus": 200
     },
     {
-      "name": "send-otp bad email",
+      "name": "register — missing name",
       "method": "POST",
       "path": "/",
-      "body": {"action": "send-otp", "email": ""},
+      "body": {"action": "register", "name": "", "email": "test@example.com", "phone": "+79991234567", "password": "secret123", "agreed_to_terms": true},
       "expectedStatus": 400,
-      "expectedBody": {"error": "Некорректный email"},
+      "expectedBody": {"error": "Введите имя"},
       "bodyMatcher": "partial"
     },
     {
-      "name": "verify-otp wrong code",
+      "name": "register — short password",
       "method": "POST",
       "path": "/",
-      "body": {"action": "verify-otp", "email": "test@example.com", "code": "000000"},
-      "expectedStatus": 401,
-      "expectedBody": {"error": "Неверный или истёкший код"},
+      "body": {"action": "register", "name": "Иван", "email": "test@example.com", "phone": "+79991234567", "password": "123", "agreed_to_terms": true},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Пароль должен быть не менее 6 символов"},
       "bodyMatcher": "partial"
     },
     {
-      "name": "me unauthorized",
+      "name": "register — no agreement",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "register", "name": "Иван", "email": "test@example.com", "phone": "+79991234567", "password": "secret123", "agreed_to_terms": false},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Необходимо согласие на обработку персональных данных"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "login — wrong password",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "login", "email": "nobody@example.com", "password": "wrongpass"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Неверный email или пароль"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "me — unauthorized",
       "method": "POST",
       "path": "/",
       "body": {"action": "me"},

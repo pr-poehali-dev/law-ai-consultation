@@ -7,6 +7,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  phone: string;
   freeQuestionsUsed: number;
   paidQuestions: number;
   paidDocs: number;
@@ -38,21 +39,27 @@ async function apiCall(body: object): Promise<Response> {
   });
 }
 
-export async function sendOtp(email: string): Promise<{ error?: string }> {
-  const res = await apiCall({ action: "send-otp", email });
+export async function register(params: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  agreed_to_terms: boolean;
+}): Promise<{ user?: User; error?: string }> {
+  const res = await apiCall({ action: "register", ...params });
   const data = await res.json();
-  if (!res.ok) return { error: data.error || "Ошибка отправки кода" };
-  return {};
+  if (!res.ok) return { error: data.error || "Ошибка регистрации" };
+  setToken(data.token);
+  return { user: data.user };
 }
 
-export async function verifyOtp(
+export async function login(
   email: string,
-  code: string,
-  name?: string
+  password: string
 ): Promise<{ user?: User; error?: string }> {
-  const res = await apiCall({ action: "verify-otp", email, code, name });
+  const res = await apiCall({ action: "login", email, password });
   const data = await res.json();
-  if (!res.ok) return { error: data.error || "Неверный код" };
+  if (!res.ok) return { error: data.error || "Неверный email или пароль" };
   setToken(data.token);
   return { user: data.user };
 }
@@ -78,8 +85,8 @@ export async function logout(): Promise<void> {
   clearToken();
 }
 
-export async function updateProfile(name: string): Promise<User | null> {
-  const res = await apiCall({ action: "update-profile", name });
+export async function updateProfile(name: string, phone?: string): Promise<User | null> {
+  const res = await apiCall({ action: "update-profile", name, phone });
   if (!res.ok) return null;
   const data = await res.json();
   return data.user || null;

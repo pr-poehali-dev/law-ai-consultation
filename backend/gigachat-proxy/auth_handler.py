@@ -1,11 +1,8 @@
-"""Авторизация через OTP на email."""
+"""Авторизация: регистрация с паролем, вход по email+пароль, сессии."""
 import os
-import random
 import secrets
-import smtplib
+import hashlib
 import psycopg2
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
@@ -14,37 +11,13 @@ def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
+def hash_password(password: str) -> str:
+    salt = "yurist_ai_salt_2026"
+    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+
+
 def generate_token() -> str:
     return secrets.token_hex(48)
-
-
-def send_otp_email(to_email: str, code: str):
-    smtp_host = os.environ.get("SMTP_HOST", "smtp.yandex.ru")
-    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
-    smtp_user = os.environ["SMTP_FROM_EMAIL"]
-    smtp_pass = os.environ["SMTP_PASSWORD"]
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Код входа в Юрист AI: {code}"
-    msg["From"] = f"Юрист AI <{smtp_user}>"
-    msg["To"] = to_email
-
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-      <h2 style="color: #1e3a5f; margin-bottom: 8px;">Юрист AI</h2>
-      <p style="color: #555; margin-bottom: 24px;">Код для входа в личный кабинет:</p>
-      <div style="background: #f4f7fb; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
-        <span style="font-size: 40px; font-weight: bold; letter-spacing: 8px; color: #1e3a5f;">{code}</span>
-      </div>
-      <p style="color: #888; font-size: 13px;">Код действует 10 минут. Не передавайте его никому.</p>
-      <p style="color: #888; font-size: 13px;">Если вы не запрашивали код — просто проигнорируйте это письмо.</p>
-    </div>
-    """
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, to_email, msg.as_string())
 
 
 def get_user_by_token(token: str) -> dict | None:
@@ -54,7 +27,7 @@ def get_user_by_token(token: str) -> dict | None:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""SELECT u.id, u.email, u.name, u.free_questions_used, u.paid_questions,
+            f"""SELECT u.id, u.email, u.name, u.phone, u.free_questions_used, u.paid_questions,
                        u.paid_docs, u.paid_expert, u.paid_business
                 FROM {SCHEMA}.sessions s
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
@@ -68,85 +41,93 @@ def get_user_by_token(token: str) -> dict | None:
         conn.close()
 
 
-def handle_send_otp(body: dict) -> dict:
+def handle_register(body: dict) -> dict:
+    name = (body.get("name") or "").strip()
     email = (body.get("email") or "").strip().lower()
+    phone = (body.get("phone") or "").strip()
+    password = body.get("password") or ""
+    agreed = body.get("agreed_to_terms", False)
+
+    if not name:
+        return _err(400, "Введите имя")
     if not email or "@" not in email:
         return _err(400, "Некорректный email")
+    if not phone or len(phone) < 7:
+        return _err(400, "Введите корректный телефон")
+    if len(password) < 6:
+        return _err(400, "Пароль должен быть не менее 6 символов")
+    if not agreed:
+        return _err(400, "Необходимо согласие на обработку персональных данных")
 
-    code = str(random.randint(100000, 999999))
+    pw_hash = hash_password(password)
     conn = get_conn()
     cur = conn.cursor()
     try:
+        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
+        if cur.fetchone():
+            return _err(409, "Пользователь с таким email уже зарегистрирован")
+
         cur.execute(
-            f"INSERT INTO {SCHEMA}.otp_codes (email, code) VALUES (%s, %s)",
-            (email, code)
+            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+            (email, name, phone, pw_hash, agreed)
+        )
+        user_id = cur.fetchone()[0]
+
+        token = generate_token()
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
+            (user_id, token)
         )
         conn.commit()
+
+        cur.execute(
+            f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
+            (user_id,)
+        )
+        u = cur.fetchone()
+        return _ok({"token": token, "user": _format_user(u)})
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
     finally:
         cur.close()
         conn.close()
 
-    try:
-        send_otp_email(email, code)
-    except Exception as e:
-        return _err(500, f"Ошибка отправки email: {str(e)}")
 
-    return _ok({"message": "Код отправлен на email"})
-
-
-def handle_verify_otp(body: dict) -> dict:
+def handle_login(body: dict) -> dict:
     email = (body.get("email") or "").strip().lower()
-    code = (body.get("code") or "").strip()
-    name = (body.get("name") or "").strip()
+    password = body.get("password") or ""
 
-    if not email or not code:
-        return _err(400, "Email и код обязательны")
+    if not email or not password:
+        return _err(400, "Введите email и пароль")
 
+    pw_hash = hash_password(password)
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""SELECT id FROM {SCHEMA}.otp_codes
-                WHERE email = %s AND code = %s AND used = FALSE AND expires_at > NOW()
-                ORDER BY id DESC LIMIT 1""",
-            (email, code)
+            f"SELECT id FROM {SCHEMA}.users WHERE email = %s AND password_hash = %s",
+            (email, pw_hash)
         )
         row = cur.fetchone()
         if not row:
-            return _err(401, "Неверный или истёкший код")
+            return _err(401, "Неверный email или пароль")
 
-        otp_id = row[0]
-        cur.execute(f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE id = %s", (otp_id,))
-
-        cur.execute(
-            f"SELECT id FROM {SCHEMA}.users WHERE email = %s",
-            (email,)
-        )
-        user_row = cur.fetchone()
-
-        if user_row:
-            user_id = user_row[0]
-        else:
-            display_name = name or email.split("@")[0]
-            cur.execute(
-                f"INSERT INTO {SCHEMA}.users (email, name) VALUES (%s, %s) RETURNING id",
-                (email, display_name)
-            )
-            user_id = cur.fetchone()[0]
-
-        session_token = generate_token()
+        user_id = row[0]
+        token = generate_token()
         cur.execute(
             f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
-            (user_id, session_token)
+            (user_id, token)
         )
         conn.commit()
 
         cur.execute(
-            f"SELECT id, email, name, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         u = cur.fetchone()
-        return _ok({"token": session_token, "user": _format_user(u)})
+        return _ok({"token": token, "user": _format_user(u)})
     except Exception as e:
         conn.rollback()
         return _err(500, str(e))
@@ -183,17 +164,20 @@ def handle_update_profile(token: str, body: dict) -> dict:
     if not user:
         return _err(401, "Не авторизован")
     new_name = (body.get("name") or "").strip()
-    if new_name:
+    new_phone = (body.get("phone") or "").strip()
+    if new_name or new_phone:
         conn = get_conn()
         cur = conn.cursor()
         try:
-            cur.execute(
-                f"UPDATE {SCHEMA}.users SET name = %s WHERE id = %s",
-                (new_name, user["id"])
-            )
+            if new_name and new_phone:
+                cur.execute(f"UPDATE {SCHEMA}.users SET name = %s, phone = %s WHERE id = %s", (new_name, new_phone, user["id"]))
+            elif new_name:
+                cur.execute(f"UPDATE {SCHEMA}.users SET name = %s WHERE id = %s", (new_name, user["id"]))
+            elif new_phone:
+                cur.execute(f"UPDATE {SCHEMA}.users SET phone = %s WHERE id = %s", (new_phone, user["id"]))
             conn.commit()
             cur.execute(
-                f"SELECT id, email, name, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
+                f"SELECT id, email, name, phone, free_questions_used, paid_questions, paid_docs, paid_expert, paid_business FROM {SCHEMA}.users WHERE id = %s",
                 (user["id"],)
             )
             u = cur.fetchone()
@@ -205,26 +189,18 @@ def handle_update_profile(token: str, body: dict) -> dict:
 
 
 def handle_consume_question(token: str) -> dict:
-    """Списать вопрос у пользователя."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-
     conn = get_conn()
     cur = conn.cursor()
     try:
         if user["freeQuestionsUsed"] < 30:
-            cur.execute(
-                f"UPDATE {SCHEMA}.users SET free_questions_used = free_questions_used + 1 WHERE id = %s",
-                (user["id"],)
-            )
+            cur.execute(f"UPDATE {SCHEMA}.users SET free_questions_used = free_questions_used + 1 WHERE id = %s", (user["id"],))
             conn.commit()
             return _ok({"ok": True})
         elif user["paidQuestions"] > 0:
-            cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s",
-                (user["id"],)
-            )
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s", (user["id"],))
             conn.commit()
             return _ok({"ok": True})
         else:
@@ -235,11 +211,9 @@ def handle_consume_question(token: str) -> dict:
 
 
 def handle_add_paid_service(token: str, body: dict) -> dict:
-    """Начислить оплаченную услугу пользователю."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-
     service_type = body.get("service_type", "")
     conn = get_conn()
     cur = conn.cursor()
@@ -264,11 +238,12 @@ def _format_user(row) -> dict:
         "id": row[0],
         "email": row[1],
         "name": row[2],
-        "freeQuestionsUsed": row[3],
-        "paidQuestions": row[4],
-        "paidDocs": row[5],
-        "paidExpert": row[6],
-        "paidBusiness": row[7],
+        "phone": row[3],
+        "freeQuestionsUsed": row[4],
+        "paidQuestions": row[5],
+        "paidDocs": row[6],
+        "paidExpert": row[7],
+        "paidBusiness": row[8],
     }
 
 
