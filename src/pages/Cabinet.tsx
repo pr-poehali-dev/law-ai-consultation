@@ -9,6 +9,7 @@ import ChatTab, { type ChatMsg } from "@/pages/cabinet/ChatTab";
 import DocsTab, { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
 import ProfileTab from "@/pages/cabinet/ProfileTab";
+import ExpertTab from "@/pages/cabinet/ExpertTab";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
@@ -17,7 +18,7 @@ const WELCOME = "Добрый день! Я AI-юрист, обученный н�
 export default function Cabinet() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const [tab, setTab] = useState<"chat" | "docs" | "history" | "profile">("chat");
+  const [tab, setTab] = useState<"chat" | "docs" | "expert" | "history" | "profile">("chat");
 
   // Chat
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
@@ -69,6 +70,18 @@ export default function Cabinet() {
       setUser(u);
     });
   }, [navigate]);
+
+  // Автоочистка чата раз в сутки
+  useEffect(() => {
+    const CHAT_CLEAR_KEY = "cabinet_chat_cleared_at";
+    const now = Date.now();
+    const lastCleared = parseInt(localStorage.getItem(CHAT_CLEAR_KEY) || "0", 10);
+    if (now - lastCleared > 24 * 60 * 60 * 1000) {
+      setMessages([{ role: "ai", text: WELCOME }]);
+      setHistory([]);
+      localStorage.setItem(CHAT_CLEAR_KEY, String(now));
+    }
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -222,19 +235,16 @@ export default function Cabinet() {
     setDocGenerating(true);
     setDocPhase("generating");
     setDocErr("");
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, details: docDetails }),
-        signal: controller.signal,
       });
-      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
       const placeholders: string[] = data.placeholders || [];
+      const truncated: boolean = data.truncated || false;
       const newDoc: GenDoc = {
         id: Date.now(),
         name: docType.label,
@@ -242,6 +252,7 @@ export default function Cabinet() {
         filled: data.answer,
         date: new Date().toLocaleDateString("ru-RU"),
         placeholders,
+        truncated,
       };
       await consumeDoc();
       await refreshUser();
@@ -252,6 +263,52 @@ export default function Cabinet() {
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
       setDocPhase("form");
+    } finally {
+      setDocGenerating(false);
+    }
+  };
+
+  const continueDoc = async () => {
+    if (!currentDoc) return;
+    setDocGenerating(true);
+    setDocErr("");
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "doc_continue",
+          doc_type: docType.id,
+          partial: currentDoc.content,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка продолжения");
+      const merged = currentDoc.content + "\n" + data.answer;
+      const newPlaceholders = [...new Set([
+        ...currentDoc.placeholders,
+        ...(data.placeholders || []),
+      ])];
+      const updated: GenDoc = {
+        ...currentDoc,
+        content: merged,
+        filled: merged,
+        placeholders: newPlaceholders,
+        truncated: data.truncated || false,
+      };
+      setCurrentDoc(updated);
+      setGenDocs((prev) => prev.map((d) => d.id === updated.id ? updated : d));
+      if (newPlaceholders.length > 0) {
+        setFillValues((prev) => ({
+          ...prev,
+          ...Object.fromEntries(
+            (data.placeholders || []).filter((p: string) => !prev[p]).map((p: string) => [p, ""])
+          ),
+        }));
+      }
+      setDocPhase(newPlaceholders.length > 0 ? "filling" : "done");
+    } catch (e) {
+      setDocErr(e instanceof Error ? e.message : "Ошибка продолжения");
     } finally {
       setDocGenerating(false);
     }
@@ -309,6 +366,7 @@ export default function Cabinet() {
             {[
               { id: "chat", label: "Чат с AI", icon: "Bot" },
               { id: "docs", label: "Документы", icon: "FileText" },
+              { id: "expert", label: "Юрист", icon: "UserCheck" },
               { id: "history", label: "История", icon: "Clock" },
               { id: "profile", label: "Профиль", icon: "User" },
             ].map((t) => (
@@ -350,6 +408,7 @@ export default function Cabinet() {
           {[
             { id: "chat", label: "Чат", icon: "Bot" },
             { id: "docs", label: "Документы", icon: "FileText" },
+            { id: "expert", label: "Юрист", icon: "UserCheck" },
             { id: "history", label: "История", icon: "Clock" },
             { id: "profile", label: "Профиль", icon: "User" },
           ].map((t) => (
@@ -407,6 +466,7 @@ export default function Cabinet() {
             onDocTypeChange={(dt) => { setDocType(dt); setDocErr(""); }}
             onDocDetailsChange={setDocDetails}
             onGenerate={generateDoc}
+            onContinue={continueDoc}
             onApplyFill={applyFillValues}
             onFillChange={(key, val) => setFillValues((p) => ({ ...p, [key]: val }))}
             onSetPhase={setDocPhase}
@@ -417,6 +477,14 @@ export default function Cabinet() {
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
+          />
+        )}
+
+        {tab === "expert" && (
+          <ExpertTab
+            user={user}
+            messages={messages}
+            genDocs={genDocs}
           />
         )}
 

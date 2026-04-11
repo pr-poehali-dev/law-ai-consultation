@@ -151,6 +151,50 @@ export function getFreeLeft(user: User): number {
   return user.isAdmin ? 999 : user.paidQuestions;
 }
 
+export interface LawyerMessage {
+  id: number;
+  user_id: number;
+  sender: "user" | "admin";
+  body: string;
+  attachment_type?: string;
+  attachment_name?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface LawyerDialog {
+  user_id: number;
+  name: string;
+  email: string;
+  last_message: string;
+  last_sender: string;
+  last_at: string;
+  unread: number;
+}
+
+export async function lawyerSend(params: {
+  body: string;
+  target_user_id?: number;
+  attachment_type?: string;
+  attachment_name?: string;
+  attachment_content?: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "lawyer-send", ...params });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка отправки" };
+  return { ok: true };
+}
+
+export async function lawyerMessages(params?: {
+  target_user_id?: number;
+  limit?: number;
+}): Promise<{ messages?: LawyerMessage[]; dialogs?: LawyerDialog[]; error?: string }> {
+  const res = await apiCall({ action: "lawyer-messages", ...(params || {}) });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка загрузки" };
+  return data;
+}
+
 /** Проверяет активную подписку на стороне клиента */
 export function hasActiveSubscription(user: User, kind: "consult" | "docs"): boolean {
   const until = kind === "consult" ? user.subscriptionConsultUntil : user.subscriptionDocsUntil;

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { User } from "@/lib/auth";
@@ -12,6 +13,7 @@ export interface GenDoc {
   filled: string;
   date: string;
   placeholders: string[];
+  truncated?: boolean;
 }
 
 const DOC_TYPES = [
@@ -35,6 +37,7 @@ interface DocsTabProps {
   onDocTypeChange: (dt: typeof DOC_TYPES[0]) => void;
   onDocDetailsChange: (v: string) => void;
   onGenerate: () => void;
+  onContinue: () => void;
   onApplyFill: () => void;
   onFillChange: (key: string, value: string) => void;
   onSetPhase: (phase: DocPhase) => void;
@@ -49,6 +52,72 @@ interface DocsTabProps {
 
 export { DOC_TYPES };
 
+// Анимированные статусы генерации
+const GEN_STATUSES = [
+  "Анализирую запрос...",
+  "Изучаю судебную практику...",
+  "Подбираю нормы законодательства...",
+  "Формирую структуру документа...",
+  "Составляю текст...",
+  "Проверяю соответствие нормам РФ...",
+  "Финальная проверка...",
+];
+
+function GeneratingOverlay({ docLabel }: { docLabel: string }) {
+  const [statusIdx, setStatusIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStatusIdx((i) => (i + 1) % GEN_STATUSES.length);
+    }, 4000);
+    const progressInterval = setInterval(() => {
+      setProgress((p) => Math.min(p + 1.2, 92));
+    }, 600);
+    return () => { clearInterval(interval); clearInterval(progressInterval); };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        {/* Иконка с пульсацией */}
+        <div className="relative w-20 h-20 mx-auto mb-6">
+          <div className="absolute inset-0 rounded-full bg-gold-400/20 animate-ping" />
+          <div className="absolute inset-2 rounded-full bg-gold-400/30 animate-pulse" />
+          <div className="relative w-20 h-20 gradient-navy rounded-full flex items-center justify-center shadow-lg">
+            <Icon name="FileText" size={32} className="text-gold-400" />
+          </div>
+        </div>
+
+        <h3 className="font-cormorant font-bold text-xl text-navy-800 mb-1">Составляю {docLabel}</h3>
+        <p className="text-xs text-muted-foreground mb-6">AI-юрист работает над документом</p>
+
+        {/* Прогресс-бар */}
+        <div className="w-full bg-slate-100 rounded-full h-2 mb-3 overflow-hidden">
+          <div
+            className="h-2 rounded-full bg-gradient-to-r from-navy-600 to-gold-400 transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Анимированный статус */}
+        <p className="text-[12.5px] text-navy-600 font-medium animate-fade-in min-h-[20px] transition-all duration-500">
+          {GEN_STATUSES[statusIdx]}
+        </p>
+
+        {/* Мигающие точки */}
+        <div className="flex justify-center gap-1.5 mt-4">
+          <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+          <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full" />
+        </div>
+
+        <p className="text-[11px] text-muted-foreground/60 mt-4">Обычно занимает 20–60 секунд</p>
+      </div>
+    </div>
+  );
+}
+
 export default function DocsTab({
   user,
   docType,
@@ -62,6 +131,7 @@ export default function DocsTab({
   onDocTypeChange,
   onDocDetailsChange,
   onGenerate,
+  onContinue,
   onApplyFill,
   onFillChange,
   onSetPhase,
@@ -75,6 +145,11 @@ export default function DocsTab({
 }: DocsTabProps) {
   return (
     <div className="max-w-4xl mx-auto">
+
+      {/* Оверлей генерации */}
+      {docGenerating && docPhase === "generating" && (
+        <GeneratingOverlay docLabel={docType.label} />
+      )}
 
       {/* ФАЗА: форма запроса */}
       {(docPhase === "form" || docPhase === "generating") && (
@@ -229,6 +304,24 @@ export default function DocsTab({
                 <Icon name="ArrowLeft" size={13} />Назад
               </button>
             </div>
+
+            {/* Кнопка «Читать дальше» при обрыве */}
+            {currentDoc.truncated && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+                <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-amber-800">Документ был обрезан</p>
+                  <p className="text-xs text-amber-700 mt-0.5">AI не успел дописать документ до конца. Нажмите кнопку ниже — он продолжит с того места, где остановился.</p>
+                </div>
+                <button
+                  onClick={onContinue}
+                  disabled={docGenerating}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-xl transition-all disabled:opacity-50"
+                >
+                  <Icon name="ChevronRight" size={13} />Читать дальше
+                </button>
+              </div>
+            )}
 
             {currentDoc.placeholders.length === 0 ? (
               <div className="text-center py-6">

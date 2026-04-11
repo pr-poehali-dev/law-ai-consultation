@@ -593,3 +593,112 @@ def _ok(data: dict) -> dict:
 
 def _err(code: int, msg: str) -> dict:
     return {"status": code, "error": msg}
+
+
+# ─────────────────────────────────────────────
+# Мессенджер: пользователь ↔ администратор
+# ─────────────────────────────────────────────
+
+def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Отправить сообщение юристу (пользователь) или пользователю (админ)."""
+    msg_body = sanitize_str(body.get("body") or "")
+    target_user_id = body.get("target_user_id")  # только для admin
+    att_type = sanitize_str(body.get("attachment_type") or "")
+    att_name = sanitize_str(body.get("attachment_name") or "")
+    att_content = body.get("attachment_content") or ""
+
+    if not msg_body and not att_content:
+        return _err(400, "Пустое сообщение")
+
+    if is_admin:
+        if not target_user_id:
+            return _err(400, "Укажите target_user_id")
+        sender = "admin"
+        recipient_id = int(target_user_id)
+    else:
+        sender = "user"
+        recipient_id = user_id
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.lawyer_messages "
+            f"(user_id, sender, body, attachment_type, attachment_name, attachment_content) "
+            f"VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at",
+            (recipient_id, sender, msg_body, att_type or None, att_name or None, att_content or None)
+        )
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return _ok({"id": row[0], "created_at": row[1].isoformat()})
+
+
+def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Получить историю сообщений. Пользователь — свои; админ — all или по target_user_id."""
+    target_user_id = body.get("target_user_id")
+    limit = min(int(body.get("limit", 100)), 200)
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if is_admin:
+            if target_user_id:
+                cur.execute(
+                    f"SELECT id, user_id, sender, body, attachment_type, attachment_name, is_read, created_at "
+                    f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
+                    (int(target_user_id), limit)
+                )
+            else:
+                # Список диалогов (последнее сообщение от каждого пользователя)
+                cur.execute(
+                    f"""SELECT DISTINCT ON (lm.user_id) lm.user_id, u.name, u.email,
+                        lm.body, lm.sender, lm.created_at,
+                        (SELECT COUNT(*) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id AND sender='user' AND is_read=FALSE) as unread
+                        FROM {SCHEMA}.lawyer_messages lm
+                        JOIN {SCHEMA}.users u ON u.id = lm.user_id
+                        ORDER BY lm.user_id, lm.created_at DESC"""
+                )
+                rows = cur.fetchall()
+                return _ok({"dialogs": [
+                    {"user_id": r[0], "name": r[1], "email": r[2],
+                     "last_message": r[3], "last_sender": r[4],
+                     "last_at": r[5].isoformat(), "unread": r[6]}
+                    for r in rows
+                ]})
+        else:
+            cur.execute(
+                f"SELECT id, user_id, sender, body, attachment_type, attachment_name, is_read, created_at "
+                f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
+                (user_id, limit)
+            )
+        rows = cur.fetchall()
+
+        # Помечаем как прочитанные входящие сообщения
+        if is_admin and target_user_id:
+            cur.execute(
+                f"UPDATE {SCHEMA}.lawyer_messages SET is_read=TRUE WHERE user_id=%s AND sender='user' AND is_read=FALSE",
+                (int(target_user_id),)
+            )
+        elif not is_admin:
+            cur.execute(
+                f"UPDATE {SCHEMA}.lawyer_messages SET is_read=TRUE WHERE user_id=%s AND sender='admin' AND is_read=FALSE",
+                (user_id,)
+            )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return _ok({"messages": [
+        {
+            "id": r[0], "user_id": r[1], "sender": r[2],
+            "body": r[3], "attachment_type": r[4],
+            "attachment_name": r[5], "is_read": r[6],
+            "created_at": r[7].isoformat(),
+        }
+        for r in rows
+    ]})
