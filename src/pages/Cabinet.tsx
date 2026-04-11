@@ -341,12 +341,16 @@ export default function Cabinet() {
     setDocGenerating(true);
     setDocPhase("generating");
     setDocErr("");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, details: docDetails }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
       const placeholders: string[] = data.placeholders || [];

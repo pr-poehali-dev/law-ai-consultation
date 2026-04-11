@@ -268,7 +268,7 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
                 {"role": "user", "text": user_content},
             ],
         },
-        timeout=40,
+        timeout=55,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
@@ -296,7 +296,7 @@ def _call_yandex_raw(system_prompt: str, yandex_messages: list, max_tokens: int)
             "completionOptions": {"stream": False, "temperature": 0.4, "maxTokens": max_tokens},
             "messages": [{"role": "system", "text": system_prompt}] + yandex_messages,
         },
-        timeout=30,
+        timeout=55,
     )
     resp.raise_for_status()
     return resp.json()["result"]["alternatives"][0]["message"]["text"]
