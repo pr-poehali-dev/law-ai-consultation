@@ -19,55 +19,7 @@ const DOC_TYPES = [
 
 interface ChatMsg { role: "ai" | "user"; text: string; }
 
-// Реквизиты по типу документа
-const DOC_REQUISITE_FIELDS: Record<string, { key: string; label: string; placeholder: string }[]> = {
-  claim: [
-    { key: "plaintiff_name", label: "ФИО истца", placeholder: "Иванов Иван Иванович" },
-    { key: "plaintiff_address", label: "Адрес истца", placeholder: "г. Москва, ул. Примерная, д. 1, кв. 1" },
-    { key: "defendant_name", label: "ФИО / название ответчика", placeholder: "ООО «Ромашка» или Петров П.П." },
-    { key: "defendant_address", label: "Адрес ответчика", placeholder: "г. Москва, ул. Ленина, д. 5" },
-    { key: "amount", label: "Сумма требований (₽)", placeholder: "50 000" },
-    { key: "date", label: "Дата нарушения", placeholder: "15.01.2026" },
-  ],
-  pretension: [
-    { key: "sender_name", label: "ФИО отправителя", placeholder: "Иванов Иван Иванович" },
-    { key: "sender_address", label: "Адрес отправителя", placeholder: "г. Москва, ул. Примерная, д. 1" },
-    { key: "recipient_name", label: "Кому (ФИО / организация)", placeholder: "ООО «Ромашка»" },
-    { key: "recipient_address", label: "Адрес получателя", placeholder: "г. Москва, ул. Ленина, д. 5" },
-    { key: "amount", label: "Сумма требований (₽)", placeholder: "30 000" },
-    { key: "date", label: "Дата нарушения / заключения договора", placeholder: "10.01.2026" },
-  ],
-  complaint: [
-    { key: "applicant_name", label: "ФИО заявителя", placeholder: "Иванов Иван Иванович" },
-    { key: "applicant_address", label: "Адрес заявителя", placeholder: "г. Москва, ул. Примерная, д. 1" },
-    { key: "respondent_name", label: "Название организации-нарушителя", placeholder: "ООО «Нарушитель»" },
-    { key: "respondent_address", label: "Адрес организации", placeholder: "г. Москва, ул. Ленина, д. 5" },
-    { key: "date", label: "Дата нарушения", placeholder: "01.02.2026" },
-  ],
-  contract: [
-    { key: "customer_name", label: "Заказчик (ФИО / организация)", placeholder: "ООО «Заказчик» или Иванов И.И." },
-    { key: "customer_inn", label: "ИНН Заказчика", placeholder: "7701234567" },
-    { key: "customer_address", label: "Адрес Заказчика", placeholder: "г. Москва, ул. Ленина, д. 1" },
-    { key: "contractor_name", label: "Исполнитель (ФИО)", placeholder: "Петров Пётр Петрович" },
-    { key: "contractor_inn", label: "ИНН Исполнителя", placeholder: "772012345678" },
-    { key: "contractor_address", label: "Адрес Исполнителя", placeholder: "г. Москва, ул. Мира, д. 2" },
-    { key: "amount", label: "Сумма вознаграждения (₽)", placeholder: "100 000" },
-    { key: "date_start", label: "Дата начала работ", placeholder: "01.05.2026" },
-    { key: "date_end", label: "Дата окончания работ", placeholder: "31.05.2026" },
-  ],
-  business_contract: [
-    { key: "party1_name", label: "Сторона 1 (название)", placeholder: "ООО «Первая компания»" },
-    { key: "party1_inn", label: "ИНН Стороны 1", placeholder: "7701234567" },
-    { key: "party1_address", label: "Юр. адрес Стороны 1", placeholder: "г. Москва, ул. Ленина, д. 1" },
-    { key: "party1_director", label: "Руководитель Стороны 1", placeholder: "Иванов И.И., Генеральный директор" },
-    { key: "party2_name", label: "Сторона 2 (название)", placeholder: "ООО «Вторая компания»" },
-    { key: "party2_inn", label: "ИНН Стороны 2", placeholder: "7709876543" },
-    { key: "party2_address", label: "Юр. адрес Стороны 2", placeholder: "г. Санкт-Петербург, пр. Невский, д. 10" },
-    { key: "party2_director", label: "Руководитель Стороны 2", placeholder: "Петров П.П., Директор" },
-    { key: "amount", label: "Сумма договора (₽)", placeholder: "500 000" },
-    { key: "date", label: "Дата заключения", placeholder: "01.05.2026" },
-  ],
-};
+type DocPhase = "select" | "dialog" | "done";
 
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
@@ -96,21 +48,25 @@ export default function Cabinet() {
 
   // Docs
   const [docType, setDocType] = useState(DOC_TYPES[0]);
-  const [docRequisites, setDocRequisites] = useState<Record<string, string>>({});
-  const [docDetails, setDocDetails] = useState("");
+  const [docPhase, setDocPhase] = useState<DocPhase>("select");
+  const [docDialogMsgs, setDocDialogMsgs] = useState<ChatMsg[]>([]);
+  const [docDialogHistory, setDocDialogHistory] = useState<{ role: string; content: string }[]>([]);
+  const [docInput, setDocInput] = useState("");
+  const [docTyping, setDocTyping] = useState(false);
+  const [docGenerating, setDocGenerating] = useState(false);
+  const [docErr, setDocErr] = useState("");
+  const docEndRef = useRef<HTMLDivElement>(null);
   const [genDocs, setGenDocs] = useState<{ id: number; name: string; content: string; date: string }[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_docs");
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [generatingDoc, setGeneratingDoc] = useState(false);
-  const [docErr, setDocErr] = useState("");
   const [viewDoc, setViewDoc] = useState<null | { name: string; content: string }>(null);
 
   // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
-  const [pendingDocId, setPendingDocId] = useState<string | null>(null); // используется в requestDoc
+  const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
 
   useEffect(() => {
     getUser().then((u) => {
@@ -134,6 +90,10 @@ export default function Cabinet() {
   useEffect(() => {
     localStorage.setItem("cabinet_docs", JSON.stringify(genDocs));
   }, [genDocs]);
+
+  useEffect(() => {
+    docEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [docDialogMsgs, docTyping, docGenerating]);
 
   const refreshUser = () => getUser().then((u) => { if (u) setUser(u); });
 
@@ -180,49 +140,106 @@ export default function Cabinet() {
     }
   };
 
-  const generateDoc = async () => {
-    if (!docDetails.trim()) { setDocErr("Опишите ситуацию или предмет документа"); return; }
-    setGeneratingDoc(true);
+  const startDocDialog = async (dt: typeof DOC_TYPES[0]) => {
+    setDocType(dt);
+    setDocDialogMsgs([]);
+    setDocDialogHistory([]);
+    setDocInput("");
     setDocErr("");
-    const fields = DOC_REQUISITE_FIELDS[docType.id] || [];
-    const reqLines = fields
-      .filter((f) => docRequisites[f.key]?.trim())
-      .map((f) => `${f.label}: ${docRequisites[f.key].trim()}`);
-    const requisitesText = reqLines.join("\n");
+    setDocPhase("dialog");
+    setDocTyping(true);
     try {
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "document",
-          doc_type: docType.id,
-          details: docDetails,
-          requisites: requisitesText,
-        }),
+        body: JSON.stringify({ mode: "doc_start", doc_type: dt.id }),
+      });
+      const data = await res.json();
+      const aiMsg = data.answer as string;
+      setDocDialogMsgs([{ role: "ai", text: aiMsg }]);
+      setDocDialogHistory([{ role: "assistant", content: aiMsg }]);
+    } catch {
+      setDocDialogMsgs([{ role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
+    } finally {
+      setDocTyping(false);
+    }
+  };
+
+  const sendDocMsg = async () => {
+    if (!docInput.trim() || docTyping || docGenerating) return;
+    const text = docInput.trim();
+    setDocInput("");
+    const userMsg = { role: "user" as const, text };
+    const newMsgs = [...docDialogMsgs, userMsg];
+    setDocDialogMsgs(newMsgs);
+    const newHist = [...docDialogHistory, { role: "user", content: text }];
+    setDocDialogHistory(newHist);
+    setDocTyping(true);
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "doc_chat", messages: newHist }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка");
+      const aiText = data.answer as string;
+      const updHist = [...newHist, { role: "assistant", content: aiText }];
+      setDocDialogHistory(updHist);
+      if (data.ready) {
+        setDocDialogMsgs((p) => [...p, { role: "ai", text: "Все данные собраны. Генерирую документ..." }]);
+        setDocTyping(false);
+        await generateDocFromHistory(updHist);
+      } else {
+        setDocDialogMsgs((p) => [...p, { role: "ai", text: aiText }]);
+        setDocTyping(false);
+      }
+    } catch (e) {
+      setDocDialogMsgs((p) => [...p, { role: "ai", text: "Ошибка соединения. Попробуйте ещё раз." }]);
+      setDocTyping(false);
+    }
+  };
+
+  const generateDocFromHistory = async (hist: { role: string; content: string }[]) => {
+    setDocGenerating(true);
+    setDocErr("");
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, messages: hist }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
       const newDoc = { id: Date.now(), name: docType.label, content: data.answer, date: new Date().toLocaleDateString("ru-RU") };
       setGenDocs((p) => [newDoc, ...p]);
       setViewDoc(newDoc);
-      setDocDetails("");
-      setDocRequisites({});
+      setDocPhase("done");
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
+      setDocDialogMsgs((p) => [...p, { role: "ai", text: "Не удалось сгенерировать документ. Попробуйте ещё раз." }]);
     } finally {
-      setGeneratingDoc(false);
+      setDocGenerating(false);
     }
+  };
+
+  const handleDocDoneMessage = () => {
+    // Если пользователь пишет после завершения — переводим на чат консультации
+    setTab("chat");
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
     await addPaidService(svcType);
     refreshUser();
     setPayment(null);
+    if (pendingDocType) {
+      startDocDialog(pendingDocType);
+      setPendingDocType(null);
+    }
   };
 
   const requestDoc = (dt: typeof DOC_TYPES[0]) => {
-    setDocType(dt);
-    setPendingDocId(dt.id);
+    setPendingDocType(dt);
     setPayment({ type: dt.serviceType, name: dt.label });
   };
 
@@ -431,108 +448,241 @@ export default function Cabinet() {
 
         {/* ===== DOCS TAB ===== */}
         {tab === "docs" && (
-          <div className="max-w-5xl mx-auto">
-            {/* ФОРМА СОЗДАНИЯ ДОКУМЕНТА */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="max-w-4xl mx-auto">
 
-              {/* Левая колонка — тип + реквизиты + описание */}
-              <div className="space-y-4">
-                {/* Тип документа */}
-                <div className="bg-white rounded-3xl border border-border p-5 shadow-sm">
+            {/* ФАЗА 1: выбор типа документа */}
+            {docPhase === "select" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
                   <h2 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">Создать документ</h2>
-                  <p className="text-sm text-muted-foreground mb-4">Выберите тип и заполните реквизиты — AI составит готовый документ</p>
-                  <div className="space-y-1.5">
+                  <p className="text-sm text-muted-foreground mb-5">AI-юрист задаст уточняющие вопросы и составит полный документ с реквизитами</p>
+                  <div className="space-y-2">
                     {DOC_TYPES.map((dt) => (
                       <button
                         key={dt.id}
-                        onClick={() => { setDocType(dt); setDocRequisites({}); setDocErr(""); }}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
-                          docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200 hover:bg-slate-50"
-                        }`}
+                        onClick={() => startDocDialog(dt)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border hover:border-navy-400 hover:bg-navy-50 transition-all group"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
-                            <Icon name={dt.icon} size={15} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
+                          <div className="w-8 h-8 bg-slate-100 group-hover:bg-navy-100 rounded-xl flex items-center justify-center transition-colors">
+                            <Icon name={dt.icon} size={15} className="text-navy-500" />
                           </div>
-                          <span className={`text-sm font-medium ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
+                          <span className="text-sm font-medium text-navy-800">{dt.label}</span>
                         </div>
-                        <span className="text-xs font-semibold text-navy-500">{dt.price} ₽</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-navy-500">{dt.price} ₽</span>
+                          <Icon name="ChevronRight" size={14} className="text-muted-foreground group-hover:text-navy-600 transition-colors" />
+                        </div>
                       </button>
                     ))}
                   </div>
+                  <div className="mt-4 px-4 py-3 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      AI задаст вопросы о реквизитах сторон и обстоятельствах — затем подготовит готовый документ со ссылками на законы.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Реквизиты сторон */}
-                <div className="bg-white rounded-3xl border border-border p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Icon name="ClipboardList" size={16} className="text-navy-600" />
-                    <h3 className="font-semibold text-navy-800">Реквизиты сторон</h3>
-                    <span className="text-xs text-muted-foreground ml-1">(необязательно, но улучшает документ)</span>
+                {/* Ранее созданные */}
+                <div className="space-y-4">
+                  {genDocs.length > 0 && (
+                    <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
+                      <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
+                      <div className="space-y-2">
+                        {genDocs.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between py-2.5 border-b border-border/60 last:border-0">
+                            <div>
+                              <div className="text-sm font-medium text-navy-800">{doc.name}</div>
+                              <div className="text-xs text-muted-foreground">{doc.date}</div>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => setViewDoc(doc)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Просмотр</button>
+                              <button onClick={() => downloadDoc(doc.name, doc.content)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
+                                <Icon name="Download" size={12} />Скачать
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {genDocs.length === 0 && (
+                    <div className="bg-white rounded-3xl border border-border shadow-sm p-10 text-center">
+                      <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Icon name="FileText" size={22} className="text-navy-400" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Выберите тип документа, чтобы начать</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ФАЗА 2: диалог с AI */}
+            {docPhase === "dialog" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white rounded-3xl border border-border shadow-sm flex flex-col" style={{ height: "calc(100vh - 180px)" }}>
+                  {/* Шапка */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center">
+                        <Icon name="Scale" size={14} className="text-gold-400" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-navy-800">{docType.label}</div>
+                        <div className="text-xs text-muted-foreground">AI-юрист задаёт уточняющие вопросы</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDocPhase("select")}
+                      className="text-xs text-muted-foreground hover:text-navy-700 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    >
+                      <Icon name="ArrowLeft" size={13} />Назад
+                    </button>
                   </div>
-                  <div className="space-y-3">
-                    {(DOC_REQUISITE_FIELDS[docType.id] || []).map((field) => (
-                      <div key={field.key}>
-                        <label className="text-xs font-medium text-navy-700 mb-1 block">{field.label}</label>
-                        <input
-                          type="text"
-                          value={docRequisites[field.key] || ""}
-                          onChange={(e) => setDocRequisites((p) => ({ ...p, [field.key]: e.target.value }))}
-                          placeholder={field.placeholder}
-                          className="w-full bg-slate-50 border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 transition-colors"
-                        />
+
+                  {/* Сообщения */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
+                    {docDialogMsgs.map((msg, i) => (
+                      <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        {msg.role === "ai" && (
+                          <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                            <Icon name="Scale" size={14} className="text-gold-400" />
+                          </div>
+                        )}
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                          msg.role === "user" ? "bg-navy-700 text-white rounded-br-sm" : "bg-blue-50/60 border-l-2 border-gold-400 text-navy-800 rounded-bl-sm"
+                        }`}>{msg.text}</div>
+                        {msg.role === "user" && (
+                          <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-600 uppercase">
+                            {user.name?.[0] ?? "U"}
+                          </div>
+                        )}
                       </div>
                     ))}
+                    {(docTyping || docGenerating) && (
+                      <div className="flex gap-3">
+                        <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
+                          <Icon name="Scale" size={14} className="text-gold-400" />
+                        </div>
+                        <div className="bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                          <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full" />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={docEndRef} />
+                  </div>
+
+                  {docErr && (
+                    <div className="mx-5 mb-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">{docErr}</div>
+                  )}
+
+                  {/* Ввод */}
+                  <div className="p-4 border-t border-border shrink-0">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={docInput}
+                        onChange={(e) => setDocInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") sendDocMsg(); }}
+                        disabled={docTyping || docGenerating}
+                        placeholder="Ответьте на вопрос AI-юриста..."
+                        className="flex-1 bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors disabled:opacity-60"
+                      />
+                      <button
+                        onClick={sendDocMsg}
+                        disabled={!docInput.trim() || docTyping || docGenerating}
+                        className="btn-gold w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-50"
+                      >
+                        <Icon name="Send" size={18} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Отвечайте на вопросы — AI составит документ автоматически
+                    </p>
+                  </div>
+                </div>
+
+                {/* Подсказки */}
+                <div className="space-y-4">
+                  <div className="bg-amber-50 rounded-3xl border border-amber-200 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Icon name="Lightbulb" size={15} className="text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-800">Что потребуется</span>
+                    </div>
+                    <ul className="space-y-1.5 text-xs text-amber-700">
+                      {["ФИО всех сторон", "Адреса регистрации", "ИНН / ОГРН (для бизнеса)", "Суммы и даты", "Суть ситуации"].map((t) => (
+                        <li key={t} className="flex items-center gap-2">
+                          <Icon name="Check" size={11} className="text-amber-500 shrink-0" />{t}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Правая колонка — описание ситуации + кнопка + результат */}
-              <div className="space-y-4">
-                <div className="bg-white rounded-3xl border border-border p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon name="FileText" size={16} className="text-navy-600" />
-                    <h3 className="font-semibold text-navy-800">Описание ситуации</h3>
+            {/* ФАЗА 3: документ готов */}
+            {docPhase === "done" && viewDoc && (
+              <div className="max-w-2xl mx-auto space-y-4">
+                <div className="bg-emerald-50 rounded-3xl border border-emerald-200 p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
+                    <Icon name="CheckCircle" size={22} className="text-emerald-600" />
                   </div>
-                  <textarea
-                    value={docDetails}
-                    onChange={(e) => setDocDetails(e.target.value)}
-                    placeholder={`Опишите обстоятельства для «${docType.label}»...\n\nНапример: дата нарушения, суть претензии, что требуете, какие документы есть на руках.`}
-                    rows={8}
-                    className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none"
-                  />
-                  {docErr && (
-                    <div className="mt-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
-                      <Icon name="AlertCircle" size={13} className="shrink-0" />
-                      {docErr}
-                    </div>
-                  )}
-                  <button
-                    onClick={generateDoc}
-                    disabled={generatingDoc || !docDetails.trim()}
-                    className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
-                  >
-                    {generatingDoc ? (
-                      <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
-                    ) : (
-                      <><Icon name="Zap" size={16} />Сгенерировать документ</>
-                    )}
-                  </button>
+                  <div className="flex-1">
+                    <div className="font-semibold text-navy-800">{viewDoc.name} — готов</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Документ составлен AI-юристом с учётом всех реквизитов</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setViewDoc(viewDoc)}
+                      className="text-xs text-navy-600 hover:text-navy-800 px-3 py-2 rounded-xl hover:bg-white border border-emerald-200 transition-colors font-medium"
+                    >
+                      Открыть
+                    </button>
+                    <button
+                      onClick={() => downloadDoc(viewDoc.name, viewDoc.content)}
+                      className="btn-gold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 font-medium"
+                    >
+                      <Icon name="Download" size={13} />Скачать .docx
+                    </button>
+                  </div>
                 </div>
 
-                {viewDoc && (
-                  <div className="bg-emerald-50 rounded-3xl border border-emerald-200 p-4 flex items-center gap-3">
-                    <Icon name="CheckCircle" size={18} className="text-emerald-500 shrink-0" />
-                    <span className="text-sm font-medium text-navy-800 flex-1">{viewDoc.name} — готов</span>
-                    <button onClick={() => setViewDoc(viewDoc)} className="text-xs text-navy-600 hover:text-navy-800 px-3 py-1.5 rounded-xl hover:bg-white transition-colors font-medium">Открыть</button>
+                {/* Блок завершения */}
+                <div className="bg-white rounded-3xl border border-border p-6 shadow-sm text-center">
+                  <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <Icon name="Scale" size={20} className="text-navy-600" />
                   </div>
-                )}
+                  <h3 className="font-semibold text-navy-800 mb-1">Документ готов к использованию</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Если есть вопросы по документу или нужна юридическая консультация — перейдите в чат с AI-юристом.
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => { setDocPhase("select"); setViewDoc(null); }}
+                      className="text-sm text-navy-600 hover:text-navy-800 px-4 py-2.5 rounded-xl border border-border hover:border-navy-300 transition-colors"
+                    >
+                      Создать ещё
+                    </button>
+                    <button
+                      onClick={handleDocDoneMessage}
+                      className="btn-gold text-sm px-5 py-2.5 rounded-xl flex items-center gap-2"
+                    >
+                      <Icon name="MessageCircle" size={15} />
+                      Задать вопрос юристу
+                    </button>
+                  </div>
+                </div>
 
-                {genDocs.length > 0 && (
+                {genDocs.length > 1 && (
                   <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
-                    <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
+                    <h3 className="font-semibold text-navy-800 text-sm mb-3">Все созданные документы</h3>
                     <div className="space-y-2">
                       {genDocs.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between py-2.5 border-b border-border/60 last:border-0">
+                        <div key={doc.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
                           <div>
                             <div className="text-sm font-medium text-navy-800">{doc.name}</div>
                             <div className="text-xs text-muted-foreground">{doc.date}</div>
@@ -548,17 +698,9 @@ export default function Cabinet() {
                     </div>
                   </div>
                 )}
-
-                {genDocs.length === 0 && !viewDoc && (
-                  <div className="bg-white rounded-3xl border border-border shadow-sm p-8 text-center">
-                    <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                      <Icon name="FileText" size={22} className="text-navy-400" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">Заполните форму и нажмите «Сгенерировать»</p>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
+
           </div>
         )}
 
