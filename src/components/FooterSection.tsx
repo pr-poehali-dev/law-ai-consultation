@@ -96,21 +96,66 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
                   <span className="text-white/65 text-sm">{contact.text}</span>
                 </li>
               ))}
-              <li className="pt-1">
+              <li className="pt-2">
+                <style>{`
+                  @keyframes copy-shine {
+                    0% { transform: translateX(-100%) skewX(-15deg); }
+                    100% { transform: translateX(250%) skewX(-15deg); }
+                  }
+                  @keyframes copy-success-ring {
+                    0% { transform: scale(0.8); opacity: 1; }
+                    100% { transform: scale(1.8); opacity: 0; }
+                  }
+                  .copy-btn-shine::after {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0;
+                    width: 40%;
+                    height: 100%;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+                    animation: copy-shine 2.2s ease-in-out infinite;
+                  }
+                  .copy-btn-success::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 14px;
+                    border: 1.5px solid rgba(52,211,153,0.6);
+                    animation: copy-success-ring 0.6s ease-out forwards;
+                  }
+                `}</style>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-200 group w-full"
+                  className={`relative overflow-hidden flex items-center gap-2.5 w-full px-4 py-2.5 rounded-2xl border transition-all duration-300 group
+                    ${copied
+                      ? "copy-btn-success bg-emerald-500/15 border-emerald-400/40"
+                      : "copy-btn-shine bg-gradient-to-r from-white/8 to-white/5 border-white/15 hover:border-gold-400/50 hover:from-gold-400/10 hover:to-white/8"
+                    }`}
                 >
-                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                    copied ? "bg-emerald-400/20" : "bg-white/10 group-hover:bg-gold-400/15"
+                  }`}>
                     <Icon
-                      name={copied ? "Check" : "Link"}
+                      name={copied ? "Check" : "Share2"}
                       size={13}
-                      className={copied ? "text-emerald-400" : "text-gold-400"}
+                      className={`transition-all duration-300 ${copied ? "text-emerald-400" : "text-gold-400"}`}
                     />
                   </div>
-                  <span className={`text-sm transition-colors duration-200 ${copied ? "text-emerald-400" : "text-white/65 group-hover:text-white"}`}>
-                    {copied ? "Скопировано!" : "Скопировать ссылку"}
-                  </span>
+                  <div className="flex-1 text-left">
+                    <p className={`text-xs font-semibold tracking-wide transition-colors duration-300 ${
+                      copied ? "text-emerald-400" : "text-white/90 group-hover:text-white"
+                    }`}>
+                      {copied ? "Ссылка скопирована!" : "Поделиться сайтом"}
+                    </p>
+                    <p className={`text-[10px] transition-colors duration-300 ${
+                      copied ? "text-emerald-400/70" : "text-white/35 group-hover:text-white/50"
+                    }`}>
+                      {copied ? "ии-право.рф" : "Скопировать красивую ссылку"}
+                    </p>
+                  </div>
+                  {!copied && (
+                    <Icon name="Copy" size={12} className="text-white/25 group-hover:text-gold-400/60 transition-colors duration-300 shrink-0" />
+                  )}
                 </button>
               </li>
             </ul>
