@@ -150,40 +150,109 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
+  /** Сжимает изображение через Canvas до ≤800 КБ и max 1600px, возвращает base64 JPEG */
+  const compressImageCanvas = (file: File): Promise<{ b64: string; sizeStr: string }> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX_SIDE = 1600;
+        const MAX_BYTES = 800_000;
+        let { width, height } = img;
+        if (Math.max(width, height) > MAX_SIDE) {
+          const ratio = MAX_SIDE / Math.max(width, height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        // Подбираем качество пока файл не влезет в лимит
+        let quality = 0.82;
+        const tryEncode = () => {
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          const b64 = dataUrl.split(",")[1];
+          const bytes = Math.round((b64.length * 3) / 4);
+          if (bytes > MAX_BYTES && quality > 0.3) {
+            quality -= 0.15;
+            tryEncode();
+          } else {
+            const sizeStr = bytes < 1024 * 1024
+              ? `${Math.round(bytes / 1024)} КБ`
+              : `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+            resolve({ b64, sizeStr });
+          }
+        };
+        tryEncode();
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img load error")); };
+      img.src = url;
+    });
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const allowedMime = ["application/pdf", "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "image/jpeg", "image/jpg", "image/png", "image/pjpeg"];
-    const isImage = allowedMime.includes(file.type) && file.type.startsWith("image/")
-      || /\.(jpg|jpeg|png)$/i.test(file.name);
+
+    const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
     const isDoc = /\.(pdf|doc|docx)$/i.test(file.name)
       || ["application/pdf", "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
+
     if (!isImage && !isDoc) {
-      setChatErr("Допустимые форматы: PDF, DOC, DOCX, JPEG, PNG");
+      setChatErr("Допустимые форматы: PDF, DOC, DOCX или любое фото");
       return;
     }
-    // Нормализуем имя файла: если нет расширения но тип image/* — добавляем .jpg
-    let normalizedName = file.name;
-    if (isImage && !/\.(jpg|jpeg|png)$/i.test(file.name)) {
-      normalizedName = file.name + ".jpg";
+
+    const maxMb = isImage ? 20 : 10;
+    if (file.size > maxMb * 1024 * 1024) {
+      setChatErr(`Файл слишком большой. Максимум ${maxMb} МБ.`);
+      return;
     }
-    const maxMb = isImage ? 8 : 10;
-    if (file.size > maxMb * 1024 * 1024) { setChatErr(`Файл слишком большой. Максимум ${maxMb} МБ.`); return; }
+
     setFileUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = (reader.result as string).split(",")[1];
-      const sizeStr = file.size < 1024 * 1024
-        ? `${Math.round(file.size / 1024)} КБ`
-        : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
-      setAttachedFile({ name: normalizedName, b64, size: sizeStr });
-      setFileUploading(false);
-      setChatErr("");
-    };
-    reader.readAsDataURL(file);
+    setChatErr("");
+
+    if (isImage) {
+      // Сжимаем через Canvas — работает с любым форматом (HEIC, WebP, BMP и т.д.)
+      // и гарантированно отдаёт JPEG до 800 КБ
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+      const normalizedName = baseName + ".jpg";
+      compressImageCanvas(file)
+        .then(({ b64, sizeStr }) => {
+          setAttachedFile({ name: normalizedName, b64, size: sizeStr });
+          setFileUploading(false);
+        })
+        .catch(() => {
+          // Fallback: читаем как есть если Canvas не справился
+          const reader = new FileReader();
+          reader.onload = () => {
+            const b64 = (reader.result as string).split(",")[1];
+            const sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
+            setAttachedFile({ name: normalizedName, b64, size: sizeStr });
+            setFileUploading(false);
+          };
+          reader.onerror = () => { setChatErr("Не удалось прочитать файл"); setFileUploading(false); };
+          reader.readAsDataURL(file);
+        });
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = (reader.result as string).split(",")[1];
+        const sizeStr = file.size < 1024 * 1024
+          ? `${Math.round(file.size / 1024)} КБ`
+          : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
+        setAttachedFile({ name: file.name, b64, size: sizeStr });
+        setFileUploading(false);
+      };
+      reader.onerror = () => { setChatErr("Не удалось прочитать файл"); setFileUploading(false); };
+      reader.readAsDataURL(file);
+    }
+
     e.target.value = "";
   };
 

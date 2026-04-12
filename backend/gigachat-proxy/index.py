@@ -528,7 +528,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
                     "mimeType": mime_type,
                 }]
             },
-            timeout=30,
+            timeout=12,
         )
         if not resp.ok:
             return ""
@@ -766,22 +766,57 @@ def handler(event: dict, context) -> dict:
             threading.Thread(target=_bg_upload, daemon=True).start()
 
             # Извлекаем текст
+            is_image_file = ext in ("jpg", "jpeg", "png")
             ocr_failed = False
+            ocr_b64 = None  # сохраним сжатое изображение для vision-fallback
+
             if ext == "pdf":
                 text = extract_pdf_text(file_data)
             elif ext in ("docx", "doc"):
                 text = extract_docx_text(file_data)
             else:
-                # Изображение — пробуем OCR через Yandex Vision
-                text = extract_image_text_ocr(file_data, ext)
-                if not text or len(text.strip()) < 20:
+                # Изображение — сначала сжимаем (фронт уже сжал, но подстрахуемся)
+                compressed = _compress_image(file_data, max_bytes=700_000)
+                ocr_b64 = base64.b64encode(compressed).decode("utf-8")
+                text = extract_image_text_ocr(compressed, ext)
+                if not text or len(text.strip()) < 15:
                     ocr_failed = True
                     text = ""
 
             iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
 
-            # Если OCR не дал результата — возвращаем понятное сообщение
-            if ocr_failed:
+            # Если OCR не дал результата — пробуем vision через YandexGPT multimodal
+            if ocr_failed and ocr_b64:
+                try:
+                    user_msg_content = [
+                        {"type": "text", "text": (
+                            f"{'Вопрос пользователя: ' + comment + chr(10) + chr(10) if comment else ''}"
+                            "Это фотография документа. Прочитай весь текст на изображении и проанализируй его с юридической точки зрения по законодательству РФ. "
+                            "Укажи тип документа, его суть, права и обязанности сторон, возможные риски. "
+                            "Дай конкретные рекомендации со ссылками на статьи законов РФ."
+                        )},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{ocr_b64}"}},
+                    ]
+                    vision_resp = requests.post(
+                        "https://llm.api.cloud.yandex.net/v1/chat/completions",
+                        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+                        json={
+                            "model": "gpt://b1g2k5n3ojr7ik7lv73l/yandexgpt-vision-lite/latest",
+                            "messages": [{"role": "user", "content": user_msg_content}],
+                            "max_tokens": 1200,
+                            "temperature": 0.1,
+                        },
+                        timeout=25,
+                    )
+                    if vision_resp.ok:
+                        answer = vision_resp.json()["choices"][0]["message"]["content"]
+                        return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                                "body": json.dumps({"answer": answer, "filename": filename,
+                                                    "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+                except Exception:
+                    pass
+
+                # Vision тоже не сработал — возвращаем понятное сообщение
                 answer = (
                     "❌ Не удалось распознать текст на фотографии.\n\n"
                     "Возможные причины:\n"
@@ -789,8 +824,8 @@ def handler(event: dict, context) -> dict:
                     "— Текст слишком мелкий или повёрнут\n"
                     "— Документ сфотографирован под большим углом\n\n"
                     "**Рекомендации:**\n"
-                    "1. Переснимите документ при хорошем освещении, чётко и прямо\n"
-                    "2. Или сканируйте документ и загрузите в формате **PDF** — AI его точно прочитает\n"
+                    "1. Переснимите документ при хорошем освещении, прямо и чётко\n"
+                    "2. Или сканируйте документ и загрузите в формате **PDF**\n"
                     "3. Либо скопируйте текст из документа и вставьте прямо в чат"
                 )
                 return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -803,9 +838,9 @@ def handler(event: dict, context) -> dict:
                     "❌ PDF-файл содержит только изображение (отсканированный документ без текстового слоя).\n\n"
                     "AI не может прочитать сканированный PDF.\n\n"
                     "**Что делать:**\n"
-                    "1. Если есть возможность — сохраните документ как **PDF с текстовым слоем** (не скан)\n"
+                    "1. Сохраните документ как **PDF с текстовым слоем** (не скан)\n"
                     "2. Или скопируйте текст из документа и вставьте прямо в чат\n"
-                    "3. Для фотографий: загрузите JPEG/PNG — AI попробует распознать текст через OCR"
+                    "3. Для фотографий: загрузите JPEG/PNG"
                 )
                 return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"answer": answer, "filename": filename,
