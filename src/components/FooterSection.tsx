@@ -75,8 +75,8 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
             <h4 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">Контакты</h4>
             <ul className="space-y-4">
               {[
-                { icon: "Mail", text: "help@yurist-ai.ru" },
-                { icon: "Phone", text: "+7 (800) 555-01-20" },
+                { icon: "Mail", text: "povpartner@mail.ru" },
+                { icon: "Phone", text: "+7 (978) 456-42-17" },
                 { icon: "Clock", text: "Поддержка 24/7" },
               ].map((contact) => (
                 <li key={contact.text} className="flex items-center gap-3">

@@ -158,6 +158,10 @@ export default function Cabinet() {
             user={user}
             messages={chat.messages}
             onGoToChat={() => setTab("chat")}
+            onAskAI={(prompt) => {
+              setTab("chat");
+              setTimeout(() => chat.sendMessage(prompt), 200);
+            }}
           />
         )}
 
