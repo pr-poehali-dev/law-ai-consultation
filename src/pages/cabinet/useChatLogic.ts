@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { canAskQuestion, consumeQuestion } from "@/lib/auth";
+import { canAskQuestion, consumeQuestion, getToken } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg } from "@/pages/cabinet/ChatTab";
@@ -93,9 +93,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus("Формирую ответ..."), 12000);
 
     try {
+      const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
         body: JSON.stringify({ mode: "chat", messages: newHist }),
       });
       const data = await res.json();
