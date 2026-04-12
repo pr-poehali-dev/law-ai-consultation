@@ -21,6 +21,9 @@ const DOC_TYPES = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500, serviceType: "document" as ServiceType },
   { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 500, serviceType: "document" as ServiceType },
   { id: "complaint", label: "Жалоба", icon: "Building", price: 500, serviceType: "document" as ServiceType },
+  { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 500, serviceType: "document" as ServiceType },
+  { id: "notification", label: "Уведомления", icon: "Bell", price: 500, serviceType: "document" as ServiceType },
+  { id: "order", label: "Приказы", icon: "Stamp", price: 500, serviceType: "document" as ServiceType },
   { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 500, serviceType: "document" as ServiceType },
   { id: "business_contract", label: "Договор для бизнеса", icon: "Briefcase", price: 1000, serviceType: "business" as ServiceType },
 ];
