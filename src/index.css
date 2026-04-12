@@ -96,17 +96,20 @@
     display: none;
   }
 
-  /* Фикс белого экрана на iOS при фокусе в textarea */
+  /* Фикс серого/белого экрана на iOS при фокусе в textarea */
+  /* font-size < 16px вызывает автозум → viewport прыгает → серый экран */
   textarea,
   input[type="text"],
   input[type="email"],
-  input[type="password"] {
-    font-size: 16px !important; /* Предотвращает zoom на iOS */
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"] {
+    font-size: 16px !important;
   }
-  @media (max-width: 640px) {
-    textarea {
-      font-size: 16px !important;
-    }
+
+  /* Safe area для fixed bottom nav на iPhone */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -119,10 +122,15 @@
   }
 
   .glass-light {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+  @media (min-width: 768px) {
+    .glass-light {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
   }
 
   .gradient-navy {

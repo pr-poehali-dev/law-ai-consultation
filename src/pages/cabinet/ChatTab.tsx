@@ -210,7 +210,7 @@ export default function ChatTab({
   }, [input]);
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 120px)" }}>
+    <div className="max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0">
 
       {/* Шапка статуса */}
       <div className="flex items-center justify-between mb-2 sm:mb-3 px-1">
@@ -245,7 +245,7 @@ export default function ChatTab({
       </div>
 
       {/* Лента сообщений */}
-      <div className="flex-1 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
         {messages.map((msg, i) => {
           const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
           const doAnimate = msg.role === "ai" && !typing && shouldAnimate(i);
@@ -347,6 +347,7 @@ export default function ChatTab({
           type="file"
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
           className="hidden"
+          tabIndex={-1}
           onChange={onFileSelect}
         />
         {/* Отдельный инпут для камеры (capture=environment) */}
@@ -356,6 +357,7 @@ export default function ChatTab({
           accept="image/*"
           capture="environment"
           className="hidden"
+          tabIndex={-1}
           onChange={onFileSelect}
         />
 

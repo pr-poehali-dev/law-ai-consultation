@@ -241,7 +241,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     : null;
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 120px)" }}>
+    <div className="max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0">
 
       {/* Шапка */}
       <div className="flex items-center gap-2 sm:gap-3 mb-3 px-1">
@@ -272,7 +272,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       </div>
 
       {/* Сообщения */}
-      <div className="flex-1 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
         {loading ? (
           <div className="text-center text-sm text-muted-foreground py-8">Загрузка переписки...</div>
         ) : lmsgs.length === 0 ? (

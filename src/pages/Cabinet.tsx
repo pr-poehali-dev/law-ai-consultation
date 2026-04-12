@@ -70,7 +70,7 @@ export default function Cabinet() {
   const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-golos">
+    <div className="min-h-screen bg-slate-50 font-golos flex flex-col">
       <CabinetHeader
         user={user}
         tab={tab}
@@ -78,7 +78,7 @@ export default function Cabinet() {
         onTabChange={setTab}
       />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-20 md:pb-6 flex flex-col">
 
         {tab === "chat" && (
           <ChatTab
