@@ -210,7 +210,7 @@ export default function ChatTab({
   }, [input]);
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
+    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 130px)" }}>
 
       {/* Шапка статуса */}
       <div className="flex items-center justify-between mb-3 px-1">

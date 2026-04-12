@@ -138,6 +138,7 @@ export default function Cabinet() {
             user={user}
             messages={chat.messages}
             genDocs={docs.genDocs}
+            onPayClick={() => setPayment({ type: "expert", name: "Проверка юристом" })}
           />
         )}
 

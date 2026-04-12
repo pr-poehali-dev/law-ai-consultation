@@ -261,14 +261,19 @@ export default function DocsTab({
                 <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
                 <div className="space-y-2">
                   {genDocs.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between py-2.5 border-b border-border/60 last:border-0">
-                      <div>
-                        <div className="text-sm font-medium text-navy-800">{doc.name}</div>
-                        <div className="text-xs text-muted-foreground">{doc.date}</div>
+                    <div key={doc.id} className="py-2.5 border-b border-border/60 last:border-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
+                          <div className="text-xs text-muted-foreground">{doc.date}</div>
+                        </div>
+                        <button onClick={() => onOpenDoc(doc)} className="shrink-0 p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
+                          <Icon name="Eye" size={14} />
+                        </button>
                       </div>
                       <div className="flex gap-1.5">
-                        <button onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Реквизиты</button>
-                        <button onClick={() => onDownload(doc.name, doc.filled)} className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
+                        <button onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }} className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors border border-border text-center">Реквизиты</button>
+                        <button onClick={() => onDownload(doc.name, doc.filled)} className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border">
                           <Icon name="Download" size={12} />Скачать
                         </button>
                       </div>
@@ -304,24 +309,6 @@ export default function DocsTab({
                 <Icon name="ArrowLeft" size={13} />Назад
               </button>
             </div>
-
-            {/* Кнопка «Читать дальше» при обрыве */}
-            {currentDoc.truncated && (
-              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
-                <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-amber-800">Документ был обрезан</p>
-                  <p className="text-xs text-amber-700 mt-0.5">AI не успел дописать документ до конца. Нажмите кнопку ниже — он продолжит с того места, где остановился.</p>
-                </div>
-                <button
-                  onClick={onContinue}
-                  disabled={docGenerating}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-xl transition-all disabled:opacity-50"
-                >
-                  <Icon name="ChevronRight" size={13} />Читать дальше
-                </button>
-              </div>
-            )}
 
             {currentDoc.placeholders.length === 0 ? (
               <div className="text-center py-6">
@@ -362,7 +349,7 @@ export default function DocsTab({
             )}
           </div>
 
-          <div className="bg-white rounded-3xl border border-border shadow-sm flex flex-col overflow-hidden" style={{ maxHeight: "calc(100vh - 200px)" }}>
+          <div className="hidden lg:flex bg-white rounded-3xl border border-border shadow-sm flex-col overflow-hidden" style={{ maxHeight: "calc(100dvh - 180px)", minHeight: "300px" }}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
               <span className="text-sm font-semibold text-navy-800">Предпросмотр</span>
               <div className="flex gap-2">
@@ -383,6 +370,30 @@ export default function DocsTab({
             <div className="flex-1 overflow-y-auto p-5">
               <DocPreview content={currentDoc.filled} fillValues={fillValues} />
             </div>
+          </div>
+          {/* Мобильная кнопка предпросмотра */}
+          <div className="lg:hidden bg-white rounded-3xl border border-border shadow-sm p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Icon name="FileText" size={18} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-navy-800">{currentDoc.name}</p>
+                <p className="text-xs text-muted-foreground">Документ готов к просмотру</p>
+              </div>
+            </div>
+            <button
+              onClick={() => onOpenDoc(currentDoc)}
+              className="btn-gold w-full py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
+            >
+              <Icon name="Eye" size={15} />Просмотреть документ
+            </button>
+            <button
+              onClick={() => onDownload(currentDoc.name, currentDoc.filled)}
+              className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm border border-border text-navy-700 hover:bg-slate-50 transition-colors"
+            >
+              <Icon name="Download" size={15} />Скачать .docx
+            </button>
           </div>
         </div>
       )}
@@ -432,14 +443,19 @@ export default function DocsTab({
               <h3 className="font-semibold text-navy-800 text-sm mb-3">Все документы</h3>
               <div className="space-y-2">
                 {genDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
-                    <div>
-                      <div className="text-sm font-medium text-navy-800">{doc.name}</div>
-                      <div className="text-xs text-muted-foreground">{doc.date}</div>
+                  <div key={doc.id} className="py-2.5 border-b border-border/60 last:border-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
+                        <div className="text-xs text-muted-foreground">{doc.date}</div>
+                      </div>
+                      <button onClick={() => onOpenDoc(doc)} className="shrink-0 p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
+                        <Icon name="Eye" size={14} />
+                      </button>
                     </div>
                     <div className="flex gap-1.5">
-                      <button onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }} className="text-xs text-navy-600 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors">Реквизиты</button>
-                      <button onClick={() => onDownload(doc.name, doc.filled)} className="text-xs text-navy-600 px-2.5 py-1.5 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1">
+                      <button onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }} className="flex-1 text-xs text-navy-600 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors border border-border text-center">Реквизиты</button>
+                      <button onClick={() => onDownload(doc.name, doc.filled)} className="flex-1 text-xs text-navy-600 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border">
                         <Icon name="Download" size={12} />Скачать
                       </button>
                     </div>

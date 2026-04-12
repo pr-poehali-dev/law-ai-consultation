@@ -11,6 +11,7 @@ interface ExpertTabProps {
   user: User;
   messages: ChatMsg[];
   genDocs: GenDoc[];
+  onPayClick?: () => void;
 }
 
 // ─── Форматирование времени ────────────────────
@@ -73,7 +74,7 @@ function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
 // Компонент нужен в scope где user доступен — выносим логику в основной компонент
 
 // ─── Основной компонент ────────────────────────
-export default function ExpertTab({ user, messages, genDocs }: ExpertTabProps) {
+export default function ExpertTab({ user, messages, genDocs, onPayClick }: ExpertTabProps) {
   const [lmsgs, setLmsgs] = useState<LawyerMessage[]>([]);
   const [dialogs, setDialogs] = useState<LawyerDialog[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -161,7 +162,14 @@ export default function ExpertTab({ user, messages, genDocs }: ExpertTabProps) {
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Тариф «Проверка юристом» — оплатите в разделе Профиль</p>
+          <button
+            onClick={onPayClick}
+            className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
+          >
+            <Icon name="UserCheck" size={16} />
+            Подключить тариф «Проверка юристом»
+          </button>
+          <p className="text-xs text-muted-foreground mt-3">Оплата безопасна · доступ сразу после оплаты</p>
         </div>
       </div>
     );
@@ -363,4 +371,3 @@ export default function ExpertTab({ user, messages, genDocs }: ExpertTabProps) {
     </div>
   );
 }
-
