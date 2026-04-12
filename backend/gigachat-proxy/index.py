@@ -469,6 +469,38 @@ def extract_docx_text(data: bytes) -> str:
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:12000]
 
 
+def _compress_image(image_data: bytes, max_bytes: int = 900_000) -> bytes:
+    """Сжимаем изображение до нужного размера для Vision API (лимит ~1 МБ)."""
+    if len(image_data) <= max_bytes:
+        return image_data
+    try:
+        from PIL import Image as PILImage
+        img = PILImage.open(io.BytesIO(image_data))
+        # Конвертируем в RGB если нужно
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        # Уменьшаем разрешение если слишком большое
+        max_side = 2000
+        w, h = img.size
+        if max(w, h) > max_side:
+            ratio = max_side / max(w, h)
+            img = img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
+        # Сжимаем JPEG
+        buf = io.BytesIO()
+        quality = 85
+        while quality >= 40:
+            buf.seek(0)
+            buf.truncate()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            if buf.tell() <= max_bytes:
+                break
+            quality -= 15
+        return buf.getvalue()
+    except Exception:
+        # Если PIL недоступен — обрезаем сырые байты (грубо, но не падаем)
+        return image_data[:max_bytes]
+
+
 def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
     """OCR через Yandex Vision API — распознаёт текст на фотографиях документов."""
     iam_token = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
@@ -478,7 +510,9 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
     mime_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
     mime_type = mime_map.get(ext, "image/jpeg")
 
-    b64_image = base64.b64encode(image_data).decode("utf-8")
+    # Сжимаем изображение — Vision API работает быстрее с файлами до 1 МБ
+    compressed = _compress_image(image_data)
+    b64_image = base64.b64encode(compressed).decode("utf-8")
 
     try:
         resp = requests.post(
@@ -718,14 +752,18 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": f"Формат .{ext} не поддерживается. Допустимые: PDF, DOCX, DOC, JPEG, JPG, PNG."}, ensure_ascii=False)}
 
+            # S3 upload запускаем в фоне — НЕ блокируем основной поток
             mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png"}
             content_type = mime_map.get(ext, "application/octet-stream")
-
-            # Сохраняем в S3; очистку старых файлов запускаем в фоне (не блокирует ответ)
-            s3 = get_s3()
-            s3_key = save_temp_file(s3, file_data, filename, content_type)
-            threading.Thread(target=cleanup_temp_files, args=(s3,), daemon=True).start()
+            def _bg_upload():
+                try:
+                    s3 = get_s3()
+                    save_temp_file(s3, file_data, filename, content_type)
+                    cleanup_temp_files(s3)
+                except Exception:
+                    pass
+            threading.Thread(target=_bg_upload, daemon=True).start()
 
             # Извлекаем текст
             ocr_failed = False

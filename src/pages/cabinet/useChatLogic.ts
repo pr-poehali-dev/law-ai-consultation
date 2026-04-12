@@ -160,7 +160,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setChatErr("Допустимые форматы: PDF, DOC, DOCX, JPEG, PNG");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) { setChatErr("Файл слишком большой. Максимум 10 МБ."); return; }
+    const maxMb = /\.(jpg|jpeg|png)$/i.test(file.name) ? 8 : 10;
+    if (file.size > maxMb * 1024 * 1024) { setChatErr(`Файл слишком большой. Максимум ${maxMb} МБ.`); return; }
     setFileUploading(true);
     const reader = new FileReader();
     reader.onload = () => {
@@ -204,9 +205,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
 
     try {
+      const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
         body: JSON.stringify({ mode: "file_analyze", file: file.b64, filename: file.name, comment }),
       });
       const data = await res.json();
