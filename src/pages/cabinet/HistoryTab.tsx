@@ -107,9 +107,12 @@ export default function HistoryTab({ user, messages, onGoToChat, onAskAI }: Hist
           const aiReply = messages[i + 1]?.role === "ai" ? messages[i + 1] : null;
           const isOpen = openIdx === listIdx;
 
-          const handleAskAI = () => {
+          const handleAskAI = (e: React.MouseEvent) => {
+            e.stopPropagation();
             setSparkIdx(listIdx);
-            const prompt = `Уточни информацию по этому ответу исходя из запроса пользователя.\n\nВопрос пользователя:\n${text}\n\nОтвет AI:\n${aiReply?.text ?? ""}`;
+            const prompt = aiReply
+              ? `Уточни информацию по этому ответу исходя из запроса пользователя.\n\nВопрос пользователя:\n${text}\n\nОтвет AI:\n${aiReply.text}`
+              : `Дай подробную юридическую консультацию по следующему вопросу:\n\n${text}`;
             setTimeout(() => {
               setSparkIdx(null);
               onAskAI(prompt);
@@ -123,14 +126,18 @@ export default function HistoryTab({ user, messages, onGoToChat, onAskAI }: Hist
                 isOpen ? "border-navy-200 shadow-md" : "border-border hover:border-navy-100"
               }`}
             >
-              <button
-                onClick={() => setOpenIdx(isOpen ? null : listIdx)}
-                className="w-full text-left p-5 flex items-start gap-3 group"
-              >
-                <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-700 uppercase group-hover:bg-navy-200 transition-colors">
+              {/* Заголовок карточки */}
+              <div className="p-5 flex items-start gap-3">
+                <button
+                  onClick={() => setOpenIdx(isOpen ? null : listIdx)}
+                  className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-navy-700 uppercase hover:bg-navy-200 transition-colors"
+                >
                   {user.name?.[0] ?? "U"}
-                </div>
-                <div className="flex-1 min-w-0">
+                </button>
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => setOpenIdx(isOpen ? null : listIdx)}
+                >
                   <p className="text-sm font-medium text-navy-800 leading-relaxed line-clamp-2">
                     {text}
                   </p>
@@ -139,11 +146,25 @@ export default function HistoryTab({ user, messages, onGoToChat, onAskAI }: Hist
                     {aiReply && <span className="ml-2 text-emerald-600">· есть ответ</span>}
                   </p>
                 </div>
-                <div className={`shrink-0 mt-1 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}>
-                  <Icon name="ChevronDown" size={16} className="text-muted-foreground" />
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    className={`ai-clarify-btn${sparkIdx === listIdx ? " sparking" : ""}`}
+                    onClick={handleAskAI}
+                  >
+                    <Icon name="Sparkles" size={12} />
+                    <span className="hidden sm:inline">Уточнить у AI Юриста</span>
+                    <span className="sm:hidden">AI</span>
+                  </button>
+                  <div
+                    className={`transition-transform duration-300 cursor-pointer text-muted-foreground ${isOpen ? "rotate-180" : ""}`}
+                    onClick={() => setOpenIdx(isOpen ? null : listIdx)}
+                  >
+                    <Icon name="ChevronDown" size={16} />
+                  </div>
                 </div>
-              </button>
+              </div>
 
+              {/* Раскрывающийся ответ AI */}
               <div
                 className={`overflow-hidden transition-all duration-400 ease-in-out ${
                   isOpen ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
@@ -161,20 +182,13 @@ export default function HistoryTab({ user, messages, onGoToChat, onAskAI }: Hist
                           {aiReply.text}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between mt-4">
+                      <div className="flex justify-end mt-3">
                         <button
                           onClick={onGoToChat}
                           className="text-xs text-muted-foreground hover:text-navy-700 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 transition-colors"
                         >
                           <Icon name="MessageCircle" size={12} />
                           Перейти в чат
-                        </button>
-                        <button
-                          className={`ai-clarify-btn${sparkIdx === listIdx ? " sparking" : ""}`}
-                          onClick={handleAskAI}
-                        >
-                          <Icon name="Sparkles" size={13} />
-                          Уточнить у AI Юриста
                         </button>
                       </div>
                     </div>
