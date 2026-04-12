@@ -1,5 +1,5 @@
 """
-Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v3 — новые типы документов.
+Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v3.2 — fix deploy.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
@@ -1001,3 +1001,4 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 502, "headers": CORS,
                     "body": json.dumps({"error": f"HTTP {code}: {detail}"}, ensure_ascii=False)}
         return {"statusCode": 500, "headers": CORS, "body": json.dumps({"error": str(e)})}
+# end
