@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Фон -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a1628"/>
+      <stop offset="100%" style="stop-color:#162d5a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Декоративные круги -->
+  <circle cx="1050" cy="120" r="200" fill="#1e3a6e" opacity="0.4"/>
+  <circle cx="150" cy="500" r="150" fill="#e8a820" opacity="0.06"/>
+
+  <!-- Логотип -->
+  <rect x="80" y="80" width="80" height="80" rx="18" fill="#e8a820"/>
+  <text x="120" y="112" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#0a1628" text-anchor="middle">ИИ</text>
+  <text x="120" y="144" font-family="Georgia, serif" font-size="16" fill="#0a1628" text-anchor="middle">право</text>
+
+  <!-- Основной заголовок -->
+  <text x="80" y="260" font-family="Georgia, serif" font-size="64" font-weight="bold" fill="#ffffff">ИИ-Право.рф</text>
+
+  <!-- Подзаголовок -->
+  <text x="80" y="330" font-family="Arial, sans-serif" font-size="32" fill="#e8a820">AI-юрист онлайн · Юридическая помощь 24/7</text>
+
+  <!-- Описание -->
+  <text x="80" y="400" font-family="Arial, sans-serif" font-size="24" fill="#a0b4cc">Консультации · Документы · Иски · Претензии · Договоры</text>
+
+  <!-- Цена -->
+  <rect x="80" y="450" width="260" height="60" rx="30" fill="#e8a820"/>
+  <text x="210" y="487" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#0a1628" text-anchor="middle">от 100 ₽</text>
+
+  <rect x="360" y="450" width="300" height="60" rx="30" fill="#ffffff" opacity="0.1"/>
+  <text x="510" y="487" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">Ответ за 2 минуты</text>
+
+  <!-- Нижняя строка -->
+  <text x="1180" y="600" font-family="Arial, sans-serif" font-size="20" fill="#4a6080" text-anchor="end">ии-право.рф</text>
+</svg>

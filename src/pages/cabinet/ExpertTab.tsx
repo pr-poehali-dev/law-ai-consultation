@@ -241,7 +241,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     : null;
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0">
+    <div className="max-w-3xl w-full mx-auto flex flex-col" style={{ height: "clamp(400px, calc(100svh - 200px), 700px)" }}>
 
       {/* Шапка */}
       <div className="flex items-center gap-2 sm:gap-3 mb-3 px-1">
@@ -342,17 +342,19 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       )}
 
       {/* Поле ввода */}
-      <div className="mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
-        <div className="flex items-end gap-2 px-3 py-2.5">
+      <div className="mt-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
+        <div className="flex items-end gap-2 px-3 py-2">
           <textarea
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }}}
             disabled={sending}
+            autoCorrect="on"
+            autoCapitalize="sentences"
             placeholder={user.isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
-            className="flex-1 bg-transparent text-[13.5px] text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
-            style={{ minHeight: "36px", maxHeight: "120px" }}
+            className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
+            style={{ fontSize: "16px", minHeight: "36px", maxHeight: "120px" }}
           />
           <button
             onClick={send}
