@@ -40,7 +40,7 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
               <Icon name="Scale" size={14} className="text-gold-400" />
             </div>
             <span className="font-cormorant font-bold text-base md:text-lg text-navy-800">
-              Юрист<span className="text-gradient-gold"> AI</span>
+              ИИ-Право<span className="text-gradient-gold">.рф</span>
             </span>
           </button>
 

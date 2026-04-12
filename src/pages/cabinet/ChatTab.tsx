@@ -339,58 +339,55 @@ export default function ChatTab({
         </div>
       )}
 
-      {/* Поле ввода */}
-      <div className="mt-2 sm:mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
-        {/* Скрытые input для файлов */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-          className="hidden"
-          tabIndex={-1}
-          onChange={onFileSelect}
-        />
-        {/* Отдельный инпут для камеры (capture=environment) */}
-        <input
-          id="camera-input"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          tabIndex={-1}
-          onChange={onFileSelect}
-        />
+      {/* Скрытые input для файлов — вне поля ввода чтобы не триггерить repaint */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        className="hidden"
+        tabIndex={-1}
+        onChange={onFileSelect}
+      />
+      <input
+        id="camera-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        tabIndex={-1}
+        onChange={onFileSelect}
+      />
 
-        <div className="flex items-end gap-2 px-3 py-2.5">
-          {/* Кнопка прикрепить — раскрывает меню на мобиле */}
-          <div className="relative shrink-0">
-            <button
-              onClick={onAttachClick}
-              disabled={typing || fileUploading}
-              title="Прикрепить файл"
-              className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors disabled:opacity-40"
-            >
-              {fileUploading
-                ? <div className="flex gap-0.5">
-                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
-              }
-            </button>
-          </div>
+      {/* Поле ввода — без focus-within ring (вызывает repaint на iOS) */}
+      <div className="mt-2 sm:mt-3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-visible">
+        <div className="flex items-end gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2">
+          {/* Прикрепить файл */}
+          <button
+            onClick={onAttachClick}
+            disabled={typing || fileUploading}
+            title="Прикрепить файл"
+            className="w-9 h-9 rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+          >
+            {fileUploading
+              ? <div className="flex gap-0.5">
+                  <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : "text-slate-400"} />
+            }
+          </button>
 
-          {/* Кнопка камеры — только на мобиле */}
+          {/* Камера — только мобиле */}
           <button
             onClick={() => document.getElementById("camera-input")?.click()}
             disabled={typing || fileUploading}
-            title="Сфотографировать документ"
-            className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 sm:hidden"
+            className="w-9 h-9 rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 sm:hidden"
           >
-            <Icon name="Camera" size={17} className="text-muted-foreground" />
+            <Icon name="Camera" size={17} className="text-slate-400" />
           </button>
 
+          {/* Textarea — font-size 16px обязателен для iOS (предотвращает zoom → серый экран) */}
           <textarea
             ref={textareaRef}
             rows={1}
@@ -403,26 +400,29 @@ export default function ChatTab({
               }
             }}
             disabled={typing}
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck={true}
             placeholder={
-              attachedFile ? "Задайте вопрос к документу..." :
+              attachedFile ? "Вопрос к документу..." :
               (user.isAdmin || totalLeft > 0) ? "Опишите ситуацию или задайте вопрос..." :
-              "Оплатите консультацию — 100 ₽ / 3 вопроса"
+              "100 ₽ / 3 вопроса"
             }
-            className="flex-1 bg-transparent text-[13.5px] text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
-            style={{ minHeight: "36px", maxHeight: "120px" }}
+            className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
+            style={{ fontSize: "16px", minHeight: "36px", maxHeight: "100px", lineHeight: "1.5" }}
           />
+
+          {/* Отправить */}
           <button
             onClick={attachedFile ? onSendFile : onSend}
             disabled={(!input.trim() && !attachedFile) || typing}
-            className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shrink-0 disabled:opacity-30 transition-all hover:shadow-md hover:scale-105 active:scale-95"
+            className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shrink-0 disabled:opacity-30 active:scale-95"
           >
             <Icon name="Send" size={15} className="text-white ml-0.5" />
           </button>
         </div>
-
-        <div className="px-3 sm:px-4 pb-2 flex items-center justify-between gap-2">
-          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 hidden sm:block">Enter — отправить</p>
-          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 text-right flex-1">Ответы носят информационный характер</p>
+        <div className="px-3 pb-1.5">
+          <p className="text-[10px] text-slate-400">Ответы носят информационный характер</p>
         </div>
       </div>
     </div>

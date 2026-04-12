@@ -131,6 +131,12 @@ export default function Cabinet() {
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
             onAnalyzeDoc={(doc) => {
+              const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
+                (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);
+              if (!canAsk) {
+                setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+                return;
+              }
               const prompt = `Проанализируй подготовленный документ:\n\n${doc.name}\n\n${doc.filled || doc.content}`;
               setTab("chat");
               setTimeout(() => chat.sendMessage(prompt), 200);

@@ -4,6 +4,7 @@ Disallow: /cabinet
 
 User-agent: Bingbot
 Allow: /
+Disallow: /cabinet
 
 User-agent: YandexBot
 Allow: /
@@ -19,4 +20,5 @@ User-agent: *
 Allow: /
 Disallow: /cabinet
 
+Sitemap: https://xn----8sbec1b1ad1ae2f.xn--p1ai/sitemap.xml
 Sitemap: https://law-ai-consultation.poehali.dev/sitemap.xml

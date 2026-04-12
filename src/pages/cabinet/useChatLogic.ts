@@ -47,7 +47,16 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   }, []);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // instant на первом рендере, smooth при новых сообщениях
+    const el = chatEndRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "instant" });
+  }, []);
+
+  useEffect(() => {
+    const el = chatEndRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
   useEffect(() => {

@@ -44,10 +44,10 @@ export default function Header({ activeSection, onNavigate, onLoginClick, onTryC
           </div>
           <div className="flex flex-col leading-none">
             <span className={`font-cormorant font-bold text-xl tracking-tight transition-colors ${scrolled ? "text-navy-700" : "text-white"}`}>
-              Юрист<span className="text-gradient-gold"> AI</span>
+              ИИ-Право<span className="text-gradient-gold">.рф</span>
             </span>
             <span className={`text-[10px] font-golos uppercase tracking-widest transition-colors ${scrolled ? "text-muted-foreground" : "text-white/60"}`}>
-              Правовая помощь
+              AI-юрист онлайн
             </span>
           </div>
         </button>

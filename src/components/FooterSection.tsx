@@ -18,7 +18,7 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
                 <Icon name="Scale" size={18} className="text-gold-400" />
               </div>
               <span className="font-cormorant font-bold text-xl">
-                Юрист<span className="text-gradient-gold"> AI</span>
+                ИИ-Право<span className="text-gradient-gold">.рф</span>
               </span>
             </div>
             <p className="text-white/50 text-sm leading-relaxed mb-5">
@@ -93,7 +93,7 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
         <div className="border-t border-white/10 pt-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/35 text-xs text-center md:text-left max-w-2xl leading-relaxed">
-              © 2026 Юрист AI. Информация на сайте носит справочный характер и не является юридической офертой. AI не заменяет живого юриста. По сложным делам рекомендуем консультацию у специалиста.
+              © 2026 ИИ-Право.рф. Информация на сайте носит справочный характер и не является юридической офертой. AI не заменяет живого юриста. По сложным делам рекомендуем консультацию у специалиста.
             </p>
             <div className="flex items-center gap-5 shrink-0 flex-wrap justify-center md:justify-end">
               <button onClick={() => navigate("/privacy")} className="text-white/40 text-xs hover:text-white/70 transition-colors whitespace-nowrap">

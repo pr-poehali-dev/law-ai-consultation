@@ -397,14 +397,15 @@ export default function DocsTab({
             >
               <Icon name="Download" size={15} />Скачать .docx
             </button>
-            {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult")) && (
-              <button
-                onClick={() => onAnalyzeDoc(currentDoc)}
-                className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all"
-              >
-                <Icon name="Bot" size={15} />Проанализировать AI-юристом
-              </button>
-            )}
+            <button
+              onClick={() => onAnalyzeDoc(currentDoc)}
+              className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all active:scale-95"
+            >
+              <Icon name="Bot" size={15} />
+              {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+                ? "Проанализировать AI-юристом"
+                : "Проанализировать AI · 100 ₽"}
+            </button>
           </div>
         </div>
       )}
@@ -442,14 +443,15 @@ export default function DocsTab({
             >
               Создать ещё
             </button>
-            {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult")) && (
-              <button
-                onClick={() => onAnalyzeDoc(currentDoc!)}
-                className="text-sm px-5 py-2.5 rounded-xl flex items-center gap-2 bg-gradient-to-r from-blue-600 to-navy-700 hover:from-blue-700 hover:to-navy-800 text-white transition-all shadow-sm"
-              >
-                <Icon name="Bot" size={15} />Проанализировать AI-юристом
-              </button>
-            )}
+            <button
+              onClick={() => onAnalyzeDoc(currentDoc!)}
+              className="text-sm px-5 py-2.5 rounded-xl flex items-center gap-2 bg-gradient-to-r from-blue-600 to-navy-700 hover:from-blue-700 hover:to-navy-800 text-white transition-all shadow-sm active:scale-95"
+            >
+              <Icon name="Bot" size={15} />
+              {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+                ? "Проанализировать AI"
+                : "Проанализировать · 100 ₽"}
+            </button>
             <button
               onClick={onGoToChat}
               className="btn-gold text-sm px-5 py-2.5 rounded-xl flex items-center gap-2"
