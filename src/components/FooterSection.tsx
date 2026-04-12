@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
@@ -7,6 +8,15 @@ interface FooterSectionProps {
 
 export default function FooterSection({ onNavigate }: FooterSectionProps) {
   const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText("https://ии-право.рф").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <footer className="gradient-navy text-white">
       <div className="container mx-auto px-4 py-10 sm:py-16">
@@ -86,6 +96,23 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
                   <span className="text-white/65 text-sm">{contact.text}</span>
                 </li>
               ))}
+              <li className="pt-1">
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-200 group w-full"
+                >
+                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                    <Icon
+                      name={copied ? "Check" : "Link"}
+                      size={13}
+                      className={copied ? "text-emerald-400" : "text-gold-400"}
+                    />
+                  </div>
+                  <span className={`text-sm transition-colors duration-200 ${copied ? "text-emerald-400" : "text-white/65 group-hover:text-white"}`}>
+                    {copied ? "Скопировано!" : "Скопировать ссылку"}
+                  </span>
+                </button>
+              </li>
             </ul>
           </div>
         </div>
