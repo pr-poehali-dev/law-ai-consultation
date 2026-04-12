@@ -210,10 +210,10 @@ export default function ChatTab({
   }, [input]);
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 130px)" }}>
+    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 120px)" }}>
 
       {/* Шапка статуса */}
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between mb-2 sm:mb-3 px-1">
         <div className="flex items-center gap-2.5">
           <div className="relative">
             <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
@@ -245,17 +245,17 @@ export default function ChatTab({
       </div>
 
       {/* Лента сообщений */}
-      <div className="flex-1 overflow-y-auto rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-5 space-y-5 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
         {messages.map((msg, i) => {
           const isDocRedirect = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
           const doAnimate = msg.role === "ai" && !typing && shouldAnimate(i);
 
           if (msg.role === "user") {
             return (
-              <div key={i} className="flex gap-3 justify-end items-end animate-fade-in">
-                <div className="max-w-[75%]">
-                  <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
-                    <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap font-golos">{msg.text}</p>
+              <div key={i} className="flex gap-2 sm:gap-3 justify-end items-end animate-fade-in">
+                <div className="max-w-[85%] sm:max-w-[75%]">
+                  <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm">
+                    <p className="text-[13px] sm:text-[13.5px] leading-relaxed whitespace-pre-wrap font-golos">{msg.text}</p>
                   </div>
                   {msg.isFile && (
                     <p className="text-[11px] text-muted-foreground mt-1 text-right flex items-center justify-end gap-1">
@@ -263,7 +263,7 @@ export default function ChatTab({
                     </p>
                   )}
                 </div>
-                <div className="w-8 h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase shadow-sm">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase shadow-sm">
                   {user.name?.[0] ?? "U"}
                 </div>
               </div>
@@ -271,12 +271,12 @@ export default function ChatTab({
           }
 
           return (
-            <div key={i} className="flex gap-3 items-start animate-fade-in">
-              <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                <Icon name="Scale" size={15} className="text-gold-400" />
+            <div key={i} className="flex gap-2 sm:gap-3 items-start animate-fade-in">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                <Icon name="Scale" size={14} className="text-gold-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
+                <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-3 sm:px-5 py-3 sm:py-4 shadow-sm">
                   <AnimatedMessage text={msg.text} animate={doAnimate} />
                   {isDocRedirect && (
                     <button
@@ -380,9 +380,9 @@ export default function ChatTab({
             <Icon name="Send" size={15} className="text-white ml-0.5" />
           </button>
         </div>
-        <div className="px-4 pb-2 flex items-center justify-between">
-          <p className="text-[10.5px] text-muted-foreground/60">Enter — отправить · Shift+Enter — новая строка</p>
-          <p className="text-[10.5px] text-muted-foreground/60">Ответы носят информационный характер</p>
+        <div className="px-3 sm:px-4 pb-2 flex items-center justify-between gap-2">
+          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 hidden sm:block">Enter — отправить · Shift+Enter — новая строка</p>
+          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 text-right flex-1">Ответы носят информационный характер</p>
         </div>
       </div>
     </div>

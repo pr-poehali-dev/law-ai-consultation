@@ -30,7 +30,7 @@ function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
           <Icon name="UserCheck" size={14} className="text-gold-400" />
         </div>
       )}
-      <div className={`max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
+      <div className={`max-w-[88%] sm:max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
         {!isMe && (
           <p className="text-[10.5px] font-semibold text-navy-600 ml-1">{EXPERT_NAME}</p>
         )}
@@ -240,10 +240,10 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     : null;
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100vh - 140px)" }}>
+    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 120px)" }}>
 
       {/* Шапка */}
-      <div className="flex items-center gap-3 mb-3 px-1">
+      <div className="flex items-center gap-2 sm:gap-3 mb-3 px-1">
         {user.isAdmin && (
           <button
             onClick={() => { setSelectedUserId(null); setLmsgs([]); }}
@@ -271,7 +271,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       </div>
 
       {/* Сообщения */}
-      <div className="flex-1 overflow-y-auto rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-5 space-y-5 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto rounded-2xl sm:rounded-3xl border border-border shadow-sm bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-4 sm:space-y-5 scrollbar-hide">
         {loading ? (
           <div className="text-center text-sm text-muted-foreground py-8">Загрузка переписки...</div>
         ) : lmsgs.length === 0 ? (
@@ -364,8 +364,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
             }
           </button>
         </div>
-        <div className="px-4 pb-2">
-          <p className="text-[10.5px] text-muted-foreground/60">Юрист отвечает в течение 24 часов · Enter — отправить</p>
+        <div className="px-3 sm:px-4 pb-2">
+          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60">Юрист отвечает в течение 24 часов</p>
         </div>
       </div>
     </div>

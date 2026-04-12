@@ -153,26 +153,26 @@ export default function DocsTab({
 
       {/* ФАЗА: форма запроса */}
       {(docPhase === "form" || docPhase === "generating") && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
-            <h2 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">Создать документ</h2>
-            <p className="text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-border p-4 sm:p-6 shadow-sm">
+            <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-1">Создать документ</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
             <div className="space-y-2 mb-4">
               {DOC_TYPES.map((dt) => (
                 <button
                   key={dt.id}
                   onClick={() => { onDocTypeChange(dt); }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
+                  className={`w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl border transition-all ${
                     docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200 hover:bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
-                      <Icon name={dt.icon} size={15} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
+                      <Icon name={dt.icon} size={14} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
                     </div>
-                    <span className={`text-sm font-medium ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
+                    <span className={`text-sm font-medium truncate ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
                   </div>
-                  <span className="text-xs font-semibold text-navy-500">{dt.price} ₽</span>
+                  <span className="text-xs font-semibold text-navy-500 shrink-0 ml-2">{dt.price} ₽</span>
                 </button>
               ))}
             </div>
@@ -181,8 +181,8 @@ export default function DocsTab({
               onChange={(e) => onDocDetailsChange(e.target.value)}
               disabled={docGenerating}
               placeholder={`Опишите ситуацию для «${docType.label}»...\n\nНапример: что произошло, с кем, когда, какой результат нужен. Реквизиты сторон можно добавить после генерации документа.`}
-              rows={6}
-              className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
+              rows={5}
+              className="w-full bg-slate-50 border border-border rounded-2xl px-3 sm:px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
             />
             {docErr && (
               <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
@@ -241,10 +241,10 @@ export default function DocsTab({
           </div>
 
           {/* Правая колонка — история документов */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <button
               onClick={onGoToChat}
-              className="w-full flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 text-white rounded-2xl transition-all group"
+              className="w-full flex items-center gap-3 px-4 py-3 sm:py-3.5 bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 text-white rounded-2xl transition-all group"
             >
               <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
                 <Icon name="MessageCircle" size={16} className="text-gold-400" />
@@ -295,12 +295,12 @@ export default function DocsTab({
 
       {/* ФАЗА: автозаполнение реквизитов */}
       {docPhase === "filling" && currentDoc && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-3xl border border-border shadow-sm p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-cormorant font-bold text-2xl text-navy-800">Заполнить реквизиты</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">{currentDoc.name}</p>
+                <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">Заполнить реквизиты</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-none">{currentDoc.name}</p>
               </div>
               <button
                 onClick={() => onSetPhase("form")}

@@ -87,24 +87,24 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <section id="services" className="py-24 bg-background">
+    <section id="services" className="py-16 sm:py-24 bg-background">
       <div className="container mx-auto px-4">
         {/* Heading */}
-        <div className="text-center mb-16">
-          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-4">
+        <div className="text-center mb-10 sm:mb-16">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-3 sm:mb-4">
             Наши услуги
           </span>
-          <h2 className="font-cormorant font-bold text-4xl md:text-5xl text-navy-800 mb-4">
+          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3 sm:mb-4">
             Всё, что нужно для{" "}
             <span className="text-gradient-gold">правовой защиты</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto px-4 sm:px-0">
             AI-юрист готов помочь в любой ситуации — от простого вопроса до сложного судебного дела
           </p>
         </div>
 
         {/* Services grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-16 sm:mb-24">
           {SERVICES.map((service, i) => (
             <div
               key={service.title}
@@ -139,14 +139,14 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
         </div>
 
         {/* How it works */}
-        <div className="bg-gradient-to-br from-navy-800 to-navy-900 rounded-3xl p-10 md:p-14">
-          <div className="text-center mb-12">
-            <h2 className="font-cormorant font-bold text-3xl md:text-4xl text-white mb-3">
+        <div className="bg-gradient-to-br from-navy-800 to-navy-900 rounded-3xl p-6 sm:p-10 md:p-14">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="font-cormorant font-bold text-2xl sm:text-3xl md:text-4xl text-white mb-3">
               Как это работает
             </h2>
-            <p className="text-white/55 text-base">Получите юридическую помощь за 4 простых шага</p>
+            <p className="text-white/55 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {HOW_IT_WORKS.map((step, i) => (
               <div key={step.step} className="relative text-center group">
                 {i < HOW_IT_WORKS.length - 1 && (
@@ -175,7 +175,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
             </h3>
             <p className="text-muted-foreground">Нажмите — и получите черновик за 2 минуты</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
               { icon: "Gavel", title: "Исковое заявление", desc: "В суд общей юрисдикции" },
               { icon: "FileCheck", title: "Договор ГПХ", desc: "Гражданско-правовой договор" },
@@ -185,7 +185,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
               <button
                 key={doc.title}
                 onClick={() => onSelectService(doc.title)}
-                className="group p-5 rounded-2xl border border-border bg-card hover:border-gold-400/40 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
+                className="group p-4 sm:p-5 rounded-2xl border border-border bg-card hover:border-gold-400/40 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
               >
                 <div className="w-10 h-10 rounded-xl bg-navy-50 flex items-center justify-center mb-4 group-hover:bg-navy-100 transition-colors">
                   <Icon name={doc.icon as any} size={20} className="text-navy-600" />

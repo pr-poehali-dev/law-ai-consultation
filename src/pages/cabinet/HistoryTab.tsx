@@ -47,10 +47,10 @@ export default function HistoryTab({ user, messages, onGoToChat }: HistoryTabPro
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="font-cormorant font-bold text-3xl text-navy-800">История консультаций</h2>
-        <span className="text-xs text-muted-foreground bg-slate-100 px-3 py-1.5 rounded-xl">
-          {userMessages.length} {userMessages.length === 1 ? "вопрос" : userMessages.length < 5 ? "вопроса" : "вопросов"} · хранится 3 мес.
+      <div className="flex items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+        <h2 className="font-cormorant font-bold text-2xl sm:text-3xl text-navy-800">История консультаций</h2>
+        <span className="text-xs text-muted-foreground bg-slate-100 px-2.5 py-1.5 rounded-xl shrink-0">
+          {userMessages.length} {userMessages.length === 1 ? "вопрос" : userMessages.length < 5 ? "вопроса" : "вопросов"}
         </span>
       </div>
 
@@ -102,7 +102,7 @@ export default function HistoryTab({ user, messages, onGoToChat }: HistoryTabPro
                         <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5">
                           <Icon name="Scale" size={14} className="text-gold-400" />
                         </div>
-                        <div className="flex-1 bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl px-4 py-3 text-sm text-navy-700 leading-relaxed whitespace-pre-wrap">
+                        <div className="flex-1 min-w-0 bg-blue-50/60 border-l-2 border-gold-400 rounded-2xl px-3 sm:px-4 py-3 text-sm text-navy-700 leading-relaxed whitespace-pre-wrap overflow-hidden">
                           {aiReply.text}
                         </div>
                       </div>

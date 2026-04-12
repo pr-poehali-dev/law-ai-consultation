@@ -51,8 +51,8 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-4">
-      <h2 className="font-cormorant font-bold text-3xl text-navy-800 mb-6">Профиль</h2>
+    <div className="max-w-xl mx-auto space-y-3 sm:space-y-4">
+      <h2 className="font-cormorant font-bold text-2xl sm:text-3xl text-navy-800 mb-4 sm:mb-6">Профиль</h2>
 
       {/* Карточка пользователя */}
       <div className="bg-white rounded-3xl border border-border shadow-sm p-6">
@@ -95,39 +95,39 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
         </h3>
         <div className="space-y-3">
           {/* Консультации */}
-          <div className={`flex items-center justify-between p-4 rounded-2xl border ${consultSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border ${consultSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${consultSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${consultSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
                 <Icon name="MessageCircle" size={16} className={consultSubActive ? "text-emerald-600" : "text-navy-500"} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-sm font-medium text-navy-800">Безлимитные консультации</div>
                 <div className="text-xs text-muted-foreground">1 990 ₽/мес · Безлимитные вопросы AI</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:shrink-0">
               {consultSubActive
                 ? <SubscriptionBadge until={user.subscriptionConsultUntil} />
-                : <button onClick={() => onPay("subscription_consult", "Безлимитные консультации")} className="btn-gold text-xs px-3 py-1.5 rounded-xl">Подключить</button>
+                : <button onClick={() => onPay("subscription_consult", "Безлимитные консультации")} className="btn-gold text-xs px-3 py-2 rounded-xl w-full sm:w-auto">Подключить</button>
               }
             </div>
           </div>
 
           {/* Документы */}
-          <div className={`flex items-center justify-between p-4 rounded-2xl border ${docsSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border ${docsSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${docsSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${docsSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
                 <Icon name="FileText" size={16} className={docsSubActive ? "text-emerald-600" : "text-navy-500"} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-sm font-medium text-navy-800">Безлимитные документы</div>
                 <div className="text-xs text-muted-foreground">4 990 ₽/мес · Неограниченная генерация</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:shrink-0">
               {docsSubActive
                 ? <SubscriptionBadge until={user.subscriptionDocsUntil} />
-                : <button onClick={() => onPay("subscription_docs", "Безлимитные документы")} className="btn-gold text-xs px-3 py-1.5 rounded-xl">Подключить</button>
+                : <button onClick={() => onPay("subscription_docs", "Безлимитные документы")} className="btn-gold text-xs px-3 py-2 rounded-xl w-full sm:w-auto">Подключить</button>
               }
             </div>
           </div>
@@ -147,15 +147,15 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
             <button
               key={item.type}
               onClick={() => onPay(item.type, item.name)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50 transition-all group"
+              className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50 transition-all group"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-navy-50 rounded-xl flex items-center justify-center group-hover:bg-navy-100 transition-colors">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-8 h-8 bg-navy-50 rounded-xl flex items-center justify-center group-hover:bg-navy-100 transition-colors shrink-0">
                   <Icon name={item.icon} size={15} className="text-navy-600" />
                 </div>
-                <span className="text-sm font-medium text-navy-800">{item.label}</span>
+                <span className="text-sm font-medium text-navy-800 truncate">{item.label}</span>
               </div>
-              <span className="font-semibold text-navy-700 text-sm">{item.price}</span>
+              <span className="font-semibold text-navy-700 text-sm shrink-0 ml-2">{item.price}</span>
             </button>
           ))}
         </div>

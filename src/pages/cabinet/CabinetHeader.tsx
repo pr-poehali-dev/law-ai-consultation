@@ -77,17 +77,17 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
         </div>
       </div>
 
-      <div className="md:hidden flex border-t border-border">
+      <div className="md:hidden flex border-t border-border overflow-x-auto">
         {TABS_MOBILE.map((t) => (
           <button
             key={t.id}
             onClick={() => onTabChange(t.id as Tab)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+            className={`flex-1 min-w-[60px] flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${
               tab === t.id ? "text-navy-700 bg-navy-50" : "text-muted-foreground"
             }`}
           >
-            <Icon name={t.icon} size={16} />
-            {t.label}
+            <Icon name={t.icon} size={17} />
+            <span className="leading-none">{t.label}</span>
           </button>
         ))}
       </div>

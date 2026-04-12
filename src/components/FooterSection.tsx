@@ -9,10 +9,10 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
   const navigate = useNavigate();
   return (
     <footer className="gradient-navy text-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+      <div className="container mx-auto px-4 py-10 sm:py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 mb-8 sm:mb-12">
           {/* Brand */}
-          <div className="md:col-span-1">
+          <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
                 <Icon name="Scale" size={18} className="text-gold-400" />

@@ -80,21 +80,21 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
 
   return (
-    <section id="pricing" className="py-24 bg-gradient-to-b from-background to-slate-50">
+    <section id="pricing" className="py-16 sm:py-24 bg-gradient-to-b from-background to-slate-50">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-4">
+        <div className="text-center mb-10 sm:mb-16">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-3 sm:mb-4">
             Тарифы
           </span>
-          <h2 className="font-cormorant font-bold text-4xl md:text-5xl text-navy-800 mb-4">
+          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3 sm:mb-4">
             Прозрачные цены без скрытых платежей
           </h2>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto px-4 sm:px-0">
             Платите только за то, что нужно — разово или по подписке
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch">
           {PLANS.map((plan) => (
             <div
               key={plan.id}
@@ -170,7 +170,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
         </div>
 
         {/* Subscription plans */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="mt-6 sm:mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           {[
             {
               id: "subscription_consult",
@@ -189,13 +189,13 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               badge: "🔥 Безлимит",
             },
           ].map((sub) => (
-            <div key={sub.id} className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-6 flex items-center gap-5 card-hover cursor-pointer group"
+            <div key={sub.id} className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 card-hover cursor-pointer group"
               onClick={() => onSelectPlan(sub.name, sub.price, sub.id)}>
-              <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shrink-0">
-                <Icon name={sub.icon} size={22} className="text-gold-400" />
+              <div className="w-11 h-11 sm:w-12 sm:h-12 gradient-navy rounded-2xl flex items-center justify-center shrink-0">
+                <Icon name={sub.icon} size={20} className="text-gold-400" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center flex-wrap gap-2 mb-1">
                   <span className="font-semibold text-navy-800 text-sm">{sub.name}</span>
                   <span className="text-[10px] font-bold bg-gold-400/20 text-gold-700 px-2 py-0.5 rounded-full">{sub.badge}</span>
                 </div>
@@ -207,10 +207,12 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   ))}
                 </ul>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-cormorant font-bold text-2xl text-navy-800">{sub.price} ₽</div>
-                <div className="text-xs text-muted-foreground">в месяц</div>
-                <button className="mt-2 btn-gold text-xs px-3 py-1.5 rounded-xl group-hover:shadow-md transition-shadow">
+              <div className="text-left sm:text-right shrink-0 w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start">
+                <div>
+                  <div className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">{sub.price} ₽</div>
+                  <div className="text-xs text-muted-foreground">в месяц</div>
+                </div>
+                <button className="btn-gold text-xs px-3 py-1.5 rounded-xl group-hover:shadow-md transition-shadow sm:mt-2">
                   Подключить
                 </button>
               </div>
