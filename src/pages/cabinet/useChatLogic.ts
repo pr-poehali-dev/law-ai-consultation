@@ -193,14 +193,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       text: `📎 ${file.name}${comment ? `\n${comment}` : ""}`,
       isFile: true,
     } as ChatMsg]);
+    const isImage = /\.(jpg|jpeg|png)$/i.test(file.name);
     setTyping(true);
-    setTypingStatus("Читаю документ...");
+    setTypingStatus(isImage ? "Распознаю текст на фото (OCR)..." : "Читаю документ...");
     await consumeQuestion();
     refreshUser();
 
-    const t1 = setTimeout(() => setTypingStatus("Анализирую структуру и содержание..."), 3000);
-    const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 8000);
-    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 14000);
+    const t1 = setTimeout(() => setTypingStatus(isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);
+    const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 10000);
+    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
 
     try {
       const res = await fetch(GIGACHAT_URL, {

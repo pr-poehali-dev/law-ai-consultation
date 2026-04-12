@@ -469,6 +469,54 @@ def extract_docx_text(data: bytes) -> str:
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:12000]
 
 
+def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
+    """OCR через Yandex Vision API — распознаёт текст на фотографиях документов."""
+    iam_token = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
+    if not iam_token:
+        return ""
+
+    mime_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
+    mime_type = mime_map.get(ext, "image/jpeg")
+
+    b64_image = base64.b64encode(image_data).decode("utf-8")
+
+    try:
+        resp = requests.post(
+            "https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze",
+            headers={
+                "Authorization": f"Api-Key {iam_token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "analyzeSpecs": [{
+                    "content": b64_image,
+                    "features": [{"type": "TEXT_DETECTION", "textDetectionConfig": {"languageCodes": ["ru", "en"]}}],
+                    "mimeType": mime_type,
+                }]
+            },
+            timeout=30,
+        )
+        if not resp.ok:
+            return ""
+
+        result = resp.json()
+        blocks = (result.get("results", [{}])[0]
+                  .get("results", [{}])[0]
+                  .get("textDetection", {})
+                  .get("pages", []))
+
+        lines = []
+        for page in blocks:
+            for block in page.get("blocks", []):
+                for line in block.get("lines", []):
+                    words = [w.get("text", "") for w in line.get("words", [])]
+                    if words:
+                        lines.append(" ".join(words))
+        return "\n".join(lines).strip()
+    except Exception:
+        return ""
+
+
 def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.1) -> str:
     """Вызов через OpenAI-совместимый API Яндекса (DeepSeek и др.)."""
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
@@ -680,15 +728,51 @@ def handler(event: dict, context) -> dict:
             threading.Thread(target=cleanup_temp_files, args=(s3,), daemon=True).start()
 
             # Извлекаем текст
+            ocr_failed = False
             if ext == "pdf":
                 text = extract_pdf_text(file_data)
             elif ext in ("docx", "doc"):
                 text = extract_docx_text(file_data)
             else:
-                # Для изображений передаём base64 напрямую в промпт как описание
-                text = f"[Изображение формата {ext.upper()}. Анализируй как юридический документ на фото.]"
+                # Изображение — пробуем OCR через Yandex Vision
+                text = extract_image_text_ocr(file_data, ext)
+                if not text or len(text.strip()) < 20:
+                    ocr_failed = True
+                    text = ""
 
             iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+
+            # Если OCR не дал результата — возвращаем понятное сообщение
+            if ocr_failed:
+                answer = (
+                    "❌ Не удалось распознать текст на фотографии.\n\n"
+                    "Возможные причины:\n"
+                    "— Фото нечёткое, размытое или плохо освещено\n"
+                    "— Текст слишком мелкий или повёрнут\n"
+                    "— Документ сфотографирован под большим углом\n\n"
+                    "**Рекомендации:**\n"
+                    "1. Переснимите документ при хорошем освещении, чётко и прямо\n"
+                    "2. Или сканируйте документ и загрузите в формате **PDF** — AI его точно прочитает\n"
+                    "3. Либо скопируйте текст из документа и вставьте прямо в чат"
+                )
+                return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"answer": answer, "filename": filename,
+                                            "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+
+            # Если текст очень короткий (PDF без текстового слоя — скан)
+            if len(text.strip()) < 50 and ext == "pdf":
+                answer = (
+                    "❌ PDF-файл содержит только изображение (отсканированный документ без текстового слоя).\n\n"
+                    "AI не может прочитать сканированный PDF.\n\n"
+                    "**Что делать:**\n"
+                    "1. Если есть возможность — сохраните документ как **PDF с текстовым слоем** (не скан)\n"
+                    "2. Или скопируйте текст из документа и вставьте прямо в чат\n"
+                    "3. Для фотографий: загрузите JPEG/PNG — AI попробует распознать текст через OCR"
+                )
+                return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"answer": answer, "filename": filename,
+                                            "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+
             answer = analyze_file_with_yandex(text, comment, iam_token)
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
