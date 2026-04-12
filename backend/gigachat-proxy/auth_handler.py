@@ -295,7 +295,17 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
         elif service_type == "expert":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user["id"],))
+            # Если нет активной подписки и нет вопросов — даём 3 вопроса к AI в подарок
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_expert = TRUE,
+                        paid_questions = CASE
+                            WHEN paid_questions = 0 AND (subscription_consult_until IS NULL OR subscription_consult_until < NOW()) THEN 3
+                            ELSE paid_questions
+                        END
+                    WHERE id = %s""",
+                (user["id"],)
+            )
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
         elif service_type == "subscription_consult":
@@ -480,7 +490,7 @@ def handle_register(body: dict) -> dict:
 
 
 def handle_report(token: str, body: dict) -> dict:
-    """Отправляет сообщение об ошибке на email поддержки."""
+    """Сохраняет жалобу пользователя в БД (таблица reports)."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
@@ -489,40 +499,144 @@ def handle_report(token: str, body: dict) -> dict:
     if not message:
         return _err(400, "Сообщение не может быть пустым")
 
-    smtp_from = os.environ.get("SMTP_FROM_EMAIL", "").strip()
-    smtp_pass = os.environ.get("SMTP_PASSWORD", "").strip()
-    if not smtp_from or not smtp_pass:
-        return _err(500, "SMTP не настроен")
-
-    subject = f"[Юрист AI] Проблема от {user['name']} ({user['email']})"
-    body_text = (
-        f"Пользователь: {user['name']}\n"
-        f"Email: {user['email']}\n"
-        f"Дата: {datetime.utcnow().strftime('%d.%m.%Y %H:%M UTC')}\n\n"
-        f"Сообщение:\n{message}"
-    )
-
+    conn = get_conn()
+    cur = conn.cursor()
     try:
-        msg = MIMEText(body_text, "plain", "utf-8")
-        msg["Subject"] = Header(subject, "utf-8")
-        msg["From"] = smtp_from
-        msg["To"] = REPORT_EMAIL
-        msg["Reply-To"] = user["email"]
-
-        # Пробуем SMTP_SSL (465), при ошибке — STARTTLS (587)
-        try:
-            with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
-                server.login(smtp_from, smtp_pass)
-                server.sendmail(smtp_from, [REPORT_EMAIL], msg.as_string())
-        except Exception:
-            with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
-                server.starttls()
-                server.login(smtp_from, smtp_pass)
-                server.sendmail(smtp_from, [REPORT_EMAIL], msg.as_string())
-
-        return _ok({"ok": True})
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.reports (user_id, user_name, user_email, message)
+                VALUES (%s, %s, %s, %s) RETURNING id""",
+            (user["id"], user.get("name", ""), user.get("email", ""), message)
+        )
+        report_id = cur.fetchone()[0]
+        conn.commit()
+        return _ok({"ok": True, "report_id": report_id})
     except Exception as e:
-        return _err(500, f"Ошибка отправки: {str(e)}")
+        conn.rollback()
+        return _err(500, str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_admin_reports(token: str, body: dict) -> dict:
+    """Получение списка репортов (только для админа)."""
+    user = get_user_by_token(token)
+    if not user or not user.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+
+    action = body.get("sub_action", "list")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if action == "list":
+            status_filter = body.get("status_filter", "all")
+            if status_filter == "all":
+                cur.execute(
+                    f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at
+                        FROM {SCHEMA}.reports ORDER BY created_at DESC LIMIT 100"""
+                )
+            else:
+                cur.execute(
+                    f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at
+                        FROM {SCHEMA}.reports WHERE status = %s ORDER BY created_at DESC LIMIT 100""",
+                    (status_filter,)
+                )
+            rows = cur.fetchall()
+            reports = []
+            for r in rows:
+                replied_at = r[7].isoformat() if r[7] else None
+                created_at = r[8].isoformat() if r[8] else None
+                reports.append({
+                    "id": r[0], "user_id": r[1], "user_name": r[2], "user_email": r[3],
+                    "message": r[4], "status": r[5], "admin_reply": r[6],
+                    "replied_at": replied_at, "created_at": created_at
+                })
+            return _ok({"reports": reports})
+
+        elif action == "reply":
+            report_id = int(body.get("report_id", 0))
+            reply_text = sanitize_str(body.get("reply", ""), max_len=2000)
+            if not report_id or not reply_text:
+                return _err(400, "Укажите report_id и reply")
+            cur.execute(
+                f"""UPDATE {SCHEMA}.reports
+                    SET admin_reply = %s, status = 'replied', replied_at = NOW()
+                    WHERE id = %s""",
+                (reply_text, report_id)
+            )
+            conn.commit()
+            return _ok({"ok": True})
+
+        elif action == "close":
+            report_id = int(body.get("report_id", 0))
+            if not report_id:
+                return _err(400, "Укажите report_id")
+            cur.execute(
+                f"UPDATE {SCHEMA}.reports SET status = 'closed' WHERE id = %s",
+                (report_id,)
+            )
+            conn.commit()
+            return _ok({"ok": True})
+
+        elif action == "user_reports":
+            # Пользователь смотрит свои репорты
+            uid = int(body.get("target_user_id", 0))
+            if not uid:
+                return _err(400, "Укажите target_user_id")
+            cur.execute(
+                f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at
+                    FROM {SCHEMA}.reports WHERE user_id = %s ORDER BY created_at DESC""",
+                (uid,)
+            )
+            rows = cur.fetchall()
+            reports = []
+            for r in rows:
+                replied_at = r[7].isoformat() if r[7] else None
+                created_at = r[8].isoformat() if r[8] else None
+                reports.append({
+                    "id": r[0], "user_id": r[1], "user_name": r[2], "user_email": r[3],
+                    "message": r[4], "status": r[5], "admin_reply": r[6],
+                    "replied_at": replied_at, "created_at": created_at
+                })
+            return _ok({"reports": reports})
+
+        return _err(400, "Неизвестный sub_action")
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_my_reports(token: str) -> dict:
+    """Возвращает репорты текущего пользователя (включая ответы администратора)."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at
+                FROM {SCHEMA}.reports WHERE user_id = %s ORDER BY created_at DESC""",
+            (user["id"],)
+        )
+        rows = cur.fetchall()
+        reports = []
+        for r in rows:
+            replied_at = r[7].isoformat() if r[7] else None
+            created_at = r[8].isoformat() if r[8] else None
+            reports.append({
+                "id": r[0], "user_id": r[1], "user_name": r[2], "user_email": r[3],
+                "message": r[4], "status": r[5], "admin_reply": r[6],
+                "replied_at": replied_at, "created_at": created_at
+            })
+        return _ok({"reports": reports})
+    finally:
+        cur.close()
+        conn.close()
 
 
 def _has_active_subscription(user: dict, kind: str) -> bool:

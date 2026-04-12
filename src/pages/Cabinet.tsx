@@ -130,6 +130,11 @@ export default function Cabinet() {
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
+            onAnalyzeDoc={(doc) => {
+              const prompt = `Проанализируй подготовленный документ:\n\n${doc.name}\n\n${doc.filled || doc.content}`;
+              setTab("chat");
+              setTimeout(() => chat.sendMessage(prompt), 200);
+            }}
           />
         )}
 

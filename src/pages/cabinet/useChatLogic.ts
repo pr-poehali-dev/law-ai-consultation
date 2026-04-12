@@ -58,9 +58,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     localStorage.setItem("cabinet_history", JSON.stringify(history));
   }, [history]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || typing) return;
-    const userMsg = input.trim();
+  const sendMessage = async (overrideText?: string) => {
+    const userMsg = (overrideText || input).trim();
+    if (!userMsg || typing) return;
 
     const canAsk = await canAskQuestion();
     if (!canAsk) {

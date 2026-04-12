@@ -95,6 +95,19 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Фикс белого экрана на iOS при фокусе в textarea */
+  textarea,
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    font-size: 16px !important; /* Предотвращает zoom на iOS */
+  }
+  @media (max-width: 640px) {
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 @layer components {

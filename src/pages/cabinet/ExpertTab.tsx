@@ -140,24 +140,25 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
   if (!canUse) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-3xl border border-border shadow-sm p-8 text-center">
-          <div className="w-16 h-16 gradient-navy rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
-            <Icon name="UserCheck" size={28} className="text-gold-400" />
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-5 sm:p-8">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 gradient-navy rounded-2xl flex items-center justify-center mb-4 shadow-md">
+              <Icon name="UserCheck" size={26} className="text-gold-400" />
+            </div>
+            <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-2">Проверка юристом</h2>
+            <p className="text-sm text-muted-foreground mb-5 leading-relaxed max-w-md">
+              Живой эксперт-юрист анализирует ответ AI или ваш документ и даёт профессиональное заключение. При покупке включает 3 вопроса к AI.
+            </p>
           </div>
-          <h2 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Проверка юристом</h2>
-          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            Получите персональную проверку документа или ответа AI от <strong>Эксперта-юриста Поварчук И.В.</strong><br/>
-            Задайте вопрос по вашей ситуации, прикрепите ответ AI или документ — юрист ответит лично.
-          </p>
-          <div className="grid grid-cols-1 gap-3 mb-6 text-left">
+          <div className="grid grid-cols-1 gap-2 sm:gap-3 mb-5 text-left">
             {[
-              { icon: "MessageCircle", text: "Личная переписка с профессиональным юристом" },
-              { icon: "FileCheck", text: "Проверка и комментарий к вашим документам" },
-              { icon: "Scale", text: "Разбор ответов AI с профессиональной точки зрения" },
+              { icon: "MessageCircle", text: "Личная переписка с экспертом-юристом" },
+              { icon: "Bot", text: "3 вопроса к AI включены при отсутствии тарифа" },
+              { icon: "FileCheck", text: "Анализ ответа AI или подготовленного документа" },
               { icon: "Shield", text: "Конфиденциальность и защита ваших данных" },
             ].map((f, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3 bg-navy-50 rounded-2xl">
-                <Icon name={f.icon} size={16} className="text-navy-600 shrink-0" />
+              <div key={i} className="flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-navy-50 rounded-2xl">
+                <Icon name={f.icon} size={15} className="text-navy-600 shrink-0" />
                 <span className="text-sm text-navy-700">{f.text}</span>
               </div>
             ))}
@@ -167,9 +168,9 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
             className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
           >
             <Icon name="UserCheck" size={16} />
-            Подключить тариф «Проверка юристом»
+            Подключить — 1 500 ₽
           </button>
-          <p className="text-xs text-muted-foreground mt-3">Оплата безопасна · доступ сразу после оплаты</p>
+          <p className="text-xs text-muted-foreground mt-3 text-center">Оплата безопасна · доступ сразу после оплаты</p>
         </div>
       </div>
     );

@@ -147,6 +147,41 @@ export async function sendReport(message: string): Promise<{ ok?: boolean; error
   return { ok: true };
 }
 
+export interface Report {
+  id: number;
+  user_id: number;
+  user_name: string;
+  user_email: string;
+  message: string;
+  status: "new" | "replied" | "closed";
+  admin_reply: string | null;
+  replied_at: string | null;
+  created_at: string;
+}
+
+export async function getMyReports(): Promise<Report[]> {
+  const res = await apiCall({ action: "my-reports" });
+  const data = await res.json();
+  return data.reports || [];
+}
+
+export async function getAdminReports(statusFilter = "all"): Promise<Report[]> {
+  const res = await apiCall({ action: "admin-reports", sub_action: "list", status_filter: statusFilter });
+  const data = await res.json();
+  return data.reports || [];
+}
+
+export async function replyToReport(reportId: number, reply: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "admin-reports", sub_action: "reply", report_id: reportId, reply });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка ответа" };
+  return { ok: true };
+}
+
+export async function closeReport(reportId: number): Promise<void> {
+  await apiCall({ action: "admin-reports", sub_action: "close", report_id: reportId });
+}
+
 export function getFreeLeft(user: User): number {
   return user.isAdmin ? 999 : user.paidQuestions;
 }

@@ -21,6 +21,7 @@ from auth_handler import (
     handle_consume_question, handle_consume_doc, handle_add_paid_service,
     handle_report, handle_send_otp, handle_verify_otp, sanitize_str,
     handle_lawyer_send, handle_lawyer_messages,
+    handle_admin_reports, handle_my_reports,
 )
 
 warnings.filterwarnings("ignore")
@@ -579,6 +580,8 @@ def handler(event: dict, context) -> dict:
         "consume-doc": lambda: handle_consume_doc(token),
         "add-paid-service": lambda: handle_add_paid_service(token, body),
         "report": lambda: handle_report(token, body),
+        "my-reports": lambda: handle_my_reports(token),
+        "admin-reports": lambda: handle_admin_reports(token, body),
         "send-otp": lambda: handle_send_otp(body),
         "verify-otp": lambda: handle_verify_otp(body),
         "lawyer-send": _lawyer_send_action,

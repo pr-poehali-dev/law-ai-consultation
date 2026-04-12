@@ -317,41 +317,78 @@ export default function ChatTab({
 
       {/* Прикреплённый файл */}
       {attachedFile && (
-        <div className="mt-2 flex items-center gap-2.5 px-4 py-2.5 bg-navy-50 border border-navy-200 rounded-2xl">
-          <div className="w-9 h-9 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
-            <Icon name="FileText" size={15} className="text-navy-600" />
+        <div className="mt-2 space-y-1.5">
+          <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2.5 bg-navy-50 border border-navy-200 rounded-2xl animate-fade-in">
+            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${/\.(jpg|jpeg|png)$/i.test(attachedFile.name) ? "bg-blue-100" : "bg-navy-100"}`}>
+              <Icon name={/\.(jpg|jpeg|png)$/i.test(attachedFile.name) ? "Image" : "FileText"} size={15} className={/\.(jpg|jpeg|png)$/i.test(attachedFile.name) ? "text-blue-600" : "text-navy-600"} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-navy-800 truncate">{attachedFile.name}</p>
+              <p className="text-[11px] text-muted-foreground">{attachedFile.size} · удалится через 30 мин</p>
+            </div>
+            <button onClick={onClearFile} className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50">
+              <Icon name="X" size={13} />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-navy-800 truncate">{attachedFile.name}</p>
-            <p className="text-[11px] text-muted-foreground">{attachedFile.size} · удалится через 30 мин</p>
-          </div>
-          <button onClick={onClearFile} className="text-muted-foreground hover:text-red-500 transition-colors p-1">
-            <Icon name="X" size={14} />
-          </button>
+          {/\.(jpg|jpeg|png)$/i.test(attachedFile.name) && (
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+              <Icon name="AlertCircle" size={13} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-700 leading-relaxed">Для качественного анализа фото должно быть чётким, текст читаемым. Плохое качество снизит точность AI.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Поле ввода */}
-      <div className="mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
+      <div className="mt-2 sm:mt-3 bg-white border border-border rounded-2xl shadow-sm overflow-hidden focus-within:border-navy-300 focus-within:ring-2 focus-within:ring-navy-100 transition-all">
+        {/* Скрытые input для файлов */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={onFileSelect}
+        />
+        {/* Отдельный инпут для камеры (capture=environment) */}
+        <input
+          id="camera-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={onFileSelect}
+        />
+
         <div className="flex items-end gap-2 px-3 py-2.5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-            className="hidden"
-            onChange={onFileSelect}
-          />
+          {/* Кнопка прикрепить — раскрывает меню на мобиле */}
+          <div className="relative shrink-0">
+            <button
+              onClick={onAttachClick}
+              disabled={typing || fileUploading}
+              title="Прикрепить файл"
+              className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors disabled:opacity-40"
+            >
+              {fileUploading
+                ? <div className="flex gap-0.5">
+                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1 h-1 bg-navy-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
+              }
+            </button>
+          </div>
+
+          {/* Кнопка камеры — только на мобиле */}
           <button
-            onClick={onAttachClick}
+            onClick={() => document.getElementById("camera-input")?.click()}
             disabled={typing || fileUploading}
-            title="PDF, DOC, DOCX, JPEG, PNG · до 10 МБ"
-            className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+            title="Сфотографировать документ"
+            className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 sm:hidden"
           >
-            {fileUploading
-              ? <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full animate-pulse" />
-              : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : "text-muted-foreground"} />
-            }
+            <Icon name="Camera" size={17} className="text-muted-foreground" />
           </button>
+
           <textarea
             ref={textareaRef}
             rows={1}
@@ -365,12 +402,12 @@ export default function ChatTab({
             }}
             disabled={typing}
             placeholder={
-              attachedFile ? "Задайте вопрос к документу или отправьте без вопроса..." :
-              (user.isAdmin || totalLeft > 0) ? "Опишите вашу ситуацию или задайте вопрос..." :
-              "Оплатите консультацию — 100 ₽ за 3 вопроса"
+              attachedFile ? "Задайте вопрос к документу..." :
+              (user.isAdmin || totalLeft > 0) ? "Опишите ситуацию или задайте вопрос..." :
+              "Оплатите консультацию — 100 ₽ / 3 вопроса"
             }
             className="flex-1 bg-transparent text-[13.5px] text-navy-800 placeholder-muted-foreground outline-none resize-none py-1.5 leading-relaxed font-golos disabled:opacity-50"
-            style={{ minHeight: "36px", maxHeight: "140px" }}
+            style={{ minHeight: "36px", maxHeight: "120px" }}
           />
           <button
             onClick={attachedFile ? onSendFile : onSend}
@@ -380,8 +417,9 @@ export default function ChatTab({
             <Icon name="Send" size={15} className="text-white ml-0.5" />
           </button>
         </div>
+
         <div className="px-3 sm:px-4 pb-2 flex items-center justify-between gap-2">
-          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 hidden sm:block">Enter — отправить · Shift+Enter — новая строка</p>
+          <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 hidden sm:block">Enter — отправить</p>
           <p className="text-[10px] sm:text-[10.5px] text-muted-foreground/60 text-right flex-1">Ответы носят информационный характер</p>
         </div>
       </div>

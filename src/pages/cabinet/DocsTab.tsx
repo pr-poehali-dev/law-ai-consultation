@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { User } from "@/lib/auth";
+import { hasActiveSubscription } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 
 export type DocPhase = "form" | "generating" | "filling" | "done";
@@ -48,6 +49,7 @@ interface DocsTabProps {
   onDownload: (name: string, content: string) => void;
   onOpenDoc: (doc: GenDoc) => void;
   onPayForDoc: (dt: typeof DOC_TYPES[0]) => void;
+  onAnalyzeDoc: (doc: GenDoc) => void;
 }
 
 export { DOC_TYPES };
@@ -142,6 +144,7 @@ export default function DocsTab({
   onDownload,
   onOpenDoc,
   onPayForDoc,
+  onAnalyzeDoc,
 }: DocsTabProps) {
   return (
     <div className="max-w-4xl mx-auto">
@@ -394,6 +397,14 @@ export default function DocsTab({
             >
               <Icon name="Download" size={15} />Скачать .docx
             </button>
+            {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult")) && (
+              <button
+                onClick={() => onAnalyzeDoc(currentDoc)}
+                className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all"
+              >
+                <Icon name="Bot" size={15} />Проанализировать AI-юристом
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -424,13 +435,21 @@ export default function DocsTab({
               </button>
             </div>
           </div>
-          <div className="flex gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={onResetForm}
               className="text-sm text-navy-600 hover:text-navy-800 px-5 py-2.5 rounded-xl border border-border hover:border-navy-300 transition-colors"
             >
               Создать ещё
             </button>
+            {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult")) && (
+              <button
+                onClick={() => onAnalyzeDoc(currentDoc!)}
+                className="text-sm px-5 py-2.5 rounded-xl flex items-center gap-2 bg-gradient-to-r from-blue-600 to-navy-700 hover:from-blue-700 hover:to-navy-800 text-white transition-all shadow-sm"
+              >
+                <Icon name="Bot" size={15} />Проанализировать AI-юристом
+              </button>
+            )}
             <button
               onClick={onGoToChat}
               className="btn-gold text-sm px-5 py-2.5 rounded-xl flex items-center gap-2"
