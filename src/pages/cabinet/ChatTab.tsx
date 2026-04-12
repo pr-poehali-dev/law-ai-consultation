@@ -156,11 +156,15 @@ export default function ChatTab({
     }
   }, [input]);
 
-  // Скролл вниз при новых сообщениях
+  // Скролл вниз при новых сообщениях и при появлении кнопки "Читать дальше"
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    // Небольшая задержка чтобы DOM успел обновиться (кнопка "Читать дальше" рендерится после typing=false)
+    const raf = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
   }, [messages, typing]);
 
   const handleScroll = () => {

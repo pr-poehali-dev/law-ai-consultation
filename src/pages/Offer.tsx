@@ -137,7 +137,7 @@ export default function Offer() {
                 <p><strong>Статус:</strong> Самозанятый (плательщик НПД)</p>
                 <p><strong>ИНН:</strong> 910231739939</p>
                 <p><strong>Email:</strong> povpartner@mail.ru</p>
-                <p><strong>Телефон:</strong> +7 (800) 555-01-20</p>
+                <p><strong>Телефон:</strong> +7 (978) 456-42-17</p>
                 <p><strong>Платёжный агрегатор:</strong> Robokassa (ООО «РОБОКАССА»)</p>
               </div>
             </section>

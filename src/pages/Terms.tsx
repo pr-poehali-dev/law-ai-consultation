@@ -130,7 +130,7 @@ export default function Terms() {
                 <p><strong>Исполнитель:</strong> Кузина Полина Евгеньевна</p>
                 <p><strong>ИНН:</strong> 910231739939</p>
                 <p><strong>Email:</strong> povpartner@mail.ru</p>
-                <p><strong>Телефон:</strong> +7 (800) 555-01-20</p>
+                <p><strong>Телефон:</strong> +7 (978) 456-42-17</p>
               </div>
             </section>
 
