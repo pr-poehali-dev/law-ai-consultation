@@ -153,14 +153,24 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const allowed = ["application/pdf", "application/msword",
+    const allowedMime = ["application/pdf", "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "image/jpeg", "image/jpg", "image/png"];
-    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|jpg|jpeg|png)$/i)) {
+      "image/jpeg", "image/jpg", "image/png", "image/pjpeg"];
+    const isImage = allowedMime.includes(file.type) && file.type.startsWith("image/")
+      || /\.(jpg|jpeg|png)$/i.test(file.name);
+    const isDoc = /\.(pdf|doc|docx)$/i.test(file.name)
+      || ["application/pdf", "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
+    if (!isImage && !isDoc) {
       setChatErr("Допустимые форматы: PDF, DOC, DOCX, JPEG, PNG");
       return;
     }
-    const maxMb = /\.(jpg|jpeg|png)$/i.test(file.name) ? 8 : 10;
+    // Нормализуем имя файла: если нет расширения но тип image/* — добавляем .jpg
+    let normalizedName = file.name;
+    if (isImage && !/\.(jpg|jpeg|png)$/i.test(file.name)) {
+      normalizedName = file.name + ".jpg";
+    }
+    const maxMb = isImage ? 8 : 10;
     if (file.size > maxMb * 1024 * 1024) { setChatErr(`Файл слишком большой. Максимум ${maxMb} МБ.`); return; }
     setFileUploading(true);
     const reader = new FileReader();
@@ -169,7 +179,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const sizeStr = file.size < 1024 * 1024
         ? `${Math.round(file.size / 1024)} КБ`
         : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
-      setAttachedFile({ name: file.name, b64, size: sizeStr });
+      setAttachedFile({ name: normalizedName, b64, size: sizeStr });
       setFileUploading(false);
       setChatErr("");
     };
