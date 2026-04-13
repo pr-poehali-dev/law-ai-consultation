@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, logout, addPaidService, type User, getToken } from "@/lib/auth";
+import { getUser, logout, type User, getToken } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -102,12 +102,10 @@ export default function Cabinet() {
   });
 
   const handlePaySuccess = async (svcType: ServiceType) => {
-    try {
-      await addPaidService(svcType);
-      await refreshUser();
-    } catch {
-      // сервис уже оплачен — продолжаем
-    }
+    // Начисление происходит ТОЛЬКО через webhook ЮКасса (payment-result).
+    // Здесь только обновляем данные пользователя с небольшой задержкой (webhook может прийти чуть позже)
+    await new Promise(r => setTimeout(r, 1500));
+    await refreshUser();
     setPayment(null);
     if (pendingDocType && (svcType === "document" || svcType === "business")) {
       setPendingDocType(null);

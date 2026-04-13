@@ -64,6 +64,39 @@ def grant_service(conn, user_id: int, service_type: str):
                     WHERE id = %s""",
                 (user_id,)
             )
+        elif service_type == "plan_starter":
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 30, paid_docs = paid_docs + 5 WHERE id = %s",
+                (user_id,)
+            )
+        elif service_type == "plan_pro":
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20 WHERE id = %s",
+                (user_id,)
+            )
+        elif service_type == "plan_max":
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50 WHERE id = %s",
+                (user_id,)
+            )
+        elif service_type == "business_subscription":
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET business_subscription_until = GREATEST(NOW(), COALESCE(business_subscription_until, NOW())) + INTERVAL '31 days',
+                        business_actions_left = business_actions_left + 150
+                    WHERE id = %s""",
+                (user_id,)
+            )
+        elif service_type == "business_actions_10":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 10 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_30":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 30 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_50":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 50 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_60":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 60 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_150":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 150 WHERE id = %s", (user_id,))
         conn.commit()
     finally:
         cur.close()
