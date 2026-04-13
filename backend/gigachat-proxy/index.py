@@ -166,7 +166,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 
-def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.1) -> str:
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.7) -> str:
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     resp = requests.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
@@ -209,7 +209,7 @@ def is_refusal(text: str) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-MAX_HISTORY = 3  # Меньше истории = меньше токенов на входе = быстрее ответ
+MAX_HISTORY = 2
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200) -> str:
@@ -509,7 +509,7 @@ def handler(event: dict, context) -> dict:
 
             # Для консультаций — обрезаем историю, для документов — оставляем полную
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
-            trimmed = biz_messages if is_doc_mode else biz_messages[-4:]
+            trimmed = biz_messages if is_doc_mode else biz_messages[-2:]
             answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 800)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
@@ -543,10 +543,10 @@ def handler(event: dict, context) -> dict:
             # Обрезаем историю до последних 4 сообщений — быстрее генерация
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
-                chat_messages = messages[1:][-4:]
+                chat_messages = messages[1:][-2:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=800)
             else:
-                answer = call_yandex(SYSTEM_CHAT, messages[-4:], max_tokens=800)
+                answer = call_yandex(SYSTEM_CHAT, messages[-2:], max_tokens=800)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
