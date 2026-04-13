@@ -142,13 +142,20 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
     raw_body = event.get("body") or ""
+    print(f"WEBHOOK RAW BODY: {raw_body[:500]}")
+    print(f"WEBHOOK METHOD: {event.get('httpMethod')} HEADERS: {dict(list((event.get('headers') or {}).items())[:5])}")
+
     try:
         notification = json.loads(raw_body)
-    except Exception:
+    except Exception as e:
+        print(f"WEBHOOK JSON PARSE ERROR: {e}, body={raw_body[:200]}")
         return {"statusCode": 400, "headers": CORS, "body": "Bad JSON"}
 
     event_type = notification.get("event", "")
+    print(f"WEBHOOK EVENT TYPE: {event_type}")
+
     if event_type != "payment.succeeded":
+        print(f"WEBHOOK IGNORED: event={event_type}")
         return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
     payment_obj = notification.get("object", {})
@@ -158,7 +165,10 @@ def handler(event: dict, context) -> dict:
     amount_obj = payment_obj.get("amount", {})
     amount_val = float(amount_obj.get("value", 0)) if amount_obj else 0
 
+    print(f"WEBHOOK PAYMENT: id={payment_id} status={status} metadata={metadata}")
+
     if status != "succeeded" or not payment_id:
+        print(f"WEBHOOK SKIP: status={status} payment_id={payment_id}")
         return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
     inv_id_str = metadata.get("inv_id", "")
@@ -203,9 +213,13 @@ def handler(event: dict, context) -> dict:
         effective_amount = float(db_amount) if db_amount else amount_val
         effective_email = db_user_email or ""
 
+        print(f"WEBHOOK GRANT: user_id={effective_user_id} service={effective_service} amount={effective_amount}")
         if effective_user_id and effective_service:
             grant_service(conn, effective_user_id, effective_service)
             write_billing_log(conn, effective_user_id, effective_email, effective_service, effective_amount, payment_id)
+            print(f"WEBHOOK DONE: granted {effective_service} to user {effective_user_id}")
+        else:
+            print(f"WEBHOOK SKIP GRANT: user_id={effective_user_id} service={effective_service}")
 
     finally:
         cur.close()
