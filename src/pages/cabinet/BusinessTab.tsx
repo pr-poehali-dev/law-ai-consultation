@@ -513,6 +513,15 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                       <p className="text-[10px] text-muted-foreground text-center pt-1">AI сравнит оба документа и выделит различия</p>
                     </div>
                   )}
+                  {activeTool==="chat"&&(
+                    <div className="mt-3 space-y-1.5 text-left">
+                      <p className="text-xs text-blue-700 bg-blue-50 rounded-xl px-3 py-2">Задайте юридический вопрос или прикрепите документ / фото для анализа</p>
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                        <Icon name="Paperclip" size={12} className="text-slate-400 shrink-0"/>
+                        <span className="text-[10px] text-muted-foreground">PDF, DOC, DOCX, JPG, PNG — AI проанализирует любой документ или фото</span>
+                      </div>
+                    </div>
+                  )}
                   {activeTool==="doc_analyze"&&(
                     <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-2">Загрузите договор в формате PDF, DOC или DOCX</p>
                   )}

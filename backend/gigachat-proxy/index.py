@@ -525,7 +525,7 @@ def handler(event: dict, context) -> dict:
             # Для консультаций — быстрая модель, для документов — deepseek
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
             trimmed = biz_messages if is_doc_mode else biz_messages[-20:]
-            answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 1000, fast=not is_doc_mode)
+            answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 1200, fast=not is_doc_mode)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -546,7 +546,7 @@ def handler(event: dict, context) -> dict:
                 {"role": "assistant", "content": partial},
                 {"role": "user", "content": "Продолжи ответ с того места, где остановился. Не повторяй уже написанное."},
             ]
-            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=1000, fast=True)
+            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=1200, fast=True)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -558,9 +558,9 @@ def handler(event: dict, context) -> dict:
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = messages[1:][-20:]
-                answer = call_yandex(custom_system, chat_messages, max_tokens=1000, fast=True)
+                answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, messages[-20:], max_tokens=1000, fast=True)
+                answer = call_yandex(SYSTEM_CHAT, messages[-20:], max_tokens=1200, fast=True)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
