@@ -126,11 +126,6 @@ def _handle(event: dict, context) -> dict:
             }],
         }
 
-    payment_data["transfers"] = [{
-        "account_id": YUKASSA_AGENT_ID,
-        "amount": {"value": amount, "currency": "RUB"},
-    }]
-
     resp = requests.post(
         YUKASSA_API,
         auth=(shop_id, secret_key),
