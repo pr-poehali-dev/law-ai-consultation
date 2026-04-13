@@ -35,13 +35,27 @@ export default function Index() {
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterAfterPay, setShowRegisterAfterPay] = useState(false);
+  const [freeTrial, setFreeTrial] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
     type: "consultation",
     name: "AI-консультация",
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   useEffect(() => { getUser().then((u) => setIsLoggedIn(!!u)); }, []);
+
+  // Проверяем возврат с ЮКасса для незарегистрированного пользователя
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success" && !isLoggedIn) {
+      const invId = params.get("inv_id");
+      if (invId) localStorage.setItem("pending_inv_id", invId);
+      window.history.replaceState({}, "", "/");
+      setShowRegisterAfterPay(true);
+      setShowLogin(true);
+    }
+  }, [isLoggedIn]);
 
   const handleNavigate = (section: string) => {
     setActiveSection(section);
@@ -60,15 +74,10 @@ export default function Index() {
 
   // Кнопка «Попробовать бесплатно» — регистрация с 1 бесплатным вопросом
   const handleTryClick = () => {
-    if (isLoggedIn) {
-      navigate("/cabinet");
-      return;
-    }
-    setShowLogin(true);
+    if (isLoggedIn) { navigate("/cabinet"); return; }
     setFreeTrial(true);
+    setShowLogin(true);
   };
-
-  const [freeTrial, setFreeTrial] = useState(false);
 
   const handlePaymentSuccess = async (_svcType: ServiceType) => {
     if (!isLoggedIn) {
@@ -125,13 +134,22 @@ export default function Index() {
 
       {showLogin && (
         <LoginModal
-          onClose={() => { setShowLogin(false); setFreeTrial(false); }}
+          onClose={() => { setShowLogin(false); setFreeTrial(false); setShowRegisterAfterPay(false); }}
           onSuccess={() => {
             setShowLogin(false);
             setFreeTrial(false);
-            navigate("/cabinet");
+            setShowRegisterAfterPay(false);
+            // Если была оплата до регистрации — переходим в кабинет с inv_id
+            const pendingInvId = localStorage.getItem("pending_inv_id");
+            if (pendingInvId) {
+              localStorage.removeItem("pending_inv_id");
+              navigate(`/cabinet?payment=success&inv_id=${pendingInvId}`);
+            } else {
+              navigate("/cabinet");
+            }
           }}
           freeTrial={freeTrial}
+          showRegisterAfterPay={showRegisterAfterPay}
         />
       )}
 

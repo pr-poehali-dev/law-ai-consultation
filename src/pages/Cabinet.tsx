@@ -28,6 +28,8 @@ export default function Cabinet() {
   // ViewDoc modal
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
 
+  const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
+
   useEffect(() => {
     getUser().then((u) => {
       if (!u) { navigate("/"); return; }
@@ -35,7 +37,7 @@ export default function Cabinet() {
     });
   }, [navigate]);
 
-  // Обработка возврата после оплаты ЮКасса
+  // Обработка возврата после оплаты ЮКасса (авторизованный пользователь)
   useEffect(() => {
     const isSuccess = searchParams.get("payment") === "success";
     const invId = searchParams.get("inv_id");
@@ -43,7 +45,6 @@ export default function Cabinet() {
 
     setSearchParams({});
 
-    // Поллинг статуса платежа, затем начисление услуги
     const CHECK_URL = "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591";
     let attempts = 0;
     const poll = async () => {
@@ -63,9 +64,8 @@ export default function Cabinet() {
       else await refreshUser();
     };
     setTimeout(poll, 2000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 
   const chat = useChatLogic({
     refreshUser,

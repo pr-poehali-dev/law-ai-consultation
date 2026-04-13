@@ -112,8 +112,8 @@ def handle_register(body: dict) -> dict:
         return _err(400, "Введите имя")
     if not email or "@" not in email or len(email) > 254:
         return _err(400, "Некорректный email")
-    if not phone or len(phone) < 7:
-        return _err(400, "Введите корректный телефон")
+    if phone and len(phone) > 0 and len(phone) < 7:
+        return _err(400, "Введите корректный номер телефона")
     if len(password) < 6:
         return _err(400, "Пароль должен быть не менее 6 символов")
     if len(password) > 128:
@@ -135,7 +135,7 @@ def handle_register(body: dict) -> dict:
 
         # Проверяем, использовался ли этот телефон для получения бесплатного вопроса
         phone_used_for_trial = False
-        if free_trial and phone_norm:
+        if free_trial and phone_norm and len(phone_norm) >= 7:
             cur.execute(
                 f"SELECT id FROM {SCHEMA}.users WHERE phone_norm = %s AND paid_questions > 0",
                 (phone_norm,)

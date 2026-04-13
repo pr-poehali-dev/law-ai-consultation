@@ -6,12 +6,13 @@ interface LoginModalProps {
   onClose: () => void;
   onSuccess: () => void;
   freeTrial?: boolean;
+  showRegisterAfterPay?: boolean;
 }
 
 type Mode = "login" | "register";
 
-export default function LoginModal({ onClose, onSuccess, freeTrial = false }: LoginModalProps) {
-  const [mode, setMode] = useState<Mode>(freeTrial ? "register" : "login");
+export default function LoginModal({ onClose, onSuccess, freeTrial = false, showRegisterAfterPay = false }: LoginModalProps) {
+  const [mode, setMode] = useState<Mode>((freeTrial || showRegisterAfterPay) ? "register" : "login");
 
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -110,7 +111,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false }: Lo
                   {mode === "login" ? "Вход в кабинет" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — это бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — это бесплатно"}
                 </p>
               </div>
 
