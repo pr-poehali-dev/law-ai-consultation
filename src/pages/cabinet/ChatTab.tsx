@@ -23,6 +23,8 @@ interface ChatTabProps {
   onClearFile: () => void;
   onPayClick: () => void;
   onGoToDocs: () => void;
+  onCreateDocFromMsg?: (aiText: string, userText: string) => void;
+  creatingDocFromChat?: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -121,7 +123,7 @@ export default function ChatTab({
   attachedFile, fileUploading, totalLeft,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onAttachClick, onClearFile,
-  onPayClick, onGoToDocs, chatEndRef, fileInputRef,
+  onPayClick, onGoToDocs, onCreateDocFromMsg, creatingDocFromChat, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const animatedRef = useRef<number>(-1);
@@ -267,6 +269,9 @@ export default function ChatTab({
                 </div>
               );
 
+              // Находим предшествующее сообщение пользователя
+              const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");
+
               return (
                 <div key={i} className="flex gap-2 items-start">
                   <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -283,6 +288,19 @@ export default function ChatTab({
                       {msg.truncated && i === lastAiIdx && !typing && (
                         <button onClick={() => onContinueChat(msg.text)} className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl w-full justify-center">
                           <Icon name="ChevronDown" size={12} />Читать дальше
+                        </button>
+                      )}
+                      {/* Кнопка создания документа из ответа AI */}
+                      {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && (
+                        <button
+                          onClick={() => !creatingDocFromChat && onCreateDocFromMsg(msg.text, prevUserMsg?.text || "")}
+                          disabled={creatingDocFromChat}
+                          className="mt-2 flex items-center gap-2 px-3 py-2 bg-gold-400/15 hover:bg-gold-400/25 border border-gold-400/30 text-navy-700 text-xs font-semibold rounded-xl w-full justify-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {creatingDocFromChat
+                            ? <><span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
+                            : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
+                          }
                         </button>
                       )}
                     </div>

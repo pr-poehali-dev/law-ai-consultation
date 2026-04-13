@@ -18,7 +18,7 @@ interface BusinessTabProps {
   onRefreshUser: () => Promise<void>;
 }
 
-type BizTool = "chat" | "counterparty" | "contract" | "doc_analyze" | "doc_compare" | "orders" | "tax";
+type BizTool = "chat" | "counterparty" | "contract" | "doc_analyze" | "doc_compare" | "orders";
 
 interface BizMsg {
   id?: number;
@@ -55,8 +55,7 @@ const TOOLS: { id: BizTool; icon: string; label: string; desc: string; color: st
   { id: "contract", icon: "FileSignature", label: "Сложный договор", desc: "Лицензионный, опционный и др.", color: "emerald" },
   { id: "doc_analyze", icon: "FileSearch", label: "Анализ договора", desc: "PDF/DOC до 20 страниц", color: "orange" },
   { id: "doc_compare", icon: "GitCompare", label: "Сравнение договоров", desc: "Две версии PDF/DOC", color: "pink" },
-  { id: "orders", icon: "Stamp", label: "Приказы и документы", desc: "Кадровые и корпоративные", color: "teal" },
-  { id: "tax", icon: "Calculator", label: "Налоговый анализ", desc: "Калькулятор · ввод вручную", color: "amber" },
+  { id: "orders", icon: "Stamp", label: "Приказы и документы", desc: "Скачивание в .doc · кадровые", color: "teal" },
 ];
 
 const TOOL_COLORS: Record<string, string> = {
@@ -66,7 +65,6 @@ const TOOL_COLORS: Record<string, string> = {
   orange: "bg-orange-50 text-orange-700 border-orange-100",
   pink: "bg-pink-50 text-pink-700 border-pink-100",
   teal: "bg-teal-50 text-teal-700 border-teal-100",
-  amber: "bg-amber-50 text-amber-700 border-amber-100",
 };
 
 function fmtDt(iso?: string) {
@@ -210,7 +208,6 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       case "doc_analyze": return "doc_analyze";
       case "doc_compare": return "doc_analyze";
       case "orders": return "orders";
-      case "tax": return "tax";
       default: return "chat";
     }
   };
@@ -222,8 +219,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       case "contract": return `Составь сложный договор: ${text}`;
       case "doc_analyze": return `Проанализируй договор контрагента. ${text}`;
       case "doc_compare": return `Сравни две версии договора. ${text}`;
-      case "orders": return `Составь документ/приказ: ${text}`;
-      case "tax": return text;
+      case "orders": return `Составь приказ/документ: ${text}`;
       default: return text;
     }
   };
@@ -354,7 +350,10 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const needsFile1 = activeTool === "doc_analyze" || activeTool === "doc_compare" || activeTool === "chat";
   const needsFile2 = activeTool === "doc_compare";
   const isDocOnly = activeTool === "doc_analyze" || activeTool === "doc_compare";
-  const isTax = activeTool === "tax";
+  // Последнее AI-сообщение для скачивания (contract или orders)
+  const lastDownloadableAI = (activeTool === "contract" || activeTool === "orders")
+    ? [...messages].reverse().find(m => m.role === "ai")
+    : null;
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-3" style={{ height: "clamp(520px, calc(100svh - 170px), 820px)" }}>
@@ -464,10 +463,10 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
               {messages.length>0&&<span className="text-[10px] opacity-60">· {messages.filter(m=>m.role==="user").length} запр.</span>}
             </div>
             <div className="flex items-center gap-2">
-              {activeTool==="contract"&&lastContractAI&&(
-                <button onClick={()=>downloadAsDoc(lastContractAI.body,"Договор")}
+              {lastDownloadableAI&&(
+                <button onClick={()=>downloadAsDoc(lastDownloadableAI.body, activeTool==="orders"?"Приказ":"Договор")}
                   className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-white/60 hover:bg-white transition-colors">
-                  <Icon name="Download" size={12} />DOC
+                  <Icon name="Download" size={12} />Скачать .doc
                 </button>
               )}
               {messages.length>0&&(
@@ -487,19 +486,12 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-navy-700 mb-1">{currentTool.label}</p>
-                  {isTax?(
-                    <div className="text-left max-w-xs text-xs text-navy-600 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
-                      <p className="font-semibold">Введите вручную:</p>
-                      <p>• Систему налогообложения (ОСН / УСН 6% / УСН 15% / НПД)</p>
-                      <p>• Доходы (₽)</p>
-                      <p>• Расходы (₽, если нужны)</p>
-                      <p>• ФОТ и количество сотрудников (если есть)</p>
-                    </div>
-                  ):(
-                    <p className="text-xs text-muted-foreground max-w-xs">{currentTool.desc}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground max-w-xs">{currentTool.desc}</p>
                   {(activeTool==="doc_analyze"||activeTool==="doc_compare")&&(
                     <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-2">Допустимые форматы: PDF, DOC, DOCX</p>
+                  )}
+                  {activeTool==="orders"&&(
+                    <p className="text-xs text-teal-600 bg-teal-50 rounded-xl px-3 py-2 mt-2">Готовый приказ можно скачать в формате .doc</p>
                   )}
                 </div>
               </div>
@@ -541,7 +533,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
           {err&&<div className="px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2 shrink-0"><Icon name="AlertCircle" size={12} className="shrink-0"/>{err}</div>}
 
           {/* Файловые кнопки */}
-          {needsFile1&&!isTax&&(
+          {needsFile1&&(
             <div className="flex gap-2 flex-wrap shrink-0">
               <input ref={fileRef} type="file"
                 accept={isDocOnly?".pdf,.doc,.docx":".pdf,.doc,.docx,.jpg,.jpeg,.png"}
@@ -588,12 +580,11 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                 onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}}
                 disabled={sending}
                 placeholder={
-                  isTax?"Введите: систему налогообложения, доходы, расходы, ФОТ, кол-во сотрудников..."
-                  :activeTool==="counterparty"?"Введите ИНН или название компании для проверки..."
+                  activeTool==="counterparty"?"Введите ИНН или название компании для проверки..."
                   :activeTool==="contract"?"Опишите стороны и условия договора..."
                   :activeTool==="doc_analyze"?"Что именно проверить? (необязательно)"
                   :activeTool==="doc_compare"?"На что обратить особое внимание при сравнении?"
-                  :activeTool==="orders"?"Вид документа и ключевые параметры..."
+                  :activeTool==="orders"?"Вид приказа/документа и ключевые параметры..."
                   :"Задайте юридический вопрос для вашего бизнеса..."
                 }
                 className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 text-sm outline-none resize-none leading-relaxed py-1"

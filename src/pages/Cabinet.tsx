@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, logout, addPaidService, type User } from "@/lib/auth";
+import { getUser, logout, addPaidService, type User, getToken } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
+import func2url from "../../backend/func2url.json";
+const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 import ChatTab from "@/pages/cabinet/ChatTab";
 import DocsTab from "@/pages/cabinet/DocsTab";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
@@ -68,6 +70,10 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pending doc-from-chat: хранит промт и тип документа до перехода во вкладку
+  const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
+  const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
+
   const chat = useChatLogic({
     refreshUser,
     onPaymentRequired: (type, name) => setPayment({ type, name }),
@@ -94,6 +100,74 @@ export default function Cabinet() {
       setTimeout(() => docs.generateDoc(), 300);
     } else {
       setPendingDocType(null);
+    }
+  };
+
+  // Применяем pendingDocFromChat когда переключились на вкладку docs
+  useEffect(() => {
+    if (!pendingDocFromChat || tab !== "docs") return;
+    const dt = DOC_TYPES.find(d => d.id === pendingDocFromChat.docTypeId) || DOC_TYPES[0];
+    docs.setDocType(dt);
+    docs.setDocDetails(pendingDocFromChat.details);
+    docs.setDocPhase("form");
+    setPendingDocFromChat(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDocFromChat, tab]);
+
+  // Функция: создать документ из ответа AI
+  const createDocFromChat = async (aiText: string, userText: string) => {
+    if (creatingDocFromChat) return;
+    setCreatingDocFromChat(true);
+    try {
+      const docTypesList = DOC_TYPES.map(d => `"${d.id}" — ${d.label}`).join(", ");
+      const systemPrompt = `Ты — помощник юриста. На основе ответа AI-юриста и вопроса пользователя определи:
+1. Наиболее подходящий тип документа из списка: ${docTypesList}
+2. Сформулируй детальное описание ситуации для генерации документа (на основе вопроса пользователя и ответа AI).
+
+Ответь строго в формате JSON без пояснений:
+{"doc_type": "id_типа", "details": "подробное описание ситуации для генерации документа"}`;
+
+      const userPrompt = `Вопрос пользователя: ${userText}\n\nОтвет AI-юриста: ${aiText.slice(0, 1500)}`;
+      const token = getToken();
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
+        body: JSON.stringify({
+          mode: "chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const answer: string = data.answer || "";
+      // Парсим JSON из ответа
+      const match = answer.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          const parsed: { doc_type: string; details: string } = JSON.parse(match[0]);
+          const docTypeId = parsed.doc_type || "claim";
+          const details = parsed.details || userText;
+          setPendingDocFromChat({ details, docTypeId });
+          setTab("docs");
+        } catch {
+          // Fallback: используем userText как details
+          setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
+          setTab("docs");
+        }
+      } else {
+        setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
+        setTab("docs");
+      }
+    } catch {
+      setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
+      setTab("docs");
+    } finally {
+      setCreatingDocFromChat(false);
     }
   };
 
@@ -132,6 +206,8 @@ export default function Cabinet() {
             onClearFile={() => chat.setAttachedFile(null)}
             onPayClick={() => setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" })}
             onGoToDocs={() => setTab("docs")}
+            onCreateDocFromMsg={createDocFromChat}
+            creatingDocFromChat={creatingDocFromChat}
             chatEndRef={chat.chatEndRef}
             fileInputRef={chat.fileInputRef}
           />
@@ -148,7 +224,6 @@ export default function Cabinet() {
             currentDoc={docs.currentDoc}
             fillValues={docs.fillValues}
             genDocs={docs.genDocs}
-            docAttachedFile={docs.docAttachedFile}
             onDocTypeChange={(dt) => { docs.setDocType(dt); docs.setDocErr(""); }}
             onDocDetailsChange={docs.setDocDetails}
             onGenerate={docs.generateDoc}
@@ -158,12 +233,11 @@ export default function Cabinet() {
             onSetPhase={docs.setDocPhase}
             onSetCurrentDoc={docs.setCurrentDoc}
             onSetFillValues={docs.setFillValues}
-            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); docs.setDocAttachedFile(null); }}
+            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); }}
             onGoToChat={() => setTab("chat")}
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
-            onFileAttach={docs.setDocAttachedFile}
             onAnalyzeDoc={(doc) => {
               const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
                 (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);
