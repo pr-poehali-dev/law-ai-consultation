@@ -10,9 +10,10 @@ const WELCOME = "Добрый день! Я AI-юрист, обученный н�
 interface UseChatLogicProps {
   refreshUser: () => Promise<void>;
   onPaymentRequired: (type: ServiceType, name: string) => void;
+  onDocClarifyReply?: (text: string) => void;
 }
 
-export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicProps) {
+export function useChatLogic({ refreshUser, onPaymentRequired, onDocClarifyReply }: UseChatLogicProps) {
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_messages");
@@ -70,6 +71,14 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const sendMessage = async (overrideText?: string) => {
     const userMsg = (overrideText || input).trim();
     if (!userMsg || typing) return;
+
+    // Если ждём ответа на уточнение документа — перехватываем и передаём туда
+    if (onDocClarifyReply) {
+      setInput("");
+      setMessages((p) => [...p, { role: "user", text: userMsg }]);
+      onDocClarifyReply(userMsg);
+      return;
+    }
 
     const canAsk = await canAskQuestion();
     if (!canAsk) {
@@ -311,6 +320,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
+  // Вставить сообщение AI без запроса к серверу (для диалога уточнения документа)
+  const injectAiMessage = (text: string) => {
+    setMessages((p) => [...p, { role: "ai", text }]);
+  };
+
   return {
     messages,
     input, setInput,
@@ -325,5 +339,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     continueChat,
     handleFileSelect,
     sendFileAnalysis,
+    injectAiMessage,
   };
 }

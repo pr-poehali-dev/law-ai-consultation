@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import { getUser, logout, addPaidService, type User, getToken } from "@/lib/auth";
@@ -78,10 +78,15 @@ export default function Cabinet() {
   // Pending doc-from-chat: хранит промт и тип документа до перехода во вкладку
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
+  // Ожидаем ответа пользователя на уточняющий вопрос о документе
+  const [docClarifyContext, setDocClarifyContext] = useState<{ aiText: string; userText: string } | null>(null);
+
+  const docClarifyReplyRef = useRef<((text: string) => void) | undefined>(undefined);
 
   const chat = useChatLogic({
     refreshUser,
     onPaymentRequired: (type, name) => setPayment({ type, name }),
+    onDocClarifyReply: docClarifyContext ? (text) => docClarifyReplyRef.current?.(text) : undefined,
   });
 
   const docs = useDocsLogic({
@@ -130,65 +135,70 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 
-  // Функция: создать документ из ответа AI
-  const createDocFromChat = async (aiText: string, userText: string) => {
+  // Шаг 1: пользователь нажал «Создать документ» — добавляем в чат уточняющий вопрос AI
+  const createDocFromChat = (aiText: string, userText: string) => {
     if (creatingDocFromChat) return;
+    // Сохраняем контекст и вставляем уточняющий вопрос в чат
+    setDocClarifyContext({ aiText, userText });
+    const docList = DOC_TYPES.map(d => d.label).join(", ");
+    const clarifyMsg = `Хорошо, подготовлю документ на основе нашего разговора.\n\nКакой именно документ вам нужен? (${docList})\n\nТакже укажите:\n— Стороны (кто истец/ответчик или отправитель/получатель)\n— Ключевые суммы, даты, адреса (если известны)`;
+    chat.injectAiMessage(clarifyMsg);
+  };
 
-    // Проверяем оплату документов ДО запроса к AI
-    const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
-      (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
+  // Шаг 2: пользователь ответил — запускаем генерацию
+  const handleDocClarifyReply = async (userReply: string) => {
+    docClarifyReplyRef.current = undefined; // сбрасываем перехватчик
+    if (!docClarifyContext) return;
+    const { aiText, userText } = docClarifyContext;
+    setDocClarifyContext(null);
+
+    // Проверяем оплату
+    const canDoc = user!.isAdmin || (user!.paidDocs ?? 0) > 0 ||
+      (user!.subscriptionDocsUntil ? new Date(user!.subscriptionDocsUntil) > new Date() : false);
     if (!canDoc) {
       setPayment({ type: "document", name: "Генерация документа" });
       return;
     }
 
     setCreatingDocFromChat(true);
+    // Добавляем сообщение-статус в чат
+    chat.injectAiMessage("Отлично! Генерирую документ, сейчас переведу вас в раздел «Документы»...");
+
     try {
       const docTypesList = DOC_TYPES.map(d => `"${d.id}" — ${d.label}`).join(", ");
-      const systemPrompt = `Ты — помощник юриста. На основе ответа AI-юриста и вопроса пользователя определи:
-1. Наиболее подходящий тип документа из списка: ${docTypesList}
-2. Сформулируй детальное описание ситуации для генерации документа (на основе вопроса пользователя и ответа AI).
-
-Ответь строго в формате JSON без пояснений:
-{"doc_type": "id_типа", "details": "подробное описание ситуации для генерации документа"}`;
-
-      const userPrompt = `Вопрос пользователя: ${userText}\n\nОтвет AI-юриста: ${aiText.slice(0, 1500)}`;
+      const systemPrompt = `Ты — помощник юриста. На основе переписки определи тип документа и сформулируй детальное описание для его генерации.
+Список типов: ${docTypesList}
+Ответь строго в JSON: {"doc_type": "id_типа", "details": "подробное описание"}`;
+      const userPrompt = `Исходный вопрос: ${userText}\nОтвет AI: ${aiText.slice(0, 800)}\nУточнение пользователя: ${userReply}`;
       const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
-        body: JSON.stringify({
-          mode: "chat",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({ mode: "chat", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
       });
       const data = await res.json();
-      const answer: string = data.answer || "";
-      const match = answer.match(/\{[\s\S]*\}/);
+      const match = (data.answer || "").match(/\{[\s\S]*\}/);
       let docTypeId = "claim";
-      let details = userText || aiText.slice(0, 500);
+      let details = `${userText} ${userReply}`.trim();
       if (match) {
         try {
-          const parsed: { doc_type: string; details: string } = JSON.parse(match[0]);
-          docTypeId = parsed.doc_type || "claim";
-          details = parsed.details || details;
-        } catch { /* используем дефолты */ }
+          const p = JSON.parse(match[0]);
+          docTypeId = p.doc_type || docTypeId;
+          details = p.details || details;
+        } catch { /* дефолты */ }
       }
       setPendingDocFromChat({ details, docTypeId });
       setTab("docs");
     } catch {
-      setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
+      setPendingDocFromChat({ details: `${userText} ${userReply}`.trim(), docTypeId: "claim" });
       setTab("docs");
     } finally {
       setCreatingDocFromChat(false);
     }
   };
+
+  // Привязываем handleDocClarifyReply к ref чтобы useChatLogic мог его вызвать
+  docClarifyReplyRef.current = docClarifyContext ? handleDocClarifyReply : undefined;
 
   if (!user) return null;
 
