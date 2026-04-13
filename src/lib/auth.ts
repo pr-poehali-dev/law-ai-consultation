@@ -16,6 +16,9 @@ export interface User {
   isAdmin: boolean;
   subscriptionConsultUntil: string | null;
   subscriptionDocsUntil: string | null;
+  businessSubscriptionUntil: string | null;
+  businessActionsLeft: number;
+  businessOrgName: string;
 }
 
 export function getToken(): string {
@@ -236,4 +239,35 @@ export function hasActiveSubscription(user: User, kind: "consult" | "docs"): boo
   const until = kind === "consult" ? user.subscriptionConsultUntil : user.subscriptionDocsUntil;
   if (!until) return false;
   return new Date(until) > new Date();
+}
+
+/** Проверяет активную бизнес-подписку */
+export function hasBusinessSubscription(user: User): boolean {
+  if (user.isAdmin) return true;
+  if (!user.businessSubscriptionUntil) return false;
+  return new Date(user.businessSubscriptionUntil) > new Date();
+}
+
+export async function businessUpdateOrg(orgName: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "business-update-org", org_name: orgName });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка" };
+  return { ok: true };
+}
+
+export async function businessConsumeAction(): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "business-consume-action" });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Нет действий в пакете" };
+  return { ok: true };
+}
+
+export async function businessMessagesGet(): Promise<{ id: number; role: string; body: string; created_at: string }[]> {
+  const res = await apiCall({ action: "business-messages-get" });
+  const data = await res.json();
+  return data.messages || [];
+}
+
+export async function businessMessageSave(role: "user" | "ai", body: string): Promise<void> {
+  await apiCall({ action: "business-messages-save", role, body });
 }

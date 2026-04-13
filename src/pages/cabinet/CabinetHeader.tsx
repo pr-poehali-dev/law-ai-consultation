@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import { logout, type User } from "@/lib/auth";
 
-type Tab = "chat" | "docs" | "expert" | "history" | "profile";
+type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile";
 
 interface CabinetHeaderProps {
   user: User;
@@ -15,15 +15,16 @@ const TABS_DESKTOP = [
   { id: "chat", label: "Чат с AI", icon: "Bot" },
   { id: "docs", label: "Документы", icon: "FileText" },
   { id: "expert", label: "Юрист", icon: "UserCheck" },
+  { id: "business", label: "Бизнес", icon: "Briefcase" },
   { id: "history", label: "История", icon: "Clock" },
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
 const TABS_MOBILE = [
   { id: "chat", label: "Чат", icon: "Bot" },
-  { id: "docs", label: "Docs", icon: "FileText" },
+  { id: "docs", label: "Доки", icon: "FileText" },
   { id: "expert", label: "Юрист", icon: "UserCheck" },
-  { id: "history", label: "История", icon: "Clock" },
+  { id: "business", label: "Бизнес", icon: "Briefcase" },
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 

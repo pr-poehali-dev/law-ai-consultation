@@ -10,7 +10,7 @@
       "name": "register — missing email",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "email": "notanemail", "password": "secret123", "agreed_to_terms": true},
+      "body": {"action": "register", "name": "Тест", "email": "notanemail", "password": "secret123", "agreed_to_terms": true},
       "expectedStatus": 400,
       "expectedBody": {"error": "Некорректный email"},
       "bodyMatcher": "partial"

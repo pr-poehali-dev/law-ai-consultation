@@ -16,7 +16,8 @@ REPORT_EMAIL = "povpartner@mail.ru"
 _SELECT_COLS = (
     "id, email, name, phone, free_questions_used, paid_questions, "
     "paid_docs, paid_expert, paid_business, is_admin, "
-    "subscription_consult_until, subscription_docs_until"
+    "subscription_consult_until, subscription_docs_until, "
+    "business_subscription_until, business_actions_left, business_org_name"
 )
 
 MAX_LOGIN_ATTEMPTS = 10
@@ -337,6 +338,21 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             )
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
+        elif service_type == "business_subscription":
+            # Основной тариф: подписка 31 день + 80 действий
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET business_subscription_until = GREATEST(NOW(), COALESCE(business_subscription_until, NOW())) + INTERVAL '31 days',
+                        business_actions_left = business_actions_left + 80
+                    WHERE id = %s""",
+                (user["id"],)
+            )
+        elif service_type == "business_actions_10":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 10 WHERE id = %s", (user["id"],))
+        elif service_type == "business_actions_30":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 30 WHERE id = %s", (user["id"],))
+        elif service_type == "business_actions_60":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 60 WHERE id = %s", (user["id"],))
         elif service_type == "subscription_consult":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
@@ -462,60 +478,7 @@ def handle_verify_otp(body: dict) -> dict:
         conn.close()
 
 
-def handle_register(body: dict) -> dict:
-    """Регистрация: обязательны только email и пароль. ФИО и телефон — опционально."""
-    name = sanitize_str(body.get("name") or "Пользователь")
-    email = sanitize_str(body.get("email") or "").lower()
-    phone = sanitize_str(body.get("phone") or "")
-    password = body.get("password") or ""
-    agreed = body.get("agreed_to_terms", False)
 
-    if not email or "@" not in email or len(email) > 254:
-        return _err(400, "Некорректный email")
-    if len(password) < 6:
-        return _err(400, "Пароль должен быть не менее 6 символов")
-    if len(password) > 128:
-        return _err(400, "Пароль слишком длинный")
-    if not agreed:
-        return _err(400, "Необходимо согласие на обработку персональных данных")
-
-    conn = get_conn()
-    cur = conn.cursor()
-    try:
-        run_cleanup(conn)
-        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
-        if cur.fetchone():
-            return _err(409, "Пользователь с таким email уже зарегистрирован")
-
-        pw_hash = hash_password(password)
-        is_admin = email == ADMIN_EMAIL
-
-        cur.execute(
-            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms, is_admin, last_login_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id""",
-            (email, name, phone, pw_hash, agreed, is_admin)
-        )
-        user_id = cur.fetchone()[0]
-
-        token = generate_token()
-        cur.execute(
-            f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
-            (user_id, token)
-        )
-        conn.commit()
-
-        cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
-        u = cur.fetchone()
-        return _ok({"token": token, "user": _format_user(u)})
-    except Exception as e:
-        conn.rollback()
-        return _err(500, str(e))
-    finally:
-        cur.close()
-        conn.close()
-
-
-# Старый handle_register сохраняется с другим именем — не нужен, убираем дублирование
 
 
 def handle_report(token: str, body: dict) -> dict:
@@ -706,6 +669,9 @@ def _format_user(row) -> dict:
         "isAdmin": bool(row[9]),
         "subscriptionConsultUntil": _fmt_dt(row[10]),
         "subscriptionDocsUntil": _fmt_dt(row[11]),
+        "businessSubscriptionUntil": _fmt_dt(row[12]) if len(row) > 12 else None,
+        "businessActionsLeft": row[13] if len(row) > 13 else 0,
+        "businessOrgName": row[14] if len(row) > 14 else "",
     }
 
 
@@ -824,3 +790,100 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
         }
         for r in rows
     ]})
+
+
+# ─────────────────────────────────────────────
+# Бизнес-раздел
+# ─────────────────────────────────────────────
+
+def handle_business_update_org(token: str, body: dict) -> dict:
+    """Сохраняет название организации для бизнес-тарифа."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    org_name = sanitize_str(body.get("org_name") or "", max_len=200)
+    if not org_name:
+        return _err(400, "Укажите название организации")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"UPDATE {SCHEMA}.users SET business_org_name = %s WHERE id = %s",
+            (org_name, user["id"])
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_business_consume_action(token: str) -> dict:
+    """Списывает 1 бизнес-действие."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    if user.get("isAdmin"):
+        return _ok({"ok": True})
+    if (user.get("businessActionsLeft") or 0) <= 0:
+        return _err(403, "Нет доступных действий в пакете")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left - 1 WHERE id = %s AND business_actions_left > 0",
+            (user["id"],)
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_business_messages_get(token: str, body: dict) -> dict:
+    """Получить историю бизнес-чата."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    limit = min(int(body.get("limit", 50)), 100)
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT id, role, body, created_at FROM {SCHEMA}.business_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
+            (user["id"], limit)
+        )
+        rows = cur.fetchall()
+        return _ok({"messages": [
+            {"id": r[0], "role": r[1], "body": r[2], "created_at": r[3].isoformat()}
+            for r in rows
+        ]})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_business_messages_save(token: str, body: dict) -> dict:
+    """Сохранить сообщение бизнес-чата (user или ai)."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    role = body.get("role", "user")
+    if role not in ("user", "ai"):
+        return _err(400, "Неверная роль")
+    msg_body = sanitize_str(body.get("body") or "", max_len=10000)
+    if not msg_body:
+        return _err(400, "Пустое сообщение")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.business_messages (user_id, role, body) VALUES (%s, %s, %s) RETURNING id",
+            (user["id"], role, msg_body)
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()

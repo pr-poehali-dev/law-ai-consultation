@@ -9,6 +9,7 @@ import DocsTab from "@/pages/cabinet/DocsTab";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
 import ProfileTab from "@/pages/cabinet/ProfileTab";
 import ExpertTab from "@/pages/cabinet/ExpertTab";
+import BusinessTab from "@/pages/cabinet/BusinessTab";
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import ViewDocModal from "@/pages/cabinet/ViewDocModal";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
@@ -19,7 +20,7 @@ export default function Cabinet() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
-  const [tab, setTab] = useState<"chat" | "docs" | "expert" | "history" | "profile">("chat");
+  const [tab, setTab] = useState<"chat" | "docs" | "expert" | "business" | "history" | "profile">("chat");
 
   // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
@@ -181,6 +182,14 @@ export default function Cabinet() {
             messages={chat.messages}
             genDocs={docs.genDocs}
             onPayClick={() => setPayment({ type: "expert", name: "Проверка юристом" })}
+          />
+        )}
+
+        {tab === "business" && (
+          <BusinessTab
+            user={user}
+            onPayClick={(type, name) => setPayment({ type, name })}
+            onRefreshUser={refreshUser}
           />
         )}
 

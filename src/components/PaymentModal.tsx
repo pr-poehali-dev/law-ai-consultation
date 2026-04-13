@@ -12,7 +12,11 @@ export type ServiceType =
   | "expert"
   | "business"
   | "subscription_consult"
-  | "subscription_docs";
+  | "subscription_docs"
+  | "business_subscription"
+  | "business_actions_10"
+  | "business_actions_30"
+  | "business_actions_60";
 
 interface PaymentModalProps {
   serviceType: ServiceType;
@@ -30,6 +34,10 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   business: 1000,
   subscription_consult: 1990,
   subscription_docs: 4990,
+  business_subscription: 7000,
+  business_actions_10: 1000,
+  business_actions_30: 3000,
+  business_actions_60: 6000,
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
@@ -38,11 +46,17 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   expert: "Живой юрист проанализирует ответ AI и даст заключение. Включает 3 вопроса к AI",
   business: "Подготовка договора и юридических документов для бизнеса",
   subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
+  business_subscription: "80 юридических действий в месяц · Все инструменты для бизнеса · Неиспользованные действия сгорают",
+  business_actions_10: "Дополнительно 10 действий к текущему пакету",
+  business_actions_30: "Дополнительно 30 действий к текущему пакету",
+  business_actions_60: "Дополнительно 60 действий к текущему пакету",
   subscription_docs: "Безлимитная подготовка документов — 1 месяц",
 };
 
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   subscription_consult: "Выгодно",
+  business_subscription: "Бизнес",
+  business_actions_60: "Выгодно",
   subscription_docs: "Выгодно",
 };
 
@@ -188,8 +202,8 @@ export default function PaymentModal({
                 <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
               </div>
               <p className="text-xs text-muted-foreground">{SERVICE_DETAILS[serviceType]}</p>
-              {(serviceType === "subscription_consult" || serviceType === "subscription_docs") && (
-                <p className="text-xs text-navy-500 mt-1.5 font-medium">Списывается ежемесячно · Отмена в любой момент</p>
+              {(serviceType === "subscription_consult" || serviceType === "subscription_docs" || serviceType === "business_subscription") && (
+                <p className="text-xs text-navy-500 mt-1.5 font-medium">Списывается ежемесячно · Неиспользованные действия сгорают</p>
               )}
             </div>
 

@@ -21,10 +21,14 @@ from auth_handler import (
     handle_report, handle_send_otp, handle_verify_otp, sanitize_str,
     handle_lawyer_send, handle_lawyer_messages,
     handle_admin_reports, handle_my_reports,
+    handle_business_update_org, handle_business_consume_action,
+    handle_business_messages_get, handle_business_messages_save,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
     SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS,
+    SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
+    SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
 )
 
 warnings.filterwarnings("ignore")
@@ -273,6 +277,10 @@ def handler(event: dict, context) -> dict:
         "verify-otp": lambda: handle_verify_otp(body),
         "lawyer-send": _lawyer_send_action,
         "lawyer-messages": _lawyer_messages_action,
+        "business-update-org": lambda: handle_business_update_org(token, body),
+        "business-consume-action": lambda: handle_business_consume_action(token),
+        "business-messages-get": lambda: handle_business_messages_get(token, body),
+        "business-messages-save": lambda: handle_business_messages_save(token, body),
     }
     if action in auth_actions:
         result = auth_actions[action]()
@@ -426,6 +434,31 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "filename": filename,
                                         "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+
+        # ── Бизнес-чат ──
+        elif mode == "business_chat":
+            biz_messages = body.get("messages", [])
+            org_name = body.get("org_name", "").strip()
+            biz_mode = body.get("biz_mode", "chat")  # chat | contract | counterparty | tax | doc_analyze | doc_compare
+            if not biz_messages:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
+
+            if biz_mode == "contract":
+                sys_prompt = SYSTEM_BUSINESS_CONTRACT
+            elif biz_mode == "counterparty":
+                sys_prompt = SYSTEM_COUNTERPARTY_CHECK
+            elif biz_mode == "tax":
+                sys_prompt = SYSTEM_TAX_ANALYSIS
+            elif biz_mode in ("doc_analyze", "doc_compare"):
+                sys_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+            else:
+                sys_prompt = SYSTEM_BUSINESS_CHAT
+                if org_name:
+                    sys_prompt = sys_prompt + f"\n\nОрганизация клиента: {org_name}"
+
+            answer = call_yandex(sys_prompt, biz_messages, max_tokens=3500)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
         # ── Очистка временных файлов ──
         elif mode == "file_cleanup":

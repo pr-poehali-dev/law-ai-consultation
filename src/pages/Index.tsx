@@ -59,7 +59,11 @@ export default function Index() {
 
   const handleNavigate = (section: string) => {
     setActiveSection(section);
-    if (section === "cabinet") { navigate("/cabinet"); return; }
+    if (section === "cabinet") {
+      if (isLoggedIn) { navigate("/cabinet"); }
+      else { setShowLogin(true); }
+      return;
+    }
     const el = document.getElementById(section === "home" ? "hero" : section);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
