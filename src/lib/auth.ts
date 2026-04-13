@@ -49,12 +49,13 @@ export async function register(params: {
   password: string;
   agreed_to_terms: boolean;
   otp_code?: string;
-}): Promise<{ user?: User; error?: string }> {
+  free_trial?: boolean;
+}): Promise<{ user?: User; error?: string; free_trial_granted?: boolean }> {
   const res = await apiCall({ action: "register", ...params });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка регистрации" };
   setToken(data.token);
-  return { user: data.user };
+  return { user: data.user, free_trial_granted: data.free_trial_granted };
 }
 
 export async function login(

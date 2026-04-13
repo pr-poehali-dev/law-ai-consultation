@@ -29,7 +29,7 @@ export default function Terms() {
           <h1 className="font-cormorant font-bold text-3xl md:text-4xl text-navy-800 mb-2">
             Пользовательское соглашение
           </h1>
-          <p className="text-muted-foreground text-sm mb-8">Редакция от 11 апреля 2026 г.</p>
+          <p className="text-muted-foreground text-sm mb-8">Редакция от 13 апреля 2026 г.</p>
 
           <div className="prose prose-sm max-w-none space-y-6 text-navy-700 leading-relaxed">
 
@@ -37,7 +37,7 @@ export default function Terms() {
               <h2 className="font-semibold text-navy-800 text-lg mb-3">1. Термины и определения</h2>
               <ul className="list-disc pl-5 mt-2 space-y-1">
                 <li><strong>Сервис</strong> — информационная платформа «Юрист AI», доступная на данном сайте;</li>
-                <li><strong>Исполнитель / Администрация</strong> — самозанятый Кузина Полина Евгеньевна (ИНН 910231739939);</li>
+                <li><strong>Исполнитель / Администрация</strong> — ИП Поварчук Валентина Степановна (ИНН 910402855455);</li>
                 <li><strong>Пользователь</strong> — дееспособное физическое лицо старше 18 лет, прошедшее регистрацию на Сервисе;</li>
                 <li><strong>Услуги</strong> — информационные услуги, оказываемые Сервисом в соответствии с <a href="/offer" className="text-navy-600 underline hover:text-navy-800">Публичной офертой</a>;</li>
                 <li><strong>Контент</strong> — тексты, документы и ответы, формируемые AI-системой на основе запросов Пользователя;</li>

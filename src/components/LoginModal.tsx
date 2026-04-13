@@ -5,12 +5,13 @@ import { login, register } from "@/lib/auth";
 interface LoginModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  freeTrial?: boolean;
 }
 
 type Mode = "login" | "register";
 
-export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
-  const [mode, setMode] = useState<Mode>("login");
+export default function LoginModal({ onClose, onSuccess, freeTrial = false }: LoginModalProps) {
+  const [mode, setMode] = useState<Mode>(freeTrial ? "register" : "login");
 
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -29,6 +30,7 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [trialGranted, setTrialGranted] = useState(false);
 
   const switchMode = (m: Mode) => { setMode(m); setError(""); };
 
@@ -56,9 +58,11 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
       phone: regPhone || "",
       password: regPassword,
       agreed_to_terms: true,
+      free_trial: freeTrial,
     });
     setLoading(false);
     if (res.error) { setError(res.error); return; }
+    if (freeTrial && (res as { free_trial_granted?: boolean }).free_trial_granted) setTrialGranted(true);
     setSuccess(true);
   };
 
@@ -82,9 +86,15 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
               </div>
               <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Добро пожаловать!</h3>
               <p className="text-sm text-muted-foreground mb-1">Аккаунт успешно создан</p>
-              {regName && <p className="font-semibold text-navy-800 mb-5">{regName}</p>}
+              {regName && <p className="font-semibold text-navy-800 mb-3">{regName}</p>}
+              {trialGranted && (
+                <div className="mb-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+                  <Icon name="Gift" size={20} className="text-emerald-500 shrink-0" />
+                  <p className="text-sm text-emerald-800 text-left"><strong>1 бесплатный вопрос</strong> уже добавлен на ваш счёт — задайте его прямо сейчас!</p>
+                </div>
+              )}
               <button onClick={onSuccess} className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm">
-                Войти в кабинет
+                {trialGranted ? "Задать вопрос AI-юристу" : "Войти в кабинет"}
               </button>
             </div>
           )}
@@ -100,7 +110,7 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
                   {mode === "login" ? "Вход в кабинет" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : "Создайте аккаунт — это бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — это бесплатно"}
                 </p>
               </div>
 

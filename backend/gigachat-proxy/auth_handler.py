@@ -90,12 +90,23 @@ def get_user_by_token(token: str) -> dict | None:
         conn.close()
 
 
+def _normalize_phone(phone: str) -> str:
+    """Нормализует телефон: оставляет только цифры, приводит к формату 7XXXXXXXXXX."""
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) == 11 and digits[0] in ('7', '8'):
+        return '7' + digits[1:]
+    if len(digits) == 10:
+        return '7' + digits
+    return digits
+
+
 def handle_register(body: dict) -> dict:
     name = sanitize_str(body.get("name") or "")
     email = sanitize_str(body.get("email") or "").lower()
     phone = sanitize_str(body.get("phone") or "")
     password = body.get("password") or ""
     agreed = body.get("agreed_to_terms", False)
+    free_trial = bool(body.get("free_trial", False))
 
     if not name:
         return _err(400, "Введите имя")
@@ -112,6 +123,7 @@ def handle_register(body: dict) -> dict:
 
     pw_hash = hash_password(password)
     is_admin = email == ADMIN_EMAIL
+    phone_norm = _normalize_phone(phone)
 
     conn = get_conn()
     cur = conn.cursor()
@@ -121,10 +133,23 @@ def handle_register(body: dict) -> dict:
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
+        # Проверяем, использовался ли этот телефон для получения бесплатного вопроса
+        phone_used_for_trial = False
+        if free_trial and phone_norm:
+            cur.execute(
+                f"SELECT id FROM {SCHEMA}.users WHERE phone_norm = %s AND paid_questions > 0",
+                (phone_norm,)
+            )
+            if cur.fetchone():
+                phone_used_for_trial = True
+
+        # Начисляем 1 бесплатный вопрос если: free_trial=True, телефон ещё не использовался
+        trial_questions = 1 if (free_trial and not phone_used_for_trial and not is_admin) else 0
+
         cur.execute(
-            f"""INSERT INTO {SCHEMA}.users (email, name, phone, password_hash, agreed_to_terms, is_admin, last_login_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id""",
-            (email, name, phone, pw_hash, agreed, is_admin)
+            f"""INSERT INTO {SCHEMA}.users (email, name, phone, phone_norm, password_hash, agreed_to_terms, is_admin, paid_questions, last_login_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id""",
+            (email, name, phone, phone_norm, pw_hash, agreed, is_admin, trial_questions)
         )
         user_id = cur.fetchone()[0]
 
@@ -137,7 +162,11 @@ def handle_register(body: dict) -> dict:
 
         cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
-        return _ok({"token": token, "user": _format_user(u)})
+        result = _ok({"token": token, "user": _format_user(u)})
+        # Сообщаем фронту: был ли начислен бесплатный вопрос
+        if free_trial:
+            result["data"]["free_trial_granted"] = trial_questions > 0
+        return result
     except Exception as e:
         conn.rollback()
         return _err(500, str(e))

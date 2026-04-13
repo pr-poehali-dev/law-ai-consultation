@@ -453,7 +453,7 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=1800)
+            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=900)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}

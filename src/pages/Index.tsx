@@ -59,15 +59,17 @@ export default function Index() {
     setShowPayment(true);
   };
 
-  // Кнопка «Попробовать сейчас» — trial 1 вопрос за 50 ₽
+  // Кнопка «Попробовать бесплатно» — регистрация с 1 бесплатным вопросом
   const handleTryClick = () => {
     if (isLoggedIn) {
       navigate("/cabinet");
       return;
     }
-    setSelectedService({ type: "trial", name: "1 вопрос AI-юристу — вводный тариф" });
-    setShowPayment(true);
+    setShowLogin(true);
+    setFreeTrial(true);
   };
+
+  const [freeTrial, setFreeTrial] = useState(false);
 
   const handlePaymentSuccess = async (svcType: ServiceType) => {
     await addPaidService(svcType);
@@ -126,11 +128,13 @@ export default function Index() {
 
       {showLogin && (
         <LoginModal
-          onClose={() => setShowLogin(false)}
+          onClose={() => { setShowLogin(false); setFreeTrial(false); }}
           onSuccess={() => {
             setShowLogin(false);
+            setFreeTrial(false);
             navigate("/cabinet");
           }}
+          freeTrial={freeTrial}
         />
       )}
 

@@ -90,7 +90,7 @@ export default function Header({ activeSection, onNavigate, onLoginClick, onTryC
             className="btn-gold px-5 py-2 rounded-xl text-sm flex items-center gap-1.5"
           >
             <Icon name="Zap" size={14} />
-            Попробовать сейчас
+            Попробовать бесплатно
           </button>
         </div>
 
@@ -132,7 +132,7 @@ export default function Header({ activeSection, onNavigate, onLoginClick, onTryC
                 className="btn-gold px-5 py-3 rounded-xl text-sm text-center flex items-center justify-center gap-1.5"
               >
                 <Icon name="Zap" size={14} />
-                Попробовать сейчас
+                Попробовать бесплатно
               </button>
             </div>
           </div>

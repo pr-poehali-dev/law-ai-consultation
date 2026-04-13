@@ -29,14 +29,14 @@ export default function Privacy() {
           <h1 className="font-cormorant font-bold text-3xl md:text-4xl text-navy-800 mb-2">
             Политика конфиденциальности и обработки персональных данных
           </h1>
-          <p className="text-muted-foreground text-sm mb-8">Редакция от 11 апреля 2026 г.</p>
+          <p className="text-muted-foreground text-sm mb-8">Редакция от 13 апреля 2026 г.</p>
 
           <div className="prose prose-sm max-w-none space-y-6 text-navy-700 leading-relaxed">
 
             <section>
               <h2 className="font-semibold text-navy-800 text-lg mb-3">1. Общие положения</h2>
               <p>Настоящая Политика конфиденциальности (далее — Политика) определяет порядок сбора, хранения, использования и защиты персональных данных пользователей сервиса «Юрист AI» (далее — Сервис).</p>
-              <p className="mt-2">Оператором персональных данных является самозанятый <strong>Кузина Полина Евгеньевна</strong>, ИНН 910231739939 (далее — Оператор).</p>
+              <p className="mt-2">Оператором персональных данных является <strong>ИП Поварчук Валентина Степановна</strong>, ИНН 910402855455 (далее — Оператор).</p>
               <p className="mt-2">Политика разработана в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных».</p>
               <p className="mt-2">Используя Сервис, вы подтверждаете своё согласие с условиями настоящей Политики. Если вы не согласны — пожалуйста, прекратите использование Сервиса.</p>
             </section>
@@ -121,8 +121,8 @@ export default function Privacy() {
             <section>
               <h2 className="font-semibold text-navy-800 text-lg mb-3">10. Контакты оператора</h2>
               <div className="bg-slate-50 rounded-2xl p-5 mt-2 space-y-1.5">
-                <p><strong>Оператор:</strong> Кузина Полина Евгеньевна</p>
-                <p><strong>ИНН:</strong> 910231739939</p>
+                <p><strong>Оператор:</strong> ИП Поварчук Валентина Степановна</p>
+                <p><strong>ИНН:</strong> 910402855455</p>
                 <p><strong>Email:</strong> povpartner@mail.ru</p>
                 <p><strong>Телефон:</strong> +7 (978) 456-42-17</p>
               </div>
