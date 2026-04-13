@@ -367,30 +367,77 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
         </div>
       </div>
 
-      {/* Пополнить баланс */}
+      {/* Тарифы и пополнение */}
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
-        <h3 className="font-semibold text-navy-800 mb-4 text-sm">Пополнить баланс</h3>
-        <div className="space-y-2 sm:space-y-3">
+        <h3 className="font-semibold text-navy-800 mb-4 text-sm flex items-center gap-2">
+          <Icon name="CreditCard" size={15} className="text-navy-500" />
+          Тарифы и пополнение
+        </h3>
+
+        {/* Пользовательские пакеты */}
+        <div className="space-y-2 mb-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Пакеты вопросов и документов</p>
           {[
-            { label: "3 вопроса AI-юристу", price: "100 ₽", type: "consultation" as ServiceType, name: "AI-консультация (3 вопроса)", icon: "MessageCircle" },
-            { label: "Подготовка документа", price: "500 ₽", type: "document" as ServiceType, name: "Подготовка документа", icon: "FileText" },
-            { label: "Проверка экспертом-юристом", price: "1 500 ₽", type: "expert" as ServiceType, name: "Проверка юристом", icon: "UserCheck" },
-            { label: "Договор для бизнеса", price: "1 000 ₽", type: "business" as ServiceType, name: "Договор для бизнеса", icon: "Briefcase" },
+            { label: "Старт", sub: "30 вопросов + 5 документов", price: "1 490 ₽", type: "plan_starter" as ServiceType, name: "Тариф Старт", icon: "Zap", badge: "" },
+            { label: "Профи", sub: "100 вопросов + 20 документов", price: "3 990 ₽", type: "plan_pro" as ServiceType, name: "Тариф Профи", icon: "Star", badge: "Хит" },
+            { label: "Максимум", sub: "до 300 вопросов + 50 документов", price: "5 990 ₽", type: "plan_max" as ServiceType, name: "Тариф Максимум", icon: "Crown", badge: "" },
           ].map((item) => (
-            <button
-              key={item.type}
-              onClick={() => onPay(item.type, item.name)}
-              className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50 transition-all group"
-            >
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button key={item.type} onClick={() => onPay(item.type, item.name)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50 transition-all group">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 bg-navy-50 rounded-xl flex items-center justify-center group-hover:bg-navy-100 transition-colors shrink-0">
-                  <Icon name={item.icon} size={15} className="text-navy-600" />
+                  <Icon name={item.icon} size={14} className="text-navy-600" />
                 </div>
-                <span className="text-sm font-medium text-navy-800 truncate">{item.label}</span>
+                <div className="min-w-0 text-left">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-navy-800">{item.label}</span>
+                    {item.badge && <span className="text-[9px] font-bold bg-gold-400/20 text-gold-700 px-1.5 py-0.5 rounded-full">{item.badge}</span>}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{item.sub}</p>
+                </div>
               </div>
               <span className="font-semibold text-navy-700 text-sm shrink-0 ml-2">{item.price}</span>
             </button>
           ))}
+        </div>
+
+        {/* Разовые */}
+        <div className="space-y-2 mb-4 pt-3 border-t border-border">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Разовые услуги</p>
+          {[
+            { label: "3 вопроса AI-юристу", price: "100 ₽", type: "consultation" as ServiceType, name: "AI-консультация", icon: "MessageCircle" },
+            { label: "Подготовка документа", price: "500 ₽", type: "document" as ServiceType, name: "Подготовка документа", icon: "FileText" },
+            { label: "Проверка юристом", price: "1 500 ₽", type: "expert" as ServiceType, name: "Проверка юристом", icon: "UserCheck" },
+          ].map((item) => (
+            <button key={item.type} onClick={() => onPay(item.type, item.name)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl border border-border hover:border-navy-300 hover:bg-slate-50 transition-all group">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center group-hover:bg-slate-100 transition-colors shrink-0">
+                  <Icon name={item.icon} size={14} className="text-navy-500" />
+                </div>
+                <span className="text-sm font-medium text-navy-700">{item.label}</span>
+              </div>
+              <span className="font-semibold text-navy-600 text-sm shrink-0 ml-2">{item.price}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Бизнес */}
+        <div className="pt-3 border-t border-border">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Бизнес-тариф</p>
+          <button onClick={() => onPay("business_subscription", "Бизнес-тариф")}
+            className="w-full flex items-center justify-between px-3 py-3 rounded-2xl bg-navy-800 hover:bg-navy-700 text-white transition-all group">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+                <Icon name="Briefcase" size={14} className="text-gold-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold">Бизнес-тариф</p>
+                <p className="text-[11px] text-white/60">150 действий · PDF/DOC · 24 ч история</p>
+              </div>
+            </div>
+            <span className="font-semibold text-gold-400 text-sm shrink-0 ml-2">4 990 ₽/мес</span>
+          </button>
         </div>
       </div>
 

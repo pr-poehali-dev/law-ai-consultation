@@ -333,7 +333,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{n:"80",l:"действий/мес"},{n:"7",l:"инструментов"},{n:"20",l:"стр. анализа"},{n:"1 день",l:"хранение"}].map((s,i)=>(
+              {[{n:"150",l:"действий/мес"},{n:"6",l:"инструментов"},{n:"PDF/DOC",l:"анализ"},{n:"24ч",l:"хранение"}].map((s,i)=>(
                 <div key={i} className="bg-white/10 rounded-2xl p-3 text-center">
                   <p className="font-cormorant font-bold text-2xl text-gold-400">{s.n}</p>
                   <p className="text-xs text-white/60 mt-0.5">{s.l}</p>
@@ -341,9 +341,9 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
               ))}
             </div>
             <button onClick={() => onPayClick("business_subscription", "Бизнес-тариф")} className="btn-gold px-6 py-3.5 rounded-2xl font-semibold flex items-center gap-2 text-sm">
-              <Icon name="Zap" size={16} />Подключить за 3 990 ₽/мес
+              <Icon name="Zap" size={16} />Подключить за 4 990 ₽/мес
             </button>
-            <p className="text-white/40 text-xs mt-2">Оплата ежемесячно · Неиспользованные действия сгорают · История запросов — 24 часа</p>
+            <p className="text-white/40 text-xs mt-2">Оплата ежемесячно · 150 действий · PDF/DOC анализ · История 24 часа · Скачивание .doc</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -370,62 +370,59 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const needsFile1 = activeTool === "doc_analyze" || activeTool === "doc_compare" || activeTool === "chat";
   const needsFile2 = activeTool === "doc_compare";
   const isDocOnly = activeTool === "doc_analyze" || activeTool === "doc_compare";
-  // Последнее AI-сообщение для скачивания (contract или orders)
   const lastDownloadableAI = (activeTool === "contract" || activeTool === "orders")
     ? [...messages].reverse().find(m => m.role === "ai")
     : null;
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-3" style={{ height: "clamp(520px, calc(100svh - 170px), 820px)" }}>
+    <div className="max-w-6xl mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(540px, calc(100svh - 155px), 840px)" }}>
 
-      {/* Хедер */}
-      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-navy-800 to-navy-700 rounded-2xl px-4 py-3 text-white shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-            <Icon name="Briefcase" size={16} className="text-gold-400" />
-          </div>
-          <div className="min-w-0">
-            {orgEditing ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <input value={orgName} onChange={e=>setOrgName(e.target.value)}
-                  placeholder="Название организации"
-                  className="bg-white/10 text-white placeholder:text-white/40 text-sm rounded-xl px-3 py-1.5 outline-none border border-white/20 focus:border-gold-400 w-44 sm:w-60"
-                  onKeyDown={e=>e.key==="Enter"&&saveOrgName()} />
-                <button onClick={saveOrgName} disabled={orgSaving||!orgName.trim()}
-                  className="px-3 py-1.5 bg-gold-400 text-navy-900 rounded-xl text-xs font-semibold disabled:opacity-50">
-                  {orgSaving?"…":"Сохранить"}
-                </button>
-              </div>
-            ) : (
-              <button onClick={()=>setOrgEditing(true)} className="flex items-center gap-2 group text-left">
-                <p className="font-semibold text-white truncate max-w-40 sm:max-w-56">{orgName||"Укажите организацию"}</p>
-                <Icon name="Pencil" size={12} className="text-white/40 group-hover:text-gold-400 shrink-0 transition-colors" />
-              </button>
-            )}
-            <p className="text-[10px] text-white/40">История запросов: 1 день · данные на вашем устройстве</p>
-          </div>
+      {/* Хедер — компактный на мобиле */}
+      <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-navy-900 to-navy-700 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0">
+        <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+          <Icon name="Briefcase" size={14} className="text-gold-400" />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${actionsLeft>10?"bg-emerald-500/20 text-emerald-300":actionsLeft>0?"bg-yellow-500/20 text-yellow-300":"bg-red-500/20 text-red-300"}`}>
-            <Icon name="Zap" size={11} />
-            {user.isAdmin?"∞":actionsLeft} действий
-          </div>
-          {!user.isAdmin&&actionsLeft<=20&&(
-            <button onClick={()=>onPayClick("business_actions_10","10 доп. действий")}
-              className="px-2 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-gold-300 rounded-xl text-xs font-medium transition-colors">
-              +пополнить
+        <div className="flex-1 min-w-0">
+          {orgEditing ? (
+            <div className="flex items-center gap-1.5">
+              <input value={orgName} onChange={e=>setOrgName(e.target.value)}
+                placeholder="Название организации"
+                className="bg-white/10 text-white placeholder:text-white/30 text-xs sm:text-sm rounded-lg px-2 py-1 outline-none border border-white/20 focus:border-gold-400 flex-1 min-w-0"
+                onKeyDown={e=>e.key==="Enter"&&saveOrgName()} />
+              <button onClick={saveOrgName} disabled={orgSaving||!orgName.trim()}
+                className="px-2 py-1 bg-gold-400 text-navy-900 rounded-lg text-[11px] font-semibold disabled:opacity-50 shrink-0">
+                {orgSaving?"…":"OK"}
+              </button>
+            </div>
+          ) : (
+            <button onClick={()=>setOrgEditing(true)} className="flex items-center gap-1.5 group w-full text-left">
+              <p className="font-semibold text-white text-sm truncate">{orgName||"Организация"}</p>
+              <Icon name="Pencil" size={11} className="text-white/30 group-hover:text-gold-400 shrink-0 transition-colors" />
             </button>
           )}
+          <p className="text-[9px] text-white/30 hidden sm:block">История: 24 ч · данные на устройстве</p>
         </div>
+        {/* Счётчик действий — всегда видим */}
+        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shrink-0 ${actionsLeft>10?"bg-emerald-500/20 text-emerald-300":actionsLeft>0?"bg-amber-500/20 text-amber-300":"bg-red-500/20 text-red-300"}`}>
+          <Icon name="Zap" size={10} />
+          {user.isAdmin?"∞":actionsLeft}
+          <span className="hidden sm:inline"> дейс.</span>
+        </div>
+        {!user.isAdmin&&actionsLeft<=30&&(
+          <button onClick={()=>onPayClick("business_actions_30","30 действий")}
+            className="px-2 py-1 bg-gold-400/25 hover:bg-gold-400/40 text-gold-300 rounded-lg text-[11px] font-semibold transition-colors shrink-0">
+            +
+          </button>
+        )}
       </div>
 
-      <div className="flex gap-3 flex-1 min-h-0">
-        {/* Сайдбар */}
+      <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
+        {/* Сайдбар (только десктоп) */}
         <div className="hidden sm:flex flex-col gap-1 w-44 shrink-0 overflow-y-auto">
           {TOOLS.map(t=>{
             const cnt = allMessages.filter(m=>m.tool===t.id&&m.role==="user").length;
             return (
-              <button key={t.id} onClick={()=>{setActiveTool(t.id);setErr("");setAttachedFile(null);setAttachedFile2(null);}}
+              <button key={t.id} onClick={()=>{setActiveTool(t.id);setErr("");setAttachedFile(null);setAttachedFile2(null);setFillMode(false);}}
                 className={`flex items-start gap-2 px-3 py-2.5 rounded-xl text-left transition-all ${activeTool===t.id?"bg-navy-800 text-white shadow-md":"bg-white border border-border hover:border-navy-200 hover:bg-slate-50 text-navy-700"}`}>
                 <Icon name={t.icon} size={14} className={activeTool===t.id?"text-gold-400 mt-0.5 shrink-0":"text-navy-400 mt-0.5 shrink-0"} />
                 <div className="min-w-0 flex-1">
@@ -436,11 +433,10 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
               </button>
             );
           })}
-          {/* Докупка */}
           {!user.isAdmin&&(
             <div className="mt-auto pt-2 border-t border-border">
-              <p className="text-[10px] text-muted-foreground mb-1 font-medium px-1">Докупить действия:</p>
-              {([["business_actions_10","10 дейс.","1 000 ₽"],["business_actions_30","30 дейс.","3 000 ₽"],["business_actions_60","60 дейс.","6 000 ₽"]] as [ServiceType,string,string][]).map(([t,l,p])=>(
+              <p className="text-[10px] text-muted-foreground mb-1 font-medium px-1">Докупить:</p>
+              {([["business_actions_10","+10","1 000 ₽"],["business_actions_30","+30","3 000 ₽"],["business_actions_50","+50","3 500 ₽"],["business_actions_150","+150","9 000 ₽"]] as [ServiceType,string,string][]).map(([t,l,p])=>(
                 <button key={t} onClick={()=>onPayClick(t,l)}
                   className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-50 border border-border mb-1 transition-colors">
                   <span className="text-[10px] text-navy-700 font-medium">{l}</span>
@@ -454,26 +450,20 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
         {/* Основная область */}
         <div className="flex-1 flex flex-col min-w-0 gap-2">
 
-          {/* Мобильный выбор */}
+          {/* Мобильный выбор инструмента — горизонтальный скролл */}
           <div className="sm:hidden">
-            <button onClick={()=>setMobileToolsOpen(!mobileToolsOpen)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 bg-white border border-border rounded-xl text-sm font-medium text-navy-800">
-              <Icon name={currentTool.icon} size={14} className="text-navy-500 shrink-0" />
-              <span className="flex-1 text-left">{currentTool.label}</span>
-              <Icon name={mobileToolsOpen?"ChevronUp":"ChevronDown"} size={14} className="text-muted-foreground" />
-            </button>
-            {mobileToolsOpen&&(
-              <div className="mt-1 bg-white border border-border rounded-2xl p-2 grid grid-cols-2 gap-1 animate-fade-in">
-                {TOOLS.map(t=>(
-                  <button key={t.id} onClick={()=>{setActiveTool(t.id);setMobileToolsOpen(false);setErr("");}}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-left transition-all ${activeTool===t.id?"bg-navy-800 text-white":"hover:bg-slate-50 text-navy-700"}`}>
-                    <Icon name={t.icon} size={13} className={activeTool===t.id?"text-gold-400 shrink-0":"text-navy-400 shrink-0"} />
-                    <span className="text-[11px] font-medium leading-tight">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:"none"}}>
+              {TOOLS.map(t=>(
+                <button key={t.id} onClick={()=>{setActiveTool(t.id);setErr("");setAttachedFile(null);setAttachedFile2(null);setFillMode(false);}}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap text-xs font-medium shrink-0 transition-all ${activeTool===t.id?"bg-navy-800 text-white shadow-md":"bg-white border border-border text-navy-600 hover:border-navy-200"}`}>
+                  <Icon name={t.icon} size={12} className={activeTool===t.id?"text-gold-400":"text-navy-400"} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+
 
           {/* Тул-хедер */}
           <div className={`flex items-center justify-between px-3 py-2 rounded-xl border ${TOOL_COLORS[currentTool.color]} shrink-0`}>

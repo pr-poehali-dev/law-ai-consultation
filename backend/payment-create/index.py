@@ -14,21 +14,41 @@ YUKASSA_API = "https://api.yookassa.ru/v3/payments"
 YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
-    "consultation": "100.00",
-    "document":     "500.00",
-    "expert":       "1500.00",
-    "business":     "1000.00",
+    "consultation":         "100.00",
+    "document":             "500.00",
+    "expert":               "1500.00",
+    "business":             "1000.00",
     "subscription_consult": "1990.00",
     "subscription_docs":    "4990.00",
+    # Новые тарифы
+    "plan_starter":         "1490.00",
+    "plan_pro":             "3990.00",
+    "plan_max":             "5990.00",
+    # Бизнес-подписка
+    "business_subscription": "4990.00",
+    "business_actions_10":   "1000.00",
+    "business_actions_30":   "3000.00",
+    "business_actions_60":   "6000.00",
+    "business_actions_50":   "3500.00",
+    "business_actions_150":  "9000.00",
 }
 
 DESCRIPTIONS = {
-    "consultation": "AI-консультация (3 вопроса)",
-    "document":     "Подготовка юридического документа",
-    "expert":       "Экспертная проверка юристом",
-    "business":     "Бизнес-пакет (договор + документы)",
+    "consultation":         "AI-консультация (3 вопроса)",
+    "document":             "Подготовка юридического документа",
+    "expert":               "Экспертная проверка юристом",
+    "business":             "Бизнес-пакет (договор + документы)",
     "subscription_consult": "Подписка: безлимитные консультации (1 мес.)",
     "subscription_docs":    "Подписка: безлимитные документы (1 мес.)",
+    "plan_starter":         "Тариф Старт: 30 вопросов + 5 документов (1 мес.)",
+    "plan_pro":             "Тариф Профи: 100 вопросов + 20 документов (1 мес.)",
+    "plan_max":             "Тариф Максимум: 300 вопросов + 50 документов (1 мес.)",
+    "business_subscription": "Бизнес-тариф: 150 действий/мес · PDF/DOC анализ · .doc выгрузка",
+    "business_actions_10":   "Бизнес: +10 дополнительных действий",
+    "business_actions_30":   "Бизнес: +30 дополнительных действий",
+    "business_actions_60":   "Бизнес: +60 дополнительных действий",
+    "business_actions_50":   "Бизнес: +50 дополнительных действий",
+    "business_actions_150":  "Бизнес: +150 дополнительных действий",
 }
 
 CORS = {

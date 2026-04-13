@@ -1,0 +1,1 @@
+UPDATE t_p57945357_law_ai_consultation.users SET referral_code = SUBSTRING(MD5(id::text || 'ref2026'), 1, 8) WHERE referral_code IS NULL;

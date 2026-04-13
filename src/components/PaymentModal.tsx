@@ -13,10 +13,15 @@ export type ServiceType =
   | "business"
   | "subscription_consult"
   | "subscription_docs"
+  | "plan_starter"
+  | "plan_pro"
+  | "plan_max"
   | "business_subscription"
   | "business_actions_10"
   | "business_actions_30"
-  | "business_actions_60";
+  | "business_actions_50"
+  | "business_actions_60"
+  | "business_actions_150";
 
 interface PaymentModalProps {
   serviceType: ServiceType;
@@ -34,10 +39,15 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   business: 1000,
   subscription_consult: 1990,
   subscription_docs: 4990,
-  business_subscription: 3990,
+  plan_starter: 1490,
+  plan_pro: 3990,
+  plan_max: 5990,
+  business_subscription: 4990,
   business_actions_10: 1000,
   business_actions_30: 3000,
+  business_actions_50: 3500,
   business_actions_60: 6000,
+  business_actions_150: 9000,
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
@@ -46,17 +56,25 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   expert: "Живой юрист проанализирует ответ AI и даст заключение. Включает 3 вопроса к AI",
   business: "Подготовка договора и юридических документов для бизнеса",
   subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
-  business_subscription: "80 действий/месяц · Приказы, договоры, анализ, сравнение, due diligence · Скачивание .doc · История 24 часа",
+  subscription_docs: "Безлимитная подготовка документов — 1 месяц",
+  plan_starter: "30 вопросов + 5 документов · Анализ PDF/фото · Генерация .doc из диалога",
+  plan_pro: "100 вопросов + 20 документов · Анализ документов · Определение перспективы дела · Генерация .doc",
+  plan_max: "до 300 вопросов + 50 документов · Всё включено · Приоритетный доступ",
+  business_subscription: "150 действий/мес · Приказы, договоры, анализ PDF/DOC · Сравнение · Due diligence · Скачивание .doc · История 24 ч",
   business_actions_10: "Дополнительно 10 действий к текущему пакету",
   business_actions_30: "Дополнительно 30 действий к текущему пакету",
+  business_actions_50: "Дополнительно 50 действий к текущему пакету",
   business_actions_60: "Дополнительно 60 действий к текущему пакету",
-  subscription_docs: "Безлимитная подготовка документов — 1 месяц",
+  business_actions_150: "Дополнительно 150 действий к текущему пакету",
 };
 
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   subscription_consult: "Выгодно",
+  plan_starter: "Старт",
+  plan_pro: "Хит",
+  plan_max: "Максимум",
   business_subscription: "Бизнес",
-  business_actions_60: "Выгодно",
+  business_actions_150: "Выгодно",
   subscription_docs: "Выгодно",
 };
 

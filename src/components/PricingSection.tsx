@@ -5,162 +5,146 @@ interface PricingSectionProps {
   onSelectPlan: (plan: string, price: string, serviceType: string) => void;
 }
 
-const PLANS = [
+const USER_PLANS = [
   {
-    id: "consultation",
-    name: "Консультация",
-    price: "100",
-    period: "3 вопроса",
-    desc: "Задайте 3 вопроса AI-юристу по любой правовой теме",
+    id: "plan_starter",
+    name: "Старт",
+    price: "1 490",
+    period: "/ месяц",
+    desc: "Для тех, кто решает разовые вопросы",
+    badge: null,
     features: [
-      "3 вопроса AI-юристу",
-      "Ответ с ссылками на законы",
-      "История в кабинете",
-      "Уточняющие вопросы",
+      "30 вопросов AI-юристу",
+      "5 готовых документов",
+      "Анализ PDF-файлов и фото",
+      "Подготовка документов AI",
+      "Генерация .doc из диалога",
     ],
-    notIncluded: ["Документы", "Проверка юриста"],
+    color: "bg-white",
     popular: false,
-    icon: "MessageCircle",
-    color: "bg-slate-50",
   },
   {
-    id: "document",
-    name: "Документ",
-    price: "500",
-    period: "за документ",
-    desc: "Готовый юридический документ: иск, претензия или жалоба",
-    features: [
-      "Исковое заявление",
-      "Претензия / жалоба",
-      "Скачать готовый файл",
-      "Составлен по нормам РФ",
-    ],
-    notIncluded: ["Консультации", "Проверка юриста"],
-    popular: false,
-    icon: "FileText",
-    color: "bg-amber-50/60",
-  },
-  {
-    id: "business_subscription",
-    name: "Бизнес-тариф",
+    id: "plan_pro",
+    name: "Профи",
     price: "3 990",
-    period: "в месяц",
-    desc: "Все юридические инструменты для бизнеса: приказы, договоры, анализ, due diligence",
+    period: "/ месяц",
+    desc: "Оптимальный выбор для активного использования",
+    badge: "Хит",
     features: [
-      "80 действий / месяц",
-      "Сложные договоры и приказы",
-      "Анализ и сравнение договоров",
-      "Проверка контрагентов",
-      "Скачивание в .doc",
-      "История 24 часа",
+      "100 вопросов AI-юристу",
+      "20 готовых документов",
+      "Анализ документов и фото",
+      "Определение перспективы дела",
+      "Генерация .doc из диалога",
+      "История консультаций",
     ],
-    notIncluded: [],
-    popular: true,
-    icon: "Briefcase",
     color: "",
+    popular: true,
   },
   {
-    id: "expert",
-    name: "Проверка юристом",
-    price: "1 500",
-    period: "разово",
-    desc: "Юрист анализирует ответ AI или документ и даёт заключение. Включает 3 вопроса к AI при отсутствии тарифа консультации",
+    id: "plan_max",
+    name: "Максимум",
+    price: "5 990",
+    period: "/ месяц",
+    desc: "Для бизнеса и частых юридических задач",
+    badge: "Максимум",
     features: [
-      "3 вопроса к AI (если нет тарифа)",
-      "Личный чат с экспертом-юристом",
-      "Анализ ответа AI или документа",
-      "Ответ в течение 24 часов",
+      "до 300 вопросов AI-юристу",
+      "50 готовых документов",
+      "Всё из тарифа «Профи»",
+      "Приоритетный доступ к AI",
+      "Расширенный анализ документов",
     ],
-    notIncluded: [],
+    color: "bg-gradient-to-br from-navy-800/5 to-navy-900/10",
     popular: false,
-    icon: "Shield",
-    color: "bg-gradient-to-br from-navy-700/5 to-navy-800/10",
   },
 ];
 
+const BIZ_FEATURES = [
+  { icon: "Zap", text: "150 юридических действий/мес" },
+  { icon: "FileSearch", text: "Анализ договоров PDF и DOC" },
+  { icon: "GitCompare", text: "Сравнение документов" },
+  { icon: "Search", text: "Проверка контрагентов (due diligence)" },
+  { icon: "Stamp", text: "Приказы и корпоративные документы" },
+  { icon: "Download", text: "Скачивание договоров в .doc" },
+  { icon: "Clock", text: "История запросов 24 часа" },
+  { icon: "Plus", text: "Возможность докупить действия" },
+];
+
 export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
-  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
-    <section id="pricing" className="py-16 sm:py-24 bg-gradient-to-b from-background to-slate-50">
+    <section id="pricing" className="py-16 sm:py-24 bg-gradient-to-b from-background to-slate-50 overflow-hidden">
       <div className="container mx-auto px-4">
+
+        {/* Заголовок */}
         <div className="text-center mb-10 sm:mb-16">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-3 sm:mb-4">
             Тарифы
           </span>
-          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3 sm:mb-4">
-            Прозрачные цены без скрытых платежей
+          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3">
+            Прозрачные цены
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto px-4 sm:px-0">
-            Платите только за то, что нужно — разово или по подписке
+          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
+            Платите только за то, что нужно — без скрытых платежей
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch">
-          {PLANS.map((plan) => (
+        {/* Пользовательские тарифы */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6 items-stretch">
+          {USER_PLANS.map((plan, idx) => (
             <div
               key={plan.id}
-              className={`relative flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden cursor-pointer ${
+              onMouseEnter={() => setHovered(plan.id)}
+              onMouseLeave={() => setHovered(null)}
+              className={`relative flex flex-col rounded-3xl border overflow-hidden cursor-pointer transition-all duration-300 ${
                 plan.popular
-                  ? "pricing-popular text-white"
-                  : `${plan.color} border-border bg-card card-hover hover:border-navy-200`
-              } ${hoveredPlan === plan.id && !plan.popular ? "shadow-xl shadow-navy-900/10" : ""}`}
-              onMouseEnter={() => setHoveredPlan(plan.id)}
-              onMouseLeave={() => setHoveredPlan(null)}
+                  ? "pricing-popular text-white shadow-2xl shadow-navy-900/20 scale-[1.02] sm:scale-105"
+                  : `${plan.color} border-border hover:border-navy-200 hover:shadow-xl`
+              } ${hovered === plan.id && !plan.popular ? "shadow-xl -translate-y-1" : ""}`}
+              style={{ animationDelay: `${idx * 100}ms` }}
             >
               {plan.popular && (
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+                <>
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+                  <div className="absolute -top-px -left-px -right-px h-full rounded-3xl pointer-events-none ring-2 ring-gold-400/30" />
+                </>
               )}
-              {plan.popular && (
+              {plan.badge && (
                 <div className="absolute top-4 right-4">
-                  <span className="bg-gold-500 text-navy-900 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                    Популярный
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${plan.popular ? "bg-gold-500 text-navy-900" : "bg-navy-100 text-navy-700"}`}>
+                    {plan.badge}
                   </span>
                 </div>
               )}
 
-              <div className="p-7 flex-1">
-                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-5 ${plan.popular ? "bg-white/15" : "bg-navy-100"}`}>
-                  <Icon name={plan.icon} size={22} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
+              <div className="p-6 sm:p-7 flex-1">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${plan.popular ? "bg-white/15" : "bg-navy-100"}`}>
+                  <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
                 </div>
-
-                <div className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>
-                  {plan.name}
-                </div>
+                <p className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>{plan.name}</p>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className={`font-cormorant font-bold text-4xl ${plan.popular ? "text-white" : "text-navy-800"}`}>
-                    {plan.price} ₽
-                  </span>
+                  <span className={`font-cormorant font-bold text-4xl ${plan.popular ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
                 </div>
-                <div className={`text-xs mb-3 ${plan.popular ? "text-white/55" : "text-muted-foreground"}`}>
-                  {plan.period}
-                </div>
-                <p className={`text-sm leading-relaxed mb-6 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>
-                  {plan.desc}
-                </p>
-
-                <ul className="space-y-2.5 mb-6">
+                <p className={`text-xs mb-3 ${plan.popular ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
+                <p className={`text-sm leading-relaxed mb-5 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>{plan.desc}</p>
+                <ul className="space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.popular ? "text-white/85" : "text-navy-700"}`}>
-                      <Icon name="Check" size={15} className={`mt-0.5 shrink-0 ${plan.popular ? "text-gold-400" : "text-emerald-500"}`} />
-                      {f}
-                    </li>
-                  ))}
-                  {plan.notIncluded.map((f) => (
-                    <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.popular ? "text-white/35" : "text-muted-foreground/60"}`}>
-                      <Icon name="X" size={15} className="mt-0.5 shrink-0 opacity-50" />
+                      <Icon name="Check" size={14} className={`mt-0.5 shrink-0 ${plan.popular ? "text-gold-400" : "text-emerald-500"}`} />
                       {f}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="p-7 pt-0">
+              <div className="p-6 sm:p-7 pt-0">
                 <button
                   onClick={() => onSelectPlan(plan.name, plan.price, plan.id)}
-                  className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 ${
+                  className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
                     plan.popular
-                      ? "btn-gold"
+                      ? "btn-gold hover:scale-[1.02] active:scale-[0.98]"
                       : "bg-navy-800 text-white hover:bg-navy-700 hover:shadow-lg"
                   }`}
                 >
@@ -171,29 +155,114 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           ))}
         </div>
 
-        {/* Subscription plans */}
-        <div className="mt-6 sm:mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+        {/* Бизнес-тариф */}
+        <div
+          className="relative rounded-3xl overflow-hidden border border-navy-700/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-navy-900/15"
+          onClick={() => onSelectPlan("Бизнес-тариф", "4 990", "business_subscription")}
+        >
+          {/* Фон */}
+          <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700" />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-gold-400/8 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-60 h-60 bg-white/3 rounded-full translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+          {/* Анимированные линии */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" />
+
+          <div className="relative p-6 sm:p-8 md:p-10">
+            <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-10">
+
+              {/* Левая часть */}
+              <div className="flex-shrink-0">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-gold-400/20 rounded-2xl flex items-center justify-center">
+                    <Icon name="Briefcase" size={22} className="text-gold-400" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold bg-gold-400/20 text-gold-300 px-2.5 py-1 rounded-full uppercase tracking-wider">Для бизнеса</span>
+                    <h3 className="font-cormorant font-bold text-2xl sm:text-3xl text-white mt-1">Бизнес-тариф</h3>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="font-cormorant font-bold text-5xl text-white">4 990 ₽</span>
+                  <span className="text-white/50 text-sm">/ месяц</span>
+                </div>
+                <p className="text-white/60 text-sm mb-5 max-w-xs">
+                  Полный юридический инструментарий для вашего бизнеса
+                </p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onSelectPlan("Бизнес-тариф", "4 990", "business_subscription"); }}
+                  className="btn-gold px-6 py-3.5 rounded-2xl font-semibold flex items-center gap-2 text-sm group-hover:scale-[1.02] transition-transform"
+                >
+                  <Icon name="Zap" size={15} />
+                  Подключить
+                </button>
+              </div>
+
+              {/* Разделитель */}
+              <div className="hidden md:block w-px bg-white/10 self-stretch" />
+
+              {/* Правая часть — фичи */}
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {BIZ_FEATURES.map((f) => (
+                  <div key={f.text} className="flex items-center gap-2.5 group/item">
+                    <div className="w-7 h-7 bg-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover/item:bg-gold-400/20 transition-colors">
+                      <Icon name={f.icon} size={13} className="text-gold-400" />
+                    </div>
+                    <span className="text-sm text-white/80 group-hover/item:text-white transition-colors">{f.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Докупка действий */}
+            <div className="mt-6 pt-5 border-t border-white/10 flex flex-wrap gap-2 items-center">
+              <span className="text-xs text-white/40 font-medium">Докупить действия:</span>
+              {[
+                { label: "+10", price: "1 000 ₽", id: "business_actions_10" },
+                { label: "+30", price: "3 000 ₽", id: "business_actions_30" },
+                { label: "+50", price: "3 500 ₽", id: "business_actions_50" },
+                { label: "+150", price: "9 000 ₽", id: "business_actions_150" },
+              ].map((a) => (
+                <button
+                  key={a.id}
+                  onClick={(e) => { e.stopPropagation(); onSelectPlan(`${a.label} действий`, a.price, a.id); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white/70 hover:text-white rounded-xl text-xs font-medium transition-all"
+                >
+                  <Icon name="Plus" size={11} />
+                  {a.label} — {a.price}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Дополнительные тарифы (для старых пользователей) */}
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             {
               id: "subscription_consult",
               name: "Безлимитные консультации",
               price: "1 990",
-              features: ["Неограниченные вопросы AI-юристу", "Все отрасли права", "История консультаций", "Приоритетная поддержка"],
-              icon: "MessageCircle",
+              desc: "Неограниченные вопросы AI-юристу — 1 месяц",
+              features: ["Неограниченные вопросы", "Все отрасли права", "История консультаций"],
               badge: "🔥 Безлимит",
+              icon: "MessageCircle",
             },
             {
               id: "subscription_docs",
               name: "Безлимитные документы",
               price: "4 990",
-              features: ["Неограниченная генерация документов", "Все типы документов", "Автозаполнение реквизитов", "Скачивание .docx"],
-              icon: "FileText",
+              desc: "Неограниченная генерация документов — 1 месяц",
+              features: ["Неограниченные документы", "Все типы документов", "Скачивание .doc"],
               badge: "🔥 Безлимит",
+              icon: "FileText",
             },
           ].map((sub) => (
-            <div key={sub.id} className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 card-hover cursor-pointer group"
-              onClick={() => onSelectPlan(sub.name, sub.price, sub.id)}>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 gradient-navy rounded-2xl flex items-center justify-center shrink-0">
+            <div
+              key={sub.id}
+              className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-5 sm:p-6 flex flex-col sm:flex-row items-start gap-4 cursor-pointer card-hover group transition-all hover:shadow-xl hover:border-navy-300"
+              onClick={() => onSelectPlan(sub.name, sub.price, sub.id)}
+            >
+              <div className="w-11 h-11 gradient-navy rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 <Icon name={sub.icon} size={20} className="text-gold-400" />
               </div>
               <div className="flex-1 min-w-0">
@@ -209,33 +278,17 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   ))}
                 </ul>
               </div>
-              <div className="text-left sm:text-right shrink-0 w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-start">
-                <div>
-                  <div className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">{sub.price} ₽</div>
-                  <div className="text-xs text-muted-foreground">в месяц</div>
-                </div>
-                <button className="btn-gold text-xs px-3 py-1.5 rounded-xl group-hover:shadow-md transition-shadow sm:mt-2">
-                  Подключить
+              <div className="shrink-0 text-right">
+                <p className="font-cormorant font-bold text-2xl text-navy-800">{sub.price} ₽</p>
+                <p className="text-xs text-muted-foreground">/мес</p>
+                <button className="mt-2 btn-gold text-xs px-3 py-1.5 rounded-xl">
+                  Выбрать
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Trust badges */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
-          {[
-            { icon: "Lock", text: "Безопасная оплата" },
-            { icon: "RefreshCw", text: "Возврат в течение 3 дней" },
-            { icon: "Award", text: "Данные защищены" },
-            { icon: "HeadphonesIcon", text: "Поддержка 24/7" },
-          ].map((badge) => (
-            <div key={badge.text} className="flex items-center gap-2">
-              <Icon name={badge.icon} size={16} className="text-navy-400" />
-              <span>{badge.text}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );

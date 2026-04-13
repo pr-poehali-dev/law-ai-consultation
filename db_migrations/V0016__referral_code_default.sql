@@ -1,0 +1,1 @@
+ALTER TABLE t_p57945357_law_ai_consultation.users ALTER COLUMN referral_code SET DEFAULT SUBSTRING(MD5(EXTRACT(EPOCH FROM NOW())::text || random()::text), 1, 8);
