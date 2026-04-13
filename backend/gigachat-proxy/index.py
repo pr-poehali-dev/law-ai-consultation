@@ -193,7 +193,7 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
             {"role": "user", "content": user_content},
         ],
         max_tokens=2500,
-        temperature=0.1,
+        temperature=0.7,
     )
 
 
