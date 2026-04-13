@@ -18,7 +18,31 @@ import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 
-// Описание что начисляется по каждому типу оплаты
+const PENDING_ACTION_KEY = "cabinet_pending_action";
+
+type PendingAction = {
+  tab: "chat" | "docs" | "expert" | "business" | "history" | "profile";
+  chatInput?: string;
+  docDetails?: string;
+  docTypeId?: string;
+};
+
+function savePendingAction(action: PendingAction) {
+  localStorage.setItem(PENDING_ACTION_KEY, JSON.stringify(action));
+}
+
+function loadPendingAction(): PendingAction | null {
+  try {
+    const raw = localStorage.getItem(PENDING_ACTION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function clearPendingAction() {
+  localStorage.removeItem(PENDING_ACTION_KEY);
+}
+
 const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
   consultation:          "+3 вопроса к AI-юристу",
   document:              "+1 документ",
@@ -43,22 +67,9 @@ export default function Cabinet() {
   const [user, setUser] = useState<User | null>(null);
   const [tab, setTab] = useState<"chat" | "docs" | "expert" | "business" | "history" | "profile">("chat");
 
-  // Payment
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
   const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
-
-  // Контекст действия ДО оплаты: откуда пришли и что делали
-  const [pendingAction, setPendingAction] = useState<{
-    tab: typeof tab;
-    chatInput?: string;          // текст в поле чата
-    docDetails?: string;         // текст в поле документа
-    docTypeId?: string;          // тип документа
-  } | null>(null);
-
-  // Тост-уведомление после успешной оплаты
   const [successToast, setSuccessToast] = useState<string | null>(null);
-
-  // ViewDoc modal
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
@@ -66,7 +77,6 @@ export default function Cabinet() {
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) localStorage.setItem("ref_code", ref);
-
     getUser().then((u) => {
       if (!u) { navigate("/"); return; }
       setUser(u);
@@ -74,13 +84,16 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // Обработка возврата после оплаты ЮКасса (авторизованный пользователь)
+  // Обработка возврата после оплаты ЮКасса — страница перезагружается, читаем action из localStorage
   useEffect(() => {
     const isSuccess = searchParams.get("payment") === "success";
     const invId = searchParams.get("inv_id");
     if (!isSuccess || !invId) return;
 
     setSearchParams({});
+
+    const action = loadPendingAction();
+    clearPendingAction();
 
     const CHECK_URL = "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591";
     let attempts = 0;
@@ -91,6 +104,30 @@ export default function Cabinet() {
         const data = await res.json();
         if (data.paid || data.status === "paid") {
           await refreshUser();
+
+          // Показываем тост
+          const label = data.service_type ? GRANT_LABELS[data.service_type as ServiceType] : null;
+          if (label) {
+            setSuccessToast(label);
+            setTimeout(() => setSuccessToast(null), 4500);
+          }
+
+          // Восстанавливаем действие
+          if (action) {
+            setTab(action.tab);
+            if (action.tab === "chat" && action.chatInput?.trim()) {
+              setTimeout(() => {
+                chatSendRef.current?.(action.chatInput!);
+              }, 600);
+            } else if (action.tab === "docs" && action.docTypeId) {
+              const dt = DOC_TYPES.find(d => d.id === action.docTypeId);
+              if (dt) {
+                setTimeout(() => {
+                  docsGenerateRef.current?.(dt, action.docDetails || "");
+                }, 600);
+              }
+            }
+          }
           return;
         }
       } catch { /* продолжаем */ }
@@ -101,12 +138,13 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pending doc-from-chat: хранит промт и тип документа до перехода во вкладку
+  // Refs для вызова chat/docs методов после перезагрузки страницы
+  const chatSendRef = useRef<((text: string) => void) | null>(null);
+  const docsGenerateRef = useRef<((dt: typeof DOC_TYPES[0], details: string) => void) | null>(null);
+
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
-  // Ожидаем ответа пользователя на уточняющий вопрос о документе
   const [docClarifyContext, setDocClarifyContext] = useState<{ aiText: string; userText: string } | null>(null);
-
   const docClarifyReplyRef = useRef<((text: string) => void) | undefined>(undefined);
 
   const chat = useChatLogic({
@@ -115,15 +153,15 @@ export default function Cabinet() {
     onDocClarifyReply: docClarifyContext ? (text) => docClarifyReplyRef.current?.(text) : undefined,
   });
 
+  // Регистрируем ref на sendMessage чата
+  chatSendRef.current = chat.sendMessage;
+
   const docs = useDocsLogic({
     refreshUser,
     onPaymentRequired: (type, name, pendingDt) => {
-      // Запоминаем контекст: вкладка docs + детали + тип документа
-      setPendingAction({
-        tab: "docs",
-        docDetails: docs.docDetails,
-        docTypeId: pendingDt?.id,
-      });
+      if (pendingDt) {
+        savePendingAction({ tab: "docs", docTypeId: pendingDt.id, docDetails: docs.docDetails });
+      }
       setPayment({ type, name });
       setPendingDocType(pendingDt);
     },
@@ -132,25 +170,31 @@ export default function Cabinet() {
     },
   });
 
-  const showToast = (msg: string) => {
-    setSuccessToast(msg);
-    setTimeout(() => setSuccessToast(null), 4000);
+  // Регистрируем ref на generateDocWith документов
+  docsGenerateRef.current = (dt, details) => {
+    docs.setDocType(dt);
+    docs.setDocDetails(details);
+    docs.setDocPhase("form");
+    docs.setDocErr("");
+    setTimeout(() => docs.generateDocWith(dt, details), 200);
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
-    // Ждём webhook — небольшая задержка
+    // Этот путь — оплата через inline-модал (без редиректа ЮКассы)
+    // pendingAction уже в localStorage (сохранили при открытии модала)
     await new Promise(r => setTimeout(r, 1500));
     await refreshUser();
     setPayment(null);
 
-    // Показываем тост с тем что начислено
     const label = GRANT_LABELS[svcType];
-    if (label) showToast(label);
+    if (label) {
+      setSuccessToast(label);
+      setTimeout(() => setSuccessToast(null), 4500);
+    }
 
-    const action = pendingAction;
-    setPendingAction(null);
+    const action = loadPendingAction();
+    clearPendingAction();
 
-    // Если было действие с документом
     if (pendingDocType && (svcType === "document" || svcType === "business")) {
       setPendingDocType(null);
       setTab("docs");
@@ -159,28 +203,21 @@ export default function Cabinet() {
     }
     setPendingDocType(null);
 
-    // Возвращаемся на вкладку откуда пришли и выполняем действие
     if (action) {
       setTab(action.tab);
-
       if (action.tab === "chat" && action.chatInput?.trim()) {
-        // Автоматически отправляем сохранённый вопрос
-        setTimeout(() => {
-          chat.sendMessage(action.chatInput!);
-        }, 400);
+        setTimeout(() => chat.sendMessage(action.chatInput!), 500);
       } else if (action.tab === "docs" && action.docTypeId) {
-        // Восстанавливаем документ и генерируем
         const dt = DOC_TYPES.find(d => d.id === action.docTypeId);
-        if (dt && action.docDetails) {
+        if (dt) {
           docs.setDocType(dt);
-          docs.setDocDetails(action.docDetails);
-          setTimeout(() => docs.generateDocWith(dt, action.docDetails!), 400);
+          if (action.docDetails) docs.setDocDetails(action.docDetails);
+          setTimeout(() => docs.generateDocWith(dt, action.docDetails || ""), 500);
         }
       }
     }
   };
 
-  // Применяем pendingDocFromChat когда переключились на вкладку docs
   useEffect(() => {
     if (!pendingDocFromChat || tab !== "docs") return;
     const dt = DOC_TYPES.find(d => d.id === pendingDocFromChat.docTypeId) || DOC_TYPES[0];
@@ -190,13 +227,10 @@ export default function Cabinet() {
     docs.setDocDetails(details);
     docs.setDocPhase("form");
     docs.setDocErr("");
-    setTimeout(() => {
-      docs.generateDocWith(dt, details);
-    }, 300);
+    setTimeout(() => docs.generateDocWith(dt, details), 300);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 
-  // Шаг 1: пользователь нажал «Создать документ» — добавляем в чат уточняющий вопрос AI
   const createDocFromChat = (aiText: string, userText: string) => {
     if (creatingDocFromChat) return;
     setDocClarifyContext({ aiText, userText });
@@ -205,7 +239,6 @@ export default function Cabinet() {
     chat.injectAiMessage(clarifyMsg);
   };
 
-  // Шаг 2: пользователь ответил — запускаем генерацию
   const handleDocClarifyReply = async (userReply: string) => {
     docClarifyReplyRef.current = undefined;
     if (!docClarifyContext) return;
@@ -255,7 +288,6 @@ export default function Cabinet() {
     }
   };
 
-  // Привязываем handleDocClarifyReply к ref чтобы useChatLogic мог его вызвать
   docClarifyReplyRef.current = docClarifyContext ? handleDocClarifyReply : undefined;
 
   if (!user) return null;
@@ -292,8 +324,7 @@ export default function Cabinet() {
             onAttachClick={() => chat.fileInputRef.current?.click()}
             onClearFile={() => chat.setAttachedFile(null)}
             onPayClick={() => {
-              // Сохраняем текущий input чтобы после оплаты автоматически отправить
-              setPendingAction({ tab: "chat", chatInput: chat.input });
+              savePendingAction({ tab: "chat", chatInput: chat.input });
               setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
             }}
             onGoToDocs={() => setTab("docs")}
@@ -329,8 +360,7 @@ export default function Cabinet() {
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => {
-              // Запоминаем контекст: тип документа и детали
-              setPendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
+              savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
               setPayment({ type: dt.serviceType, name: dt.label });
               setPendingDocType(dt);
             }}
@@ -392,7 +422,7 @@ export default function Cabinet() {
         <PaymentModal
           serviceType={payment.type}
           serviceName={payment.name}
-          onClose={() => { setPayment(null); setPendingDocType(null); setPendingAction(null); }}
+          onClose={() => { setPayment(null); setPendingDocType(null); clearPendingAction(); }}
           onSuccess={handlePaySuccess}
         />
       )}
@@ -404,7 +434,6 @@ export default function Cabinet() {
         />
       )}
 
-      {/* Тост-уведомление об успешном начислении */}
       {successToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
           <div className="flex items-center gap-3 px-5 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-900/20 font-golos">
