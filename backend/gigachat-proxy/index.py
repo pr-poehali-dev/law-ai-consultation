@@ -23,6 +23,7 @@ from auth_handler import (
     handle_admin_reports, handle_my_reports,
     handle_business_update_org, handle_business_consume_action,
     handle_business_messages_get, handle_business_messages_save,
+    handle_get_billing_log, handle_list_users,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -297,6 +298,8 @@ def handler(event: dict, context) -> dict:
         "business-consume-action": lambda: handle_business_consume_action(token),
         "business-messages-get": lambda: handle_business_messages_get(token, body),
         "business-messages-save": lambda: handle_business_messages_save(token, body),
+        "get-billing-log": lambda: handle_get_billing_log(token, body),
+        "list-users": lambda: handle_list_users(token),
     }
     if action in auth_actions:
         result = auth_actions[action]()

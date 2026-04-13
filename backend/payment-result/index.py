@@ -15,9 +15,43 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
+DESCRIPTIONS = {
+    "consultation":          "+3 вопроса к AI-юристу",
+    "document":              "+1 документ",
+    "expert":                "Экспертная проверка юристом",
+    "business":              "Бизнес-пакет",
+    "subscription_consult":  "Подписка: консультации на 31 день",
+    "subscription_docs":     "Подписка: документы на 31 день",
+    "plan_starter":          "Тариф Старт: +30 вопросов, +5 документов",
+    "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов",
+    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов",
+    "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
+    "business_actions_10":   "+10 бизнес-действий",
+    "business_actions_30":   "+30 бизнес-действий",
+    "business_actions_50":   "+50 бизнес-действий",
+    "business_actions_60":   "+60 бизнес-действий",
+    "business_actions_150":  "+150 бизнес-действий",
+}
+
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
+
+
+def write_billing_log(conn, user_id: int, user_email: str, service_type: str, amount: float, payment_id: str):
+    """Записывает событие начисления в billing_log."""
+    description = DESCRIPTIONS.get(service_type, service_type)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.billing_log
+                (user_id, user_email, service_type, amount, description, source, payment_id)
+                VALUES (%s, %s, %s, %s, %s, 'webhook', %s)""",
+            (user_id, user_email, service_type, amount, description, payment_id)
+        )
+        conn.commit()
+    finally:
+        cur.close()
 
 
 def grant_service(conn, user_id: int, service_type: str):
@@ -121,6 +155,8 @@ def handler(event: dict, context) -> dict:
     payment_id = payment_obj.get("id", "")
     status = payment_obj.get("status", "")
     metadata = payment_obj.get("metadata", {})
+    amount_obj = payment_obj.get("amount", {})
+    amount_val = float(amount_obj.get("value", 0)) if amount_obj else 0
 
     if status != "succeeded" or not payment_id:
         return {"statusCode": 200, "headers": CORS, "body": "ok"}
@@ -138,14 +174,14 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT id, user_id, service_type, status FROM {SCHEMA}.orders WHERE inv_id = %s",
+            f"SELECT id, user_id, user_email, service_type, amount, status FROM {SCHEMA}.orders WHERE inv_id = %s",
             (inv_id,)
         )
         row = cur.fetchone()
         if not row:
             return {"statusCode": 404, "headers": CORS, "body": f"Order not found: {inv_id}"}
 
-        order_id, db_user_id, db_service_type, db_status = row
+        order_id, db_user_id, db_user_email, db_service_type, db_amount, db_status = row
 
         if db_status == "paid":
             return {"statusCode": 200, "headers": CORS, "body": "ok"}
@@ -164,9 +200,12 @@ def handler(event: dict, context) -> dict:
                 pass
 
         effective_service = db_service_type or service_type
+        effective_amount = float(db_amount) if db_amount else amount_val
+        effective_email = db_user_email or ""
 
         if effective_user_id and effective_service:
             grant_service(conn, effective_user_id, effective_service)
+            write_billing_log(conn, effective_user_id, effective_email, effective_service, effective_amount, payment_id)
 
     finally:
         cur.close()

@@ -987,3 +987,60 @@ def handle_business_messages_save(token: str, body: dict) -> dict:
     finally:
         cur.close()
         conn.close()
+
+
+def handle_list_users(token: str) -> dict:
+    """Возвращает список пользователей (только для админа)."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT id, email, name FROM {SCHEMA}.users ORDER BY id ASC LIMIT 500"
+        )
+        rows = cur.fetchall()
+        return _ok({"users": [{"id": r[0], "email": r[1], "name": r[2] or ""} for r in rows]})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_get_billing_log(token: str, body: dict) -> dict:
+    """Возвращает историю начислений для конкретного пользователя (только для админа)."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+
+    target_user_id = body.get("target_user_id")
+    if not target_user_id:
+        return _err(400, "Укажите target_user_id")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""SELECT id, service_type, amount, description, source, payment_id, created_at
+                FROM {SCHEMA}.billing_log
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 100""",
+            (int(target_user_id),)
+        )
+        rows = cur.fetchall()
+        logs = []
+        for r in rows:
+            logs.append({
+                "id": r[0],
+                "service_type": r[1],
+                "amount": float(r[2]) if r[2] else 0,
+                "description": r[3],
+                "source": r[4],
+                "payment_id": r[5],
+                "created_at": r[6].isoformat() if r[6] else None,
+            })
+        return _ok({"logs": logs})
+    finally:
+        cur.close()
+        conn.close()

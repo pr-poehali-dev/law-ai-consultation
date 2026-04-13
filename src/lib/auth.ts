@@ -257,6 +257,28 @@ export async function businessUpdateOrg(orgName: string): Promise<{ ok?: boolean
   return { ok: true };
 }
 
+export interface BillingLogEntry {
+  id: number;
+  service_type: string;
+  amount: number;
+  description: string;
+  source: string;
+  payment_id: string | null;
+  created_at: string;
+}
+
+export async function getBillingLog(targetUserId: number): Promise<BillingLogEntry[]> {
+  const res = await apiCall({ action: "get-billing-log", target_user_id: targetUserId });
+  const data = await res.json();
+  return data.logs || [];
+}
+
+export async function listUsers(): Promise<{ id: number; email: string; name: string }[]> {
+  const res = await apiCall({ action: "list-users" });
+  const data = await res.json();
+  return data.users || [];
+}
+
 export async function businessConsumeAction(): Promise<{ ok?: boolean; error?: string }> {
   const res = await apiCall({ action: "business-consume-action" });
   const data = await res.json();

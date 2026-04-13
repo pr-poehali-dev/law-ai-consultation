@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import { hasActiveSubscription, sendReport, getMyReports, getAdminReports, replyToReport, closeReport, type Report } from "@/lib/auth";
+import { hasActiveSubscription, sendReport, getMyReports, getAdminReports, replyToReport, closeReport, getBillingLog, listUsers, type Report, type BillingLogEntry } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 
 function ReferralBlock({ user }: { user: User }) {
@@ -123,6 +123,140 @@ function MyReports({ userId }: { userId: number }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Админ-кабинет: история начислений пользователя ─────────
+function AdminBillingLog({ userId, userEmail }: { userId: number; userEmail: string }) {
+  const [logs, setLogs] = useState<BillingLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    const data = await getBillingLog(userId);
+    setLogs(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [userId]);
+
+  const fmtAmount = (v: number) =>
+    v > 0 ? `${v.toLocaleString("ru-RU")} ₽` : "—";
+
+  const fmtDt = (s: string) => {
+    const d = new Date(s);
+    return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+          <Icon name="Receipt" size={16} className="text-emerald-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-navy-800 text-sm">История начислений</h3>
+          <p className="text-[11px] text-muted-foreground truncate">{userEmail}</p>
+        </div>
+        <button onClick={load} className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors">
+          <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">Загрузка...</p>
+      ) : logs.length === 0 ? (
+        <div className="text-center py-6">
+          <Icon name="ReceiptText" size={28} className="text-slate-300 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">Начислений пока нет</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+          {logs.map(l => (
+            <div key={l.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon name="TrendingUp" size={12} className="text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-navy-800 leading-tight">{l.description}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <span className="text-[10px] text-muted-foreground">{fmtDt(l.created_at)}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600">{l.source}</span>
+                  {l.payment_id && (
+                    <span className="text-[10px] text-slate-400 truncate max-w-[120px]" title={l.payment_id}>
+                      {l.payment_id.slice(0, 8)}…
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 shrink-0">{fmtAmount(l.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Админ-кабинет: поиск пользователя ───────────────────────
+function AdminUserBilling() {
+  const [users, setUsers] = useState<{ id: number; email: string; name: string }[]>([]);
+  const [search, setSearch] = useState("ilya.povarchuk@mail.ru");
+  const [selected, setSelected] = useState<{ id: number; email: string } | null>(null);
+  const [suggestions, setSuggestions] = useState<typeof users>([]);
+
+  useEffect(() => {
+    listUsers().then(list => {
+      setUsers(list);
+      const found = list.find(u => u.email === "ilya.povarchuk@mail.ru");
+      if (found) setSelected({ id: found.id, email: found.email });
+    });
+  }, []);
+
+  const handleSearch = (v: string) => {
+    setSearch(v);
+    if (v.length < 2) { setSuggestions([]); return; }
+    setSuggestions(users.filter(u =>
+      u.email.toLowerCase().includes(v.toLowerCase()) ||
+      u.name.toLowerCase().includes(v.toLowerCase())
+    ).slice(0, 8));
+  };
+
+  const handleSelect = (u: typeof users[0]) => {
+    setSelected({ id: u.id, email: u.email });
+    setSearch(u.email);
+    setSuggestions([]);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-border shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Icon name="Search" size={14} className="text-muted-foreground" />
+          <span className="text-sm font-semibold text-navy-800">Начисления пользователя</span>
+        </div>
+        <div className="relative">
+          <input
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="Email или имя пользователя..."
+            className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
+          />
+          {suggestions.length > 0 && (
+            <div className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-border rounded-xl shadow-lg overflow-hidden">
+              {suggestions.map(u => (
+                <button key={u.id} onClick={() => handleSelect(u)}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+                  <span className="font-medium text-navy-800">{u.email}</span>
+                  <span className="text-muted-foreground ml-2">{u.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {selected && <AdminBillingLog userId={selected.id} userEmail={selected.email} />}
     </div>
   );
 }
@@ -516,7 +650,12 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
       </div>
 
       {/* Кабинет администратора */}
-      {user.isAdmin && <AdminReportsPanel />}
+      {user.isAdmin && (
+        <>
+          <AdminUserBilling />
+          <AdminReportsPanel />
+        </>
+      )}
 
       <button
         onClick={onLogout}
