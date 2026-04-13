@@ -268,6 +268,7 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
 
   const consultSubActive = hasActiveSubscription(user, "consult");
   const docsSubActive = hasActiveSubscription(user, "docs");
+  const bizSubActive = !!(user.businessSubscriptionUntil && new Date(user.businessSubscriptionUntil) > new Date());
 
   const handleReport = async () => {
     if (!reportText.trim()) return;
@@ -308,7 +309,7 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
           {[
             { label: "Вопросов осталось", value: user.isAdmin ? "∞" : (user.paidQuestions ?? 0), icon: "MessageCircle", color: "text-blue-600 bg-blue-50" },
             { label: "Документов осталось", value: user.isAdmin ? "∞" : (user.paidDocs ?? 0), icon: "FileText", color: "text-amber-600 bg-amber-50" },
-            { label: "Создано документов", value: genDocs.length, icon: "FolderOpen", color: "text-navy-600 bg-navy-50" },
+            { label: "Бизнес-действий", value: user.isAdmin ? "∞" : bizSubActive ? (user.businessActionsLeft ?? 0) : "—", icon: "Briefcase", color: bizSubActive ? "text-navy-600 bg-navy-50" : "text-slate-400 bg-slate-50" },
             { label: "Проверок юристом", value: user.paidExpert ? "Активно" : "Нет", icon: "Shield", color: "text-purple-600 bg-purple-50" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border p-3 sm:p-4">
@@ -361,6 +362,34 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
               {docsSubActive
                 ? <SubscriptionBadge until={user.subscriptionDocsUntil} />
                 : <button onClick={() => onPay("subscription_docs", "Безлимитные документы")} className="btn-gold text-xs px-3 py-2 rounded-xl w-full sm:w-auto">Подключить</button>
+              }
+            </div>
+          </div>
+
+          {/* Бизнес-тариф */}
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border ${bizSubActive ? "border-navy-200 bg-navy-50" : "border-border"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bizSubActive ? "bg-navy-200" : "bg-navy-50"}`}>
+                <Icon name="Briefcase" size={16} className={bizSubActive ? "text-navy-700" : "text-navy-400"} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-navy-800">Бизнес-тариф</span>
+                  {bizSubActive && (
+                    <span className="text-[10px] font-bold bg-gold-400/20 text-gold-700 px-1.5 py-0.5 rounded-full">Активен</span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {bizSubActive
+                    ? `${user.businessActionsLeft ?? 0} действий осталось · PDF/DOC · .doc выгрузка`
+                    : "4 990 ₽/мес · 150 действий · PDF/DOC анализ · .doc"}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:shrink-0">
+              {bizSubActive
+                ? <SubscriptionBadge until={user.businessSubscriptionUntil} />
+                : <button onClick={() => onPay("business_subscription", "Бизнес-тариф")} className="bg-navy-800 hover:bg-navy-700 text-white text-xs px-3 py-2 rounded-xl transition-colors w-full sm:w-auto">Подключить</button>
               }
             </div>
           </div>
@@ -422,23 +451,26 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
           ))}
         </div>
 
-        {/* Бизнес */}
-        <div className="pt-3 border-t border-border">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Бизнес-тариф</p>
-          <button onClick={() => onPay("business_subscription", "Бизнес-тариф")}
-            className="w-full flex items-center justify-between px-3 py-3 rounded-2xl bg-navy-800 hover:bg-navy-700 text-white transition-all group">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
-                <Icon name="Briefcase" size={14} className="text-gold-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold">Бизнес-тариф</p>
-                <p className="text-[11px] text-white/60">150 действий · PDF/DOC · 24 ч история</p>
-              </div>
+        {/* Докупка бизнес-действий (только если подписка активна) */}
+        {bizSubActive && (
+          <div className="pt-3 border-t border-border">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Докупить бизнес-действия</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { type: "business_actions_10" as ServiceType, label: "+10 действий", price: "1 000 ₽" },
+                { type: "business_actions_30" as ServiceType, label: "+30 действий", price: "3 000 ₽" },
+                { type: "business_actions_50" as ServiceType, label: "+50 действий", price: "3 500 ₽" },
+                { type: "business_actions_150" as ServiceType, label: "+150 действий", price: "9 000 ₽" },
+              ]).map(a => (
+                <button key={a.type} onClick={() => onPay(a.type, a.label)}
+                  className="flex items-center justify-between px-3 py-2 rounded-xl border border-border hover:border-navy-300 hover:bg-navy-50 transition-all text-left">
+                  <span className="text-xs font-medium text-navy-700">{a.label}</span>
+                  <span className="text-xs font-semibold text-navy-600 shrink-0 ml-1">{a.price}</span>
+                </button>
+              ))}
             </div>
-            <span className="font-semibold text-gold-400 text-sm shrink-0 ml-2">4 990 ₽/мес</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Реферальный блок */}

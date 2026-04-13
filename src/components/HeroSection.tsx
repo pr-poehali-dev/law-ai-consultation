@@ -4,6 +4,7 @@ import Icon from "@/components/ui/icon";
 interface HeroSectionProps {
   onConsult: () => void;
   onDocument: () => void;
+  onPricingClick?: () => void;
 }
 
 const TYPED_PHRASES = [
@@ -14,7 +15,10 @@ const TYPED_PHRASES = [
   "Что делать при ДТП?",
 ];
 
-export default function HeroSection({ onConsult, onDocument }: HeroSectionProps) {
+export default function HeroSection({ onConsult, onDocument, onPricingClick }: HeroSectionProps) {
+  const scrollToPricing = onPricingClick ?? (() => {
+    document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [displayText, setDisplayText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -157,7 +161,7 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
             ].map((t) => (
               <button
                 key={t.label}
-                onClick={onConsult}
+                onClick={scrollToPricing}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all hover:scale-105 ${
                   t.hot
                     ? "bg-gold-400/20 border-gold-400/40 text-gold-300 hover:bg-gold-400/30"
