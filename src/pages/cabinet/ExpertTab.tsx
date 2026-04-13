@@ -22,8 +22,37 @@ function fmtTime(iso: string) {
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+// Модальное окно для просмотра полного содержимого вложения
+function AttachmentModal({ title, content, type, onClose }: { title: string; content: string; type: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4">
+      <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-in">
+        <div className={`flex items-center gap-3 px-5 py-4 border-b border-border shrink-0 ${type === "document" ? "bg-emerald-50" : "bg-blue-50"}`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${type === "document" ? "bg-emerald-100" : "bg-blue-100"}`}>
+            <Icon name={type === "document" ? "FileText" : "Bot"} size={16} className={type === "document" ? "text-emerald-600" : "text-blue-600"} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{type === "document" ? "Документ" : "Ответ AI"}</p>
+            <p className="text-sm font-bold text-navy-800 truncate">{title}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/70 rounded-xl transition-colors">
+            <Icon name="X" size={16} className="text-muted-foreground" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 text-sm text-navy-800 whitespace-pre-wrap leading-relaxed font-golos">
+          {content || <span className="text-muted-foreground italic">Содержимое недоступно</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
   const isMe = isAdmin ? msg.sender === "admin" : msg.sender === "user";
+  const [viewAtt, setViewAtt] = useState(false);
+  const hasContent = !!(msg.attachment_content && msg.attachment_content.length > 5);
+
   return (
     <div className={`flex gap-2 sm:gap-3 items-end ${isMe ? "justify-end" : "justify-start"} animate-fade-in`}>
       {!isMe && (
@@ -40,21 +69,26 @@ function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
             ? "bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm"
             : "bg-white border border-slate-100 text-navy-800 rounded-bl-sm shadow"
         }`}>
-          {msg.attachment_type === "chat_answer" && msg.attachment_name && (
-            <div className={`flex items-center gap-2 mb-2.5 px-3 py-2 rounded-xl text-xs font-medium ${
-              isMe ? "bg-white/15 text-white/80" : "bg-blue-50 text-blue-700 border border-blue-100"
-            }`}>
-              <Icon name="Bot" size={12} />
-              <span className="truncate">Ответ AI: {msg.attachment_name.slice(0, 55)}{msg.attachment_name.length > 55 ? "…" : ""}</span>
-            </div>
-          )}
-          {msg.attachment_type === "document" && msg.attachment_name && (
-            <div className={`flex items-center gap-2 mb-2.5 px-3 py-2 rounded-xl text-xs font-medium ${
-              isMe ? "bg-white/15 text-white/80" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-            }`}>
-              <Icon name="FileText" size={12} />
-              <span className="truncate">Документ: {msg.attachment_name}</span>
-            </div>
+          {/* Вложение — кнопка открытия */}
+          {(msg.attachment_type === "chat_answer" || msg.attachment_type === "document") && msg.attachment_name && (
+            <button
+              onClick={() => hasContent && setViewAtt(true)}
+              className={`flex items-center gap-2 mb-2.5 px-3 py-2 rounded-xl text-xs font-medium w-full text-left transition-all ${
+                msg.attachment_type === "chat_answer"
+                  ? isMe
+                    ? "bg-white/15 text-white/85 hover:bg-white/25"
+                    : "bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100"
+                  : isMe
+                    ? "bg-white/15 text-white/85 hover:bg-white/25"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100"
+              } ${hasContent ? "cursor-pointer" : "cursor-default opacity-70"}`}
+            >
+              <Icon name={msg.attachment_type === "document" ? "FileText" : "Bot"} size={13} className="shrink-0" />
+              <span className="flex-1 truncate">
+                {msg.attachment_type === "document" ? "Документ" : "Ответ AI"}: {msg.attachment_name.slice(0, 50)}{msg.attachment_name.length > 50 ? "…" : ""}
+              </span>
+              {hasContent && <Icon name="ExternalLink" size={11} className="shrink-0 opacity-60" />}
+            </button>
           )}
           <p className="text-[13px] leading-relaxed whitespace-pre-wrap font-golos">{msg.body}</p>
         </div>
@@ -67,6 +101,14 @@ function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
         <div className="w-8 h-8 bg-navy-100 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase shadow-sm">
           {isAdmin ? "A" : (msg.body?.[0]?.toUpperCase() ?? "U")}
         </div>
+      )}
+      {viewAtt && msg.attachment_content && (
+        <AttachmentModal
+          title={msg.attachment_name || ""}
+          content={msg.attachment_content}
+          type={msg.attachment_type || ""}
+          onClose={() => setViewAtt(false)}
+        />
       )}
     </div>
   );
@@ -82,15 +124,16 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
   const [loading, setLoading] = useState(true);
   const [attachment, setAttachment] = useState<{ type: string; name: string; content?: string } | null>(null);
   const [showAttachPanel, setShowAttachPanel] = useState(false);
+  const [viewFullMsg, setViewFullMsg] = useState<{ title: string; content: string; type: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const canUse = true; // Все авторизованные могут писать юристу
+  // Задача 4: доступ только после оплаты 1500₽
   const isPaid = user.isAdmin || user.paidExpert;
 
   const loadMessages = useCallback(async () => {
-    if (!canUse) return;
+    if (!isPaid) return;
     if (user.isAdmin && !selectedUserId) {
       const res = await lawyerMessages();
       if (res.dialogs) setDialogs(res.dialogs);
@@ -101,19 +144,19 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     const res = await lawyerMessages(params);
     if (res.messages) setLmsgs(res.messages);
     setLoading(false);
-  }, [canUse, user.isAdmin, selectedUserId]);
+  }, [isPaid, user.isAdmin, selectedUserId]);
 
   useEffect(() => {
+    if (!isPaid) { setLoading(false); return; }
     loadMessages();
     pollRef.current = setInterval(loadMessages, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [loadMessages]);
+  }, [loadMessages, isPaid]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lmsgs]);
 
-  // Авто-resize textarea
   const adjustTextarea = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -146,12 +189,11 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     setSending(false);
   };
 
-  // ── Не оплачено ────────────────────────────
-  if (!canUse) {
+  // ── Не оплачено — экран с кнопкой оплаты ────────────────────────────
+  if (!isPaid && !user.isAdmin) {
     return (
       <div className="max-w-2xl mx-auto px-1">
         <div className="relative overflow-hidden bg-white rounded-3xl border border-border shadow-sm">
-          {/* Декор */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-navy-50 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
           <div className="relative p-6 sm:p-8">
             <div className="flex items-start gap-4 mb-6">
@@ -167,8 +209,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-6">
               {[
                 { icon: "MessageCircle", title: "Личная переписка", desc: "Чат с экспертом-юристом" },
-                { icon: "Bot", title: "3 вопроса к AI", desc: "Включены в тариф при отсутствии подписки" },
-                { icon: "FileCheck", title: "Анализ документов", desc: "Ответ AI или готовый документ" },
+                { icon: "FileSearch", title: "Анализ документов и ответов AI", desc: "Юрист просматривает прикреплённые материалы" },
+                { icon: "FileCheck", title: "Письменное заключение", desc: "Правовая оценка вашей ситуации" },
                 { icon: "Clock", title: "Ответ за 24 часа", desc: "В рабочие дни" },
               ].map((f, i) => (
                 <div key={i} className="flex items-start gap-3 px-4 py-3 bg-slate-50 rounded-2xl border border-border/50">
@@ -219,24 +261,24 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
               <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin mx-auto" />
             </div>
           ) : dialogs.length === 0 ? (
-            <div className="p-10 text-center">
-              <Icon name="Inbox" size={36} className="text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Нет обращений</p>
+            <div className="p-12 text-center">
+              <Icon name="Inbox" size={32} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Обращений пока нет</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
               {dialogs.map((d) => (
                 <button
                   key={d.user_id}
-                  onClick={() => setSelectedUserId(d.user_id)}
+                  onClick={() => { setSelectedUserId(d.user_id); setLmsgs([]); setLoading(true); }}
                   className="w-full flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition-colors text-left group"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-navy-100 to-navy-200 rounded-xl flex items-center justify-center font-bold text-navy-700 text-sm uppercase shrink-0">
-                    {d.name?.[0] ?? "U"}
+                  <div className="w-10 h-10 gradient-navy rounded-xl flex items-center justify-center shrink-0 shadow-sm text-white font-bold text-sm uppercase">
+                    {(d.name?.[0] ?? d.email?.[0] ?? "U")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-sm font-semibold text-navy-800 truncate">{d.name}</span>
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-navy-800 truncate">{d.name || d.email}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{fmtTime(d.last_at)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -260,13 +302,13 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
 
   // ── Диалог ────────────────────────────────────
   const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedUserId) : null;
-  const aiAnswers = messages.filter(m => m.role === "ai" && m.text.length > 30).slice(-4);
+  const aiAnswers = messages.filter(m => m.role === "ai" && m.text.length > 30).slice(-5);
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex flex-col gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 720px)" }}>
+    <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}>
 
       {/* Шапка */}
-      <div className="flex items-center gap-2 sm:gap-3 bg-white rounded-2xl border border-border px-4 py-3 shadow-sm shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 bg-white rounded-2xl border border-border px-3 sm:px-4 py-3 shadow-sm shrink-0">
         {user.isAdmin && (
           <button
             onClick={() => { setSelectedUserId(null); setLmsgs([]); }}
@@ -276,8 +318,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
           </button>
         )}
         <div className="relative">
-          <div className="w-10 h-10 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
-            <Icon name="UserCheck" size={16} className="text-gold-400" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
+            <Icon name="UserCheck" size={15} className="text-gold-400" />
           </div>
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
         </div>
@@ -294,36 +336,20 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
         </button>
       </div>
 
-      {/* Баннер для неоплативших */}
-      {!isPaid && !user.isAdmin && (
-        <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl shrink-0">
-          <Icon name="Info" size={15} className="text-amber-600 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-amber-800">Бесплатное обращение</p>
-            <p className="text-[11px] text-amber-700 mt-0.5">Юрист ответит в течение 24 ч. Для приоритетного ответа — подключите тариф</p>
-          </div>
-          {onPayClick && (
-            <button onClick={onPayClick} className="shrink-0 text-[11px] font-semibold px-2.5 py-1.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors">
-              1 500 ₽
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Сообщения */}
-      <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50 to-white p-4 sm:p-5 space-y-4 sm:space-y-5" style={{ scrollbarWidth: "none" }}>
+      <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50 to-white p-3 sm:p-5 space-y-3 sm:space-y-4" style={{ scrollbarWidth: "none" }}>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
           </div>
         ) : lmsgs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <div className="w-16 h-16 bg-navy-50 rounded-2xl flex items-center justify-center">
-              <Icon name="MessageCircle" size={28} className="text-navy-200" />
+          <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+            <div className="w-14 h-14 bg-navy-50 rounded-2xl flex items-center justify-center">
+              <Icon name="MessageCircle" size={24} className="text-navy-200" />
             </div>
             <div>
               <p className="text-sm font-semibold text-navy-700 mb-1">Начните диалог</p>
-              <p className="text-xs text-muted-foreground max-w-xs">Опишите вашу ситуацию, прикрепите ответ AI или документ для анализа</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Опишите вашу ситуацию или прикрепите ответ AI / документ для анализа</p>
             </div>
             {!user.isAdmin && (aiAnswers.length > 0 || genDocs.length > 0) && (
               <button
@@ -350,6 +376,15 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
           <p className="text-xs font-medium text-navy-800 flex-1 truncate">
             {attachment.type === "document" ? "Документ" : "Ответ AI"}: {attachment.name}
           </p>
+          {attachment.content && (
+            <button
+              onClick={() => setViewFullMsg({ title: attachment.name, content: attachment.content!, type: attachment.type })}
+              className="text-[11px] text-navy-500 hover:text-navy-700 px-2 py-1 hover:bg-navy-100 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <Icon name="Eye" size={11} />
+              Открыть
+            </button>
+          )}
           <button onClick={() => setAttachment(null)} className="p-1 text-muted-foreground hover:text-red-500 transition-colors rounded-lg hover:bg-red-50">
             <Icon name="X" size={13} />
           </button>
@@ -360,25 +395,26 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       {showAttachPanel && !user.isAdmin && (
         <div className="bg-white border border-border rounded-2xl p-3 shrink-0 animate-fade-in">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-navy-700">Выберите что прикрепить:</p>
+            <p className="text-xs font-semibold text-navy-700">Выберите что прикрепить юристу:</p>
             <button onClick={() => setShowAttachPanel(false)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
               <Icon name="X" size={13} className="text-muted-foreground" />
             </button>
           </div>
-          <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto">
+          <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
             {aiAnswers.map((m, i) => (
               <button
                 key={i}
-                onClick={() => { setAttachment({ type: "chat_answer", name: m.text.slice(0, 80) + "…", content: m.text }); setShowAttachPanel(false); }}
+                onClick={() => { setAttachment({ type: "chat_answer", name: `Ответ AI #${i + 1}: ${m.text.slice(0, 50)}…`, content: m.text }); setShowAttachPanel(false); }}
                 className="flex items-start gap-2.5 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl text-left transition-all"
               >
                 <div className="w-6 h-6 bg-blue-200 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                   <Icon name="Bot" size={12} className="text-blue-700" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold text-blue-800">Ответ AI #{i + 1}</p>
-                  <p className="text-[11px] text-blue-600 truncate">{m.text.slice(0, 60)}…</p>
+                  <p className="text-[11px] text-blue-600 line-clamp-2">{m.text.slice(0, 100)}</p>
                 </div>
+                <Icon name="Paperclip" size={12} className="text-blue-400 shrink-0 mt-0.5" />
               </button>
             ))}
             {genDocs.map((doc) => (
@@ -390,10 +426,11 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
                 <div className="w-6 h-6 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                   <Icon name="FileText" size={12} className="text-emerald-700" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold text-emerald-800">{doc.name}</p>
                   <p className="text-[11px] text-emerald-600">{doc.date}</p>
                 </div>
+                <Icon name="Paperclip" size={12} className="text-emerald-400 shrink-0 mt-0.5" />
               </button>
             ))}
             {aiAnswers.length === 0 && genDocs.length === 0 && (
@@ -439,14 +476,32 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
           >
             {sending
               ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              : <Icon name="Send" size={15} className="text-white" />
-            }
+              : <Icon name="Send" size={15} className="text-white" />}
           </button>
         </div>
-        <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="px-4 pb-2 flex items-center justify-between">
           <p className="text-[10px] text-muted-foreground/50">Enter — отправить · Shift+Enter — новая строка</p>
+          {!user.isAdmin && (
+            <button
+              onClick={() => setShowAttachPanel(true)}
+              className="text-[10px] text-navy-500 hover:text-navy-700 flex items-center gap-1 transition-colors"
+            >
+              <Icon name="Paperclip" size={10} />
+              прикрепить документ
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Модалка просмотра полного вложения */}
+      {viewFullMsg && (
+        <AttachmentModal
+          title={viewFullMsg.title}
+          content={viewFullMsg.content}
+          type={viewFullMsg.type}
+          onClose={() => setViewFullMsg(null)}
+        />
+      )}
     </div>
   );
 }

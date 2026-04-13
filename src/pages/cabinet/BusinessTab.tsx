@@ -18,7 +18,7 @@ interface BusinessTabProps {
   onRefreshUser: () => Promise<void>;
 }
 
-type BizTool = "chat" | "counterparty" | "contract" | "doc_analyze" | "doc_compare" | "orders";
+type BizTool = "chat" | "counterparty" | "contract" | "doc_analyze" | "doc_compare" | "orders" | "pretension";
 
 interface BizMsg {
   id?: number;
@@ -56,6 +56,7 @@ const TOOLS: { id: BizTool; icon: string; label: string; desc: string; color: st
   { id: "doc_analyze", icon: "FileSearch", label: "Анализ договора", desc: "PDF/DOC до 20 страниц", color: "orange" },
   { id: "doc_compare", icon: "GitCompare", label: "Сравнение договоров", desc: "Две версии PDF/DOC", color: "pink" },
   { id: "orders", icon: "Stamp", label: "Приказы и документы", desc: "Скачивание в .doc · кадровые", color: "teal" },
+  { id: "pretension", icon: "FileWarning", label: "Претензионная работа", desc: "Претензии и ответы · скачивание .doc", color: "amber" },
 ];
 
 const TOOL_COLORS: Record<string, string> = {
@@ -65,6 +66,7 @@ const TOOL_COLORS: Record<string, string> = {
   orange: "bg-orange-50 text-orange-700 border-orange-100",
   pink: "bg-pink-50 text-pink-700 border-pink-100",
   teal: "bg-teal-50 text-teal-700 border-teal-100",
+  amber: "bg-amber-50 text-amber-700 border-amber-100",
 };
 
 function fmtDt(iso?: string) {
@@ -208,6 +210,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       case "doc_analyze": return "doc_analyze";
       case "doc_compare": return "doc_analyze";
       case "orders": return "orders";
+      case "pretension": return "pretension";
       default: return "chat";
     }
   };
@@ -220,6 +223,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       case "doc_analyze": return `Проанализируй договор контрагента. ${text}`;
       case "doc_compare": return `Сравни две версии договора. ${text}`;
       case "orders": return `Составь приказ/документ: ${text}`;
+      case "pretension": return `Составь досудебную претензию (или ответ на претензию): ${text}`;
       default: return text;
     }
   };
@@ -275,8 +279,8 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       businessMessageSave("ai", aiBody).catch(() => {});
       setAttachedFile(null);
       setAttachedFile2(null);
-      // Для приказов и договоров — проверяем плейсхолдеры и предлагаем дозаполнение
-      if (activeTool === "orders" || activeTool === "contract") {
+      // Для приказов, договоров и претензий — проверяем плейсхолдеры и предлагаем дозаполнение
+      if (activeTool === "orders" || activeTool === "contract" || activeTool === "pretension") {
         const placeholders = [...new Set([...aiBody.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1]))];
         if (placeholders.length > 0) {
           setFillDoc(aiBody);
@@ -369,7 +373,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const needsFile1 = activeTool === "doc_analyze" || activeTool === "doc_compare" || activeTool === "chat";
   const needsFile2 = activeTool === "doc_compare";
   const isDocOnly = activeTool === "doc_analyze" || activeTool === "doc_compare";
-  const lastDownloadableAI = (activeTool === "contract" || activeTool === "orders")
+  const lastDownloadableAI = (activeTool === "contract" || activeTool === "orders" || activeTool === "pretension")
     ? [...messages].reverse().find(m => m.role === "ai")
     : null;
 
@@ -515,6 +519,19 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                   {activeTool==="orders"&&(
                     <p className="text-xs text-teal-600 bg-teal-50 rounded-xl px-3 py-2 mt-2">Опишите вид приказа и параметры — скачаете в .doc</p>
                   )}
+                  {activeTool==="pretension"&&(
+                    <div className="mt-3 space-y-1.5 text-left">
+                      <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">Опишите ситуацию — составлю претензию контрагенту или ответ на входящую претензию</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {["Нарушение сроков поставки","Некачественные услуги","Невозврат долга","Ответ на претензию покупателя"].map(ex=>(
+                          <button key={ex} className="text-[10px] px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors text-left"
+                            onClick={()=>setInput(ex)}>
+                            {ex}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ):messages.map((m,i)=>(
@@ -651,6 +668,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                   :activeTool==="doc_analyze"?"Что именно проверить? (необязательно)"
                   :activeTool==="doc_compare"?"На что обратить особое внимание при сравнении?"
                   :activeTool==="orders"?"Вид приказа/документа и ключевые параметры..."
+                  :activeTool==="pretension"?"Опишите нарушение или вид претензии (получили/направляем)..."
                   :"Задайте юридический вопрос для вашего бизнеса..."
                 }
                 className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 text-sm outline-none resize-none leading-relaxed py-1"

@@ -500,6 +500,8 @@ def handler(event: dict, context) -> dict:
                 sys_prompt = SYSTEM_TAX_ANALYSIS
             elif biz_mode in ("doc_analyze", "doc_compare", "orders"):
                 sys_prompt = SYSTEM_FILE_ANALYZE_PROMPT if biz_mode != "orders" else SYSTEM_DOC_BY_TYPE.get("order", SYSTEM_DOC_GENERATE)
+            elif biz_mode == "pretension":
+                sys_prompt = SYSTEM_DOC_BY_TYPE.get("biz_pretension", SYSTEM_DOC_GENERATE)
             else:
                 sys_prompt = SYSTEM_BUSINESS_CHAT
                 if org_name:

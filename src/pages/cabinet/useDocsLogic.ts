@@ -33,18 +33,20 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
     localStorage.setItem("cabinet_docs", JSON.stringify(docs));
   };
 
-  const generateDoc = async () => {
-    if (!docDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
+  const _runGenerate = async (overrideType?: typeof DOC_TYPES[0], overrideDetails?: string) => {
+    const activeType = overrideType ?? docType;
+    const activeDetails = overrideDetails ?? docDetails;
+    if (!activeDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
     const canDoc = await canUseDoc();
     if (!canDoc) {
-      onPaymentRequired(docType.serviceType, docType.label, docType);
+      onPaymentRequired(activeType.serviceType, activeType.label, activeType);
       return;
     }
     setDocGenerating(true);
     setDocPhase("generating");
     setDocErr("");
     try {
-      const reqBody: Record<string, unknown> = { mode: "doc_generate", doc_type: docType.id, details: docDetails };
+      const reqBody: Record<string, unknown> = { mode: "doc_generate", doc_type: activeType.id, details: activeDetails };
       if (docAttachedFile) {
         reqBody.file = docAttachedFile.b64;
         reqBody.filename = docAttachedFile.name;
@@ -60,7 +62,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
       const truncated: boolean = data.truncated || false;
       const newDoc: GenDoc = {
         id: Date.now(),
-        name: docType.label,
+        name: activeType.label,
         content: data.answer,
         filled: data.answer,
         date: new Date().toLocaleDateString("ru-RU"),
@@ -74,7 +76,6 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       saveGenDocs([newDoc, ...genDocs]);
       setDocPhase(placeholders.length > 0 ? "filling" : "done");
-      // Уведомляем родителя чтобы открыть просмотр документа
       if (onDocGenerated) onDocGenerated(newDoc);
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
@@ -83,6 +84,11 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
       setDocGenerating(false);
     }
   };
+
+  const generateDoc = () => _runGenerate();
+
+  // Вариант с явным типом и деталями — для запуска из createDocFromChat
+  const generateDocWith = (dt: typeof DOC_TYPES[0], details: string) => _runGenerate(dt, details);
 
   const continueDoc = async () => {
     if (!currentDoc) return;
@@ -153,6 +159,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
     fillValues, setFillValues,
     genDocs,
     generateDoc,
+    generateDocWith,
     continueDoc,
     applyFillValues,
     docAttachedFile, setDocAttachedFile,

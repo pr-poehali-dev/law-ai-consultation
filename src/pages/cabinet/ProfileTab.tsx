@@ -327,44 +327,42 @@ export default function ProfileTab({ user, genDocs, onPay, onLogout }: ProfileTa
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
         <h3 className="font-semibold text-navy-800 mb-4 flex items-center gap-2 text-sm">
           <Icon name="Crown" size={16} className="text-gold-500" />
-          Подписки
+          Активные подписки
         </h3>
         <div className="space-y-3">
-          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border ${consultSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${consultSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
-                <Icon name="MessageCircle" size={16} className={consultSubActive ? "text-emerald-600" : "text-navy-500"} />
+          {/* Показываем безлимитные только если активны */}
+          {consultSubActive && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border border-emerald-200 bg-emerald-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-100">
+                  <Icon name="MessageCircle" size={16} className="text-emerald-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-navy-800">Безлимитные консультации</div>
+                  <div className="text-xs text-muted-foreground">Безлимитные вопросы AI</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-navy-800">Безлимитные консультации</div>
-                <div className="text-xs text-muted-foreground">1 990 ₽/мес · Безлимитные вопросы AI</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:shrink-0">
-              {consultSubActive
-                ? <SubscriptionBadge until={user.subscriptionConsultUntil} />
-                : <button onClick={() => onPay("subscription_consult", "Безлимитные консультации")} className="btn-gold text-xs px-3 py-2 rounded-xl w-full sm:w-auto">Подключить</button>
-              }
-            </div>
-          </div>
-
-          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border ${docsSubActive ? "border-emerald-200 bg-emerald-50" : "border-border"}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${docsSubActive ? "bg-emerald-100" : "bg-navy-50"}`}>
-                <Icon name="FileText" size={16} className={docsSubActive ? "text-emerald-600" : "text-navy-500"} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-navy-800">Безлимитные документы</div>
-                <div className="text-xs text-muted-foreground">4 990 ₽/мес · Неограниченная генерация</div>
+              <div className="flex items-center gap-2 sm:shrink-0">
+                <SubscriptionBadge until={user.subscriptionConsultUntil} />
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:shrink-0">
-              {docsSubActive
-                ? <SubscriptionBadge until={user.subscriptionDocsUntil} />
-                : <button onClick={() => onPay("subscription_docs", "Безлимитные документы")} className="btn-gold text-xs px-3 py-2 rounded-xl w-full sm:w-auto">Подключить</button>
-              }
+          )}
+          {docsSubActive && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border border-emerald-200 bg-emerald-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-100">
+                  <Icon name="FileText" size={16} className="text-emerald-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-navy-800">Безлимитные документы</div>
+                  <div className="text-xs text-muted-foreground">Неограниченная генерация документов</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 sm:shrink-0">
+                <SubscriptionBadge until={user.subscriptionDocsUntil} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Бизнес-тариф */}
           <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl border ${bizSubActive ? "border-navy-200 bg-navy-50" : "border-border"}`}>

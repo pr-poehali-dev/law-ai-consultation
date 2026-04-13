@@ -116,12 +116,17 @@ export default function Cabinet() {
   useEffect(() => {
     if (!pendingDocFromChat || tab !== "docs") return;
     const dt = DOC_TYPES.find(d => d.id === pendingDocFromChat.docTypeId) || DOC_TYPES[0];
-    docs.setDocType(dt);
-    docs.setDocDetails(pendingDocFromChat.details);
-    docs.setDocPhase("form");
+    const details = pendingDocFromChat.details;
     setPendingDocFromChat(null);
-    // Автоматически запускаем генерацию после установки данных
-    setTimeout(() => docs.generateDoc(), 100);
+    // Устанавливаем тип и детали, затем сразу запускаем генерацию
+    docs.setDocType(dt);
+    docs.setDocDetails(details);
+    docs.setDocPhase("form");
+    docs.setDocErr("");
+    // Запускаем через 300мс — React успевает обновить state
+    setTimeout(() => {
+      docs.generateDocWith(dt, details);
+    }, 300);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 

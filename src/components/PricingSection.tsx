@@ -235,59 +235,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           </div>
         </div>
 
-        {/* Дополнительные тарифы (для старых пользователей) */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            {
-              id: "subscription_consult",
-              name: "Безлимитные консультации",
-              price: "1 990",
-              desc: "Неограниченные вопросы AI-юристу — 1 месяц",
-              features: ["Неограниченные вопросы", "Все отрасли права", "История консультаций"],
-              badge: "🔥 Безлимит",
-              icon: "MessageCircle",
-            },
-            {
-              id: "subscription_docs",
-              name: "Безлимитные документы",
-              price: "4 990",
-              desc: "Неограниченная генерация документов — 1 месяц",
-              features: ["Неограниченные документы", "Все типы документов", "Скачивание .doc"],
-              badge: "🔥 Безлимит",
-              icon: "FileText",
-            },
-          ].map((sub) => (
-            <div
-              key={sub.id}
-              className="relative rounded-3xl border border-navy-200 bg-gradient-to-br from-navy-50 to-slate-50 p-5 sm:p-6 flex flex-col sm:flex-row items-start gap-4 cursor-pointer card-hover group transition-all hover:shadow-xl hover:border-navy-300"
-              onClick={() => onSelectPlan(sub.name, sub.price, sub.id)}
-            >
-              <div className="w-11 h-11 gradient-navy rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Icon name={sub.icon} size={20} className="text-gold-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center flex-wrap gap-2 mb-1">
-                  <span className="font-semibold text-navy-800 text-sm">{sub.name}</span>
-                  <span className="text-[10px] font-bold bg-gold-400/20 text-gold-700 px-2 py-0.5 rounded-full">{sub.badge}</span>
-                </div>
-                <ul className="space-y-0.5 mb-2">
-                  {sub.features.map((f) => (
-                    <li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Icon name="Check" size={11} className="text-emerald-500 shrink-0" />{f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="font-cormorant font-bold text-2xl text-navy-800">{sub.price} ₽</p>
-                <p className="text-xs text-muted-foreground">/мес</p>
-                <button className="mt-2 btn-gold text-xs px-3 py-1.5 rounded-xl">
-                  Выбрать
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+
 
       </div>
     </section>

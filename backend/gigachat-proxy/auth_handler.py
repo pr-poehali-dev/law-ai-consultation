@@ -233,6 +233,11 @@ def handle_login(body: dict, ip: str = "") -> dict:
             f"UPDATE {SCHEMA}.users SET last_login_at = NOW() WHERE id = %s",
             (user_id,)
         )
+        # Один сеанс на пользователя — инвалидируем все предыдущие сессии
+        cur.execute(
+            f"UPDATE {SCHEMA}.sessions SET expires_at = NOW() WHERE user_id = %s AND expires_at > NOW()",
+            (user_id,)
+        )
         token = generate_token()
         cur.execute(
             f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
