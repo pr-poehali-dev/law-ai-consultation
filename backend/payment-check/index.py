@@ -1,18 +1,14 @@
 """
-Проверяет статус платежа в Robokassa по inv_id.
-Использует XML-интерфейс Robokassa: OpStateExt.
-Подпись: MD5(MrchLogin:InvId:Password2)
-Также проверяет статус в нашей БД (orders).
+Проверяет статус платежа по inv_id.
+Сначала смотрит в БД, если не оплачен — запрашивает ЮКасса API по payment_id.
 """
 import json
 import os
-import hashlib
 import requests
-import xml.etree.ElementTree as ET
 import psycopg2
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
-ROBOKASSA_XML_URL = "https://merchant.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt"
+YUKASSA_API = "https://api.yookassa.ru/v3/payments"
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -25,38 +21,20 @@ def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
-def check_robokassa_status(login: str, inv_id: int, password2: str) -> dict:
-    """Запрашивает статус через XML API Robokassa."""
-    raw = f"{login}:{inv_id}:{password2}"
-    signature = hashlib.md5(raw.encode("utf-8")).hexdigest().upper()
-
+def check_yukassa_status(shop_id: str, secret_key: str, payment_id: str) -> bool:
+    """Запрашивает статус платежа в ЮКасса."""
     resp = requests.get(
-        ROBOKASSA_XML_URL,
-        params={
-            "MerchantLogin": login,
-            "InvoiceID": str(inv_id),
-            "Signature": signature,
-        },
+        f"{YUKASSA_API}/{payment_id}",
+        auth=(shop_id, secret_key),
         timeout=10,
     )
     resp.raise_for_status()
-
-    root = ET.fromstring(resp.text)
-    ns = {"rk": "http://merchant.roboxchange.com/WebService/"}
-
-    # Статус кода
-    state_code_el = root.find(".//rk:State/rk:Code", ns)
-    state_code = int(state_code_el.text) if state_code_el is not None else -1
-
-    # 5 = оплачен (Completed)
-    # 3 = в процессе (InProcess)
-    # 0 = только создан
-    paid = state_code == 5
-
-    return {"state_code": state_code, "paid": paid}
+    data = resp.json()
+    return data.get("status") == "succeeded"
 
 
 def handler(event: dict, context) -> dict:
+    """Проверяет статус оплаты по inv_id."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -79,12 +57,11 @@ def handler(event: dict, context) -> dict:
             "body": json.dumps({"error": "inv_id must be integer"}),
         }
 
-    # Сначала смотрим в нашей БД — самый быстрый способ
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT status, service_type, user_id FROM {SCHEMA}.orders WHERE inv_id = %s",
+            f"SELECT status, service_type, user_id, payment_id FROM {SCHEMA}.orders WHERE inv_id = %s",
             (inv_id,)
         )
         row = cur.fetchone()
@@ -92,40 +69,45 @@ def handler(event: dict, context) -> dict:
         cur.close()
         conn.close()
 
-    if row:
-        db_status, service_type, user_id = row
-        if db_status == "paid":
-            return {
-                "statusCode": 200,
-                "headers": {**CORS, "Content-Type": "application/json"},
-                "body": json.dumps({
-                    "inv_id": inv_id,
-                    "paid": True,
-                    "status": "paid",
-                    "service_type": service_type,
-                    "user_id": user_id,
-                }, ensure_ascii=False),
-            }
+    if not row:
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"inv_id": inv_id, "paid": False, "status": "not_found"}, ensure_ascii=False),
+        }
 
-    # Если в БД ещё не paid — запрашиваем у Robokassa напрямую
-    login = os.environ["ROBOKASSA_LOGIN"]
-    password2 = os.environ["ROBOKASSA_PASS2"]
+    db_status, service_type, user_id, payment_id = row
 
-    try:
-        rk = check_robokassa_status(login, inv_id, password2)
-        paid = rk["paid"]
-        state_code = rk["state_code"]
-    except Exception as e:
-        # Не удалось проверить у Robokassa — возвращаем статус из БД
+    if db_status == "paid":
         return {
             "statusCode": 200,
             "headers": {**CORS, "Content-Type": "application/json"},
             "body": json.dumps({
                 "inv_id": inv_id,
-                "paid": False,
-                "status": db_status if row else "not_found",
-                "service_type": service_type if row else None,
+                "paid": True,
+                "status": "paid",
+                "service_type": service_type,
+                "user_id": user_id,
             }, ensure_ascii=False),
+        }
+
+    if not payment_id:
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"inv_id": inv_id, "paid": False, "status": "pending", "service_type": service_type}, ensure_ascii=False),
+        }
+
+    shop_id = os.environ["YUKASSA_SHOP_ID"]
+    secret_key = os.environ["YUKASSA_SECRET_KEY"]
+
+    try:
+        paid = check_yukassa_status(shop_id, secret_key, payment_id)
+    except Exception:
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"inv_id": inv_id, "paid": False, "status": db_status, "service_type": service_type}, ensure_ascii=False),
         }
 
     return {
@@ -134,8 +116,7 @@ def handler(event: dict, context) -> dict:
         "body": json.dumps({
             "inv_id": inv_id,
             "paid": paid,
-            "state_code": state_code,
             "status": "paid" if paid else "pending",
-            "service_type": service_type if row else None,
+            "service_type": service_type,
         }, ensure_ascii=False),
     }

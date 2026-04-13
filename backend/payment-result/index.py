@@ -1,32 +1,23 @@
 """
-ResultURL — webhook от Robokassa после успешной оплаты.
-Robokassa шлёт POST: OutSum, InvId, SignatureValue, shp_* ...
-Проверяем подпись MD5(OutSum:InvId:Password2[:shp_params]), начисляем услугу, отвечаем OK{InvId}.
+Webhook от ЮКасса (notification URL) после изменения статуса платежа.
+ЮКасса шлёт POST с JSON: {type, event, object{id, status, metadata, ...}}.
+Проверяем event == 'payment.succeeded', начисляем услугу пользователю.
 """
 import json
 import os
-import hashlib
-import urllib.parse
 import psycopg2
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
-
-
-def verify_signature(out_sum: str, inv_id: str, crc: str, password2: str) -> bool:
-    """Проверяет подпись от Robokassa: MD5(OutSum:InvId:Password2)"""
-    raw = f"{out_sum}:{inv_id}:{password2}"
-    expected = hashlib.md5(raw.encode("utf-8")).hexdigest().upper()
-    return expected == crc.upper()
 
 
 def grant_service(conn, user_id: int, service_type: str):
@@ -79,91 +70,73 @@ def grant_service(conn, user_id: int, service_type: str):
 
 
 def handler(event: dict, context) -> dict:
+    """Webhook ЮКасса — обрабатывает событие payment.succeeded."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
-    # Robokassa может слать и POST (form-data) и GET
     raw_body = event.get("body") or ""
-    params = {}
+    try:
+        notification = json.loads(raw_body)
+    except Exception:
+        return {"statusCode": 400, "headers": CORS, "body": "Bad JSON"}
 
-    # Парсим тело как form-urlencoded (POST)
-    if raw_body:
-        try:
-            parsed = urllib.parse.parse_qs(raw_body, keep_blank_values=True)
-            params = {k: v[0] for k, v in parsed.items()}
-        except Exception:
-            pass
+    event_type = notification.get("event", "")
+    if event_type != "payment.succeeded":
+        return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
-    # Если ничего не пришло в body — пробуем query string (GET)
-    if not params:
-        params = event.get("queryStringParameters") or {}
+    payment_obj = notification.get("object", {})
+    payment_id = payment_obj.get("id", "")
+    status = payment_obj.get("status", "")
+    metadata = payment_obj.get("metadata", {})
 
-    out_sum = params.get("OutSum", "")
-    inv_id = params.get("InvId", "")
-    crc = params.get("SignatureValue", "")
+    if status != "succeeded" or not payment_id:
+        return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
-    if not out_sum or not inv_id or not crc:
-        return {
-            "statusCode": 400,
-            "headers": {**CORS, "Content-Type": "text/plain"},
-            "body": "Bad request: missing params",
-        }
+    inv_id_str = metadata.get("inv_id", "")
+    service_type = metadata.get("service_type", "")
+    user_id_str = metadata.get("user_id", "")
 
-    password2 = os.environ["ROBOKASSA_PASS2"]
-
-    if not verify_signature(out_sum, inv_id, crc, password2):
-        return {
-            "statusCode": 400,
-            "headers": {**CORS, "Content-Type": "text/plain"},
-            "body": "bad sign",
-        }
-
-    inv_id_int = int(inv_id)
+    try:
+        inv_id = int(inv_id_str)
+    except (ValueError, TypeError):
+        return {"statusCode": 400, "headers": CORS, "body": "bad inv_id"}
 
     conn = get_conn()
     cur = conn.cursor()
     try:
-        # Получаем заказ
         cur.execute(
             f"SELECT id, user_id, service_type, status FROM {SCHEMA}.orders WHERE inv_id = %s",
-            (inv_id_int,)
+            (inv_id,)
         )
         row = cur.fetchone()
         if not row:
-            return {
-                "statusCode": 404,
-                "headers": {**CORS, "Content-Type": "text/plain"},
-                "body": f"Order not found: {inv_id}",
-            }
+            return {"statusCode": 404, "headers": CORS, "body": f"Order not found: {inv_id}"}
 
-        order_id, user_id, service_type, status = row
+        order_id, db_user_id, db_service_type, db_status = row
 
-        # Защита от двойного начисления
-        if status == "paid":
-            return {
-                "statusCode": 200,
-                "headers": {**CORS, "Content-Type": "text/plain"},
-                "body": f"OK{inv_id}",
-            }
+        if db_status == "paid":
+            return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
-        # Помечаем заказ оплаченным
         cur.execute(
-            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s",
-            (order_id,)
+            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW(), payment_id = %s WHERE id = %s",
+            (payment_id, order_id)
         )
         conn.commit()
 
-        # Начисляем услугу пользователю (если user_id привязан)
-        if user_id:
-            grant_service(conn, user_id, service_type)
+        effective_user_id = db_user_id
+        if not effective_user_id and user_id_str:
+            try:
+                effective_user_id = int(user_id_str)
+            except (ValueError, TypeError):
+                pass
+
+        effective_service = db_service_type or service_type
+
+        if effective_user_id and effective_service:
+            grant_service(conn, effective_user_id, effective_service)
 
     finally:
         cur.close()
         conn.close()
 
-    # Robokassa ожидает ровно такой ответ: OK{InvId}
-    return {
-        "statusCode": 200,
-        "headers": {**CORS, "Content-Type": "text/plain"},
-        "body": f"OK{inv_id}",
-    }
+    return {"statusCode": 200, "headers": CORS, "body": "ok"}

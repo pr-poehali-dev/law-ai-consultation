@@ -7,11 +7,11 @@
       "expectedStatus": 200
     },
     {
-      "name": "Missing params",
+      "name": "Non-succeeded event ignored",
       "method": "POST",
       "path": "/",
-      "body": {},
-      "expectedStatus": 400
+      "body": {"event": "payment.canceled", "object": {"id": "test", "status": "canceled"}},
+      "expectedStatus": 200
     }
   ]
 }

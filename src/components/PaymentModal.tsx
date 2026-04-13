@@ -61,6 +61,7 @@ export default function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [invId, setInvId] = useState<number | null>(null);
+  const [payUrl, setPayUrl] = useState<string>("");
 
   const price = SERVICE_PRICES[serviceType];
 
@@ -92,9 +93,10 @@ export default function PaymentModal({
       if (!res.ok) throw new Error(data.error || "Ошибка создания платежа");
 
       setInvId(data.inv_id);
+      setPayUrl(data.pay_url);
       setStep("redirected");
 
-      // Открываем страницу оплаты Robokassa
+      // Открываем страницу оплаты ЮКасса
       window.open(data.pay_url, "_blank");
 
       // Начинаем поллинг после небольшой паузы
@@ -163,7 +165,7 @@ export default function PaymentModal({
             <div className="mb-5">
               <div className="inline-flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-1.5 mb-4">
                 <Icon name="ShieldCheck" size={14} className="text-emerald-600" />
-                <span className="text-xs text-emerald-700 font-medium">Защищённая оплата · Robokassa</span>
+                <span className="text-xs text-emerald-700 font-medium">Защищённая оплата · ЮКасса</span>
               </div>
               <h3 className="font-cormorant font-bold text-2xl text-navy-800">Оплата услуги</h3>
               <p className="text-muted-foreground text-sm mt-1">{serviceName}</p>
@@ -202,7 +204,7 @@ export default function PaymentModal({
                 onKeyDown={(e) => e.key === "Enter" && handlePay()}
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                Robokassa автоматически пришлёт кассовый чек на этот адрес
+                ЮКасса автоматически пришлёт кассовый чек на этот адрес
               </p>
             </div>
 
@@ -231,7 +233,7 @@ export default function PaymentModal({
             </div>
 
             <p className="text-[10px] text-muted-foreground text-center mt-3 leading-relaxed">
-              Оплата через Robokassa. Нажимая «Перейти к оплате», вы соглашаетесь с{" "}
+              Оплата через ЮКасса. Нажимая «Перейти к оплате», вы соглашаетесь с{" "}
               <a href="/offer" target="_blank" className="underline hover:text-navy-600">офертой</a>.
             </p>
           </div>
@@ -248,13 +250,7 @@ export default function PaymentModal({
               Оплатите в открывшейся вкладке. Если вкладка не открылась — нажмите кнопку ниже.
             </p>
             <button
-              onClick={() => {
-                if (invId) {
-                  const el = document.createElement("a");
-                  el.href = `https://auth.robokassa.ru/Merchant/Index.aspx`;
-                  el.target = "_blank";
-                }
-              }}
+              onClick={() => { if (payUrl) window.open(payUrl, "_blank"); }}
               className="text-sm text-navy-600 underline hover:text-navy-800"
             >
               Открыть страницу оплаты повторно
@@ -274,7 +270,7 @@ export default function PaymentModal({
             </div>
             <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Проверяем оплату</h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Ждём подтверждения от Robokassa. Это обычно занимает до 30 секунд.
+              Ждём подтверждения от ЮКасса. Это обычно занимает до 30 секунд.
             </p>
             <div className="flex items-center justify-center gap-1.5 mt-4">
               {[0, 1, 2].map((i) => (
@@ -297,7 +293,7 @@ export default function PaymentModal({
             </div>
             <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Оплата прошла!</h3>
             <p className="text-sm text-muted-foreground mb-1">Услуга активирована.</p>
-            <p className="text-xs text-muted-foreground">Чек придёт на email от Robokassa</p>
+            <p className="text-xs text-muted-foreground">Чек придёт на email от ЮКасса</p>
 
             {showRegisterPrompt && (
               <div className="mt-5 p-4 bg-navy-50 rounded-2xl text-left">
