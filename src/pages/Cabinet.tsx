@@ -34,10 +34,15 @@ export default function Cabinet() {
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 
   useEffect(() => {
+    // Сохраняем реферальный код из URL если есть
+    const ref = searchParams.get("ref");
+    if (ref) localStorage.setItem("ref_code", ref);
+
     getUser().then((u) => {
       if (!u) { navigate("/"); return; }
       setUser(u);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   // Обработка возврата после оплаты ЮКасса (авторизованный пользователь)

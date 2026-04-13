@@ -136,7 +136,6 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const [fillDoc, setFillDoc] = useState<string>("");
   const [filledDoc, setFilledDoc] = useState<string>("");
 
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);

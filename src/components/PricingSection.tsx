@@ -98,7 +98,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               key={plan.id}
               onMouseEnter={() => setHovered(plan.id)}
               onMouseLeave={() => setHovered(null)}
-              className={`relative flex flex-col rounded-3xl border overflow-hidden cursor-pointer transition-all duration-300 ${
+              className={`plan-card-animate relative flex flex-col rounded-3xl border overflow-hidden cursor-pointer transition-all duration-300 ${
                 plan.popular
                   ? "pricing-popular text-white shadow-2xl shadow-navy-900/20 scale-[1.02] sm:scale-105"
                   : `${plan.color} border-border hover:border-navy-200 hover:shadow-xl`
@@ -157,7 +157,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
 
         {/* Бизнес-тариф */}
         <div
-          className="relative rounded-3xl overflow-hidden border border-navy-700/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-navy-900/15"
+          className="biz-card-animate relative rounded-3xl overflow-hidden border border-navy-700/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-navy-900/15"
           onClick={() => onSelectPlan("Бизнес-тариф", "4 990", "business_subscription")}
         >
           {/* Фон */}
@@ -182,7 +182,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   </div>
                 </div>
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-cormorant font-bold text-5xl text-white">4 990 ₽</span>
+                  <span className="font-cormorant font-bold text-5xl shimmer-gold">4 990 ₽</span>
                   <span className="text-white/50 text-sm">/ месяц</span>
                 </div>
                 <p className="text-white/60 text-sm mb-5 max-w-xs">

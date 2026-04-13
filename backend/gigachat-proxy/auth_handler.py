@@ -776,9 +776,46 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         )
         row = cur.fetchone()
         conn.commit()
+
+        # Получаем данные отправителя для письма
+        sender_name = ""
+        sender_email = ""
+        if not is_admin:
+            try:
+                cur2 = conn.cursor()
+                cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                urow = cur2.fetchone()
+                if urow:
+                    sender_name = urow[0] or ""
+                    sender_email = urow[1] or ""
+                cur2.close()
+            except Exception:
+                pass
     finally:
         cur.close()
         conn.close()
+
+    # Отправляем email юристу (только когда пишет пользователь, не админ)
+    if not is_admin:
+        try:
+            att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+            email_body = (
+                f"Новое сообщение от клиента\n"
+                f"{'─'*40}\n"
+                f"Имя: {sender_name}\n"
+                f"Email: {sender_email}\n"
+                f"{'─'*40}\n\n"
+                f"{msg_body}{att_info}\n\n"
+                f"{'─'*40}\n"
+                f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
+            )
+            _send_email(
+                to_email=ADMIN_EMAIL,
+                subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
+                body_text=email_body,
+            )
+        except Exception:
+            pass  # Email не критичен — сообщение уже сохранено
 
     return _ok({"id": row[0], "created_at": row[1].isoformat()})
 

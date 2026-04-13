@@ -142,6 +142,36 @@ export default function HeroSection({ onConsult, onDocument }: HeroSectionProps)
             </button>
           </div>
 
+          {/* Тарифы — быстрый выбор */}
+          <div
+            className={`flex flex-wrap items-center justify-center gap-2 mb-8 sm:mb-10 px-2 transition-all duration-700 delay-450 ${
+              visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
+          >
+            <span className="text-white/40 text-xs">Тарифы:</span>
+            {[
+              { label: "Старт", sub: "30 вопросов", price: "1 490 ₽" },
+              { label: "Профи", sub: "100 вопросов", price: "3 990 ₽", hot: true },
+              { label: "Максимум", sub: "300 вопросов", price: "5 990 ₽" },
+              { label: "Бизнес", sub: "150 действий", price: "4 990 ₽" },
+            ].map((t) => (
+              <button
+                key={t.label}
+                onClick={onConsult}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all hover:scale-105 ${
+                  t.hot
+                    ? "bg-gold-400/20 border-gold-400/40 text-gold-300 hover:bg-gold-400/30"
+                    : "bg-white/8 border-white/15 text-white/65 hover:bg-white/15 hover:text-white/90"
+                }`}
+              >
+                {t.hot && <span className="w-1.5 h-1.5 bg-gold-400 rounded-full animate-pulse" />}
+                <span>{t.label}</span>
+                <span className="text-white/40 hidden sm:inline">·</span>
+                <span className="text-white/50 hidden sm:inline">{t.price}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Stats */}
           <div
             className={`grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto transition-all duration-700 delay-500 ${
