@@ -18,6 +18,25 @@ import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 
+// Описание что начисляется по каждому типу оплаты
+const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
+  consultation:          "+3 вопроса к AI-юристу",
+  document:              "+1 документ",
+  expert:                "Экспертная проверка активирована",
+  business:              "Бизнес-пакет активирован",
+  subscription_consult:  "Подписка на консультации активирована",
+  subscription_docs:     "Подписка на документы активирована",
+  plan_starter:          "+30 вопросов и +5 документов",
+  plan_pro:              "+100 вопросов и +20 документов",
+  plan_max:              "+300 вопросов и +50 документов",
+  business_subscription: "+150 бизнес-действий и подписка",
+  business_actions_10:   "+10 бизнес-действий",
+  business_actions_30:   "+30 бизнес-действий",
+  business_actions_50:   "+50 бизнес-действий",
+  business_actions_60:   "+60 бизнес-действий",
+  business_actions_150:  "+150 бизнес-действий",
+};
+
 export default function Cabinet() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,13 +47,23 @@ export default function Cabinet() {
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
   const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
 
+  // Контекст действия ДО оплаты: откуда пришли и что делали
+  const [pendingAction, setPendingAction] = useState<{
+    tab: typeof tab;
+    chatInput?: string;          // текст в поле чата
+    docDetails?: string;         // текст в поле документа
+    docTypeId?: string;          // тип документа
+  } | null>(null);
+
+  // Тост-уведомление после успешной оплаты
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
   // ViewDoc modal
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 
   useEffect(() => {
-    // Сохраняем реферальный код из URL если есть
     const ref = searchParams.get("ref");
     if (ref) localStorage.setItem("ref_code", ref);
 
@@ -61,9 +90,6 @@ export default function Cabinet() {
         const res = await fetch(`${CHECK_URL}?inv_id=${invId}`);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
-          if (data.service_type) {
-            await addPaidService(data.service_type as ServiceType).catch(() => {});
-          }
           await refreshUser();
           return;
         }
@@ -92,26 +118,65 @@ export default function Cabinet() {
   const docs = useDocsLogic({
     refreshUser,
     onPaymentRequired: (type, name, pendingDt) => {
+      // Запоминаем контекст: вкладка docs + детали + тип документа
+      setPendingAction({
+        tab: "docs",
+        docDetails: docs.docDetails,
+        docTypeId: pendingDt?.id,
+      });
       setPayment({ type, name });
       setPendingDocType(pendingDt);
     },
     onDocGenerated: (doc) => {
-      // Если документ пришёл из чата — открываем сразу для просмотра
       setViewDoc(doc);
     },
   });
 
+  const showToast = (msg: string) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
   const handlePaySuccess = async (svcType: ServiceType) => {
-    // Начисление происходит ТОЛЬКО через webhook ЮКасса (payment-result).
-    // Здесь только обновляем данные пользователя с небольшой задержкой (webhook может прийти чуть позже)
+    // Ждём webhook — небольшая задержка
     await new Promise(r => setTimeout(r, 1500));
     await refreshUser();
     setPayment(null);
+
+    // Показываем тост с тем что начислено
+    const label = GRANT_LABELS[svcType];
+    if (label) showToast(label);
+
+    const action = pendingAction;
+    setPendingAction(null);
+
+    // Если было действие с документом
     if (pendingDocType && (svcType === "document" || svcType === "business")) {
       setPendingDocType(null);
-      setTimeout(() => docs.generateDoc(), 300);
-    } else {
-      setPendingDocType(null);
+      setTab("docs");
+      setTimeout(() => docs.generateDoc(), 400);
+      return;
+    }
+    setPendingDocType(null);
+
+    // Возвращаемся на вкладку откуда пришли и выполняем действие
+    if (action) {
+      setTab(action.tab);
+
+      if (action.tab === "chat" && action.chatInput?.trim()) {
+        // Автоматически отправляем сохранённый вопрос
+        setTimeout(() => {
+          chat.sendMessage(action.chatInput!);
+        }, 400);
+      } else if (action.tab === "docs" && action.docTypeId) {
+        // Восстанавливаем документ и генерируем
+        const dt = DOC_TYPES.find(d => d.id === action.docTypeId);
+        if (dt && action.docDetails) {
+          docs.setDocType(dt);
+          docs.setDocDetails(action.docDetails);
+          setTimeout(() => docs.generateDocWith(dt, action.docDetails!), 400);
+        }
+      }
     }
   };
 
@@ -121,12 +186,10 @@ export default function Cabinet() {
     const dt = DOC_TYPES.find(d => d.id === pendingDocFromChat.docTypeId) || DOC_TYPES[0];
     const details = pendingDocFromChat.details;
     setPendingDocFromChat(null);
-    // Устанавливаем тип и детали, затем сразу запускаем генерацию
     docs.setDocType(dt);
     docs.setDocDetails(details);
     docs.setDocPhase("form");
     docs.setDocErr("");
-    // Запускаем через 300мс — React успевает обновить state
     setTimeout(() => {
       docs.generateDocWith(dt, details);
     }, 300);
@@ -136,7 +199,6 @@ export default function Cabinet() {
   // Шаг 1: пользователь нажал «Создать документ» — добавляем в чат уточняющий вопрос AI
   const createDocFromChat = (aiText: string, userText: string) => {
     if (creatingDocFromChat) return;
-    // Сохраняем контекст и вставляем уточняющий вопрос в чат
     setDocClarifyContext({ aiText, userText });
     const docList = DOC_TYPES.map(d => d.label).join(", ");
     const clarifyMsg = `Хорошо, подготовлю документ на основе нашего разговора.\n\nКакой именно документ вам нужен? (${docList})\n\nТакже укажите:\n— Стороны (кто истец/ответчик или отправитель/получатель)\n— Ключевые суммы, даты, адреса (если известны)`;
@@ -145,12 +207,11 @@ export default function Cabinet() {
 
   // Шаг 2: пользователь ответил — запускаем генерацию
   const handleDocClarifyReply = async (userReply: string) => {
-    docClarifyReplyRef.current = undefined; // сбрасываем перехватчик
+    docClarifyReplyRef.current = undefined;
     if (!docClarifyContext) return;
     const { aiText, userText } = docClarifyContext;
     setDocClarifyContext(null);
 
-    // Проверяем оплату
     const canDoc = user!.isAdmin || (user!.paidDocs ?? 0) > 0 ||
       (user!.subscriptionDocsUntil ? new Date(user!.subscriptionDocsUntil) > new Date() : false);
     if (!canDoc) {
@@ -159,7 +220,6 @@ export default function Cabinet() {
     }
 
     setCreatingDocFromChat(true);
-    // Добавляем сообщение-статус в чат
     chat.injectAiMessage("Отлично! Генерирую документ, сейчас переведу вас в раздел «Документы»...");
 
     try {
@@ -231,7 +291,11 @@ export default function Cabinet() {
             onFileSelect={chat.handleFileSelect}
             onAttachClick={() => chat.fileInputRef.current?.click()}
             onClearFile={() => chat.setAttachedFile(null)}
-            onPayClick={() => setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" })}
+            onPayClick={() => {
+              // Сохраняем текущий input чтобы после оплаты автоматически отправить
+              setPendingAction({ tab: "chat", chatInput: chat.input });
+              setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+            }}
             onGoToDocs={() => setTab("docs")}
             onCreateDocFromMsg={createDocFromChat}
             creatingDocFromChat={creatingDocFromChat}
@@ -264,7 +328,12 @@ export default function Cabinet() {
             onGoToChat={() => setTab("chat")}
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
-            onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
+            onPayForDoc={(dt) => {
+              // Запоминаем контекст: тип документа и детали
+              setPendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
+              setPayment({ type: dt.serviceType, name: dt.label });
+              setPendingDocType(dt);
+            }}
             onAnalyzeDoc={(doc) => {
               const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
                 (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);
@@ -323,7 +392,7 @@ export default function Cabinet() {
         <PaymentModal
           serviceType={payment.type}
           serviceName={payment.name}
-          onClose={() => { setPayment(null); setPendingDocType(null); }}
+          onClose={() => { setPayment(null); setPendingDocType(null); setPendingAction(null); }}
           onSuccess={handlePaySuccess}
         />
       )}
@@ -333,6 +402,23 @@ export default function Cabinet() {
           doc={viewDoc}
           onClose={() => setViewDoc(null)}
         />
+      )}
+
+      {/* Тост-уведомление об успешном начислении */}
+      {successToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div className="flex items-center gap-3 px-5 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-900/20 font-golos">
+            <div className="w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold opacity-80">Оплата прошла успешно</p>
+              <p className="text-sm font-bold">{successToast}</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
