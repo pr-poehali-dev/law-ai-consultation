@@ -46,6 +46,19 @@ def handler(event: dict, context) -> dict:
     """Создаёт платёж ЮКасса и возвращает ссылку для редиректа."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
+    try:
+        return _handle(event, context)
+    except Exception as e:
+        import traceback
+        print("PAYMENT-CREATE ERROR:", traceback.format_exc())
+        return {
+            "statusCode": 500,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"error": str(e)}, ensure_ascii=False),
+        }
+
+
+def _handle(event: dict, context) -> dict:
 
     body = json.loads(event.get("body") or "{}")
     service_type = body.get("service_type", "consultation")
@@ -130,10 +143,11 @@ def handler(event: dict, context) -> dict:
     )
 
     if not resp.ok:
+        print(f"YUKASSA ERROR {resp.status_code}: {resp.text[:500]}")
         return {
             "statusCode": 502,
             "headers": {**CORS, "Content-Type": "application/json"},
-            "body": json.dumps({"error": f"ЮКасса: {resp.status_code} {resp.text[:200]}"}, ensure_ascii=False),
+            "body": json.dumps({"error": f"ЮКасса: {resp.status_code} {resp.text[:300]}"}, ensure_ascii=False),
         }
 
     payment = resp.json()
