@@ -37,7 +37,7 @@ export default function Terms() {
               <h2 className="font-semibold text-navy-800 text-lg mb-3">1. Термины и определения</h2>
               <ul className="list-disc pl-5 mt-2 space-y-1">
                 <li><strong>Сервис</strong> — информационная платформа «Юрист AI», доступная на данном сайте;</li>
-                <li><strong>Исполнитель / Администрация</strong> — ИП Поварчук Валентина Степановна (ИНН 910402855455);</li>
+                <li><strong>Исполнитель / Администрация</strong> — самозанятый Поварчук Валентина Степановна (ИНН 910402855455);</li>
                 <li><strong>Пользователь</strong> — дееспособное физическое лицо старше 18 лет, прошедшее регистрацию на Сервисе;</li>
                 <li><strong>Услуги</strong> — информационные услуги, оказываемые Сервисом в соответствии с <a href="/offer" className="text-navy-600 underline hover:text-navy-800">Публичной офертой</a>;</li>
                 <li><strong>Контент</strong> — тексты, документы и ответы, формируемые AI-системой на основе запросов Пользователя;</li>
@@ -127,8 +127,9 @@ export default function Terms() {
             <section>
               <h2 className="font-semibold text-navy-800 text-lg mb-3">11. Контакты</h2>
               <div className="bg-slate-50 rounded-2xl p-5 mt-2 space-y-1.5">
-                <p><strong>Исполнитель:</strong> Кузина Полина Евгеньевна</p>
-                <p><strong>ИНН:</strong> 910231739939</p>
+                <p><strong>Исполнитель:</strong> Поварчук Валентина Степановна</p>
+                <p><strong>Статус:</strong> Самозанятый (плательщик НПД)</p>
+                <p><strong>ИНН:</strong> 910402855455</p>
                 <p><strong>Email:</strong> povpartner@mail.ru</p>
                 <p><strong>Телефон:</strong> +7 (978) 456-42-17</p>
               </div>
