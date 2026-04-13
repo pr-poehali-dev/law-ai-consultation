@@ -342,7 +342,7 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2200)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2500)
             truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -543,7 +543,7 @@ def handler(event: dict, context) -> dict:
                 chat_messages = messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=800)
             else:
-                answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=3000)
+                answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=800)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
