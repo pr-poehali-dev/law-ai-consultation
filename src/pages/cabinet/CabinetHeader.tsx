@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import { logout, type User } from "@/lib/auth";
 
-type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile";
+type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
 
 interface CabinetHeaderProps {
   user: User;
@@ -33,7 +33,6 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
 
   return (
     <>
-      {/* Верхний хедер — без backdrop-blur на мобиле */}
       <header className="sticky top-0 z-40 bg-white/95 border-b border-border shadow-sm md:bg-white/80 md:backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between gap-4">
           <button onClick={() => navigate("/")} className="flex items-center gap-2 shrink-0">
@@ -58,6 +57,17 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
                 {t.label}
               </button>
             ))}
+            {user.isAdmin && (
+              <button
+                onClick={() => onTabChange("admin")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  tab === "admin" ? "bg-purple-600 shadow-sm text-white" : "text-purple-600 hover:bg-purple-50"
+                }`}
+              >
+                <Icon name="ShieldCheck" size={14} />
+                Админ
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
@@ -76,6 +86,17 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
                 {totalLeft > 0 ? `${totalLeft} вопр.` : "0"}
               </div>
             )}
+            {/* Кнопка Админ на мобиле */}
+            {user.isAdmin && (
+              <button
+                onClick={() => onTabChange("admin")}
+                className={`md:hidden flex items-center justify-center w-7 h-7 rounded-xl transition-colors ${
+                  tab === "admin" ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-600"
+                }`}
+              >
+                <Icon name="ShieldCheck" size={14} />
+              </button>
+            )}
             <div className="w-7 h-7 md:w-8 md:h-8 gradient-navy rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase">
               {user.name?.[0] ?? "U"}
             </div>
@@ -90,7 +111,6 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
         </div>
       </header>
 
-      {/* Мобильный таб-бар — FIXED внизу экрана, не sticky */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border safe-bottom">
         <div className="flex">
           {TABS_MOBILE.map((t) => (

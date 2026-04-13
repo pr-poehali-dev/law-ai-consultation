@@ -279,6 +279,35 @@ export async function listUsers(): Promise<{ id: number; email: string; name: st
   return data.users || [];
 }
 
+export interface AllBillingLogEntry extends BillingLogEntry {
+  user_id: number;
+  user_email: string;
+  user_name: string;
+}
+
+export async function getAllBillingLog(opts?: { seen_ids?: number[]; offset?: number }): Promise<{ logs: AllBillingLogEntry[]; total: number }> {
+  const res = await apiCall({ action: "get-all-billing-log", limit: 100, offset: opts?.offset ?? 0, seen_ids: opts?.seen_ids ?? [] });
+  const data = await res.json();
+  return { logs: data.logs || [], total: data.total || 0 };
+}
+
+export interface AdminUserEntry {
+  id: number;
+  email: string;
+  name: string;
+  phone: string;
+  created_at: string;
+  paid_questions: number;
+  paid_docs: number;
+  is_admin: boolean;
+}
+
+export async function getNewUsers(opts?: { seen_ids?: number[] }): Promise<{ users: AdminUserEntry[]; total: number }> {
+  const res = await apiCall({ action: "get-new-users", limit: 50, seen_ids: opts?.seen_ids ?? [] });
+  const data = await res.json();
+  return { users: data.users || [], total: data.total || 0 };
+}
+
 export async function businessConsumeAction(): Promise<{ ok?: boolean; error?: string }> {
   const res = await apiCall({ action: "business-consume-action" });
   const data = await res.json();

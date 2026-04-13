@@ -1044,3 +1044,121 @@ def handle_get_billing_log(token: str, body: dict) -> dict:
     finally:
         cur.close()
         conn.close()
+
+
+def handle_get_all_billing_log(token: str, body: dict) -> dict:
+    """Все начисления всех пользователей — только для админа."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+
+    limit = int(body.get("limit", 100))
+    offset = int(body.get("offset", 0))
+    seen_ids = body.get("seen_ids", [])  # список id уже просмотренных записей
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # Исключаем просмотренные записи если указаны
+        if seen_ids:
+            placeholders = ",".join(["%s"] * len(seen_ids))
+            cur.execute(
+                f"""SELECT b.id, b.user_id, b.user_email, b.service_type, b.amount,
+                           b.description, b.source, b.payment_id, b.created_at,
+                           u.name
+                    FROM {SCHEMA}.billing_log b
+                    LEFT JOIN {SCHEMA}.users u ON u.id = b.user_id
+                    WHERE b.id NOT IN ({placeholders})
+                    ORDER BY b.created_at DESC
+                    LIMIT %s OFFSET %s""",
+                (*seen_ids, limit, offset)
+            )
+        else:
+            cur.execute(
+                f"""SELECT b.id, b.user_id, b.user_email, b.service_type, b.amount,
+                           b.description, b.source, b.payment_id, b.created_at,
+                           u.name
+                    FROM {SCHEMA}.billing_log b
+                    LEFT JOIN {SCHEMA}.users u ON u.id = b.user_id
+                    ORDER BY b.created_at DESC
+                    LIMIT %s OFFSET %s""",
+                (limit, offset)
+            )
+        rows = cur.fetchall()
+        logs = []
+        for r in rows:
+            logs.append({
+                "id": r[0],
+                "user_id": r[1],
+                "user_email": r[2],
+                "service_type": r[3],
+                "amount": float(r[4]) if r[4] else 0,
+                "description": r[5],
+                "source": r[6],
+                "payment_id": r[7],
+                "created_at": r[8].isoformat() if r[8] else None,
+                "user_name": r[9] or "",
+            })
+
+        cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.billing_log")
+        total = cur.fetchone()[0]
+
+        return _ok({"logs": logs, "total": total})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_get_new_users(token: str, body: dict) -> dict:
+    """Список пользователей с фильтром по дате — только для админа."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+
+    limit = int(body.get("limit", 50))
+    seen_ids = body.get("seen_ids", [])
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if seen_ids:
+            placeholders = ",".join(["%s"] * len(seen_ids))
+            cur.execute(
+                f"""SELECT id, email, name, phone, created_at,
+                           paid_questions, paid_docs, is_admin
+                    FROM {SCHEMA}.users
+                    WHERE id NOT IN ({placeholders})
+                    ORDER BY created_at DESC
+                    LIMIT %s""",
+                (*seen_ids, limit)
+            )
+        else:
+            cur.execute(
+                f"""SELECT id, email, name, phone, created_at,
+                           paid_questions, paid_docs, is_admin
+                    FROM {SCHEMA}.users
+                    ORDER BY created_at DESC
+                    LIMIT %s""",
+                (limit,)
+            )
+        rows = cur.fetchall()
+        users = []
+        for r in rows:
+            users.append({
+                "id": r[0],
+                "email": r[1],
+                "name": r[2] or "",
+                "phone": r[3] or "",
+                "created_at": r[4].isoformat() if r[4] else None,
+                "paid_questions": r[5] or 0,
+                "paid_docs": r[6] or 0,
+                "is_admin": r[7] or False,
+            })
+
+        cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.users")
+        total = cur.fetchone()[0]
+
+        return _ok({"users": users, "total": total})
+    finally:
+        cur.close()
+        conn.close()

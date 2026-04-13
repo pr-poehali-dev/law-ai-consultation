@@ -14,6 +14,7 @@ import ExpertTab from "@/pages/cabinet/ExpertTab";
 import BusinessTab from "@/pages/cabinet/BusinessTab";
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import ViewDocModal from "@/pages/cabinet/ViewDocModal";
+import AdminTab from "@/pages/cabinet/AdminTab";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
@@ -65,7 +66,7 @@ export default function Cabinet() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
-  const [tab, setTab] = useState<"chat" | "docs" | "expert" | "business" | "history" | "profile">("chat");
+  const [tab, setTab] = useState<"chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin">("chat");
 
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
   const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
@@ -414,6 +415,10 @@ export default function Cabinet() {
             onPay={(type, name) => setPayment({ type, name })}
             onLogout={async () => { await logout(); navigate("/"); }}
           />
+        )}
+
+        {tab === "admin" && user.isAdmin && (
+          <AdminTab />
         )}
 
       </main>
