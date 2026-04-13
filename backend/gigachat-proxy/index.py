@@ -34,6 +34,8 @@ from prompts import (
 warnings.filterwarnings("ignore")
 
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
+# Быстрая модель для консультаций
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt/latest"
 
 # ───────────────────────────────────────────────
 # S3 и файловые утилиты
@@ -212,7 +214,7 @@ def is_refusal(text: str) -> bool:
 MAX_HISTORY = 2
 
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False) -> str:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -221,6 +223,16 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200) -> s
         }
         for m in recent
     ]
+    if fast:
+        iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+        resp = requests.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+            json={"model": YANDEX_MODEL_FAST, "messages": openai_messages, "max_tokens": max_tokens, "temperature": 0.7, "stream": False},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
     return _call_openai_compat(openai_messages, max_tokens)
 
 
@@ -507,10 +519,10 @@ def handler(event: dict, context) -> dict:
                 if org_name:
                     sys_prompt = sys_prompt + f"\n\nОрганизация клиента: {org_name}"
 
-            # Для консультаций — обрезаем историю, для документов — оставляем полную
+            # Для консультаций — быстрая модель, для документов — deepseek
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
             trimmed = biz_messages if is_doc_mode else biz_messages[-2:]
-            answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 800)
+            answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 800, fast=not is_doc_mode)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -531,7 +543,7 @@ def handler(event: dict, context) -> dict:
                 {"role": "assistant", "content": partial},
                 {"role": "user", "content": "Продолжи ответ с того места, где остановился. Не повторяй уже написанное."},
             ]
-            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=800)
+            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=800, fast=True)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -540,13 +552,12 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            # Обрезаем историю до последних 4 сообщений — быстрее генерация
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = messages[1:][-2:]
-                answer = call_yandex(custom_system, chat_messages, max_tokens=800)
+                answer = call_yandex(custom_system, chat_messages, max_tokens=800, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, messages[-2:], max_tokens=800)
+                answer = call_yandex(SYSTEM_CHAT, messages[-2:], max_tokens=800, fast=True)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
