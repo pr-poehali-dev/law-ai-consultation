@@ -1,5 +1,5 @@
 """
-Webhook от ЮКасса (notification URL) после изменения статуса платежа.
+Webhook от ЮКасса (notification URL) после изменения статуса платежа. Live-режим.
 ЮКасса шлёт POST с JSON: {type, event, object{id, status, metadata, ...}}.
 Проверяем event == 'payment.succeeded', начисляем услугу пользователю.
 """
