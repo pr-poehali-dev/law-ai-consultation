@@ -299,6 +299,8 @@ def handler(event: dict, context) -> dict:
         if mode == "doc_generate":
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "").strip()
+            file_b64 = body.get("file", "")
+            filename = body.get("filename", "")
             if not details:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
             doc_labels = {
@@ -313,9 +315,26 @@ def handler(event: dict, context) -> dict:
             }
             label = doc_labels.get(doc_type, "документ")
             system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+
+            # Извлекаем текст из загруженного файла если есть
+            file_context = ""
+            if file_b64 and filename:
+                try:
+                    file_data = base64.b64decode(file_b64)
+                    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+                    if ext == "pdf":
+                        file_context = extract_pdf_text(file_data)[:4000]
+                    elif ext in ("docx", "doc"):
+                        file_context = extract_docx_text(file_data)[:4000]
+                    elif ext in ("jpg", "jpeg", "png"):
+                        file_context = extract_image_text_ocr(file_data, ext)[:3000]
+                except Exception:
+                    file_context = ""
+
             prompt = (
                 f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
-                f"Там где не хватает конкретных данных (ФИО, адрес, ИНН и т.д.) — "
+                + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
+                + f"Там где не хватает конкретных данных (ФИО, адрес, ИНН и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
@@ -439,9 +458,35 @@ def handler(event: dict, context) -> dict:
         elif mode == "business_chat":
             biz_messages = body.get("messages", [])
             org_name = body.get("org_name", "").strip()
-            biz_mode = body.get("biz_mode", "chat")  # chat | contract | counterparty | tax | doc_analyze | doc_compare
+            biz_mode = body.get("biz_mode", "chat")
             if not biz_messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
+
+            # Извлекаем текст из файлов
+            file_texts = []
+            for fkey, fnkey in [("file", "filename"), ("file2", "filename2")]:
+                fb64 = body.get(fkey, "")
+                fname = body.get(fnkey, "")
+                if fb64 and fname:
+                    try:
+                        fdata = base64.b64decode(fb64)
+                        ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+                        if ext == "pdf":
+                            file_texts.append(f"[Файл: {fname}]\n{extract_pdf_text(fdata)[:5000]}")
+                        elif ext in ("docx", "doc"):
+                            file_texts.append(f"[Файл: {fname}]\n{extract_docx_text(fdata)[:5000]}")
+                        elif ext in ("jpg", "jpeg", "png"):
+                            txt = extract_image_text_ocr(fdata, ext)
+                            if txt:
+                                file_texts.append(f"[Файл: {fname}]\n{txt[:3000]}")
+                    except Exception:
+                        pass
+
+            # Добавляем текст файлов к последнему сообщению пользователя
+            if file_texts and biz_messages:
+                last_msg = biz_messages[-1].copy()
+                last_msg["content"] = last_msg.get("content", "") + "\n\n" + "\n\n".join(file_texts)
+                biz_messages = biz_messages[:-1] + [last_msg]
 
             if biz_mode == "contract":
                 sys_prompt = SYSTEM_BUSINESS_CONTRACT
@@ -449,8 +494,8 @@ def handler(event: dict, context) -> dict:
                 sys_prompt = SYSTEM_COUNTERPARTY_CHECK
             elif biz_mode == "tax":
                 sys_prompt = SYSTEM_TAX_ANALYSIS
-            elif biz_mode in ("doc_analyze", "doc_compare"):
-                sys_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+            elif biz_mode in ("doc_analyze", "doc_compare", "orders"):
+                sys_prompt = SYSTEM_FILE_ANALYZE_PROMPT if biz_mode != "orders" else SYSTEM_DOC_BY_TYPE.get("order", SYSTEM_DOC_GENERATE)
             else:
                 sys_prompt = SYSTEM_BUSINESS_CHAT
                 if org_name:

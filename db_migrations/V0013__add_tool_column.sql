@@ -1,0 +1,1 @@
+ALTER TABLE t_p57945357_law_ai_consultation.business_messages ADD COLUMN IF NOT EXISTS tool VARCHAR(30) NOT NULL DEFAULT 'chat';

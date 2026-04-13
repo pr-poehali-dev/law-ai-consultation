@@ -19,6 +19,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired }: UseDocsLogicPro
   const [docErr, setDocErr] = useState("");
   const [currentDoc, setCurrentDoc] = useState<GenDoc | null>(null);
   const [fillValues, setFillValues] = useState<Record<string, string>>({});
+  const [docAttachedFile, setDocAttachedFile] = useState<{ name: string; b64: string } | null>(null);
   const [genDocs, setGenDocs] = useState<GenDoc[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_docs");
@@ -42,10 +43,15 @@ export function useDocsLogic({ refreshUser, onPaymentRequired }: UseDocsLogicPro
     setDocPhase("generating");
     setDocErr("");
     try {
+      const reqBody: Record<string, unknown> = { mode: "doc_generate", doc_type: docType.id, details: docDetails };
+      if (docAttachedFile) {
+        reqBody.file = docAttachedFile.b64;
+        reqBody.filename = docAttachedFile.name;
+      }
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "doc_generate", doc_type: docType.id, details: docDetails }),
+        body: JSON.stringify(reqBody),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
@@ -62,6 +68,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired }: UseDocsLogicPro
       };
       await consumeDoc();
       await refreshUser();
+      setDocAttachedFile(null);
       setCurrentDoc(newDoc);
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       saveGenDocs([newDoc, ...genDocs]);
@@ -145,5 +152,6 @@ export function useDocsLogic({ refreshUser, onPaymentRequired }: UseDocsLogicPro
     generateDoc,
     continueDoc,
     applyFillValues,
+    docAttachedFile, setDocAttachedFile,
   };
 }

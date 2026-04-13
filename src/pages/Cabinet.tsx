@@ -148,6 +148,7 @@ export default function Cabinet() {
             currentDoc={docs.currentDoc}
             fillValues={docs.fillValues}
             genDocs={docs.genDocs}
+            docAttachedFile={docs.docAttachedFile}
             onDocTypeChange={(dt) => { docs.setDocType(dt); docs.setDocErr(""); }}
             onDocDetailsChange={docs.setDocDetails}
             onGenerate={docs.generateDoc}
@@ -157,11 +158,12 @@ export default function Cabinet() {
             onSetPhase={docs.setDocPhase}
             onSetCurrentDoc={docs.setCurrentDoc}
             onSetFillValues={docs.setFillValues}
-            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); }}
+            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); docs.setDocAttachedFile(null); }}
             onGoToChat={() => setTab("chat")}
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => { setPayment({ type: dt.serviceType, name: dt.label }); setPendingDocType(dt); }}
+            onFileAttach={docs.setDocAttachedFile}
             onAnalyzeDoc={(doc) => {
               const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
                 (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);

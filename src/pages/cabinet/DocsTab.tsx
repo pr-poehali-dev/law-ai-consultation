@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { User } from "@/lib/auth";
@@ -37,6 +37,7 @@ interface DocsTabProps {
   currentDoc: GenDoc | null;
   fillValues: Record<string, string>;
   genDocs: GenDoc[];
+  docAttachedFile?: { name: string; b64: string } | null;
   onDocTypeChange: (dt: typeof DOC_TYPES[0]) => void;
   onDocDetailsChange: (v: string) => void;
   onGenerate: () => void;
@@ -52,6 +53,7 @@ interface DocsTabProps {
   onOpenDoc: (doc: GenDoc) => void;
   onPayForDoc: (dt: typeof DOC_TYPES[0]) => void;
   onAnalyzeDoc: (doc: GenDoc) => void;
+  onFileAttach?: (file: { name: string; b64: string } | null) => void;
 }
 
 export { DOC_TYPES };
@@ -132,6 +134,7 @@ export default function DocsTab({
   currentDoc,
   fillValues,
   genDocs,
+  docAttachedFile,
   onDocTypeChange,
   onDocDetailsChange,
   onGenerate,
@@ -147,7 +150,22 @@ export default function DocsTab({
   onOpenDoc,
   onPayForDoc,
   onAnalyzeDoc,
+  onFileAttach,
 }: DocsTabProps) {
+  const docFileRef = useRef<HTMLInputElement>(null);
+
+  const handleDocFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = (reader.result as string).split(",")[1];
+      onFileAttach?.({ name: file.name, b64 });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
 
@@ -189,6 +207,26 @@ export default function DocsTab({
               rows={5}
               className="w-full bg-slate-50 border border-border rounded-2xl px-3 sm:px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
             />
+            {/* Загрузка файла для улучшения генерации */}
+            <div className="mb-3">
+              <input ref={docFileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={handleDocFile} />
+              {docAttachedFile ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+                  <Icon name="FileCheck" size={12} className="shrink-0" />
+                  <span className="flex-1 truncate">{docAttachedFile.name}</span>
+                  <button onClick={() => onFileAttach?.(null)} className="text-emerald-500 hover:text-red-500 transition-colors">
+                    <Icon name="X" size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => docFileRef.current?.click()}
+                  className="w-full flex items-center gap-2 px-3 py-2 border border-dashed border-navy-200 hover:border-navy-400 bg-slate-50 hover:bg-navy-50 rounded-xl text-xs text-navy-600 transition-all">
+                  <Icon name="Upload" size={13} className="shrink-0" />
+                  <span>Загрузить файл для улучшения генерации <span className="text-muted-foreground">(фото, PDF, DOC)</span></span>
+                </button>
+              )}
+            </div>
+
             {docErr && (
               <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
                 <Icon name="AlertCircle" size={13} className="shrink-0" />{docErr}

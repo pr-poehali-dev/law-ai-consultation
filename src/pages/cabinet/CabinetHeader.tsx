@@ -61,12 +61,21 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
-              totalLeft > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"
-            }`}>
-              <Icon name="MessageCircle" size={11} />
-              {totalLeft > 0 ? `${totalLeft} вопр.` : "0"}
-            </div>
+            {tab === "business" ? (
+              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
+                (user.businessActionsLeft ?? 0) > 0 || user.isAdmin ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"
+              }`}>
+                <Icon name="Zap" size={11} />
+                {user.isAdmin ? "∞" : (user.businessActionsLeft ?? 0)} действий
+              </div>
+            ) : (
+              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
+                totalLeft > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"
+              }`}>
+                <Icon name="MessageCircle" size={11} />
+                {totalLeft > 0 ? `${totalLeft} вопр.` : "0"}
+              </div>
+            )}
             <div className="w-7 h-7 md:w-8 md:h-8 gradient-navy rounded-xl flex items-center justify-center text-white text-xs font-bold uppercase">
               {user.name?.[0] ?? "U"}
             </div>

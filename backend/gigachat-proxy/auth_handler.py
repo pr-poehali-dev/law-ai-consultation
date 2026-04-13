@@ -695,7 +695,7 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
     att_name = sanitize_str(body.get("attachment_name") or "")
     att_content = body.get("attachment_content") or ""
 
-    if not msg_body and not att_content:
+    if not msg_body and not att_content and not att_name:
         return _err(400, "Пустое сообщение")
 
     if is_admin:
