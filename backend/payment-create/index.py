@@ -1,106 +1,143 @@
 """
-Создаёт платёж в ЮKassa. Поддерживает СБП и банковские карты.
-Возвращает confirmation_url для редиректа или QR для СБП.
+Создаёт заказ в БД и возвращает ссылку на оплату через Robokassa.
+Подпись: MD5(MrchLogin:OutSum:InvId:Receipt:Password1)
+Receipt передаётся как URL-encoded JSON для фискализации по 54-ФЗ.
 """
 import json
 import os
-import uuid
-import requests
+import hashlib
+import urllib.parse
+import psycopg2
 
-
-YUKASSA_API = "https://api.yookassa.ru/v3/payments"
+SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
+ROBOKASSA_URL = "https://auth.robokassa.ru/Merchant/Index.aspx"
 
 PRICES = {
-    "consultation": 10000,           # 100 руб
-    "trial": 5000,                   # 50 руб — 1 вопрос (вводный)
-    "document": 50000,               # 500 руб
-    "expert": 150000,                # 1500 руб
-    "business": 100000,              # 1000 руб
-    "subscription_consult": 199000,  # 1990 руб/мес — безлимитные консультации
-    "subscription_docs": 499000,     # 4990 руб/мес — безлимитные документы
+    "consultation": "100.00",
+    "document":     "500.00",
+    "expert":       "1500.00",
+    "business":     "1000.00",
+    "subscription_consult": "1990.00",
+    "subscription_docs":    "4990.00",
 }
 
 DESCRIPTIONS = {
-    "consultation": "Юридическая AI-консультация (3 вопроса)",
-    "trial": "Юридическая AI-консультация (1 вопрос) — вводный тариф",
-    "document": "Подготовка юридического документа (исковое, претензия, жалоба)",
-    "expert": "Проверка ответа AI экспертом-юристом с заключением",
-    "business": "Подготовка договора и юридических документов для бизнеса",
-    "subscription_consult": "Подписка «Безлимитные консультации» — 1 месяц",
-    "subscription_docs": "Подписка «Безлимитные документы» — 1 месяц",
+    "consultation": "AI-консультация (3 вопроса)",
+    "document":     "Подготовка юридического документа",
+    "expert":       "Экспертная проверка юристом",
+    "business":     "Бизнес-пакет (договор + документы)",
+    "subscription_consult": "Подписка: безлимитные консультации (1 мес.)",
+    "subscription_docs":    "Подписка: безлимитные документы (1 мес.)",
+}
+
+CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-User-Id",
 }
 
 
-def handler(event: dict, context) -> dict:
-    cors = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-    }
+def get_conn():
+    return psycopg2.connect(os.environ["DATABASE_URL"])
 
+
+def build_receipt(description: str, amount: str, email: str) -> str:
+    """Формирует JSON чека для фискализации (54-ФЗ). tax=none — для ИП на УСН."""
+    receipt = {
+        "sno": "usn_income",
+        "items": [{
+            "name": description[:128],
+            "quantity": 1,
+            "sum": float(amount),
+            "payment_method": "full_payment",
+            "payment_object": "service",
+            "tax": "none",
+        }]
+    }
+    if email:
+        receipt["email"] = email
+    return json.dumps(receipt, ensure_ascii=False)
+
+
+def make_signature(login: str, out_sum: str, inv_id: int, receipt_encoded: str, password1: str) -> str:
+    """MD5(MrchLogin:OutSum:InvId:Receipt:Password1)"""
+    raw = f"{login}:{out_sum}:{inv_id}:{receipt_encoded}:{password1}"
+    return hashlib.md5(raw.encode("utf-8")).hexdigest().upper()
+
+
+def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
-        return {"statusCode": 200, "headers": cors, "body": ""}
+        return {"statusCode": 200, "headers": CORS, "body": ""}
 
     body = json.loads(event.get("body") or "{}")
     service_type = body.get("service_type", "consultation")
-    payment_method = body.get("payment_method", "bank_card")  # bank_card | sbp
-    return_url = body.get("return_url", "https://law-ai-consultation.poehali.dev/")
-    user_email = body.get("email", "")
+    user_email = (body.get("email") or "").strip()
+    user_id = body.get("user_id")  # опционально — если пользователь авторизован
 
-    amount = PRICES.get(service_type, PRICES["consultation"])
-    description = DESCRIPTIONS.get(service_type, DESCRIPTIONS["consultation"])
-
-    shop_id = os.environ["YUKASSA_SHOP_ID"]
-    secret_key = os.environ["YUKASSA_SECRET_KEY"]
-
-    if payment_method == "sbp":
-        payment_method_data = {"type": "sbp"}
-    else:
-        payment_method_data = {"type": "bank_card"}
-
-    payload = {
-        "amount": {"value": f"{amount / 100:.2f}", "currency": "RUB"},
-        "confirmation": {"type": "redirect", "return_url": return_url},
-        "payment_method_data": payment_method_data,
-        "description": description,
-        "metadata": {"service_type": service_type, "user_email": user_email},
-        "capture": True,
-    }
-
-    if user_email:
-        payload["receipt"] = {
-            "customer": {"email": user_email},
-            "items": [{
-                "description": description,
-                "quantity": "1.00",
-                "amount": {"value": f"{amount / 100:.2f}", "currency": "RUB"},
-                "vat_code": 1,
-                "payment_mode": "full_payment",
-                "payment_subject": "service",
-            }],
+    if service_type not in PRICES:
+        return {
+            "statusCode": 400,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"error": f"Неизвестный тип услуги: {service_type}"}, ensure_ascii=False),
         }
 
-    resp = requests.post(
-        YUKASSA_API,
-        json=payload,
-        auth=(shop_id, secret_key),
-        headers={
-            "Idempotence-Key": str(uuid.uuid4()),
-            "Content-Type": "application/json",
-        },
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    login = os.environ["ROBOKASSA_LOGIN"]
+    password1 = os.environ["ROBOKASSA_PASS1"]
+    is_test = os.environ.get("ROBOKASSA_TEST", "0")
+
+    out_sum = PRICES[service_type]
+    description = DESCRIPTIONS[service_type]
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # Создаём заказ в БД, получаем InvId (= id записи)
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.orders (inv_id, user_id, user_email, service_type, amount, status)
+                VALUES (nextval('{SCHEMA}.orders_id_seq'), %s, %s, %s, %s, 'pending')
+                RETURNING id""",
+            (user_id, user_email, service_type, out_sum)
+        )
+        inv_id = cur.fetchone()[0]
+        # inv_id = id = InvId
+        cur.execute(
+            f"UPDATE {SCHEMA}.orders SET inv_id = %s WHERE id = %s",
+            (inv_id, inv_id)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    receipt_json = build_receipt(description, out_sum, user_email)
+    receipt_encoded = urllib.parse.quote(receipt_json)
+
+    signature = make_signature(login, out_sum, inv_id, receipt_encoded, password1)
+
+    params = {
+        "MrchLogin": login,
+        "OutSum": out_sum,
+        "InvId": str(inv_id),
+        "Description": description,
+        "SignatureValue": signature,
+        "Receipt": receipt_encoded,
+        "Encoding": "utf-8",
+        "Culture": "ru",
+    }
+    if user_email:
+        params["Email"] = user_email
+    if is_test == "1":
+        params["IsTest"] = "1"
+
+    pay_url = ROBOKASSA_URL + "?" + "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items())
 
     return {
         "statusCode": 200,
-        "headers": {**cors, "Content-Type": "application/json"},
+        "headers": {**CORS, "Content-Type": "application/json"},
         "body": json.dumps({
-            "payment_id": data["id"],
-            "status": data["status"],
-            "confirmation_url": data["confirmation"]["confirmation_url"],
-            "amount": amount,
+            "inv_id": inv_id,
+            "pay_url": pay_url,
+            "amount": out_sum,
             "service_type": service_type,
         }, ensure_ascii=False),
     }

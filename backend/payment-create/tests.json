@@ -5,6 +5,15 @@
       "method": "OPTIONS",
       "path": "/",
       "expectedStatus": 200
+    },
+    {
+      "name": "Missing / unknown service_type",
+      "method": "POST",
+      "path": "/",
+      "body": {"service_type": "unknown_xyz"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Неизвестный тип услуги: unknown_xyz"},
+      "bodyMatcher": "partial"
     }
   ]
 }

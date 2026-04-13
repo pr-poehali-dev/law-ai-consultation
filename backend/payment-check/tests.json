@@ -7,11 +7,19 @@
       "expectedStatus": 200
     },
     {
-      "name": "Missing payment_id",
+      "name": "Missing inv_id",
       "method": "GET",
       "path": "/",
       "expectedStatus": 400,
-      "expectedBody": {"error": "payment_id required"},
+      "expectedBody": {"error": "inv_id required"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Invalid inv_id format",
+      "method": "GET",
+      "path": "/?inv_id=abc",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "inv_id must be integer"},
       "bodyMatcher": "partial"
     }
   ]
