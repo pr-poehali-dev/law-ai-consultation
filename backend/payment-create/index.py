@@ -11,6 +11,7 @@ import psycopg2
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 YUKASSA_API = "https://api.yookassa.ru/v3/payments"
+YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
     "consultation": "100.00",
@@ -111,6 +112,11 @@ def handler(event: dict, context) -> dict:
                 "payment_subject": "service",
             }],
         }
+
+    payment_data["transfers"] = [{
+        "account_id": YUKASSA_AGENT_ID,
+        "amount": {"value": amount, "currency": "RUB"},
+    }]
 
     resp = requests.post(
         YUKASSA_API,
