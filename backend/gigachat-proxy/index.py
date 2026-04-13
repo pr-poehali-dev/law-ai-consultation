@@ -507,7 +507,7 @@ def handler(event: dict, context) -> dict:
                 if org_name:
                     sys_prompt = sys_prompt + f"\n\nОрганизация клиента: {org_name}"
 
-            answer = call_yandex(sys_prompt, biz_messages, max_tokens=3500)
+            answer = call_yandex(sys_prompt, biz_messages, max_tokens=800)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -528,7 +528,7 @@ def handler(event: dict, context) -> dict:
                 {"role": "assistant", "content": partial},
                 {"role": "user", "content": "Продолжи ответ с того места, где остановился. Не повторяй уже написанное."},
             ]
-            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=2500)
+            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=800)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
