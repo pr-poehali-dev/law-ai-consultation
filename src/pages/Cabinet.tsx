@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import { getUser, logout, addPaidService, type User } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
@@ -17,6 +17,7 @@ import { type GenDoc } from "@/pages/cabinet/DocsTab";
 
 export default function Cabinet() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [tab, setTab] = useState<"chat" | "docs" | "expert" | "history" | "profile">("chat");
 
@@ -33,6 +34,36 @@ export default function Cabinet() {
       setUser(u);
     });
   }, [navigate]);
+
+  // Обработка возврата после оплаты ЮКасса
+  useEffect(() => {
+    const isSuccess = searchParams.get("payment") === "success";
+    const invId = searchParams.get("inv_id");
+    if (!isSuccess || !invId) return;
+
+    setSearchParams({});
+
+    // Поллинг статуса платежа, затем начисление услуги
+    const CHECK_URL = "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591";
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      try {
+        const res = await fetch(`${CHECK_URL}?inv_id=${invId}`);
+        const data = await res.json();
+        if (data.paid || data.status === "paid") {
+          if (data.service_type) {
+            await addPaidService(data.service_type as ServiceType).catch(() => {});
+          }
+          await refreshUser();
+          return;
+        }
+      } catch { /* продолжаем */ }
+      if (attempts < 10) setTimeout(poll, 3000);
+      else await refreshUser();
+    };
+    setTimeout(poll, 2000);
+  }, []);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 

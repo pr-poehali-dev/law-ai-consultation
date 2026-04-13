@@ -64,6 +64,7 @@ def _handle(event: dict, context) -> dict:
     service_type = body.get("service_type", "consultation")
     user_email = (body.get("email") or "").strip()
     user_id = body.get("user_id")
+    return_url = body.get("return_url", "https://ии-право.рф/cabinet?payment=success")
 
     if service_type not in PRICES:
         return {
@@ -102,7 +103,7 @@ def _handle(event: dict, context) -> dict:
         "amount": {"value": amount, "currency": "RUB"},
         "confirmation": {
             "type": "redirect",
-            "return_url": f"https://{event.get('headers', {}).get('Host', 'ии-право.рф')}/?payment=success&inv_id={inv_id}",
+            "return_url": f"{return_url}&inv_id={inv_id}",
         },
         "capture": True,
         "description": description,

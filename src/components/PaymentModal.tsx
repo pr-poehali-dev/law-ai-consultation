@@ -87,6 +87,7 @@ export default function PaymentModal({
           service_type: serviceType,
           email,
           user_id: user?.id ?? null,
+          return_url: `${window.location.origin}/cabinet?payment=success`,
         }),
       });
       const data = await res.json();
