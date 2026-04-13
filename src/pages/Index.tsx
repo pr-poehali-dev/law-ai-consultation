@@ -42,8 +42,20 @@ export default function Index() {
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [refCode, setRefCode] = useState("");
 
-  useEffect(() => { getUser().then((u) => setIsLoggedIn(!!u)); }, []);
+  useEffect(() => {
+    getUser().then((u) => setIsLoggedIn(!!u));
+    // Читаем реферальный код из URL
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      setRefCode(ref);
+      localStorage.setItem("ref_code", ref);
+      // Если не авторизован — открываем регистрацию
+      getUser().then(u => { if (!u) { setFreeTrial(true); setShowLogin(true); } });
+    }
+  }, []);
 
   // Проверяем возврат с ЮКасса для незарегистрированного пользователя
   useEffect(() => {

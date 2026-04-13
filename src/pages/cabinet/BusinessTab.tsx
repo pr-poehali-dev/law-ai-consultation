@@ -130,6 +130,12 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const [attachedFile2, setAttachedFile2] = useState<{ name: string; b64: string } | null>(null);
   const [fileUploading, setFileUploading] = useState(false);
 
+  // Дозаполнение плейсхолдеров (для orders/contract)
+  const [fillMode, setFillMode] = useState(false);
+  const [fillValues, setFillValues] = useState<Record<string, string>>({});
+  const [fillDoc, setFillDoc] = useState<string>("");
+  const [filledDoc, setFilledDoc] = useState<string>("");
+
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -138,11 +144,6 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
 
   // Только сообщения активного инструмента
   const messages = allMessages.filter(m => m.tool === activeTool);
-
-  // Последнее AI-сообщение в contract для скачивания
-  const lastContractAI = activeTool === "contract"
-    ? [...messages].reverse().find(m => m.role === "ai")
-    : null;
 
   const saveMessages = useCallback((msgs: BizMsg[]) => {
     setAllMessages(msgs);
@@ -275,6 +276,16 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       businessMessageSave("ai", aiBody).catch(() => {});
       setAttachedFile(null);
       setAttachedFile2(null);
+      // Для приказов и договоров — проверяем плейсхолдеры и предлагаем дозаполнение
+      if (activeTool === "orders" || activeTool === "contract") {
+        const placeholders = [...new Set([...aiBody.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1]))];
+        if (placeholders.length > 0) {
+          setFillDoc(aiBody);
+          setFilledDoc(aiBody);
+          setFillValues(Object.fromEntries(placeholders.map(p => [p, ""])));
+          setFillMode(true);
+        }
+      }
       await onRefreshUser();
     } catch {
       setErr("Ошибка запроса. Попробуйте ещё раз.");
@@ -294,6 +305,15 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   const clearToolHistory = () => {
     const filtered = allMessages.filter(m => m.tool !== activeTool);
     saveMessages(filtered);
+    setFillMode(false);
+  };
+
+  const applyFillValues = () => {
+    let result = fillDoc;
+    Object.entries(fillValues).forEach(([key, val]) => {
+      result = result.replaceAll(`{{${key}}}`, val.trim() || `{{${key}}}`);
+    });
+    setFilledDoc(result);
   };
 
   // ── Не оплачено ──
@@ -321,9 +341,9 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
               ))}
             </div>
             <button onClick={() => onPayClick("business_subscription", "Бизнес-тариф")} className="btn-gold px-6 py-3.5 rounded-2xl font-semibold flex items-center gap-2 text-sm">
-              <Icon name="Zap" size={16} />Подключить за 7 000 ₽/мес
+              <Icon name="Zap" size={16} />Подключить за 3 990 ₽/мес
             </button>
-            <p className="text-white/40 text-xs mt-2">Оплата ежемесячно · Неиспользованные действия сгорают в конце месяца · История запросов — 1 день</p>
+            <p className="text-white/40 text-xs mt-2">Оплата ежемесячно · Неиспользованные действия сгорают · История запросов — 24 часа</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -484,14 +504,27 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${TOOL_COLORS[currentTool.color]}`}>
                   <Icon name={currentTool.icon} size={26} />
                 </div>
-                <div>
+                <div className="max-w-xs">
                   <p className="text-sm font-semibold text-navy-700 mb-1">{currentTool.label}</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">{currentTool.desc}</p>
-                  {(activeTool==="doc_analyze"||activeTool==="doc_compare")&&(
-                    <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-2">Допустимые форматы: PDF, DOC, DOCX</p>
+                  <p className="text-xs text-muted-foreground">{currentTool.desc}</p>
+                  {activeTool==="doc_compare"&&(
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-pink-50 border border-pink-100 rounded-xl">
+                        <div className="w-5 h-5 bg-pink-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-pink-600">1</div>
+                        <span className="text-xs text-pink-700">Загрузите первый договор (PDF/DOC)</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+                        <div className="w-5 h-5 bg-blue-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-blue-600">2</div>
+                        <span className="text-xs text-blue-700">Загрузите второй договор (PDF/DOC)</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center pt-1">AI сравнит оба документа и выделит различия</p>
+                    </div>
+                  )}
+                  {activeTool==="doc_analyze"&&(
+                    <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-2">Загрузите договор в формате PDF, DOC или DOCX</p>
                   )}
                   {activeTool==="orders"&&(
-                    <p className="text-xs text-teal-600 bg-teal-50 rounded-xl px-3 py-2 mt-2">Готовый приказ можно скачать в формате .doc</p>
+                    <p className="text-xs text-teal-600 bg-teal-50 rounded-xl px-3 py-2 mt-2">Опишите вид приказа и параметры — скачаете в .doc</p>
                   )}
                 </div>
               </div>
@@ -515,15 +548,23 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             ))}
             {sending&&(
               <div className="flex gap-2 items-end justify-start animate-fade-in">
-                <div className="w-7 h-7 bg-gradient-to-br from-navy-700 to-navy-900 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 bg-gradient-to-br from-navy-700 to-navy-900 rounded-full flex items-center justify-center shrink-0 shadow-sm">
                   <Icon name="Bot" size={13} className="text-gold-400" />
                 </div>
-                <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5 shadow-sm">
-                  <div className="flex gap-1 items-center">
-                    <span className="typing-dot w-1.5 h-1.5 bg-navy-300 rounded-full"/>
-                    <span className="typing-dot w-1.5 h-1.5 bg-navy-400 rounded-full"/>
-                    <span className="typing-dot w-1.5 h-1.5 bg-navy-300 rounded-full"/>
+                <div className="bg-white border border-navy-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm max-w-[200px]">
+                  <div className="flex gap-1 items-center mb-1.5">
+                    <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full"/>
+                    <span className="typing-dot w-2 h-2 bg-navy-500 rounded-full"/>
+                    <span className="typing-dot w-2 h-2 bg-navy-400 rounded-full"/>
                   </div>
+                  <p className="text-[10px] text-muted-foreground animate-pulse">
+                    {activeTool==="counterparty"?"Проверяю контрагента..."
+                    :activeTool==="contract"?"Составляю договор..."
+                    :activeTool==="doc_analyze"?"Анализирую документ..."
+                    :activeTool==="doc_compare"?"Сравниваю документы..."
+                    :activeTool==="orders"?"Составляю приказ..."
+                    :"Анализирую запрос..."}
+                  </p>
                 </div>
               </div>
             )}
@@ -572,6 +613,42 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             </div>
           )}
 
+          {/* Режим дозаполнения плейсхолдеров */}
+          {fillMode && (
+            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 shrink-0 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon name="PenLine" size={14} className="text-teal-700" />
+                  <span className="text-sm font-semibold text-teal-800">Заполните реквизиты</span>
+                </div>
+                <button onClick={()=>setFillMode(false)} className="text-teal-500 hover:text-teal-700 transition-colors">
+                  <Icon name="X" size={14}/>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {Object.keys(fillValues).map(key => (
+                  <div key={key}>
+                    <label className="text-[10px] font-medium text-teal-700 uppercase tracking-wide block mb-0.5">{key.replace(/_/g," ")}</label>
+                    <input value={fillValues[key]}
+                      onChange={e=>setFillValues(p=>({...p,[key]:e.target.value}))}
+                      placeholder={`{{${key}}}`}
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-teal-200 bg-white outline-none focus:border-teal-500 transition-colors"/>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={applyFillValues}
+                  className="flex-1 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-colors">
+                  Применить и обновить
+                </button>
+                <button onClick={()=>downloadAsDoc(filledDoc, activeTool==="orders"?"Приказ":"Договор")}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 transition-colors">
+                  <Icon name="Download" size={12}/>Скачать .doc
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Поле ввода */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm shrink-0 overflow-hidden">
             <div className="flex items-end gap-2 px-3 py-2.5">
@@ -591,12 +668,14 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
                 style={{minHeight:"24px",maxHeight:"130px"}}/>
               <button onClick={sendMessage} disabled={sending||(!input.trim()&&!attachedFile)}
                 className="w-9 h-9 bg-navy-700 hover:bg-navy-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-all shrink-0 shadow-sm">
-                {sending?<div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"/>:<Icon name="Send" size={15} className="text-white"/>}
+                {sending
+                  ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"/>
+                  : <Icon name="Send" size={15} className="text-white"/>}
               </button>
             </div>
             <div className="px-4 pb-2 flex items-center justify-between">
               <p className="text-[10px] text-muted-foreground/50">Enter — отправить · Shift+Enter — новая строка</p>
-              <p className="text-[10px] text-muted-foreground/40">История: 1 день</p>
+              <p className="text-[10px] text-muted-foreground/40">История: 24 часа</p>
             </div>
           </div>
         </div>

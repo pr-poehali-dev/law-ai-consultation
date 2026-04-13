@@ -17,7 +17,7 @@ _SELECT_COLS = (
     "id, email, name, phone, free_questions_used, paid_questions, "
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
-    "business_subscription_until, business_actions_left, business_org_name"
+    "business_subscription_until, business_actions_left, business_org_name, referral_code"
 )
 
 MAX_LOGIN_ATTEMPTS = 10
@@ -144,8 +144,11 @@ def handle_register(body: dict) -> dict:
             if cur.fetchone():
                 phone_used_for_trial = True
 
-        # Начисляем 1 бесплатный вопрос если: free_trial=True, телефон ещё не использовался
-        trial_questions = 1 if (free_trial and not phone_used_for_trial and not is_admin) else 0
+        # Начисляем 2 бесплатных вопроса если: free_trial=True, телефон ещё не использовался
+        trial_questions = 2 if (free_trial and not phone_used_for_trial and not is_admin) else 0
+
+        # Реферальный код — если указан, начислим бонус после создания
+        ref_code = sanitize_str(body.get("ref_code") or "", max_len=32)
 
         cur.execute(
             f"""INSERT INTO {SCHEMA}.users (email, name, phone, phone_norm, password_hash, agreed_to_terms, is_admin, paid_questions, last_login_at)
@@ -161,12 +164,38 @@ def handle_register(body: dict) -> dict:
         )
         conn.commit()
 
+        # Обрабатываем реферальный код — начисляем 2 вопроса рефереру и новому юзеру
+        ref_bonus_granted = False
+        if ref_code and not is_admin:
+            try:
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.users WHERE referral_code = %s AND id != %s",
+                    (ref_code, user_id)
+                )
+                ref_row = cur.fetchone()
+                if ref_row:
+                    referrer_id = ref_row[0]
+                    # +2 вопроса рефереру
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s",
+                        (referrer_id,)
+                    )
+                    # +2 вопроса новому пользователю (дополнительно к trial)
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s",
+                        (user_id,)
+                    )
+                    conn.commit()
+                    ref_bonus_granted = True
+            except Exception:
+                pass
+
         cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
         result = _ok({"token": token, "user": _format_user(u)})
-        # Сообщаем фронту: был ли начислен бесплатный вопрос
         if free_trial:
             result["data"]["free_trial_granted"] = trial_questions > 0
+        result["data"]["ref_bonus_granted"] = ref_bonus_granted
         return result
     except Exception as e:
         conn.rollback()
@@ -672,6 +701,7 @@ def _format_user(row) -> dict:
         "businessSubscriptionUntil": _fmt_dt(row[12]) if len(row) > 12 else None,
         "businessActionsLeft": row[13] if len(row) > 13 else 0,
         "businessOrgName": row[14] if len(row) > 14 else "",
+        "referralCode": row[15] if len(row) > 15 else "",
     }
 
 

@@ -252,14 +252,18 @@ def handler(event: dict, context) -> dict:
     def _lawyer_send_action():
         me = _get_me()
         if "error" in me: return me
-        u = me.get("data", {})
-        return handle_lawyer_send(body, u["id"], u.get("isAdmin", False))
+        u = me.get("data", {}).get("user", me.get("data", {}))
+        uid = u.get("id")
+        if not uid: return {"status": 401, "error": "Не авторизован"}
+        return handle_lawyer_send(body, uid, u.get("isAdmin", False))
 
     def _lawyer_messages_action():
         me = _get_me()
         if "error" in me: return me
-        u = me.get("data", {})
-        return handle_lawyer_messages(body, u["id"], u.get("isAdmin", False))
+        u = me.get("data", {}).get("user", me.get("data", {}))
+        uid = u.get("id")
+        if not uid: return {"status": 401, "error": "Не авторизован"}
+        return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
 
     auth_actions = {
         "register": lambda: handle_register(body),

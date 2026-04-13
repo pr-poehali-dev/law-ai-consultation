@@ -53,6 +53,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
     if (!agreed) { setError("Необходимо согласие на обработку персональных данных"); return; }
 
     setLoading(true); setError("");
+    const savedRefCode = localStorage.getItem("ref_code") || "";
     const res = await register({
       name: regName.trim() || "Пользователь",
       email: regEmail,
@@ -60,7 +61,9 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
       password: regPassword,
       agreed_to_terms: true,
       free_trial: freeTrial,
+      ref_code: savedRefCode || undefined,
     });
+    if (savedRefCode) localStorage.removeItem("ref_code");
     setLoading(false);
     if (res.error) { setError(res.error); return; }
     if (freeTrial && (res as { free_trial_granted?: boolean }).free_trial_granted) setTrialGranted(true);
@@ -91,7 +94,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
               {trialGranted && (
                 <div className="mb-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
                   <Icon name="Gift" size={20} className="text-emerald-500 shrink-0" />
-                  <p className="text-sm text-emerald-800 text-left"><strong>1 бесплатный вопрос</strong> уже добавлен на ваш счёт — задайте его прямо сейчас!</p>
+                  <p className="text-sm text-emerald-800 text-left"><strong>2 бесплатных вопроса</strong> уже добавлены на ваш счёт — задайте их прямо сейчас!</p>
                 </div>
               )}
               <button onClick={onSuccess} className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm">
@@ -111,7 +114,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
                   {mode === "login" ? "Вход в кабинет" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — это бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 2 вопроса бесплатно" : "Создайте аккаунт — это бесплатно"}
                 </p>
               </div>
 

@@ -19,6 +19,7 @@ export interface User {
   businessSubscriptionUntil: string | null;
   businessActionsLeft: number;
   businessOrgName: string;
+  referralCode: string;
 }
 
 export function getToken(): string {
@@ -53,12 +54,13 @@ export async function register(params: {
   agreed_to_terms: boolean;
   otp_code?: string;
   free_trial?: boolean;
-}): Promise<{ user?: User; error?: string; free_trial_granted?: boolean }> {
+  ref_code?: string;
+}): Promise<{ user?: User; error?: string; free_trial_granted?: boolean; ref_bonus_granted?: boolean }> {
   const res = await apiCall({ action: "register", ...params });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка регистрации" };
   setToken(data.token);
-  return { user: data.user, free_trial_granted: data.free_trial_granted };
+  return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
 }
 
 export async function login(

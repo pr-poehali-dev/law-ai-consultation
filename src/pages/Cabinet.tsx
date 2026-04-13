@@ -85,6 +85,10 @@ export default function Cabinet() {
       setPayment({ type, name });
       setPendingDocType(pendingDt);
     },
+    onDocGenerated: (doc) => {
+      // Если документ пришёл из чата — открываем сразу для просмотра
+      setViewDoc(doc);
+    },
   });
 
   const handlePaySuccess = async (svcType: ServiceType) => {
@@ -111,12 +115,23 @@ export default function Cabinet() {
     docs.setDocDetails(pendingDocFromChat.details);
     docs.setDocPhase("form");
     setPendingDocFromChat(null);
+    // Автоматически запускаем генерацию после установки данных
+    setTimeout(() => docs.generateDoc(), 100);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 
   // Функция: создать документ из ответа AI
   const createDocFromChat = async (aiText: string, userText: string) => {
     if (creatingDocFromChat) return;
+
+    // Проверяем оплату документов ДО запроса к AI
+    const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
+      (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
+    if (!canDoc) {
+      setPayment({ type: "document", name: "Генерация документа" });
+      return;
+    }
+
     setCreatingDocFromChat(true);
     try {
       const docTypesList = DOC_TYPES.map(d => `"${d.id}" — ${d.label}`).join(", ");
@@ -145,24 +160,18 @@ export default function Cabinet() {
       });
       const data = await res.json();
       const answer: string = data.answer || "";
-      // Парсим JSON из ответа
       const match = answer.match(/\{[\s\S]*\}/);
+      let docTypeId = "claim";
+      let details = userText || aiText.slice(0, 500);
       if (match) {
         try {
           const parsed: { doc_type: string; details: string } = JSON.parse(match[0]);
-          const docTypeId = parsed.doc_type || "claim";
-          const details = parsed.details || userText;
-          setPendingDocFromChat({ details, docTypeId });
-          setTab("docs");
-        } catch {
-          // Fallback: используем userText как details
-          setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
-          setTab("docs");
-        }
-      } else {
-        setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
-        setTab("docs");
+          docTypeId = parsed.doc_type || "claim";
+          details = parsed.details || details;
+        } catch { /* используем дефолты */ }
       }
+      setPendingDocFromChat({ details, docTypeId });
+      setTab("docs");
     } catch {
       setPendingDocFromChat({ details: userText || aiText.slice(0, 500), docTypeId: "claim" });
       setTab("docs");
