@@ -188,7 +188,7 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
             {"role": "system", "content": SYSTEM_FILE_ANALYZE_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=1200,
+        max_tokens=2500,
         temperature=0.1,
     )
 
@@ -205,7 +205,7 @@ def is_refusal(text: str) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-MAX_HISTORY = 6
+MAX_HISTORY = 4
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200) -> str:
@@ -404,10 +404,10 @@ def handler(event: dict, context) -> dict:
                         json={
                             "model": "gpt://b1g2k5n3ojr7ik7lv73l/yandexgpt-vision-lite/latest",
                             "messages": [{"role": "user", "content": user_msg_content}],
-                            "max_tokens": 1200,
+                            "max_tokens": 2000,
                             "temperature": 0.1,
                         },
-                        timeout=25,
+                        timeout=30,
                     )
                     if vision_resp.ok:
                         answer = vision_resp.json()["choices"][0]["message"]["content"]
@@ -444,7 +444,7 @@ def handler(event: dict, context) -> dict:
                 {"role": "assistant", "content": partial},
                 {"role": "user", "content": "Продолжи ответ с того места, где остановился. Не повторяй уже написанное."},
             ]
-            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=1200)
+            answer = call_yandex(SYSTEM_CHAT, cont_messages, max_tokens=2500)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
 
@@ -453,7 +453,7 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
-            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=900)
+            answer = call_yandex(SYSTEM_CHAT, messages, max_tokens=3000)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
