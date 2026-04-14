@@ -10,10 +10,9 @@ const WELCOME = "Добрый день! Я AI-юрист, обученный н�
 interface UseChatLogicProps {
   refreshUser: () => Promise<void>;
   onPaymentRequired: (type: ServiceType, name: string) => void;
-  onDocClarifyReply?: (text: string) => void;
 }
 
-export function useChatLogic({ refreshUser, onPaymentRequired, onDocClarifyReply }: UseChatLogicProps) {
+export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicProps) {
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_messages");
@@ -71,14 +70,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired, onDocClarifyReply
   const sendMessage = async (overrideText?: string) => {
     const userMsg = (overrideText || input).trim();
     if (!userMsg || typing) return;
-
-    // Если ждём ответа на уточнение документа — перехватываем и передаём туда
-    if (onDocClarifyReply) {
-      setInput("");
-      setMessages((p) => [...p, { role: "user", text: userMsg }]);
-      onDocClarifyReply(userMsg);
-      return;
-    }
 
     const canAsk = await canAskQuestion();
     if (!canAsk) {

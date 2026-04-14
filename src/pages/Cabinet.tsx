@@ -145,13 +145,10 @@ export default function Cabinet() {
 
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
-  const [docClarifyContext, setDocClarifyContext] = useState<{ aiText: string; userText: string } | null>(null);
-  const docClarifyReplyRef = useRef<((text: string) => void) | undefined>(undefined);
 
   const chat = useChatLogic({
     refreshUser,
     onPaymentRequired: (type, name) => setPayment({ type, name }),
-    onDocClarifyReply: docClarifyContext ? (text) => docClarifyReplyRef.current?.(text) : undefined,
   });
 
   // Регистрируем ref на sendMessage чата
@@ -232,19 +229,8 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 
-  const createDocFromChat = (aiText: string, userText: string) => {
+  const createDocFromChat = async (aiText: string, userText: string) => {
     if (creatingDocFromChat) return;
-    setDocClarifyContext({ aiText, userText });
-    const docList = DOC_TYPES.map(d => d.label).join(", ");
-    const clarifyMsg = `Хорошо, подготовлю документ на основе нашего разговора.\n\nКакой именно документ вам нужен? (${docList})\n\nТакже укажите:\n— Стороны (кто истец/ответчик или отправитель/получатель)\n— Ключевые суммы, даты, адреса (если известны)`;
-    chat.injectAiMessage(clarifyMsg);
-  };
-
-  const handleDocClarifyReply = async (userReply: string) => {
-    docClarifyReplyRef.current = undefined;
-    if (!docClarifyContext) return;
-    const { aiText, userText } = docClarifyContext;
-    setDocClarifyContext(null);
 
     const canDoc = user!.isAdmin || (user!.paidDocs ?? 0) > 0 ||
       (user!.subscriptionDocsUntil ? new Date(user!.subscriptionDocsUntil) > new Date() : false);
@@ -254,14 +240,21 @@ export default function Cabinet() {
     }
 
     setCreatingDocFromChat(true);
-    chat.injectAiMessage("Отлично! Генерирую документ, сейчас переведу вас в раздел «Документы»...");
+
+    // Берём последние 10 сообщений переписки для контекста
+    const recentMessages = chat.messages.slice(-10);
+    const dialogContext = recentMessages
+      .filter(m => m.text && m.text.length > 5)
+      .map(m => `${m.role === "user" ? "Пользователь" : "Юрист"}: ${m.text.slice(0, 600)}`)
+      .join("\n\n");
 
     try {
       const docTypesList = DOC_TYPES.map(d => `"${d.id}" — ${d.label}`).join(", ");
-      const systemPrompt = `Ты — помощник юриста. На основе переписки определи тип документа и сформулируй детальное описание для его генерации.
-Список типов: ${docTypesList}
-Ответь строго в JSON: {"doc_type": "id_типа", "details": "подробное описание"}`;
-      const userPrompt = `Исходный вопрос: ${userText}\nОтвет AI: ${aiText.slice(0, 800)}\nУточнение пользователя: ${userReply}`;
+      const systemPrompt = `Ты — помощник юриста. На основе переписки определи нужный тип документа и сформулируй максимально подробное техническое задание для его генерации.
+Список доступных типов: ${docTypesList}
+Извлеки из переписки: стороны (ФИО/организации), суммы, даты, адреса, предмет спора или договора, нарушенные права — всё что поможет составить документ.
+Ответь строго в JSON без лишнего текста: {"doc_type": "id_типа", "details": "подробное описание ситуации и всех известных фактов для составления документа"}`;
+      const userPrompt = `Переписка пользователя с юристом:\n\n${dialogContext}\n\nПоследний ответ юриста (на основе которого нажата кнопка):\n${aiText.slice(0, 1000)}`;
       const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
@@ -271,7 +264,7 @@ export default function Cabinet() {
       const data = await res.json();
       const match = (data.answer || "").match(/\{[\s\S]*\}/);
       let docTypeId = "claim";
-      let details = `${userText} ${userReply}`.trim();
+      let details = `${userText}\n\n${aiText.slice(0, 500)}`;
       if (match) {
         try {
           const p = JSON.parse(match[0]);
@@ -282,14 +275,12 @@ export default function Cabinet() {
       setPendingDocFromChat({ details, docTypeId });
       setTab("docs");
     } catch {
-      setPendingDocFromChat({ details: `${userText} ${userReply}`.trim(), docTypeId: "claim" });
+      setPendingDocFromChat({ details: `${userText}\n\n${aiText.slice(0, 500)}`, docTypeId: "claim" });
       setTab("docs");
     } finally {
       setCreatingDocFromChat(false);
     }
   };
-
-  docClarifyReplyRef.current = docClarifyContext ? handleDocClarifyReply : undefined;
 
   if (!user) return null;
 
