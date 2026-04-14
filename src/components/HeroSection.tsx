@@ -164,7 +164,7 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
 
           {/* Stats */}
           <div
-            className={`grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto transition-all duration-700 delay-500 ${
+            className={`grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto transition-all duration-700 delay-500 ${
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
             }`}
           >

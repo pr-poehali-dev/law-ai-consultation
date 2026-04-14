@@ -88,7 +88,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
         </div>
 
         {/* Services grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-16 sm:mb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-16 sm:mb-24">
           {SERVICES.map((service, i) => (
             <div
               key={service.title}
@@ -130,7 +130,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
             </h2>
             <p className="text-white/65 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-6">
             {HOW_IT_WORKS.map((step, i) => (
               <div key={step.title} className="relative text-center group">
                 {i < HOW_IT_WORKS.length - 1 && (
@@ -157,7 +157,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
             <h3 className="font-cormorant font-bold text-3xl text-navy-800 mb-3">Примеры документов</h3>
             <p className="text-muted-foreground">Нажмите — и получите черновик за 2 минуты</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-4">
             {[
               { icon: "Gavel", title: "Исковое заявление", desc: "В суд общей юрисдикции", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },
               { icon: "FileCheck", title: "Договор ГПХ", desc: "Гражданско-правовой договор", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },

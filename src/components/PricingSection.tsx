@@ -95,7 +95,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
         </div>
 
         {/* Пользовательские тарифы */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 items-stretch">
           {USER_PLANS.map((plan, idx) => (
             <div
               key={plan.id}
@@ -104,7 +104,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               onClick={() => onSelectPlan(plan.name, plan.price, plan.id)}
               className={`plan-card-animate relative flex flex-col rounded-3xl cursor-pointer transition-all duration-300 overflow-hidden ${
                 plan.popular
-                  ? "pricing-popular scale-[1.02] sm:scale-105"
+                  ? "pricing-popular lg:scale-105"
                   : `border ${plan.border} bg-gradient-to-br ${plan.gradient} backdrop-blur-sm hover:scale-[1.01] ${hovered === plan.id ? "shadow-xl shadow-black/30" : ""}`
               }`}
               style={{ animationDelay: `${idx * 100}ms` }}
