@@ -188,9 +188,9 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
               <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-medium mb-3 text-center">Возможности AI-юриста</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { icon: "GraduationCap", title: "Обучен профессионалами", text: "Юристы с многолетней практикой заложили знания о действующем законодательстве РФ" },
-                  { icon: "FileSearch", title: "Анализ документов", text: "Проверяет договоры, иски, претензии на юридические риски и соответствие нормам" },
-                  { icon: "TrendingUp", title: "Судебная перспектива", text: "Оценивает шансы в споре с учётом актуальной судебной практики и позиций ВС РФ" },
+                  { icon: "Clock", title: "Доступность", text: "Юрист AI работает всегда — ночью, в выходные, в праздники. Никаких почасовых ставок и предоплат. Точный анализ быстрее, чем дозвонитесь до юриста." },
+                  { icon: "GraduationCap", title: "Глубокая проработка AI", text: "12 месяцев практикующие юристы-эксперты дообучали AI на реальных судебных делах, апелляциях и кассациях под контролем профессионалов." },
+                  { icon: "SlidersHorizontal", title: "Оптимизация", text: "Встроенная промт-оптимизация в реальном времени анализирует ваши ответы и перестраивает логику запросов, чтобы докопаться до сути." },
                 ].map((item) => (
                   <div key={item.title} className="flex items-start gap-3 text-left">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
