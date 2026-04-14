@@ -21,8 +21,8 @@ const USER_PLANS = [
       "Генерация .doc из диалога",
     ],
     popular: false,
-    gradient: "from-white/5 to-white/2",
-    border: "border-white/10 hover:border-white/20",
+    gradient: "",
+    border: "border-border hover:border-navy-200",
   },
   {
     id: "plan_pro",
@@ -58,8 +58,8 @@ const USER_PLANS = [
       "Расширенный анализ документов",
     ],
     popular: false,
-    gradient: "from-white/5 to-white/2",
-    border: "border-white/10 hover:border-white/20",
+    gradient: "from-navy-800/5 to-navy-900/10",
+    border: "border-border hover:border-navy-200",
   },
 ];
 
@@ -78,29 +78,18 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
-    <section id="pricing" className="py-16 sm:py-24 relative overflow-hidden gradient-dark">
-      <div
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
-      <div className="orb w-[600px] h-[600px] bg-gold-500/5 top-[-150px] right-[-150px] pointer-events-none" />
-      <div className="orb w-[400px] h-[400px] bg-blue-500/5 bottom-0 left-[-100px] pointer-events-none" />
-
-      <div className="container mx-auto px-4 relative z-10">
+    <section id="pricing" className="py-16 sm:py-24 bg-gradient-to-b from-background to-slate-50 overflow-hidden">
+      <div className="container mx-auto px-4">
 
         {/* Заголовок */}
         <div className="text-center mb-10 sm:mb-16">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-5">
-            <Icon name="Tag" size={13} className="text-gold-400" />
-            <span className="text-[11px] text-white/70 font-medium tracking-wider uppercase">Тарифы</span>
-          </div>
-          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-white mb-3">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-3 sm:mb-4">
+            Тарифы
+          </span>
+          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3">
             Прозрачные цены
           </h2>
-          <p className="text-white/70 text-base sm:text-lg max-w-xl mx-auto">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
             Платите только за то, что нужно — без скрытых платежей
           </p>
         </div>
@@ -129,7 +118,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               {plan.badge && (
                 <div className="absolute top-4 right-4">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                    plan.popular ? "bg-gold-500 text-navy-900" : "bg-white/10 text-white/70"
+                    plan.popular ? "bg-gold-500 text-navy-900" : "bg-navy-100 text-navy-700"
                   }`}>
                     {plan.badge}
                   </span>
@@ -137,19 +126,19 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               )}
 
               <div className="p-6 sm:p-7 flex-1">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${plan.popular ? "bg-white/15" : "bg-white/8"}`}>
-                  <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-white/50"} />
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${plan.popular ? "bg-white/15" : "bg-navy-100"}`}>
+                  <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
                 </div>
-                <p className="text-sm font-semibold text-white/70 mb-1">{plan.name}</p>
+                <p className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>{plan.name}</p>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="font-cormorant font-bold text-4xl text-white">{plan.price} ₽</span>
+                  <span className={`font-cormorant font-bold text-4xl ${plan.popular ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
                 </div>
-                <p className="text-xs text-white/55 mb-3">{plan.period}</p>
-                <p className="text-sm text-white/75 leading-relaxed mb-5">{plan.desc}</p>
+                <p className={`text-xs mb-3 ${plan.popular ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
+                <p className={`text-sm leading-relaxed mb-5 ${plan.popular ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
                 <ul className="space-y-2.5">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-white/75">
-                      <Icon name="Check" size={14} className={`mt-0.5 shrink-0 ${plan.popular ? "text-gold-400" : "text-emerald-400"}`} />
+                    <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.popular ? "text-white/85" : "text-navy-700"}`}>
+                      <Icon name="Check" size={14} className={`mt-0.5 shrink-0 ${plan.popular ? "text-gold-400" : "text-emerald-500"}`} />
                       {f}
                     </li>
                   ))}
@@ -162,7 +151,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
                     plan.popular
                       ? "btn-gold hover:scale-[1.02] active:scale-[0.98]"
-                      : "bg-white/10 text-white border border-white/15 hover:bg-white/15 hover:border-white/25"
+                      : "bg-navy-800 text-white hover:bg-navy-700 hover:shadow-lg"
                   }`}
                 >
                   Выбрать тариф
