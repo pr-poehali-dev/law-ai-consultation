@@ -92,7 +92,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
           {SERVICES.map((service, i) => (
             <div
               key={service.title}
-              className={`relative rounded-3xl p-6 border border-border bg-gradient-to-br ${service.color} card-hover cursor-pointer group`}
+              className={`relative rounded-3xl p-6 border border-border bg-gradient-to-br ${service.color} shadow-sm hover:shadow-xl hover:shadow-navy-900/8 card-hover cursor-pointer group`}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => onSelectService(service.title)}
@@ -109,7 +109,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
                   </span>
                 ))}
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-border/60">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <div className="font-semibold text-navy-800">{service.price}</div>
                   <div className="text-xs text-muted-foreground">{service.priceNote}</div>
@@ -167,7 +167,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
               <button
                 key={doc.title}
                 onClick={() => onSelectService(doc.title)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border bg-card hover:border-gold-400/40 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
+                className="group p-4 sm:p-5 rounded-2xl border border-border bg-white shadow-sm hover:border-gold-400/50 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
               >
                 <div className={`w-10 h-10 rounded-xl ${doc.bg} flex items-center justify-center mb-4 transition-colors`}>
                   <Icon name={doc.icon} size={20} className={doc.accent} />

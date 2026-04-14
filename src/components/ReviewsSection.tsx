@@ -96,17 +96,17 @@ export default function ReviewsSection() {
           </p>
 
           {/* Summary stats */}
-          <div className="inline-flex items-center gap-4 sm:gap-5 mt-6 border border-border rounded-2xl px-5 py-3 bg-card shadow-sm">
+          <div className="inline-flex items-center gap-4 sm:gap-5 mt-6 border border-border rounded-2xl px-5 py-3 bg-white shadow-md">
             <div className="flex items-center gap-1">
               {[1,2,3,4,5].map(i => (
                 <Icon key={i} name="Star" size={15} className="text-gold-500" />
               ))}
             </div>
-            <div className="w-px h-4 bg-border" />
+            <div className="w-px h-4 bg-navy-200" />
             <span className="text-navy-800 font-bold text-lg">4.9</span>
-            <span className="text-muted-foreground text-sm">из 5</span>
-            <div className="w-px h-4 bg-border" />
-            <span className="text-muted-foreground text-sm">2 840+ отзывов</span>
+            <span className="text-navy-500 text-sm">из 5</span>
+            <div className="w-px h-4 bg-navy-200" />
+            <span className="text-navy-600 text-sm font-medium">2 840+ отзывов</span>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ export default function ReviewsSection() {
           {REVIEWS.map((r, i) => (
             <div
               key={r.name}
-              className={`relative rounded-3xl border border-border bg-card p-6 flex flex-col gap-4 card-hover transition-all duration-700 ${
+              className={`relative rounded-3xl border border-border bg-white shadow-sm hover:shadow-xl hover:shadow-navy-900/8 p-6 flex flex-col gap-4 card-hover transition-all duration-700 ${
                 visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}
               style={{ transitionDelay: `${100 + i * 80}ms` }}
@@ -128,7 +128,7 @@ export default function ReviewsSection() {
               </div>
 
               {/* Quote */}
-              <p className="text-navy-700 text-sm leading-relaxed flex-1">
+              <p className="text-navy-800 text-sm leading-relaxed flex-1">
                 «{r.text}»
               </p>
 

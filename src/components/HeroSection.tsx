@@ -173,7 +173,7 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
                 <div className="font-cormorant font-bold text-xl sm:text-2xl text-gradient-gold">
                   {stat.value}
                 </div>
-                <div className="text-[10px] sm:text-xs text-white/55 mt-1">{stat.label}</div>
+                <div className="text-[10px] sm:text-xs text-white/70 mt-1">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -186,7 +186,7 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
           >
             <div className="flex items-center justify-center gap-2 mb-5">
               <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/20" />
-              <p className="text-[10px] sm:text-xs text-white/40 uppercase tracking-[0.2em] font-medium">Почему выбирают нас</p>
+              <p className="text-[10px] sm:text-xs text-white/60 uppercase tracking-[0.2em] font-medium">Почему выбирают нас</p>
               <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/20" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -227,7 +227,7 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
                     <Icon name={item.icon} size={17} className={item.iconColor} />
                   </div>
                   <p className="text-sm font-semibold text-white mb-1.5">{item.title}</p>
-                  <p className="text-xs text-white/60 leading-relaxed">{item.text}</p>
+                  <p className="text-xs text-white/75 leading-relaxed">{item.text}</p>
                 </div>
               ))}
             </div>

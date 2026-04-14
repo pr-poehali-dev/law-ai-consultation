@@ -99,7 +99,7 @@ export default function FeaturesSection() {
           {FEATURES.map((f, i) => (
             <div
               key={f.title}
-              className={`group rounded-3xl border border-border bg-card p-6 sm:p-8 card-hover transition-all duration-700 ${
+              className={`group rounded-3xl border border-border bg-white shadow-sm hover:shadow-xl hover:shadow-navy-900/8 p-6 sm:p-8 card-hover transition-all duration-700 ${
                 visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
               }`}
               style={{ transitionDelay: `${150 + i * 100}ms` }}
@@ -123,7 +123,7 @@ export default function FeaturesSection() {
               </div>
 
               {/* Description */}
-              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-4">
+              <p className="text-navy-600 text-sm sm:text-base leading-relaxed mb-4">
                 {f.description}
               </p>
 
