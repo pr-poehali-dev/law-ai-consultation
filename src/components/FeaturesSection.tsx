@@ -66,7 +66,7 @@ export default function FeaturesSection() {
   }, []);
 
   return (
-    <section ref={ref} className="relative py-20 sm:py-28 overflow-hidden" style={{ background: '#0a1628' }}>
+    <section ref={ref} className="relative py-20 sm:py-28 overflow-hidden gradient-dark">
       {/* subtle bg pattern */}
       <div
         className="absolute inset-0 opacity-[0.03]"

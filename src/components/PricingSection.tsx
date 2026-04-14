@@ -78,7 +78,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
-    <section id="pricing" className="py-16 sm:py-24 relative overflow-hidden" style={{ background: '#060d18' }}>
+    <section id="pricing" className="py-16 sm:py-24 relative overflow-hidden gradient-dark">
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -113,10 +113,10 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               onMouseEnter={() => setHovered(plan.id)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => onSelectPlan(plan.name, plan.price, plan.id)}
-              className={`relative flex flex-col rounded-3xl border ${plan.border} bg-gradient-to-br ${plan.gradient} backdrop-blur-sm cursor-pointer transition-all duration-300 overflow-hidden ${
+              className={`plan-card-animate relative flex flex-col rounded-3xl cursor-pointer transition-all duration-300 overflow-hidden ${
                 plan.popular
-                  ? "shadow-2xl shadow-navy-900/40 scale-[1.02] sm:scale-105"
-                  : `hover:scale-[1.01] ${hovered === plan.id ? "shadow-xl shadow-black/30" : ""}`
+                  ? "pricing-popular scale-[1.02] sm:scale-105"
+                  : `border ${plan.border} bg-gradient-to-br ${plan.gradient} backdrop-blur-sm hover:scale-[1.01] ${hovered === plan.id ? "shadow-xl shadow-black/30" : ""}`
               }`}
               style={{ animationDelay: `${idx * 100}ms` }}
             >
@@ -174,7 +174,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
 
         {/* Бизнес-тариф */}
         <div
-          className="relative rounded-3xl overflow-hidden border border-gold-500/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-black/40"
+          className="biz-card-animate relative rounded-3xl overflow-hidden border border-gold-500/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-black/40"
           onClick={() => onSelectPlan("Бизнес-тариф", "4 990", "business_subscription")}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700" />
@@ -195,7 +195,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   </div>
                 </div>
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-cormorant font-bold text-5xl text-gradient-gold">4 990 ₽</span>
+                  <span className="font-cormorant font-bold text-5xl shimmer-gold">4 990 ₽</span>
                   <span className="text-white/50 text-sm">/ месяц</span>
                 </div>
                 <p className="text-white/75 text-sm mb-5 max-w-xs">

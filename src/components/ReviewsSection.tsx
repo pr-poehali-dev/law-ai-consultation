@@ -78,7 +78,7 @@ export default function ReviewsSection() {
   }, []);
 
   return (
-    <section ref={ref} className="py-16 sm:py-24 relative overflow-hidden" style={{ background: '#0a1628' }}>
+    <section ref={ref} className="py-16 sm:py-24 relative overflow-hidden gradient-navy">
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{

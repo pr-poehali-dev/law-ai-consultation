@@ -134,7 +134,11 @@
   }
 
   .gradient-navy {
-    background: linear-gradient(135deg, #0a1628 0%, #162d5a 50%, #1e3a6e 100%);
+    background: linear-gradient(160deg, #0a1628 0%, #162d5a 60%, #1e3a6e 100%);
+  }
+
+  .gradient-dark {
+    background: linear-gradient(160deg, #060d18 0%, #0a1628 50%, #111e38 100%);
   }
 
   .gradient-gold {

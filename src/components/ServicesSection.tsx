@@ -87,7 +87,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <section id="services" className="py-16 sm:py-24 relative overflow-hidden" style={{ background: '#0a1628' }}>
+    <section id="services" className="py-16 sm:py-24 relative overflow-hidden gradient-hero">
       <div className="orb w-[500px] h-[500px] bg-blue-500/5 top-[-100px] left-[-100px] pointer-events-none" />
       <div className="orb w-[400px] h-[400px] bg-gold-500/5 bottom-0 right-[-100px] pointer-events-none" />
 
