@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { getUser, addPaidService } from "@/lib/auth";
+import { ymGoal } from "@/lib/metrika";
 
 const CREATE_URL = (func2url as Record<string, string>)["payment-create"];
 const CHECK_URL = (func2url as Record<string, string>)["payment-check"];
@@ -158,6 +159,7 @@ export default function PaymentModal({
           // Начисляем услугу (fallback на случай если webhook не успел)
           await addPaidService(serviceType);
           setStep("success");
+          ymGoal("payment_success", { service: serviceType });
           setTimeout(() => onSuccess(serviceType), 2000);
           return;
         }

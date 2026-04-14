@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { login, register } from "@/lib/auth";
+import { ymGoal } from "@/lib/metrika";
 
 interface LoginModalProps {
   onClose: () => void;
@@ -42,6 +43,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
     const res = await login(loginEmail, loginPassword);
     setLoading(false);
     if (res.error) { setError(res.error); return; }
+    ymGoal("login");
     onSuccess();
   };
 
@@ -67,6 +69,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
     setLoading(false);
     if (res.error) { setError(res.error); return; }
     if (freeTrial && (res as { free_trial_granted?: boolean }).free_trial_granted) setTrialGranted(true);
+    ymGoal("register");
     setSuccess(true);
   };
 

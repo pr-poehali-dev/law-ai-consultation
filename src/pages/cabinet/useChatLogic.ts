@@ -3,6 +3,7 @@ import { canAskQuestion, consumeQuestion, getToken } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg } from "@/pages/cabinet/ChatTab";
+import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
@@ -108,6 +109,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const truncated = data.truncated as boolean | undefined;
       setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
+      ymGoal("chat_question_sent");
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);

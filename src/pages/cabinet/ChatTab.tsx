@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
+import { ymGoal } from "@/lib/metrika";
 
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; }
 
@@ -293,7 +294,7 @@ export default function ChatTab({
                       {/* Кнопка создания документа из ответа AI */}
                       {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && (
                         <button
-                          onClick={() => !creatingDocFromChat && onCreateDocFromMsg(msg.text, prevUserMsg?.text || "")}
+                          onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || ""); } }}
                           disabled={creatingDocFromChat}
                           className="mt-2 flex items-center gap-2 px-3 py-2 bg-gold-400/15 hover:bg-gold-400/25 border border-gold-400/30 text-navy-700 text-xs font-semibold rounded-xl w-full justify-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                         >

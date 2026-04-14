@@ -3,6 +3,7 @@ import { canUseDoc, consumeDoc } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
+import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 
@@ -76,6 +77,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       saveGenDocs([newDoc, ...genDocs]);
       setDocPhase(placeholders.length > 0 ? "filling" : "done");
+      ymGoal("doc_generated", { doc_type: newDoc.type });
       if (onDocGenerated) onDocGenerated(newDoc);
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
