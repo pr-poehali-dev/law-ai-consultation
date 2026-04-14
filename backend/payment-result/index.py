@@ -187,7 +187,7 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
         cur.execute(
-            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW(), payment_id = %s WHERE id = %s",
+            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW(), payment_id = %s, service_credited = TRUE WHERE id = %s",
             (payment_id, order_id)
         )
         conn.commit()

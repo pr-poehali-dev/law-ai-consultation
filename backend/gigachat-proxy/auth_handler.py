@@ -134,18 +134,8 @@ def handle_register(body: dict) -> dict:
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
-        # Проверяем, использовался ли этот телефон для получения бесплатного вопроса
-        phone_used_for_trial = False
-        if free_trial and phone_norm and len(phone_norm) >= 7:
-            cur.execute(
-                f"SELECT id FROM {SCHEMA}.users WHERE phone_norm = %s AND paid_questions > 0",
-                (phone_norm,)
-            )
-            if cur.fetchone():
-                phone_used_for_trial = True
-
-        # Начисляем 2 бесплатных вопроса если: free_trial=True, телефон ещё не использовался
-        trial_questions = 2 if (free_trial and not phone_used_for_trial and not is_admin) else 0
+        # 3 бесплатных вопроса всем новым пользователям при регистрации
+        trial_questions = 0 if is_admin else 3
 
         # Реферальный код — если указан, начислим бонус после создания
         ref_code = sanitize_str(body.get("ref_code") or "", max_len=32)
@@ -349,9 +339,20 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
     if not user:
         return _err(401, "Не авторизован")
     service_type = sanitize_str(body.get("service_type") or "")
+    inv_id = body.get("inv_id")
     conn = get_conn()
     cur = conn.cursor()
     try:
+        # Защита от двойного начисления: если inv_id передан — проверяем и помечаем атомарно
+        if inv_id:
+            cur.execute(
+                f"UPDATE {SCHEMA}.orders SET service_credited = TRUE WHERE inv_id = %s AND service_credited = FALSE AND status = 'paid' RETURNING id",
+                (inv_id,)
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return _ok({"ok": True, "skipped": True})
+
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
         elif service_type == "trial":

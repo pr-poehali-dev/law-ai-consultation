@@ -128,8 +128,8 @@ export async function canUseDoc(): Promise<boolean> {
   return user.paidDocs > 0;
 }
 
-export async function addPaidService(serviceType: string): Promise<void> {
-  await apiCall({ action: "add-paid-service", service_type: serviceType });
+export async function addPaidService(serviceType: string, invId?: number): Promise<void> {
+  await apiCall({ action: "add-paid-service", service_type: serviceType, inv_id: invId });
 }
 
 export async function sendOtp(email: string): Promise<{ ok?: boolean; error?: string }> {

@@ -156,8 +156,8 @@ export default function PaymentModal({
         const res = await fetch(`${CHECK_URL}?inv_id=${id}`);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
-          // Начисляем услугу (fallback на случай если webhook не успел)
-          await addPaidService(serviceType);
+          // Начисляем услугу (fallback на случай если webhook не успел) — передаём inv_id для защиты от дублирования
+          await addPaidService(serviceType, id);
           setStep("success");
           ymGoal("payment_success", { service: serviceType });
           setTimeout(() => onSuccess(serviceType), 2000);
