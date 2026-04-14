@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import { getUser } from "@/lib/auth";
 import HeroSection from "@/components/HeroSection";
 import ServicesSection from "@/components/ServicesSection";
+import FeaturesSection from "@/components/FeaturesSection";
 import PricingSection from "@/components/PricingSection";
 import FooterSection from "@/components/FooterSection";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
@@ -132,6 +133,8 @@ export default function Index() {
           onRegister={handleTryClick}
         />
       </div>
+
+      <FeaturesSection />
 
       <ServicesSection
         onSelectService={(service) => {
