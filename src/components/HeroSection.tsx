@@ -180,29 +180,56 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
 
           {/* AI capabilities banner */}
           <div
-            className={`mt-6 sm:mt-8 max-w-2xl mx-auto transition-all duration-700 delay-600 ${
+            className={`mt-8 sm:mt-10 max-w-3xl mx-auto transition-all duration-700 delay-600 ${
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
             }`}
           >
-            <div className="glass rounded-2xl p-4 sm:p-5 border border-white/10">
-              <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-medium mb-3 text-center">Возможности AI-юриста</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { icon: "Clock", title: "Доступность", text: "Юрист AI работает всегда — ночью, в выходные, в праздники. Никаких почасовых ставок и предоплат. Точный анализ быстрее, чем дозвонитесь до юриста." },
-                  { icon: "GraduationCap", title: "Глубокая проработка AI", text: "12 месяцев практикующие юристы-эксперты дообучали AI на реальных судебных делах, апелляциях и кассациях под контролем профессионалов." },
-                  { icon: "SlidersHorizontal", title: "Оптимизация", text: "Встроенная промт-оптимизация в реальном времени анализирует ваши ответы и перестраивает логику запросов, чтобы докопаться до сути." },
-                ].map((item) => (
-                  <div key={item.title} className="flex items-start gap-3 text-left">
-                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon name={item.icon} size={15} className="text-gold-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white/90 mb-0.5">{item.title}</p>
-                      <p className="text-[11px] text-white/50 leading-relaxed">{item.text}</p>
-                    </div>
+            <div className="flex items-center justify-center gap-2 mb-5">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/20" />
+              <p className="text-[10px] sm:text-xs text-white/40 uppercase tracking-[0.2em] font-medium">Почему выбирают нас</p>
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/20" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {[
+                {
+                  icon: "Clock",
+                  title: "Доступность",
+                  text: "Работает ночью, в выходные и праздники. Никаких почасовых ставок — точный анализ быстрее, чем дозвонитесь до юриста.",
+                  gradient: "from-blue-500/15 to-blue-600/5",
+                  border: "border-blue-500/25",
+                  iconBg: "bg-blue-500/20",
+                  iconColor: "text-blue-300",
+                },
+                {
+                  icon: "GraduationCap",
+                  title: "Глубокая проработка",
+                  text: "12 месяцев юристы-эксперты дообучали AI на реальных делах, апелляциях и кассациях под контролем профессионалов.",
+                  gradient: "from-gold-500/15 to-amber-600/5",
+                  border: "border-gold-500/25",
+                  iconBg: "bg-gold-500/20",
+                  iconColor: "text-gold-300",
+                },
+                {
+                  icon: "SlidersHorizontal",
+                  title: "Оптимизация",
+                  text: "Промт-оптимизация в реальном времени перестраивает логику запросов — докапывается до сути, даже при неточной формулировке.",
+                  gradient: "from-emerald-500/15 to-emerald-600/5",
+                  border: "border-emerald-500/25",
+                  iconBg: "bg-emerald-500/20",
+                  iconColor: "text-emerald-300",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className={`relative rounded-2xl border ${item.border} bg-gradient-to-br ${item.gradient} p-4 sm:p-5 text-left backdrop-blur-sm`}
+                >
+                  <div className={`w-9 h-9 rounded-xl ${item.iconBg} flex items-center justify-center mb-3`}>
+                    <Icon name={item.icon} size={17} className={item.iconColor} />
                   </div>
-                ))}
-              </div>
+                  <p className="text-sm font-semibold text-white mb-1.5">{item.title}</p>
+                  <p className="text-xs text-white/60 leading-relaxed">{item.text}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
