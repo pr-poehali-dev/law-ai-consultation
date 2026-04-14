@@ -146,6 +146,18 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick }: H
             </button>
           </div>
 
+          {/* Free trial badge */}
+          <div
+            className={`flex justify-center mb-6 sm:mb-8 transition-all duration-700 delay-450 ${
+              visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}
+          >
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-xs sm:text-sm text-white/85">
+              <Icon name="Gift" size={14} className="text-gold-400 shrink-0" />
+              <span><strong className="text-white">3 вопроса бесплатно</strong> при регистрации — без карты</span>
+            </div>
+          </div>
+
           {/* Stats */}
           <div
             className={`grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto transition-all duration-700 delay-500 ${
