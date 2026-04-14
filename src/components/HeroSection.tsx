@@ -5,6 +5,7 @@ interface HeroSectionProps {
   onConsult: () => void;
   onDocument: () => void;
   onPricingClick?: () => void;
+  onRegister?: () => void;
 }
 
 const TYPED_PHRASES = [
@@ -15,7 +16,7 @@ const TYPED_PHRASES = [
   "Что делать при ДТП?",
 ];
 
-export default function HeroSection({ onConsult, onDocument, onPricingClick }: HeroSectionProps) {
+export default function HeroSection({ onConsult, onDocument, onPricingClick, onRegister }: HeroSectionProps) {
   const scrollToPricing = onPricingClick ?? (() => {
     document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -152,10 +153,13 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick }: H
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-xs sm:text-sm text-white/85">
+            <button
+              onClick={onRegister ?? onConsult}
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-full px-4 py-2 text-xs sm:text-sm text-white/85 transition-all cursor-pointer"
+            >
               <Icon name="Gift" size={14} className="text-gold-400 shrink-0" />
               <span><strong className="text-white">3 вопроса бесплатно</strong> при регистрации — без карты</span>
-            </div>
+            </button>
           </div>
 
           {/* Stats */}

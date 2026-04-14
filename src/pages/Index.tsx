@@ -129,6 +129,7 @@ export default function Index() {
         <HeroSection
           onConsult={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
           onDocument={() => handleNavigate("services")}
+          onRegister={handleTryClick}
         />
       </div>
 
