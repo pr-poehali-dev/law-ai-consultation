@@ -100,7 +100,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-white mb-3">
             Прозрачные цены
           </h2>
-          <p className="text-white/45 text-base sm:text-lg max-w-xl mx-auto">
+          <p className="text-white/70 text-base sm:text-lg max-w-xl mx-auto">
             Платите только за то, что нужно — без скрытых платежей
           </p>
         </div>
@@ -140,12 +140,12 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${plan.popular ? "bg-white/15" : "bg-white/8"}`}>
                   <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-white/50"} />
                 </div>
-                <p className="text-sm font-semibold text-white/50 mb-1">{plan.name}</p>
+                <p className="text-sm font-semibold text-white/70 mb-1">{plan.name}</p>
                 <div className="flex items-baseline gap-1 mb-1">
                   <span className="font-cormorant font-bold text-4xl text-white">{plan.price} ₽</span>
                 </div>
-                <p className="text-xs text-white/35 mb-3">{plan.period}</p>
-                <p className="text-sm text-white/55 leading-relaxed mb-5">{plan.desc}</p>
+                <p className="text-xs text-white/55 mb-3">{plan.period}</p>
+                <p className="text-sm text-white/75 leading-relaxed mb-5">{plan.desc}</p>
                 <ul className="space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-white/75">
@@ -198,7 +198,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   <span className="font-cormorant font-bold text-5xl text-gradient-gold">4 990 ₽</span>
                   <span className="text-white/50 text-sm">/ месяц</span>
                 </div>
-                <p className="text-white/55 text-sm mb-5 max-w-xs">
+                <p className="text-white/75 text-sm mb-5 max-w-xs">
                   Полный юридический инструментарий для вашего бизнеса
                 </p>
                 <button
@@ -225,7 +225,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
             </div>
 
             <div className="mt-6 pt-5 border-t border-white/10 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-white/35 font-medium">Докупить действия:</span>
+              <span className="text-xs text-white/60 font-medium">Докупить действия:</span>
               {[
                 { label: "+10", price: "1 000 ₽", id: "business_actions_10" },
                 { label: "+30", price: "3 000 ₽", id: "business_actions_30" },

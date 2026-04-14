@@ -102,7 +102,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
             Всё, что нужно для{" "}
             <span className="text-gradient-gold italic">правовой защиты</span>
           </h2>
-          <p className="text-white/50 text-base sm:text-lg max-w-2xl mx-auto px-4 sm:px-0">
+          <p className="text-white/70 text-base sm:text-lg max-w-2xl mx-auto px-4 sm:px-0">
             AI-юрист готов помочь в любой ситуации — от простого вопроса до сложного судебного дела
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
                 <Icon name={service.icon} size={22} className={service.iconColor} />
               </div>
               <h3 className="font-cormorant font-bold text-white text-xl mb-2">{service.title}</h3>
-              <p className="text-white/55 text-sm leading-relaxed mb-4">{service.desc}</p>
+              <p className="text-white/75 text-sm leading-relaxed mb-4">{service.desc}</p>
               <div className="flex flex-wrap gap-1.5 mb-5">
                 {service.tags.map((tag) => (
                   <span key={tag} className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${service.tagStyle}`}>
@@ -132,7 +132,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
               <div className="flex items-center justify-between pt-4 border-t border-white/10">
                 <div>
                   <div className="font-bold text-white">{service.price}</div>
-                  <div className="text-xs text-white/40">{service.priceNote}</div>
+                  <div className="text-xs text-white/60">{service.priceNote}</div>
                 </div>
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${hovered === i ? "bg-white/20 text-white" : "bg-white/8 text-white/50"}`}>
                   <Icon name="ArrowRight" size={16} />
@@ -153,7 +153,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
               <h2 className="font-cormorant font-bold text-2xl sm:text-3xl md:text-4xl text-white mb-3">
                 Как это работает
               </h2>
-              <p className="text-white/45 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
+              <p className="text-white/65 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
               {HOW_IT_WORKS.map((step, i) => (
@@ -170,7 +170,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
                     </span>
                   </div>
                   <h4 className="font-semibold text-white mb-2 text-sm sm:text-base">{step.title}</h4>
-                  <p className="text-white/40 text-xs sm:text-sm leading-relaxed">{step.desc}</p>
+                  <p className="text-white/65 text-xs sm:text-sm leading-relaxed">{step.desc}</p>
                 </div>
               ))}
             </div>
@@ -183,7 +183,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
             <h3 className="font-cormorant font-bold text-2xl sm:text-3xl text-white mb-2">
               Примеры документов
             </h3>
-            <p className="text-white/45 text-sm">Нажмите — и получите черновик за 2 минуты</p>
+            <p className="text-white/65 text-sm">Нажмите — и получите черновик за 2 минуты</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
@@ -201,7 +201,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
                   <Icon name={doc.icon} size={20} className={doc.color} />
                 </div>
                 <h4 className="font-semibold text-white text-sm mb-1">{doc.title}</h4>
-                <p className="text-white/45 text-xs">{doc.desc}</p>
+                <p className="text-white/65 text-xs">{doc.desc}</p>
               </button>
             ))}
           </div>

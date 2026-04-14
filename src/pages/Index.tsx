@@ -7,6 +7,7 @@ import ServicesSection from "@/components/ServicesSection";
 import FeaturesSection from "@/components/FeaturesSection";
 import PricingSection from "@/components/PricingSection";
 import FooterSection from "@/components/FooterSection";
+import ReviewsSection from "@/components/ReviewsSection";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import LoginModal from "@/components/LoginModal";
 import CookieBanner from "@/components/CookieBanner";
@@ -146,6 +147,8 @@ export default function Index() {
       <PricingSection
         onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
       />
+
+      <ReviewsSection />
 
       <FooterSection onNavigate={handleNavigate} />
 
