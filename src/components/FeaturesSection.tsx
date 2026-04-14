@@ -66,7 +66,7 @@ export default function FeaturesSection() {
   }, []);
 
   return (
-    <section ref={ref} className="relative py-20 sm:py-28 overflow-hidden" style={{ background: '#060d18' }}>
+    <section ref={ref} className="relative py-20 sm:py-28 overflow-hidden" style={{ background: '#0a1628' }}>
       {/* subtle bg pattern */}
       <div
         className="absolute inset-0 opacity-[0.03]"
@@ -129,12 +129,13 @@ export default function FeaturesSection() {
               </div>
 
               {/* Description */}
-              <p className="text-white/60 text-sm sm:text-base leading-relaxed mb-4">
+              <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-4">
                 {f.description}
               </p>
 
               {/* Highlight */}
-              <div className={`flex items-start gap-2 border-l-2 ${f.border} pl-3`}>
+              <div className={`flex items-start gap-2 rounded-xl bg-white/5 border ${f.border} px-3 py-2`}>
+                <Icon name="Quote" size={13} className={`${f.iconColor} shrink-0 mt-0.5`} />
                 <p className={`text-sm font-medium ${f.iconColor} leading-snug`}>{f.highlight}</p>
               </div>
             </div>

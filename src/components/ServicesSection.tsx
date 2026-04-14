@@ -13,10 +13,11 @@ const SERVICES = [
     tags: ["Трудовое право", "Семейное", "ЖКХ", "Кредиты"],
     price: "100 ₽",
     priceNote: "3 вопроса",
-    time: "2–3 мин",
-    color: "from-blue-500/10 to-blue-600/5",
-    accent: "text-blue-600",
-    badge: "bg-blue-50 text-blue-700",
+    gradient: "from-blue-500/20 to-blue-600/5",
+    border: "border-blue-500/20 hover:border-blue-400/40",
+    iconBg: "bg-blue-500/20",
+    iconColor: "text-blue-300",
+    tagStyle: "bg-blue-500/15 text-blue-300 border border-blue-500/20",
   },
   {
     icon: "FileSignature",
@@ -25,10 +26,11 @@ const SERVICES = [
     tags: ["Исковое", "Претензия", "Жалоба"],
     price: "500 ₽",
     priceNote: "за документ",
-    time: "3–5 мин",
-    color: "from-amber-500/10 to-amber-600/5",
-    accent: "text-amber-600",
-    badge: "bg-amber-50 text-amber-700",
+    gradient: "from-gold-500/20 to-amber-600/5",
+    border: "border-gold-500/20 hover:border-gold-400/40",
+    iconBg: "bg-gold-500/20",
+    iconColor: "text-gold-300",
+    tagStyle: "bg-gold-500/15 text-gold-300 border border-gold-500/20",
   },
   {
     icon: "UserCheck",
@@ -37,10 +39,11 @@ const SERVICES = [
     tags: ["Сложные дела", "Заключение"],
     price: "1 500 ₽",
     priceNote: "с заключением",
-    time: "до 24 ч",
-    color: "from-emerald-500/10 to-emerald-600/5",
-    accent: "text-emerald-600",
-    badge: "bg-emerald-50 text-emerald-700",
+    gradient: "from-emerald-500/20 to-emerald-600/5",
+    border: "border-emerald-500/20 hover:border-emerald-400/40",
+    iconBg: "bg-emerald-500/20",
+    iconColor: "text-emerald-300",
+    tagStyle: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
   },
   {
     icon: "Building2",
@@ -49,34 +52,31 @@ const SERVICES = [
     tags: ["Корпоративное", "IP", "HR"],
     price: "1 000 ₽",
     priceNote: "за договор",
-    time: "5–10 мин",
-    color: "from-purple-500/10 to-purple-600/5",
-    accent: "text-purple-600",
-    badge: "bg-purple-50 text-purple-700",
+    gradient: "from-violet-500/20 to-purple-600/5",
+    border: "border-violet-500/20 hover:border-violet-400/40",
+    iconBg: "bg-violet-500/20",
+    iconColor: "text-violet-300",
+    tagStyle: "bg-violet-500/15 text-violet-300 border border-violet-500/20",
   },
 ];
 
 const HOW_IT_WORKS = [
   {
-    step: "01",
     icon: "ListChecks",
     title: "Выберите услугу",
     desc: "Консультация или готовый документ — выбирайте что нужно",
   },
   {
-    step: "02",
     icon: "Bot",
     title: "AI формирует ответ",
     desc: "На основе базы знаний реальных юристов и актуального законодательства",
   },
   {
-    step: "03",
     icon: "CreditCard",
     title: "Оплатите по тарифу",
     desc: "Разово или по подписке — выбирайте удобный формат",
   },
   {
-    step: "04",
     icon: "Download",
     title: "Получите результат",
     desc: "Документ или консультация в личном кабинете, доступно всегда",
@@ -87,50 +87,54 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <section id="services" className="py-16 sm:py-24 bg-background">
-      <div className="container mx-auto px-4">
+    <section id="services" className="py-16 sm:py-24 relative overflow-hidden" style={{ background: '#0a1628' }}>
+      <div className="orb w-[500px] h-[500px] bg-blue-500/5 top-[-100px] left-[-100px] pointer-events-none" />
+      <div className="orb w-[400px] h-[400px] bg-gold-500/5 bottom-0 right-[-100px] pointer-events-none" />
+
+      <div className="container mx-auto px-4 relative z-10">
         {/* Heading */}
         <div className="text-center mb-10 sm:mb-16">
-          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gold-600 bg-gold-400/10 px-4 py-2 rounded-full mb-3 sm:mb-4">
-            Наши услуги
-          </span>
-          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-navy-800 mb-3 sm:mb-4">
+          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-5">
+            <Icon name="Sparkles" size={13} className="text-gold-400" />
+            <span className="text-[11px] text-white/70 font-medium tracking-wider uppercase">Наши услуги</span>
+          </div>
+          <h2 className="font-cormorant font-bold text-3xl sm:text-4xl md:text-5xl text-white mb-3 sm:mb-4">
             Всё, что нужно для{" "}
-            <span className="text-gradient-gold">правовой защиты</span>
+            <span className="text-gradient-gold italic">правовой защиты</span>
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto px-4 sm:px-0">
+          <p className="text-white/50 text-base sm:text-lg max-w-2xl mx-auto px-4 sm:px-0">
             AI-юрист готов помочь в любой ситуации — от простого вопроса до сложного судебного дела
           </p>
         </div>
 
         {/* Services grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-16 sm:mb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-16 sm:mb-20">
           {SERVICES.map((service, i) => (
             <div
               key={service.title}
-              className={`relative rounded-3xl p-6 border border-border bg-gradient-to-br ${service.color} card-hover cursor-pointer group`}
+              className={`relative rounded-3xl p-6 border ${service.border} bg-gradient-to-br ${service.gradient} cursor-pointer group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/30`}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => onSelectService(service.title)}
             >
-              <div className={`w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-5 transition-transform duration-300 ${hovered === i ? "scale-110" : ""}`}>
-                <Icon name={service.icon as any} size={24} className={service.accent} />
+              <div className={`w-11 h-11 rounded-2xl ${service.iconBg} flex items-center justify-center mb-5 transition-transform duration-300 ${hovered === i ? "scale-110" : ""}`}>
+                <Icon name={service.icon} size={22} className={service.iconColor} />
               </div>
-              <h3 className="font-golos font-semibold text-navy-800 text-lg mb-2">{service.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-4">{service.desc}</p>
+              <h3 className="font-cormorant font-bold text-white text-xl mb-2">{service.title}</h3>
+              <p className="text-white/55 text-sm leading-relaxed mb-4">{service.desc}</p>
               <div className="flex flex-wrap gap-1.5 mb-5">
                 {service.tags.map((tag) => (
-                  <span key={tag} className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.badge}`}>
+                  <span key={tag} className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${service.tagStyle}`}>
                     {tag}
                   </span>
                 ))}
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-border/60">
+              <div className="flex items-center justify-between pt-4 border-t border-white/10">
                 <div>
-                  <div className="font-semibold text-navy-800">{service.price}</div>
-                  <div className="text-xs text-muted-foreground">{"priceNote" in service ? (service as {priceNote: string}).priceNote : service.time}</div>
+                  <div className="font-bold text-white">{service.price}</div>
+                  <div className="text-xs text-white/40">{service.priceNote}</div>
                 </div>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${hovered === i ? "bg-navy-700 text-white" : "bg-navy-100 text-navy-600"}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${hovered === i ? "bg-white/20 text-white" : "bg-white/8 text-white/50"}`}>
                   <Icon name="ArrowRight" size={16} />
                 </div>
               </div>
@@ -139,63 +143,65 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
         </div>
 
         {/* How it works */}
-        <div className="bg-gradient-to-br from-navy-800 to-navy-900 rounded-3xl p-6 sm:p-10 md:p-14">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="font-cormorant font-bold text-2xl sm:text-3xl md:text-4xl text-white mb-3">
-              Как это работает
-            </h2>
-            <p className="text-white/55 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={step.step} className="relative text-center group">
-                {i < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-full h-[1px] bg-gradient-to-r from-gold-500/50 to-transparent" />
-                )}
-                <div className="relative inline-flex mb-5">
-                  <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center mx-auto transition-all duration-300 group-hover:bg-gold-500/20">
-                    <Icon name={step.icon as any} size={26} className="text-gold-400" />
+        <div className="relative rounded-3xl overflow-hidden border border-white/8 mb-16 sm:mb-20">
+          <div className="absolute inset-0 bg-gradient-to-br from-navy-800/80 to-navy-900/90" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+          <div className="relative p-6 sm:p-10 md:p-14">
+            <div className="text-center mb-10 sm:mb-14">
+              <h2 className="font-cormorant font-bold text-2xl sm:text-3xl md:text-4xl text-white mb-3">
+                Как это работает
+              </h2>
+              <p className="text-white/45 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+              {HOW_IT_WORKS.map((step, i) => (
+                <div key={step.title} className="relative text-center group">
+                  {i < HOW_IT_WORKS.length - 1 && (
+                    <div className="hidden md:block absolute top-8 left-[60%] w-full h-px bg-gradient-to-r from-gold-500/40 to-transparent" />
+                  )}
+                  <div className="relative inline-flex mb-5">
+                    <div className="w-16 h-16 rounded-2xl bg-white/8 border border-white/10 flex items-center justify-center mx-auto transition-all duration-300 group-hover:bg-gold-500/15 group-hover:border-gold-500/30">
+                      <Icon name={step.icon} size={26} className="text-gold-400" />
+                    </div>
+                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full text-[10px] font-bold text-navy-900 flex items-center justify-center shadow-lg">
+                      {i + 1}
+                    </span>
                   </div>
-                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-gold-500 rounded-full text-[10px] font-bold text-navy-900 flex items-center justify-center">
-                    {i + 1}
-                  </span>
+                  <h4 className="font-semibold text-white mb-2 text-sm sm:text-base">{step.title}</h4>
+                  <p className="text-white/40 text-xs sm:text-sm leading-relaxed">{step.desc}</p>
                 </div>
-                <h4 className="font-golos font-semibold text-white mb-2">{step.title}</h4>
-                <p className="text-white/50 text-sm leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Document samples */}
-        <div className="mt-16">
-          <div className="text-center mb-10">
-            <h3 className="font-cormorant font-bold text-3xl text-navy-800 mb-3">
+        <div>
+          <div className="text-center mb-8 sm:mb-10">
+            <h3 className="font-cormorant font-bold text-2xl sm:text-3xl text-white mb-2">
               Примеры документов
             </h3>
-            <p className="text-muted-foreground">Нажмите — и получите черновик за 2 минуты</p>
+            <p className="text-white/45 text-sm">Нажмите — и получите черновик за 2 минуты</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { icon: "Gavel", title: "Исковое заявление", desc: "В суд общей юрисдикции" },
-              { icon: "FileCheck", title: "Договор ГПХ", desc: "Гражданско-правовой договор" },
-              { icon: "AlertCircle", title: "Претензия", desc: "К продавцу или подрядчику" },
-              { icon: "Building", title: "Жалоба", desc: "В Роспотребнадзор / прокуратуру" },
+              { icon: "Gavel", title: "Исковое заявление", desc: "В суд общей юрисдикции", color: "text-blue-300", bg: "bg-blue-500/15", border: "hover:border-blue-500/30" },
+              { icon: "FileCheck", title: "Договор ГПХ", desc: "Гражданско-правовой договор", color: "text-gold-300", bg: "bg-gold-500/15", border: "hover:border-gold-500/30" },
+              { icon: "AlertCircle", title: "Претензия", desc: "К продавцу или подрядчику", color: "text-emerald-300", bg: "bg-emerald-500/15", border: "hover:border-emerald-500/30" },
+              { icon: "Building", title: "Жалоба", desc: "В Роспотребнадзор / прокуратуру", color: "text-violet-300", bg: "bg-violet-500/15", border: "hover:border-violet-500/30" },
             ].map((doc) => (
               <button
                 key={doc.title}
                 onClick={() => onSelectService(doc.title)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border bg-card hover:border-gold-400/40 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
+                className={`group p-4 sm:p-5 rounded-2xl border border-white/8 bg-white/4 ${doc.border} hover:bg-white/8 transition-all duration-300 text-left hover:scale-[1.02]`}
               >
-                <div className="w-10 h-10 rounded-xl bg-navy-50 flex items-center justify-center mb-4 group-hover:bg-navy-100 transition-colors">
-                  <Icon name={doc.icon as any} size={20} className="text-navy-600" />
+                <div className={`w-10 h-10 rounded-xl ${doc.bg} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110`}>
+                  <Icon name={doc.icon} size={20} className={doc.color} />
                 </div>
-                <div className="font-medium text-navy-800 text-sm mb-1">{doc.title}</div>
-                <div className="text-xs text-muted-foreground mb-3">{doc.desc}</div>
-                <div className="flex items-center gap-1 text-xs text-gold-600 font-medium">
-                  <Icon name="Zap" size={12} />
-                  Сгенерировать черновик
-                </div>
+                <h4 className="font-semibold text-white text-sm mb-1">{doc.title}</h4>
+                <p className="text-white/45 text-xs">{doc.desc}</p>
               </button>
             ))}
           </div>
