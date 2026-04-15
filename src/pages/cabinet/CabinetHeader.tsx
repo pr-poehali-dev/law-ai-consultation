@@ -85,14 +85,19 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
             ) : !user.isAdmin && (
               <button
                 onClick={onSelectPlan}
-                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                   activePlan
                     ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                    : "bg-navy-50 border-navy-200 text-navy-700 hover:bg-navy-100"
+                    : "bg-gold-500 border-gold-400 text-navy-900 hover:bg-gold-400"
                 }`}
               >
-                <Icon name="Zap" size={11} className={activePlan ? "text-emerald-600" : "text-gold-500"} />
-                {activePlan ? `${activePlan.name} · ${totalLeft} вопр.` : "Подключить тариф"}
+                <Icon name="Zap" size={11} className={activePlan ? "text-emerald-600" : "text-navy-800"} />
+                <span className="hidden sm:inline">
+                  {activePlan ? `${activePlan.name} · ${totalLeft} вопр.` : "Подключить тариф"}
+                </span>
+                <span className="sm:hidden">
+                  {activePlan ? activePlan.name : "Тариф"}
+                </span>
               </button>
             )}
             {/* Кнопка Админ на мобиле */}

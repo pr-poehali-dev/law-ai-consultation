@@ -239,22 +239,21 @@ export default function ChatTab({
           ) : activePlan ? (
             <button
               onClick={onSelectPlan}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-100 rounded-xl transition-colors group"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-colors"
             >
               <Icon name="Zap" size={11} className="text-emerald-600" />
-              <span className="text-xs font-medium text-emerald-700">{activePlan.name}</span>
-              <span className="text-xs text-emerald-600">·</span>
+              <span className="text-xs font-semibold text-emerald-700">{activePlan.name}</span>
+              <span className="text-[10px] text-emerald-500">·</span>
               <span className="text-xs font-medium text-emerald-700">{user.paidQuestions} вопр.</span>
             </button>
-          ) : totalLeft === 0 ? (
-            <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
-              <Icon name="Plus" size={11} />100 ₽ · 3 вопр.
-            </button>
           ) : (
-            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 border border-border rounded-xl">
-              <Icon name="MessageCircle" size={11} className="text-navy-500" />
-              <span className="text-xs font-medium text-navy-700">{user.paidQuestions} вопр.</span>
-            </div>
+            <button
+              onClick={onSelectPlan}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-xl transition-colors"
+            >
+              <Icon name="Zap" size={11} className="text-amber-500" />
+              <span className="text-xs font-medium text-amber-700">{user.paidQuestions > 0 ? `${user.paidQuestions} вопр. ·` : ""} Тарифы</span>
+            </button>
           )}
         </div>
       </div>
@@ -427,17 +426,16 @@ export default function ChatTab({
             <Icon name="Send" size={14} className="text-white ml-0.5" />
           </button>
         </div>
-        <div className="px-3 pb-1.5 flex items-center justify-between">
-          <p className="text-[10px] text-slate-400">Ответы носят информационный характер</p>
+        <div className="px-3 pb-2 pt-1 flex items-center justify-between gap-2 border-t border-slate-100 mt-1">
+          <p className="text-[10px] text-slate-400 shrink-0">Носят информационный характер</p>
           {!user.isAdmin && (
             <button
               onClick={onSelectPlan}
-              className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-xl transition-all duration-200 group
-                bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-600 hover:to-navy-700
-                text-white shadow-sm hover:shadow-md active:scale-95"
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200
+                bg-gold-500 hover:bg-gold-400 text-navy-900 shadow-sm active:scale-95 whitespace-nowrap"
             >
-              <Icon name="Zap" size={11} className="text-gold-400 group-hover:scale-110 transition-transform" />
-              {activePlan ? `Тариф «${activePlan.name}»` : "Подключить тариф"}
+              <Icon name="Zap" size={11} />
+              {activePlan ? `Тариф «${activePlan.name}»` : "⚡ Подключить тариф"}
             </button>
           )}
         </div>

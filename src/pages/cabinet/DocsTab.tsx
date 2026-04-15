@@ -235,11 +235,11 @@ export default function DocsTab({
                 </div>
                 <button
                   onClick={onSelectPlan}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-medium border transition-all
-                    bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-600 hover:to-navy-700
-                    text-white border-navy-700 shadow-sm hover:shadow-md active:scale-95 shrink-0 whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold border transition-all
+                    bg-gold-500 hover:bg-gold-400 text-navy-900 border-gold-400
+                    shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
                 >
-                  <Icon name="Zap" size={11} className="text-gold-400" />
+                  <Icon name="Zap" size={11} />
                   {activePlan ? `Тариф «${activePlan.name}»` : "Подключить тариф"}
                 </button>
               </div>
