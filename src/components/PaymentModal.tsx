@@ -52,7 +52,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
-  consultation: "3 юридических вопроса AI-юристу",
+  consultation: "3 ответа AI-юриста — дешевле чашки кофе",
   document: "Один юридический документ (исковое, претензия или жалоба)",
   expert: "Живой юрист проанализирует ответ AI и даст заключение. Включает 3 вопроса к AI",
   business: "Подготовка договора и юридических документов для бизнеса",

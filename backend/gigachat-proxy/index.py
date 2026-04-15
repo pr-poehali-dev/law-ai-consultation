@@ -28,8 +28,8 @@ from auth_handler import (
     handle_admin_grant,
 )
 from prompts import (
-    TODAY, SYSTEM_CHAT, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
-    SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS,
+    TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
+    SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
 )
@@ -268,6 +268,62 @@ def strip_personal_data(messages: list) -> tuple:
 
 
 MAX_HISTORY = 10
+# Если история длиннее — первые сообщения сжимаем в резюме
+SUMMARY_THRESHOLD = 14
+
+
+def summarize_old_messages(messages: list) -> list:
+    """Сжимает сообщения старше MAX_HISTORY в краткое резюме контекста.
+    Возвращает список: [summary_msg] + последние MAX_HISTORY сообщений."""
+    if len(messages) <= SUMMARY_THRESHOLD:
+        return messages
+    tail = messages[-MAX_HISTORY:]
+    head = messages[:-MAX_HISTORY]
+    # Формируем текст для сжатия
+    dialog_text = "\n".join(
+        f"{'Пользователь' if m.get('role') == 'user' else 'Юрист'}: {m.get('content', '')[:400]}"
+        for m in head
+    )
+    summary_prompt = (
+        "Сожми диалог в краткое резюме (3-5 предложений): "
+        "кто обратился, суть правовой ситуации, ключевые факты (стороны, суммы, даты, нарушения). "
+        "Только факты, без рекомендаций.\n\n" + dialog_text
+    )
+    try:
+        iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+        resp = requests.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+            json={
+                "model": YANDEX_MODEL_FAST,
+                "messages": [{"role": "user", "content": summary_prompt}],
+                "max_tokens": 300,
+                "temperature": 0.2,
+                "stream": False,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        summary = resp.json()["choices"][0]["message"]["content"].strip()
+        summary_msg = {"role": "user", "content": f"[Контекст предыдущего диалога: {summary}]"}
+        return [summary_msg] + tail
+    except Exception:
+        # При ошибке сжатия — просто обрезаем
+        return tail
+
+
+def is_simple_query(messages: list) -> bool:
+    """Определяет является ли запрос простым информационным — без конкретного дела/спора."""
+    if not messages:
+        return False
+    last_user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+    if not last_user:
+        return False
+    text = last_user.get("content", "").lower().strip()
+    # Длинные запросы (>120 символов) скорее всего описывают реальную ситуацию
+    if len(text) > 120:
+        return False
+    return any(marker in text for marker in SIMPLE_QUERY_MARKERS)
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False) -> str:
@@ -439,7 +495,7 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2500)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500)
             # Для речи завершённость определяем по финальному обращению к суду
             if doc_type in SPEECH_DOC_TYPES:
                 truncated = not bool(re.search(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', answer[-400:], re.I))
@@ -463,7 +519,7 @@ def handler(event: dict, context) -> dict:
                 f"Продолжай документ до финального блока с реквизитами, подписями и датой. "
                 f"Незаполненные поля — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2500)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500)
             truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -613,10 +669,11 @@ def handler(event: dict, context) -> dict:
 
             if is_doc_mode:
                 trimmed = biz_messages
-                answer = call_yandex(sys_prompt, trimmed, max_tokens=2500, fast=False)
+                answer = call_yandex(sys_prompt, trimmed, max_tokens=3500, fast=False)
             else:
-                # Очищаем персональные данные до отправки
-                trimmed, had_pd = strip_personal_data(biz_messages[-MAX_HISTORY:])
+                # Сжимаем старые сообщения + очищаем персональные данные
+                summarized_biz = summarize_old_messages(biz_messages)
+                trimmed, had_pd = strip_personal_data(summarized_biz)
                 answer = call_yandex(sys_prompt, trimmed, max_tokens=1200, fast=True)
                 if is_refusal(answer):
                     answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
@@ -653,15 +710,20 @@ def handler(event: dict, context) -> dict:
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
 
+            # Сжимаем старые сообщения в резюме если история длинная
+            summarized = summarize_old_messages(messages)
             # Очищаем персональные данные до отправки в модель
-            clean_messages, had_pd = strip_personal_data(messages[-MAX_HISTORY:])
+            clean_messages, had_pd = strip_personal_data(summarized)
 
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1200, fast=True)
+                # Простые информационные запросы — лёгкий промпт и меньше токенов
+                sys_prompt_chat = SYSTEM_CHAT_SIMPLE if is_simple_query(clean_messages) else SYSTEM_CHAT
+                max_tok_chat = 600 if is_simple_query(clean_messages) else 1200
+                answer = call_yandex(sys_prompt_chat, clean_messages, max_tokens=max_tok_chat, fast=True)
 
             # Если модель всё равно отказала — заменяем на нейтральный fallback
             if is_refusal(answer):

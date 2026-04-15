@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { canAskQuestion, consumeQuestion, getToken } from "@/lib/auth";
+import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg } from "@/pages/cabinet/ChatTab";
@@ -110,6 +110,17 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
+      // Upsell при 1 оставшемся вопросе
+      const left = await getQuestionsLeft();
+      if (left === 1) {
+        setTimeout(() => {
+          setMessages((p) => [...p, {
+            role: "ai",
+            text: "💡 У вас остался **1 вопрос**. Возьмите пакет Старт — 30 вопросов + 5 документов за 1 490 ₽, и продолжайте прямо сейчас.",
+            isUpsell: true,
+          }]);
+        }, 800);
+      }
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);

@@ -120,6 +120,14 @@ export async function canAskQuestion(): Promise<boolean> {
   return user.paidQuestions > 0;
 }
 
+export async function getQuestionsLeft(): Promise<number> {
+  const user = await getUser();
+  if (!user) return 0;
+  if (user.isAdmin) return 999;
+  if (hasActiveSubscription(user, "consult")) return 999;
+  return user.paidQuestions ?? 0;
+}
+
 export async function canUseDoc(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;

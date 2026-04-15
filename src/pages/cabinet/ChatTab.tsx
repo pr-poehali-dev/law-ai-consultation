@@ -5,7 +5,7 @@ import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; }
 
 interface ChatTabProps {
   user: User;
@@ -295,6 +295,27 @@ export default function ChatTab({
 
               // Находим предшествующее сообщение пользователя
               const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");
+
+              if (msg.isUpsell) return (
+                <div key={i} className="flex gap-2 items-start">
+                  <div className="w-8 h-8 bg-gold-400/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon name="Zap" size={13} className="text-gold-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-gradient-to-br from-gold-400/10 to-amber-50 border border-gold-300 rounded-2xl rounded-tl-sm px-3 py-3">
+                      <p className="text-sm text-navy-800 leading-relaxed">
+                        💡 У вас остался <strong>1 вопрос</strong>. Возьмите пакет <strong>Старт</strong> — 30 вопросов + 5 документов за 1 490 ₽, и продолжайте прямо сейчас.
+                      </p>
+                      <button
+                        onClick={onPayClick}
+                        className="mt-2.5 w-full btn-gold py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+                      >
+                        <Icon name="Zap" size={12} />Взять пакет Старт — 1 490 ₽
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
 
               return (
                 <div key={i} className="flex gap-2 items-start">
