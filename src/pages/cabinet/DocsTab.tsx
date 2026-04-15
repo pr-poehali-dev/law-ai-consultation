@@ -136,7 +136,6 @@ export default function DocsTab({
   onDocTypeChange,
   onDocDetailsChange,
   onGenerate,
-  onContinue,
   onApplyFill,
   onFillChange,
   onSetPhase,
@@ -146,7 +145,6 @@ export default function DocsTab({
   onGoToChat,
   onDownload,
   onOpenDoc,
-  onPayForDoc,
   onAnalyzeDoc,
   onSelectPlan,
 }: DocsTabProps) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, logout, type User, getToken } from "@/lib/auth";
+import { getUser, type User, getToken } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
