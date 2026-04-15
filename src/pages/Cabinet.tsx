@@ -172,6 +172,7 @@ export default function Cabinet() {
     onDocGenerated: (doc) => {
       setViewDoc(doc);
     },
+    getChatHistory: () => chat.history,
   });
 
   // Регистрируем ref на generateDocWith документов

@@ -434,18 +434,8 @@ export default function ChatTab({
             <Icon name="Send" size={14} className="text-white ml-0.5" />
           </button>
         </div>
-        <div className="px-3 pb-2 pt-1 flex items-center justify-between gap-2 border-t border-slate-100 mt-1">
-          <p className="text-[10px] text-slate-400 shrink-0">Носят информационный характер</p>
-          {!user.isAdmin && (
-            <button
-              onClick={onSelectPlan}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all duration-200
-                bg-gold-500 hover:bg-gold-400 text-navy-900 shadow-sm active:scale-95 whitespace-nowrap"
-            >
-              <Icon name="Zap" size={11} />
-              {activePlan ? `Тариф «${activePlan.name}»` : "⚡ Подключить тариф"}
-            </button>
-          )}
+        <div className="px-3 pb-2 pt-1 border-t border-slate-100 mt-1">
+          <p className="text-[10px] text-slate-400">Носят информационный характер</p>
         </div>
       </div>
 

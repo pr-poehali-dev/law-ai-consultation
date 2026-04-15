@@ -11,9 +11,10 @@ interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;
   onPaymentRequired: (type: ServiceType, name: string, pendingDocType: typeof DOC_TYPES[0]) => void;
   onDocGenerated?: (doc: GenDoc) => void;
+  getChatHistory?: () => { role: string; content: string }[];
 }
 
-export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }: UseDocsLogicProps) {
+export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, getChatHistory }: UseDocsLogicProps) {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [docPhase, setDocPhase] = useState<DocPhase>("form");
   const [docDetails, setDocDetails] = useState("");
@@ -51,6 +52,10 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated }:
       if (docAttachedFile) {
         reqBody.file = docAttachedFile.b64;
         reqBody.filename = docAttachedFile.name;
+      }
+      if (getChatHistory) {
+        const hist = getChatHistory();
+        if (hist.length > 0) reqBody.chat_history = hist.slice(-30);
       }
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",

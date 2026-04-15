@@ -213,7 +213,7 @@ def is_refusal(text: str) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-MAX_HISTORY = 3
+MAX_HISTORY = 30
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False) -> str:
@@ -353,8 +353,18 @@ def handler(event: dict, context) -> dict:
                 except Exception:
                     file_context = ""
 
+            chat_history = body.get("chat_history", [])
+            history_context = ""
+            if chat_history:
+                last_pairs = chat_history[-30:]
+                history_context = "История предыдущей консультации пользователя (используй для понимания контекста):\n"
+                for msg in last_pairs:
+                    role_label = "Пользователь" if msg.get("role") == "user" else "AI-юрист"
+                    history_context += f"{role_label}: {msg.get('content', '')}\n"
+                history_context += "\n"
             prompt = (
-                f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
+                history_context
+                + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
                 + f"Там где не хватает конкретных данных (ФИО, адрес, ИНН и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
