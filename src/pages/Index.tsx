@@ -144,7 +144,10 @@ export default function Index() {
       <div id="hero">
         <HeroSection
           onConsult={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
-          onDocument={() => handleNavigate("services")}
+          onDocument={() => {
+            if (isLoggedIn) { navigate("/cabinet?tab=docs"); }
+            else { setPendingTab("docs"); setFreeTrial(true); setShowLogin(true); }
+          }}
           onRegister={handleTryClick}
         />
       </div>
