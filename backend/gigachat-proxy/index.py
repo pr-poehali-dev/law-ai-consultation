@@ -25,6 +25,7 @@ from auth_handler import (
     handle_business_messages_get, handle_business_messages_save,
     handle_get_billing_log, handle_list_users,
     handle_get_all_billing_log, handle_get_new_users,
+    handle_admin_grant,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -306,6 +307,7 @@ def handler(event: dict, context) -> dict:
         "list-users": lambda: handle_list_users(token),
         "get-all-billing-log": lambda: handle_get_all_billing_log(token, body),
         "get-new-users": lambda: handle_get_new_users(token, body),
+        "admin-grant": lambda: handle_admin_grant(token, body),
     }
     if action in auth_actions:
         result = auth_actions[action]()

@@ -308,6 +308,18 @@ export async function getNewUsers(opts?: { seen_ids?: number[] }): Promise<{ use
   return { users: data.users || [], total: data.total || 0 };
 }
 
+export async function adminGrant(params: {
+  target_user_id: number;
+  questions?: number;
+  docs?: number;
+  comment?: string;
+}): Promise<{ ok?: boolean; questions_added?: number; docs_added?: number; error?: string }> {
+  const res = await apiCall({ action: "admin-grant", ...params });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка начисления" };
+  return data;
+}
+
 export async function businessConsumeAction(): Promise<{ ok?: boolean; error?: string }> {
   const res = await apiCall({ action: "business-consume-action" });
   const data = await res.json();

@@ -1177,3 +1177,65 @@ def handle_get_new_users(token: str, body: dict) -> dict:
     finally:
         cur.close()
         conn.close()
+
+
+def handle_admin_grant(token: str, body: dict) -> dict:
+    """Ручное начисление вопросов/документов пользователю — только для админа."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+
+    target_user_id = int(body.get("target_user_id", 0))
+    questions = int(body.get("questions", 0))
+    docs = int(body.get("docs", 0))
+    comment = sanitize_str(body.get("comment", "Ручное начисление от администратора"), max_len=200)
+
+    if not target_user_id:
+        return _err(400, "Укажите target_user_id")
+    if questions < 0 or docs < 0:
+        return _err(400, "Значения не могут быть отрицательными")
+    if questions == 0 and docs == 0:
+        return _err(400, "Укажите количество вопросов или документов")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT id, email, name FROM {SCHEMA}.users WHERE id = %s",
+            (target_user_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return _err(404, "Пользователь не найден")
+        target_email = row[1]
+
+        if questions > 0:
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + %s WHERE id = %s",
+                (questions, target_user_id)
+            )
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'consultation', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"+{questions} вопр. · {comment}")
+            )
+
+        if docs > 0:
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + %s WHERE id = %s",
+                (docs, target_user_id)
+            )
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"+{docs} докум. · {comment}")
+            )
+
+        conn.commit()
+        return _ok({"ok": True, "questions_added": questions, "docs_added": docs})
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
+    finally:
+        cur.close()
+        conn.close()
