@@ -42,7 +42,7 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-async function apiCall(body: object, timeoutMs = 20000): Promise<Response> {
+async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), timeoutMs);
@@ -72,38 +72,52 @@ export async function register(params: {
   free_trial?: boolean;
   ref_code?: string;
 }): Promise<{ user?: User; error?: string; free_trial_granted?: boolean; ref_bonus_granted?: boolean }> {
-  try {
-    const res = await apiCall({ action: "register", ...params });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error || "Ошибка регистрации" };
-    setToken(data.token);
-    invalidateUserCache();
-    return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
-  } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") {
-      return { error: "Сервер не отвечает. Попробуйте ещё раз." };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await apiCall({ action: "register", ...params });
+      const data = await res.json();
+      if (!res.ok) return { error: data.error || "Ошибка регистрации" };
+      setToken(data.token);
+      invalidateUserCache();
+      return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
+    } catch (e) {
+      if (attempt === 1) {
+        if (e instanceof Error && e.name === "AbortError") {
+          return { error: "Сервер не отвечает. Попробуйте ещё раз через несколько секунд." };
+        }
+        return { error: "Ошибка соединения. Проверьте интернет." };
+      }
+      await new Promise(r => setTimeout(r, 2000));
     }
-    return { error: "Ошибка соединения. Проверьте интернет." };
   }
+  return { error: "Ошибка соединения." };
 }
 
 export async function login(
   email: string,
   password: string
 ): Promise<{ user?: User; error?: string }> {
-  try {
-    const res = await apiCall({ action: "login", email, password });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error || "Неверный email или пароль" };
-    setToken(data.token);
-    invalidateUserCache();
-    return { user: data.user };
-  } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") {
-      return { error: "Сервер не отвечает. Попробуйте ещё раз." };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await apiCall({ action: "login", email, password });
+      const data = await res.json();
+      if (!res.ok) return { error: data.error || "Неверный email или пароль" };
+      setToken(data.token);
+      invalidateUserCache();
+      return { user: data.user };
+    } catch (e) {
+      const isLast = attempt === 1;
+      if (isLast) {
+        if (e instanceof Error && e.name === "AbortError") {
+          return { error: "Сервер не отвечает. Попробуйте ещё раз через несколько секунд." };
+        }
+        return { error: "Ошибка соединения. Проверьте интернет." };
+      }
+      // Первая попытка упала — ждём 2 сек и повторяем
+      await new Promise(r => setTimeout(r, 2000));
     }
-    return { error: "Ошибка соединения. Проверьте интернет." };
   }
+  return { error: "Ошибка соединения." };
 }
 
 // Кэш пользователя — один запрос в 30 сек вместо многократных дублей

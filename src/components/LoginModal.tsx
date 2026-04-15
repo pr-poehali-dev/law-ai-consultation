@@ -30,6 +30,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
   const [agreed, setAgreed] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [loadingSlow, setLoadingSlow] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [trialGranted, setTrialGranted] = useState(false);
@@ -39,9 +40,11 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
   // ── Вход ──
   const handleLogin = async () => {
     if (!loginEmail || !loginPassword) { setError("Заполните email и пароль"); return; }
-    setLoading(true); setError("");
+    setLoading(true); setLoadingSlow(false); setError("");
+    const slowTimer = setTimeout(() => setLoadingSlow(true), 6000);
     const res = await login(loginEmail, loginPassword);
-    setLoading(false);
+    clearTimeout(slowTimer);
+    setLoading(false); setLoadingSlow(false);
     if (res.error) { setError(res.error); return; }
     ymGoal("login");
     onSuccess();
@@ -185,6 +188,11 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
                       : <><Icon name="LogIn" size={16} />Войти</>
                     }
                   </button>
+                  {loadingSlow && (
+                    <p className="text-xs text-center text-muted-foreground animate-fade-in">
+                      Сервер просыпается, подождите несколько секунд...
+                    </p>
+                  )}
                 </div>
               )}
 
