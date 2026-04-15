@@ -27,6 +27,7 @@ const DOC_TYPES = [
   { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 500, serviceType: "document" as ServiceType },
   { id: "notification", label: "Уведомления", icon: "Bell", price: 500, serviceType: "document" as ServiceType },
   { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 500, serviceType: "document" as ServiceType },
+  { id: "court_speech", label: "Речь для суда", icon: "Mic", price: 500, serviceType: "document" as ServiceType },
 ];
 
 export { DOC_TYPES };

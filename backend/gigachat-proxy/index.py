@@ -33,6 +33,9 @@ from prompts import (
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
 )
 
+# Типы документов, для которых ораторский финал (не "подпись/реквизиты")
+SPEECH_DOC_TYPES = {"court_speech"}
+
 warnings.filterwarnings("ignore")
 
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
@@ -334,6 +337,7 @@ def handler(event: dict, context) -> dict:
                 "order": "приказ",
                 "contract": "договор ГПХ",
                 "business_contract": "коммерческий договор",
+                "court_speech": "судебную речь",
             }
             label = doc_labels.get(doc_type, "документ")
             system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
@@ -362,16 +366,33 @@ def handler(event: dict, context) -> dict:
                     role_label = "Пользователь" if msg.get("role") == "user" else "AI-юрист"
                     history_context += f"{role_label}: {msg.get('content', '')}\n"
                 history_context += "\n"
+            # Специальный промпт для судебной речи
+            speech_style = ""
+            if doc_type in SPEECH_DOC_TYPES:
+                speech_style = (
+                    "ОРАТОРСКИЙ СТИЛЬ (обязательно): короткие предложения (7–12 слов), паузы (//), "
+                    "тройные перечисления, сильные глаголы, один тезис на абзац. "
+                    "Ключевую мысль — в начало и в конец. Без воды и длинных оборотов.\n\n"
+                    "ОФОРМЛЕНИЕ: шрифт Times New Roman 14 (заголовки 16), межстрочный интервал 1,5, "
+                    "поля: левое 3 см, правое 1,5 см, верх/низ 2 см, абзацный отступ 1,25 см. "
+                    "Заголовки блоков — жирный. Ключевые тезисы — **полужирный** или _курсив_. "
+                    "Ссылки на доказательства: (т. 1, л.д. 15). Нумерация страниц — внизу по центру.\n\n"
+                )
             prompt = (
                 history_context
+                + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
-                + f"Там где не хватает конкретных данных (ФИО, адрес, ИНН и т.д.) — "
+                + f"Там где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
             answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2500)
-            truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
+            # Для речи завершённость определяем по финальному обращению к суду
+            if doc_type in SPEECH_DOC_TYPES:
+                truncated = not bool(re.search(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', answer[-400:], re.I))
+            else:
+                truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
