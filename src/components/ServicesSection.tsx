@@ -151,33 +151,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
           </div>
         </div>
 
-        {/* Document samples */}
-        <div className="mt-16">
-          <div className="text-center mb-10">
-            <h3 className="font-cormorant font-bold text-3xl text-navy-800 mb-3">Примеры документов</h3>
-            <p className="text-muted-foreground">Нажмите — и получите черновик за 2 минуты</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-4">
-            {[
-              { icon: "Gavel", title: "Исковое заявление", desc: "В суд общей юрисдикции", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },
-              { icon: "FileCheck", title: "Договор ГПХ", desc: "Гражданско-правовой договор", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },
-              { icon: "AlertCircle", title: "Претензия", desc: "К продавцу или подрядчику", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },
-              { icon: "Building", title: "Жалоба", desc: "В Роспотребнадзор / прокуратуру", accent: "text-navy-600", bg: "bg-navy-50 group-hover:bg-navy-100" },
-            ].map((doc) => (
-              <button
-                key={doc.title}
-                onClick={() => onSelectService(doc.title)}
-                className="group p-4 sm:p-5 rounded-2xl border border-border bg-white shadow-sm hover:border-gold-400/50 hover:shadow-lg hover:shadow-gold-500/10 transition-all duration-300 text-left"
-              >
-                <div className={`w-10 h-10 rounded-xl ${doc.bg} flex items-center justify-center mb-4 transition-colors`}>
-                  <Icon name={doc.icon} size={20} className={doc.accent} />
-                </div>
-                <h4 className="font-semibold text-navy-800 text-sm mb-1">{doc.title}</h4>
-                <p className="text-muted-foreground text-xs">{doc.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
+
       </div>
     </section>
   );
