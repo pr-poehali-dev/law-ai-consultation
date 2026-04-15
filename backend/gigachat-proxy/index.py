@@ -570,10 +570,10 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
-                chat_messages = messages[1:][-20:]
+                chat_messages = messages[1:][-MAX_HISTORY:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, messages[-20:], max_tokens=1200, fast=True)
+                answer = call_yandex(SYSTEM_CHAT, messages[-MAX_HISTORY:], max_tokens=1200, fast=True)
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
