@@ -26,7 +26,7 @@ def check_yukassa_status(shop_id: str, secret_key: str, payment_id: str) -> bool
     resp = requests.get(
         f"{YUKASSA_API}/{payment_id}",
         auth=(shop_id, secret_key),
-        timeout=10,
+        timeout=7,
     )
     resp.raise_for_status()
     data = resp.json()

@@ -115,7 +115,6 @@ def _handle(event: dict, context) -> dict:
         conn.commit()
     finally:
         cur.close()
-        conn.close()
 
     idempotency_key = str(uuid.uuid4())
 
@@ -170,19 +169,18 @@ def _handle(event: dict, context) -> dict:
     pay_url = payment["confirmation"]["confirmation_url"]
     payment_id = payment["id"]
 
-    conn2 = get_conn()
-    cur2 = conn2.cursor()
+    cur2 = conn.cursor()
     try:
         cur2.execute(
             f"UPDATE {SCHEMA}.orders SET payment_id = %s WHERE id = %s",
             (payment_id, inv_id)
         )
-        conn2.commit()
+        conn.commit()
     except Exception:
         pass
     finally:
         cur2.close()
-        conn2.close()
+        conn.close()
 
     return {
         "statusCode": 200,
