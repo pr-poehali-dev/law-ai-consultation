@@ -685,8 +685,8 @@ def handler(event: dict, context) -> dict:
                 # Сжимаем старые сообщения + очищаем персональные данные
                 summarized_biz = summarize_old_messages(biz_messages)
                 trimmed, had_pd = strip_personal_data(summarized_biz)
-                # Бизнес-консультации — DeepSeek для качественного юридического анализа
-                answer = call_yandex(sys_prompt, trimmed, max_tokens=1400, fast=False, temperature=0.3)
+                # Бизнес-консультации — YandexGPT для скорости, t=0.3 для точности
+                answer = call_yandex(sys_prompt, trimmed, max_tokens=1400, fast=True, temperature=0.3)
                 if is_refusal(answer):
                     answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
                 elif had_pd:
@@ -730,16 +730,15 @@ def handler(event: dict, context) -> dict:
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
-                # Системный промпт — скорее всего простой запрос, YandexGPT
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
             else:
                 simple = is_simple_query(clean_messages)
                 if simple:
-                    # Простой информационный — YandexGPT, быстро
+                    # Простой информационный — короткий промпт, меньше токенов
                     answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=600, fast=True)
                 else:
-                    # Сложный — DeepSeek, качественный юридический анализ
-                    answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=False, temperature=0.3)
+                    # Сложный — тот же YandexGPT но с полным промптом и t=0.3
+                    answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
 
             # Если модель всё равно отказала — заменяем на нейтральный fallback
             if is_refusal(answer):
