@@ -82,7 +82,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, g
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
       saveGenDocs([newDoc, ...genDocs]);
       setDocPhase(placeholders.length > 0 ? "filling" : "done");
-      ymGoal("doc_generated", { doc_type: newDoc.type });
+      ymGoal("doc_generated", { doc_type: activeType.id });
       if (onDocGenerated) onDocGenerated(newDoc);
     } catch (e) {
       setDocErr(e instanceof Error ? e.message : "Ошибка генерации");
