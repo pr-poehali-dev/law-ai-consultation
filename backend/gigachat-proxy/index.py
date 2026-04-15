@@ -353,6 +353,10 @@ def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
+    # Keep-alive ping — держит контейнер тёплым
+    if event.get("httpMethod") == "GET":
+        return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"ok": True})}
+
     headers = event.get("headers") or {}
     token = headers.get("X-Auth-Token") or headers.get("x-auth-token", "")
 

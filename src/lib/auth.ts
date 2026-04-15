@@ -3,6 +3,14 @@ import func2url from "../../backend/func2url.json";
 const API_URL = func2url["gigachat-proxy"];
 const TOKEN_KEY = "yurist_ai_token";
 
+// Держим функцию тёплой — пинг каждые 4 минуты
+function startKeepAlive() {
+  const ping = () => fetch(API_URL, { method: "GET" }).catch(() => {});
+  ping();
+  setInterval(ping, 4 * 60 * 1000);
+}
+if (typeof window !== "undefined") startKeepAlive();
+
 export interface User {
   id: number;
   email: string;
