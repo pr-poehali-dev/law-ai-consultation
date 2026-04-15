@@ -251,7 +251,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
     if (!user.isAdmin) businessConsumeAction().catch(() => {});
 
     try {
-      const toolMessages = newAll.filter(m => m.tool === activeTool).slice(-8).map(m => ({
+      const toolMessages = newAll.filter(m => m.tool === activeTool).slice(-10).map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.body,
       }));

@@ -248,7 +248,7 @@ export default function Cabinet() {
 
     setCreatingDocFromChat(true);
 
-    // Берём последние 10 сообщений переписки для контекста
+    // Берём последние 10 сообщений (5 пар) переписки для контекста
     const recentMessages = chat.messages.slice(-10);
     const dialogContext = recentMessages
       .filter(m => m.text && m.text.length > 5)

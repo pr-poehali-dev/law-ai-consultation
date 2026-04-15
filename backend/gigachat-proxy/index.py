@@ -537,7 +537,7 @@ def handler(event: dict, context) -> dict:
 
             # Для консультаций — быстрая модель, для документов — deepseek
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
-            trimmed = biz_messages if is_doc_mode else biz_messages[-20:]
+            trimmed = biz_messages if is_doc_mode else biz_messages[-MAX_HISTORY:]
             answer = call_yandex(sys_prompt, trimmed, max_tokens=2500 if is_doc_mode else 1200, fast=not is_doc_mode)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer}, ensure_ascii=False)}
