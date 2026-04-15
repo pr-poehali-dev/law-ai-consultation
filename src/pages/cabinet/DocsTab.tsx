@@ -4,7 +4,7 @@ import DocPreview from "@/components/DocPreview";
 import type { User } from "@/lib/auth";
 import { hasActiveSubscription, sendReport } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
-import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
+import PlanBanner from "@/pages/cabinet/PlanBanner";
 
 export type DocPhase = "form" | "generating" | "filling" | "done";
 
@@ -148,8 +148,6 @@ export default function DocsTab({
   onAnalyzeDoc,
   onSelectPlan,
 }: DocsTabProps) {
-  const activePlanId = getActivePlan(user);
-  const activePlan = PLANS.find(p => p.id === activePlanId);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
@@ -182,6 +180,7 @@ export default function DocsTab({
       {(docPhase === "form" || docPhase === "generating") && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-border p-4 sm:p-6 shadow-sm">
+            <PlanBanner user={user} mode="docs" onSelectPlan={onSelectPlan} />
             <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-1">Создать документ</h2>
             <p className="text-xs sm:text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
             <div className="space-y-2 mb-4">
@@ -217,31 +216,7 @@ export default function DocsTab({
               </div>
             )}
 
-            {/* Баланс документов + тариф */}
-            {user && !user.isAdmin && (
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs flex-1 ${
-                  user.paidDocs > 0
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-amber-50 border-amber-200 text-amber-800"
-                }`}>
-                  <Icon name={user.paidDocs > 0 ? "FileText" : "AlertCircle"} size={12} className="shrink-0" />
-                  {user.paidDocs > 0
-                    ? <span>{activePlan ? <span className="font-semibold">{activePlan.name} ·</span> : null} {user.paidDocs} доку.</span>
-                    : <span>Нет документов</span>
-                  }
-                </div>
-                <button
-                  onClick={onSelectPlan}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold border transition-all
-                    bg-gold-500 hover:bg-gold-400 text-navy-900 border-gold-400
-                    shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
-                >
-                  <Icon name="Zap" size={11} />
-                  {activePlan ? `Тариф «${activePlan.name}»` : "Подключить тариф"}
-                </button>
-              </div>
-            )}
+
             {user?.isAdmin && (
               <div className="mb-3 flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-800">
                 <Icon name="ShieldCheck" size={13} />

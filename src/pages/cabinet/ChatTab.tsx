@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
+import PlanBanner from "@/pages/cabinet/PlanBanner";
 
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; }
 
@@ -261,6 +262,9 @@ export default function ChatTab({
           )}
         </div>
       </div>
+
+      {/* Баннер тарифа */}
+      <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
 
       {/* Лента сообщений — высота через CSS min/max, без svh/dvh */}
       <div className="relative">
