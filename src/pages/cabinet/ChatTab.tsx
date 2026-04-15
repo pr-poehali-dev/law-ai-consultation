@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
+import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; }
 
@@ -24,6 +25,7 @@ interface ChatTabProps {
   onClearFile: () => void;
   onPayClick: () => void;
   onGoToDocs: () => void;
+  onSelectPlan: () => void;
   onCreateDocFromMsg?: (aiText: string, userText: string) => void;
   creatingDocFromChat?: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
@@ -124,8 +126,10 @@ export default function ChatTab({
   attachedFile, fileUploading, totalLeft,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onAttachClick, onClearFile,
-  onPayClick, onGoToDocs, onCreateDocFromMsg, creatingDocFromChat, chatEndRef, fileInputRef,
+  onPayClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, chatEndRef, fileInputRef,
 }: ChatTabProps) {
+  const activePlanId = getActivePlan(user);
+  const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const animatedRef = useRef<number>(-1);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -229,18 +233,30 @@ export default function ChatTab({
             <p className="text-[11px] text-muted-foreground">{typing ? (typingStatus || "анализирует...") : "Онлайн · РФ"}</p>
           </div>
         </div>
-        {user.isAdmin ? (
-          <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium">Админ</span>
-        ) : totalLeft === 0 ? (
-          <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
-            <Icon name="Plus" size={11} />100 ₽ · 3 вопр.
-          </button>
-        ) : (
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl">
-            <Icon name="MessageCircle" size={11} className="text-emerald-600" />
-            <span className="text-xs font-medium text-emerald-700">{user.paidQuestions} вопр.</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {user.isAdmin ? (
+            <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium">Админ</span>
+          ) : activePlan ? (
+            <button
+              onClick={onSelectPlan}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-100 rounded-xl transition-colors group"
+            >
+              <Icon name="Zap" size={11} className="text-emerald-600" />
+              <span className="text-xs font-medium text-emerald-700">{activePlan.name}</span>
+              <span className="text-xs text-emerald-600">·</span>
+              <span className="text-xs font-medium text-emerald-700">{user.paidQuestions} вопр.</span>
+            </button>
+          ) : totalLeft === 0 ? (
+            <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
+              <Icon name="Plus" size={11} />100 ₽ · 3 вопр.
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 border border-border rounded-xl">
+              <Icon name="MessageCircle" size={11} className="text-navy-500" />
+              <span className="text-xs font-medium text-navy-700">{user.paidQuestions} вопр.</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Лента сообщений — высота через CSS min/max, без svh/dvh */}
@@ -411,8 +427,19 @@ export default function ChatTab({
             <Icon name="Send" size={14} className="text-white ml-0.5" />
           </button>
         </div>
-        <div className="px-3 pb-1.5">
+        <div className="px-3 pb-1.5 flex items-center justify-between">
           <p className="text-[10px] text-slate-400">Ответы носят информационный характер</p>
+          {!user.isAdmin && (
+            <button
+              onClick={onSelectPlan}
+              className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-xl transition-all duration-200 group
+                bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-600 hover:to-navy-700
+                text-white shadow-sm hover:shadow-md active:scale-95"
+            >
+              <Icon name="Zap" size={11} className="text-gold-400 group-hover:scale-110 transition-transform" />
+              {activePlan ? `Тариф «${activePlan.name}»` : "Подключить тариф"}
+            </button>
+          )}
         </div>
       </div>
 

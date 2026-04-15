@@ -18,6 +18,7 @@ import AdminTab from "@/pages/cabinet/AdminTab";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
+import PlanModal from "@/pages/cabinet/PlanModal";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
 
@@ -69,6 +70,7 @@ export default function Cabinet() {
   const [tab, setTab] = useState<"chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin">("chat");
 
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
@@ -324,6 +326,7 @@ export default function Cabinet() {
               setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
             }}
             onGoToDocs={() => setTab("docs")}
+            onSelectPlan={() => setShowPlanModal(true)}
             onCreateDocFromMsg={createDocFromChat}
             creatingDocFromChat={creatingDocFromChat}
             chatEndRef={chat.chatEndRef}
@@ -371,6 +374,7 @@ export default function Cabinet() {
               setTab("chat");
               setTimeout(() => chat.sendMessage(prompt), 200);
             }}
+            onSelectPlan={() => setShowPlanModal(true)}
           />
         )}
 
@@ -431,6 +435,18 @@ export default function Cabinet() {
         <ViewDocModal
           doc={viewDoc}
           onClose={() => setViewDoc(null)}
+        />
+      )}
+
+      {showPlanModal && user && (
+        <PlanModal
+          user={user}
+          onClose={() => setShowPlanModal(false)}
+          onSelectPlan={(name, price, id) => {
+            setShowPlanModal(false);
+            savePendingAction({ tab });
+            setPayment({ type: id as ServiceType, name });
+          }}
         />
       )}
 

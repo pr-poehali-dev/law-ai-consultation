@@ -4,6 +4,7 @@ import DocPreview from "@/components/DocPreview";
 import type { User } from "@/lib/auth";
 import { hasActiveSubscription, sendReport } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
+import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 export type DocPhase = "form" | "generating" | "filling" | "done";
 
@@ -51,6 +52,7 @@ interface DocsTabProps {
   onOpenDoc: (doc: GenDoc) => void;
   onPayForDoc: (dt: typeof DOC_TYPES[0]) => void;
   onAnalyzeDoc: (doc: GenDoc) => void;
+  onSelectPlan: () => void;
 }
 
 export { DOC_TYPES };
@@ -147,7 +149,10 @@ export default function DocsTab({
   onOpenDoc,
   onPayForDoc,
   onAnalyzeDoc,
+  onSelectPlan,
 }: DocsTabProps) {
+  const activePlanId = getActivePlan(user);
+  const activePlan = PLANS.find(p => p.id === activePlanId);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
@@ -215,27 +220,29 @@ export default function DocsTab({
               </div>
             )}
 
-            {/* Баланс документов */}
+            {/* Баланс документов + тариф */}
             {user && !user.isAdmin && (
-              <div className={`mb-3 flex items-center justify-between px-4 py-2.5 rounded-2xl border text-xs ${
-                user.paidDocs > 0
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-amber-50 border-amber-200 text-amber-800"
-              }`}>
-                <div className="flex items-center gap-2">
-                  <Icon name={user.paidDocs > 0 ? "CheckCircle" : "AlertCircle"} size={13} className="shrink-0" />
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs flex-1 ${
+                  user.paidDocs > 0
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-amber-50 border-amber-200 text-amber-800"
+                }`}>
+                  <Icon name={user.paidDocs > 0 ? "FileText" : "AlertCircle"} size={12} className="shrink-0" />
                   {user.paidDocs > 0
-                    ? `Доступно документов: ${user.paidDocs}`
-                    : "Нет доступных документов"}
+                    ? <span>{activePlan ? <span className="font-semibold">{activePlan.name} ·</span> : null} {user.paidDocs} доку.</span>
+                    : <span>Нет документов</span>
+                  }
                 </div>
-                {user.paidDocs === 0 && (
-                  <button
-                    onClick={() => onPayForDoc(docType)}
-                    className="font-semibold underline hover:no-underline"
-                  >
-                    Оплатить {docType.price} ₽
-                  </button>
-                )}
+                <button
+                  onClick={onSelectPlan}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-medium border transition-all
+                    bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-600 hover:to-navy-700
+                    text-white border-navy-700 shadow-sm hover:shadow-md active:scale-95 shrink-0 whitespace-nowrap"
+                >
+                  <Icon name="Zap" size={11} className="text-gold-400" />
+                  {activePlan ? `Тариф «${activePlan.name}»` : "Подключить тариф"}
+                </button>
               </div>
             )}
             {user?.isAdmin && (
