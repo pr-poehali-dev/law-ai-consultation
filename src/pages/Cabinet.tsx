@@ -78,6 +78,10 @@ export default function Cabinet() {
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) localStorage.setItem("ref_code", ref);
+    const tabParam = searchParams.get("tab") as typeof tab | null;
+    if (tabParam && ["chat", "docs", "expert", "business", "history", "profile"].includes(tabParam)) {
+      setTab(tabParam);
+    }
     getUser().then((u) => {
       if (!u) { navigate("/"); return; }
       setUser(u);

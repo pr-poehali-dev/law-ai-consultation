@@ -12,6 +12,19 @@ import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import LoginModal from "@/components/LoginModal";
 import CookieBanner from "@/components/CookieBanner";
 
+const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> = {
+  "Готовые документы": "docs",
+  "Исковое заявление": "docs",
+  "Претензия": "docs",
+  "Жалоба": "docs",
+  "Жалоба в Роспотребнадзор": "docs",
+  "Договор ГПХ": "docs",
+  "Договор для бизнеса": "docs",
+  "AI-консультация": "chat",
+  "Проверка юристом": "expert",
+  "Для бизнеса": "business",
+};
+
 const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
   consultation: "consultation",
   document: "document",
@@ -57,6 +70,7 @@ export default function Index() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refCode, setRefCode] = useState("");
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
 
   useEffect(() => {
     getUser().then((u) => setIsLoggedIn(!!u));
@@ -139,8 +153,14 @@ export default function Index() {
 
       <ServicesSection
         onSelectService={(service) => {
-          if (isLoggedIn) handleNavigate("cabinet");
-          else openPayment(service);
+          const tab = SERVICE_TAB_MAP[service] || "chat";
+          if (isLoggedIn) {
+            navigate(`/cabinet?tab=${tab}`);
+          } else {
+            setPendingTab(tab);
+            setFreeTrial(true);
+            setShowLogin(true);
+          }
         }}
       />
 
@@ -169,16 +189,19 @@ export default function Index() {
 
       {showLogin && (
         <LoginModal
-          onClose={() => { setShowLogin(false); setFreeTrial(false); setShowRegisterAfterPay(false); }}
+          onClose={() => { setShowLogin(false); setFreeTrial(false); setShowRegisterAfterPay(false); setPendingTab(null); }}
           onSuccess={() => {
             setShowLogin(false);
             setFreeTrial(false);
             setShowRegisterAfterPay(false);
-            // Если была оплата до регистрации — переходим в кабинет с inv_id
             const pendingInvId = localStorage.getItem("pending_inv_id");
             if (pendingInvId) {
               localStorage.removeItem("pending_inv_id");
               navigate(`/cabinet?payment=success&inv_id=${pendingInvId}`);
+            } else if (pendingTab) {
+              const tab = pendingTab;
+              setPendingTab(null);
+              navigate(`/cabinet?tab=${tab}`);
             } else {
               navigate("/cabinet");
             }
