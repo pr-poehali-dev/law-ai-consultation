@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
+import { sendReport } from "@/lib/auth";
 
 interface ViewDocModalProps {
   doc: GenDoc;
@@ -150,6 +151,25 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
+
+  const handleSendReport = async () => {
+    if (!reportText.trim()) return;
+    setReportLoading(true);
+    await sendReport(reportText.trim());
+    setReportLoading(false);
+    setReportSent(true);
+    setReportText("");
+  };
+
+  const handleCloseReport = () => {
+    setReportOpen(false);
+    setReportSent(false);
+    setReportText("");
+  };
   const blocks = parseDocBlocks(doc.content);
   const hasBlocks = blocks.some(b => b.type !== "ТЕЛО");
 
@@ -267,27 +287,87 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
         </div>
 
         {/* Нижняя панель */}
-        <div className="border-t border-slate-100 px-5 py-3 shrink-0 flex items-center justify-between bg-slate-50/80 rounded-b-3xl">
-          <p className="text-[11px] text-muted-foreground hidden sm:block">
-            Документ сгенерирован AI-юристом · Проверьте реквизиты перед использованием
-          </p>
-          <div className="flex gap-2 w-full sm:w-auto">
+        <div className="border-t border-slate-100 px-5 py-3 shrink-0 bg-slate-50/80 rounded-b-3xl">
+          <div className="flex items-center justify-between gap-3">
             <button
-              onClick={handleClose}
-              className="flex-1 sm:flex-none text-xs text-navy-600 hover:text-navy-800 px-4 py-2 rounded-xl border border-slate-200 hover:border-navy-200 hover:bg-white transition-colors font-medium"
+              onClick={() => setReportOpen(true)}
+              className="text-[11px] text-muted-foreground hover:text-red-500 flex items-center gap-1 transition-colors shrink-0"
             >
-              Закрыть
+              <Icon name="AlertTriangle" size={11} />
+              Сообщить о проблеме
             </button>
-            <button
-              onClick={() => downloadDoc(doc.name, doc.content)}
-              className="flex-1 sm:flex-none btn-gold text-xs px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 font-semibold"
-            >
-              <Icon name="Download" size={13} />
-              Скачать .docx
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleClose}
+                className="text-xs text-navy-600 hover:text-navy-800 px-4 py-2 rounded-xl border border-slate-200 hover:border-navy-200 hover:bg-white transition-colors font-medium"
+              >
+                Закрыть
+              </button>
+              <button
+                onClick={() => downloadDoc(doc.name, doc.content)}
+                className="btn-gold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 font-semibold"
+              >
+                <Icon name="Download" size={13} />
+                Скачать .docx
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Модалка: Сообщить о проблеме */}
+      {reportOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4" onClick={handleCloseReport}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            {reportSent ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Icon name="CheckCircle" size={28} className="text-emerald-600" />
+                </div>
+                <h3 className="font-semibold text-navy-800 text-lg mb-2">Сообщение получено</h3>
+                <p className="text-sm text-muted-foreground mb-1">Мы рассмотрим обращение в течение 24 часов.</p>
+                <p className="text-sm text-muted-foreground mb-6">Отслеживайте ответ в разделе <span className="font-medium text-navy-700">«Профиль»</span>.</p>
+                <button onClick={handleCloseReport} className="btn-gold px-6 py-2.5 rounded-xl text-sm font-medium">Закрыть</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
+                      <Icon name="AlertTriangle" size={17} className="text-red-500" />
+                    </div>
+                    <h3 className="font-semibold text-navy-800">Сообщить о проблеме</h3>
+                  </div>
+                  <button onClick={handleCloseReport} className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors">
+                    <Icon name="X" size={16} className="text-muted-foreground" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Опишите что не так с документом — мы разберёмся и ответим в течение 24 часов.</p>
+                <textarea
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Например: неверно указан тип иска, отсутствует раздел о судебных расходах..."
+                  rows={4}
+                  className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-4"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleCloseReport} className="flex-1 py-2.5 rounded-xl text-sm text-navy-600 border border-border hover:bg-slate-50 transition-colors">
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSendReport}
+                    disabled={!reportText.trim() || reportLoading}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-navy-800 text-white hover:bg-navy-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  >
+                    {reportLoading ? <Icon name="Loader" size={15} className="animate-spin" /> : <Icon name="Send" size={15} />}
+                    {reportLoading ? "Отправка..." : "Отправить"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
