@@ -446,6 +446,11 @@ def handler(event: dict, context) -> dict:
                 "contract": "договор ГПХ",
                 "business_contract": "коммерческий договор",
                 "court_speech": "судебную речь",
+                "response_to_claim": "отзыв на исковое заявление",
+                "objection": "возражение",
+                "appeal": "апелляционную жалобу",
+                "cassation": "кассационную жалобу",
+                "supervisory": "надзорную жалобу",
             }
             label = doc_labels.get(doc_type, "документ")
             system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)

@@ -6,6 +6,11 @@ import type { GenDoc } from "@/pages/cabinet/DocsTab";
 
 const DOC_TYPES_INTERNAL = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500, serviceType: "document" as ServiceType },
+  { id: "response_to_claim", label: "Отзыв на иск", icon: "FileSearch", price: 500, serviceType: "document" as ServiceType },
+  { id: "objection", label: "Возражение", icon: "ShieldAlert", price: 500, serviceType: "document" as ServiceType },
+  { id: "appeal", label: "Апелляционная жалоба", icon: "ArrowUpCircle", price: 500, serviceType: "document" as ServiceType },
+  { id: "cassation", label: "Кассационная жалоба", icon: "RefreshCcw", price: 500, serviceType: "document" as ServiceType },
+  { id: "supervisory", label: "Надзорная жалоба", icon: "Eye", price: 500, serviceType: "document" as ServiceType },
   { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 500, serviceType: "document" as ServiceType },
   { id: "complaint", label: "Жалоба", icon: "Building", price: 500, serviceType: "document" as ServiceType },
   { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 500, serviceType: "document" as ServiceType },
