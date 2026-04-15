@@ -375,6 +375,17 @@ export default function DocsTab({
             <div className="flex-1 overflow-y-auto p-5">
               <DocPreview content={currentDoc.filled} fillValues={fillValues} />
             </div>
+            <div className="shrink-0 px-5 py-3.5 border-t border-border">
+              <button
+                onClick={() => onAnalyzeDoc(currentDoc)}
+                className="w-full py-2.5 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all active:scale-95"
+              >
+                <Icon name="Bot" size={15} />
+                {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+                  ? "Проанализировать AI-юристом"
+                  : "Проанализировать AI · 100 ₽"}
+              </button>
+            </div>
           </div>
           {/* Мобильная кнопка предпросмотра */}
           <div className="lg:hidden bg-white rounded-3xl border border-border shadow-sm p-5 flex flex-col gap-3">
