@@ -12,7 +12,6 @@ import base64
 import io
 import time
 import threading
-import boto3
 
 from auth_handler import (
     handle_register, handle_login, handle_me,
@@ -37,7 +36,8 @@ from prompts import (
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
 SPEECH_DOC_TYPES = {"court_speech"}
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
 # Быстрая модель для консультаций
@@ -54,6 +54,7 @@ ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png"}
 
 
 def get_s3():
+    import boto3
     return boto3.client(
         "s3",
         endpoint_url="https://bucket.poehali.dev",
