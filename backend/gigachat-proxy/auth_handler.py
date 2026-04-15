@@ -564,6 +564,20 @@ def handle_report(token: str, body: dict) -> dict:
         )
         report_id = cur.fetchone()[0]
         conn.commit()
+        try:
+            _send_email(
+                to_email=ADMIN_EMAIL,
+                subject=f"Обращение #{report_id} от {user.get('email', '?')}",
+                body_text=(
+                    f"Новое обращение пользователя\n\n"
+                    f"Имя: {user.get('name', '—')}\n"
+                    f"Email: {user.get('email', '—')}\n"
+                    f"ID обращения: {report_id}\n\n"
+                    f"Сообщение:\n{message}"
+                )
+            )
+        except Exception:
+            pass
         return _ok({"ok": True, "report_id": report_id})
     except Exception as e:
         conn.rollback()
