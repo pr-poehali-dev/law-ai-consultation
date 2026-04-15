@@ -3,13 +3,11 @@ import func2url from "../../backend/func2url.json";
 const API_URL = func2url["gigachat-proxy"];
 const TOKEN_KEY = "yurist_ai_token";
 
-// Держим функцию тёплой — пинг каждые 4 минуты
-function startKeepAlive() {
+// Держим функцию тёплой — первый пинг через 20 сек, затем каждые 5 минут
+if (typeof window !== "undefined") {
   const ping = () => fetch(API_URL, { method: "GET" }).catch(() => {});
-  ping();
-  setInterval(ping, 4 * 60 * 1000);
+  setTimeout(() => { ping(); setInterval(ping, 5 * 60 * 1000); }, 20_000);
 }
-if (typeof window !== "undefined") startKeepAlive();
 
 export interface User {
   id: number;
@@ -77,6 +75,7 @@ export async function register(params: {
     const data = await res.json();
     if (!res.ok) return { error: data.error || "Ошибка регистрации" };
     setToken(data.token);
+    invalidateUserCache();
     return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
@@ -95,6 +94,7 @@ export async function login(
     const data = await res.json();
     if (!res.ok) return { error: data.error || "Неверный email или пароль" };
     setToken(data.token);
+    invalidateUserCache();
     return { user: data.user };
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
@@ -104,25 +104,44 @@ export async function login(
   }
 }
 
+// Кэш пользователя — один запрос в 30 сек вместо многократных дублей
+let _userCache: { user: User | null; ts: number } | null = null;
+const USER_CACHE_TTL = 30_000;
+let _userPromise: Promise<User | null> | null = null;
+
 export async function getUser(): Promise<User | null> {
   const token = getToken();
-  if (!token) return null;
-  try {
-    const res = await apiCall({ action: "me" });
-    if (!res.ok) {
-      clearToken();
-      return null;
+  if (!token) { _userCache = null; _userPromise = null; return null; }
+  // Отдаём кэш если свежий
+  if (_userCache && Date.now() - _userCache.ts < USER_CACHE_TTL) return _userCache.user;
+  // Дедупликация — если запрос уже летит, ждём его
+  if (_userPromise) return _userPromise;
+  _userPromise = (async () => {
+    try {
+      const res = await apiCall({ action: "me" });
+      if (!res.ok) { clearToken(); _userCache = { user: null, ts: Date.now() }; return null; }
+      const data = await res.json();
+      const user = data.user || null;
+      _userCache = { user, ts: Date.now() };
+      return user;
+    } catch {
+      return _userCache?.user ?? null;
+    } finally {
+      _userPromise = null;
     }
-    const data = await res.json();
-    return data.user || null;
-  } catch {
-    return null;
-  }
+  })();
+  return _userPromise;
+}
+
+export function invalidateUserCache() {
+  _userCache = null;
+  _userPromise = null;
 }
 
 export async function logout(): Promise<void> {
   await apiCall({ action: "logout" });
   clearToken();
+  invalidateUserCache();
 }
 
 export async function updateProfile(name: string, phone?: string): Promise<User | null> {
