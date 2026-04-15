@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getUser, type User, getToken } from "@/lib/auth";
+import { getUser, type User, getToken, startKeepAlive } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -88,6 +88,9 @@ export default function Cabinet() {
       if (!u) { navigate("/"); return; }
       setUser(u);
     });
+    // Keep-alive только пока открыт кабинет
+    const stopKeepAlive = startKeepAlive();
+    return stopKeepAlive;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 

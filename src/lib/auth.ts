@@ -3,10 +3,12 @@ import func2url from "../../backend/func2url.json";
 const API_URL = func2url["gigachat-proxy"];
 const TOKEN_KEY = "yurist_ai_token";
 
-// Держим функцию тёплой — первый пинг через 20 сек, затем каждые 5 минут
-if (typeof window !== "undefined") {
+// Keep-alive: держим функцию тёплой только пока пользователь активен в кабинете
+// Запускается из Cabinet.tsx при монтировании компонента
+export function startKeepAlive(): () => void {
   const ping = () => fetch(API_URL, { method: "GET" }).catch(() => {});
-  setTimeout(() => { ping(); setInterval(ping, 5 * 60 * 1000); }, 20_000);
+  const id = setInterval(ping, 4 * 60 * 1000);
+  return () => clearInterval(id);
 }
 
 export interface User {
