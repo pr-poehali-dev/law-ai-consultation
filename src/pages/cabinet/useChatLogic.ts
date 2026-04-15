@@ -320,6 +320,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
   return {
     messages,
+    history,
     input, setInput,
     typing,
     typingStatus,
