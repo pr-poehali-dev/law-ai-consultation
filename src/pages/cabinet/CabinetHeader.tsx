@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import { logout, type User } from "@/lib/auth";
+import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
 
@@ -9,6 +10,7 @@ interface CabinetHeaderProps {
   tab: Tab;
   totalLeft: number;
   onTabChange: (tab: Tab) => void;
+  onSelectPlan: () => void;
 }
 
 const TABS_DESKTOP = [
@@ -28,8 +30,10 @@ const TABS_MOBILE = [
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
-export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: CabinetHeaderProps) {
+export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSelectPlan }: CabinetHeaderProps) {
   const navigate = useNavigate();
+  const activePlanId = getActivePlan(user);
+  const activePlan = PLANS.find(p => p.id === activePlanId);
 
   return (
     <>
@@ -78,13 +82,18 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange }: Cab
                 <Icon name="Zap" size={11} />
                 {user.isAdmin ? "∞" : (user.businessActionsLeft ?? 0)} действий
               </div>
-            ) : (
-              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
-                totalLeft > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-600"
-              }`}>
-                <Icon name="MessageCircle" size={11} />
-                {totalLeft > 0 ? `${totalLeft} вопр.` : "0"}
-              </div>
+            ) : !user.isAdmin && (
+              <button
+                onClick={onSelectPlan}
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                  activePlan
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                    : "bg-navy-50 border-navy-200 text-navy-700 hover:bg-navy-100"
+                }`}
+              >
+                <Icon name="Zap" size={11} className={activePlan ? "text-emerald-600" : "text-gold-500"} />
+                {activePlan ? `${activePlan.name} · ${totalLeft} вопр.` : "Подключить тариф"}
+              </button>
             )}
             {/* Кнопка Админ на мобиле */}
             {user.isAdmin && (

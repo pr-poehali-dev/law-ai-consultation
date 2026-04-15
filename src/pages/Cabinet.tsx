@@ -299,6 +299,7 @@ export default function Cabinet() {
         tab={tab}
         totalLeft={totalLeft}
         onTabChange={setTab}
+        onSelectPlan={() => setShowPlanModal(true)}
       />
 
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-24 md:pb-8">
@@ -442,9 +443,10 @@ export default function Cabinet() {
         <PlanModal
           user={user}
           onClose={() => setShowPlanModal(false)}
-          onSelectPlan={(name, price, id) => {
+          onSelectPlan={(name, _price, id) => {
             setShowPlanModal(false);
-            savePendingAction({ tab });
+            const safeTab = (["chat","docs","expert","business","history","profile"].includes(tab) ? tab : "chat") as PendingAction["tab"];
+            savePendingAction({ tab: safeTab });
             setPayment({ type: id as ServiceType, name });
           }}
         />

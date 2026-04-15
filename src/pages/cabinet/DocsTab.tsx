@@ -133,7 +133,6 @@ export default function DocsTab({
   currentDoc,
   fillValues,
   genDocs,
-  docAttachedFile,
   onDocTypeChange,
   onDocDetailsChange,
   onGenerate,
