@@ -174,7 +174,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 
-def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.7) -> str:
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3) -> str:
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     resp = requests.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
@@ -201,7 +201,7 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
             {"role": "user", "content": user_content},
         ],
         max_tokens=2500,
-        temperature=0.7,
+        temperature=0.2,
     )
 
 
@@ -326,7 +326,7 @@ def is_simple_query(messages: list) -> bool:
     return any(marker in text for marker in SIMPLE_QUERY_MARKERS)
 
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -340,12 +340,12 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         resp = requests.post(
             "https://llm.api.cloud.yandex.net/v1/chat/completions",
             headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
-            json={"model": YANDEX_MODEL_FAST, "messages": openai_messages, "max_tokens": max_tokens, "temperature": 0.7, "stream": False},
+            json={"model": YANDEX_MODEL_FAST, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
             timeout=60,
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
-    return _call_openai_compat(openai_messages, max_tokens)
+    return _call_openai_compat(openai_messages, max_tokens, temperature=temperature)
 
 
 def handler(event: dict, context) -> dict:
@@ -474,11 +474,17 @@ def handler(event: dict, context) -> dict:
             history_context = ""
             if chat_history:
                 last_pairs = chat_history[-10:]
-                history_context = "История предыдущей консультации пользователя (используй для понимания контекста):\n"
+                # Извлекаем факты из диалога структурированно
+                user_msgs = [m.get("content", "") for m in last_pairs if m.get("role") == "user"]
+                ai_msgs = [m.get("content", "") for m in last_pairs if m.get("role") != "user"]
+                history_context = (
+                    "КОНТЕКСТ ИЗ ПРЕДЫДУЩЕЙ КОНСУЛЬТАЦИИ (используй все упомянутые факты, стороны, суммы, даты):\n"
+                )
                 for msg in last_pairs:
-                    role_label = "Пользователь" if msg.get("role") == "user" else "AI-юрист"
-                    history_context += f"{role_label}: {msg.get('content', '')}\n"
-                history_context += "\n"
+                    role_label = "Пользователь" if msg.get("role") == "user" else "Юрист"
+                    content = msg.get("content", "")[:800]
+                    history_context += f"{role_label}: {content}\n"
+                history_context += "\nВАЖНО: подстави все конкретные данные из диалога (ФИО, суммы, даты, адреса) напрямую в документ.\n\n"
             # Специальный промпт для судебной речи
             speech_style = ""
             if doc_type in SPEECH_DOC_TYPES:
@@ -500,7 +506,7 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
             # Для речи завершённость определяем по финальному обращению к суду
             if doc_type in SPEECH_DOC_TYPES:
                 truncated = not bool(re.search(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', answer[-400:], re.I))
@@ -524,7 +530,7 @@ def handler(event: dict, context) -> dict:
                 f"Продолжай документ до финального блока с реквизитами, подписями и датой. "
                 f"Незаполненные поля — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500)
+            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
             truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -674,12 +680,13 @@ def handler(event: dict, context) -> dict:
 
             if is_doc_mode:
                 trimmed = biz_messages
-                answer = call_yandex(sys_prompt, trimmed, max_tokens=3500, fast=False)
+                answer = call_yandex(sys_prompt, trimmed, max_tokens=3500, fast=False, temperature=0.15)
             else:
                 # Сжимаем старые сообщения + очищаем персональные данные
                 summarized_biz = summarize_old_messages(biz_messages)
                 trimmed, had_pd = strip_personal_data(summarized_biz)
-                answer = call_yandex(sys_prompt, trimmed, max_tokens=1200, fast=True)
+                # Бизнес-консультации — DeepSeek для качественного юридического анализа
+                answer = call_yandex(sys_prompt, trimmed, max_tokens=1400, fast=False, temperature=0.3)
                 if is_refusal(answer):
                     answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
                 elif had_pd:
@@ -723,12 +730,16 @@ def handler(event: dict, context) -> dict:
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
+                # Системный промпт — скорее всего простой запрос, YandexGPT
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
             else:
-                # Простые информационные запросы — лёгкий промпт и меньше токенов
-                sys_prompt_chat = SYSTEM_CHAT_SIMPLE if is_simple_query(clean_messages) else SYSTEM_CHAT
-                max_tok_chat = 600 if is_simple_query(clean_messages) else 1200
-                answer = call_yandex(sys_prompt_chat, clean_messages, max_tokens=max_tok_chat, fast=True)
+                simple = is_simple_query(clean_messages)
+                if simple:
+                    # Простой информационный — YandexGPT, быстро
+                    answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=600, fast=True)
+                else:
+                    # Сложный — DeepSeek, качественный юридический анализ
+                    answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=False, temperature=0.3)
 
             # Если модель всё равно отказала — заменяем на нейтральный fallback
             if is_refusal(answer):
