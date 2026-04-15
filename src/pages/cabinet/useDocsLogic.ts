@@ -55,7 +55,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, g
       }
       if (getChatHistory) {
         const hist = getChatHistory();
-        if (hist.length > 0) reqBody.chat_history = hist.slice(-20);
+        if (hist.length > 0) reqBody.chat_history = hist.slice(-10);
       }
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
