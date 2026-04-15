@@ -213,7 +213,7 @@ def is_refusal(text: str) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-MAX_HISTORY = 30
+MAX_HISTORY = 20
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False) -> str:
@@ -356,7 +356,7 @@ def handler(event: dict, context) -> dict:
             chat_history = body.get("chat_history", [])
             history_context = ""
             if chat_history:
-                last_pairs = chat_history[-30:]
+                last_pairs = chat_history[-20:]
                 history_context = "История предыдущей консультации пользователя (используй для понимания контекста):\n"
                 for msg in last_pairs:
                     role_label = "Пользователь" if msg.get("role") == "user" else "AI-юрист"
