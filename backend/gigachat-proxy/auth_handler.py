@@ -29,7 +29,11 @@ INACTIVE_PROFILE_DAYS = 365
 
 
 def get_conn():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    return psycopg2.connect(
+        os.environ["DATABASE_URL"],
+        connect_timeout=8,
+        options="-c statement_timeout=15000",
+    )
 
 
 def hash_password(password: str) -> str:

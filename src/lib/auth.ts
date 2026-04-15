@@ -34,16 +34,24 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-async function apiCall(body: object): Promise<Response> {
+async function apiCall(body: object, timeoutMs = 20000): Promise<Response> {
   const token = getToken();
-  return fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { "X-Auth-Token": token } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "X-Auth-Token": token } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(tid);
+  }
 }
 
 export async function register(params: {
@@ -56,22 +64,36 @@ export async function register(params: {
   free_trial?: boolean;
   ref_code?: string;
 }): Promise<{ user?: User; error?: string; free_trial_granted?: boolean; ref_bonus_granted?: boolean }> {
-  const res = await apiCall({ action: "register", ...params });
-  const data = await res.json();
-  if (!res.ok) return { error: data.error || "Ошибка регистрации" };
-  setToken(data.token);
-  return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
+  try {
+    const res = await apiCall({ action: "register", ...params });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Ошибка регистрации" };
+    setToken(data.token);
+    return { user: data.user, free_trial_granted: data.free_trial_granted, ref_bonus_granted: data.ref_bonus_granted };
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      return { error: "Сервер не отвечает. Попробуйте ещё раз." };
+    }
+    return { error: "Ошибка соединения. Проверьте интернет." };
+  }
 }
 
 export async function login(
   email: string,
   password: string
 ): Promise<{ user?: User; error?: string }> {
-  const res = await apiCall({ action: "login", email, password });
-  const data = await res.json();
-  if (!res.ok) return { error: data.error || "Неверный email или пароль" };
-  setToken(data.token);
-  return { user: data.user };
+  try {
+    const res = await apiCall({ action: "login", email, password });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Неверный email или пароль" };
+    setToken(data.token);
+    return { user: data.user };
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      return { error: "Сервер не отвечает. Попробуйте ещё раз." };
+    }
+    return { error: "Ошибка соединения. Проверьте интернет." };
+  }
 }
 
 export async function getUser(): Promise<User | null> {
