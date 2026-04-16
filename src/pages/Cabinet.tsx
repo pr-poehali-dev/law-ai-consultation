@@ -179,7 +179,7 @@ export default function Cabinet() {
   const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-golos">
+    <div className="flex flex-col bg-slate-50 font-golos" style={{ height: "100dvh", paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <CabinetHeader
         user={user}
         tab={tab}

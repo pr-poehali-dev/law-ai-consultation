@@ -218,7 +218,7 @@ export default function ChatTab({
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto">
+    <div className="max-w-3xl w-full mx-auto h-full flex flex-col min-h-0">
 
       {/* Скрытые file inputs */}
       <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" tabIndex={-1} onChange={onFileSelect} />
@@ -271,13 +271,12 @@ export default function ChatTab({
       {/* Баннер тарифа */}
       <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
 
-      {/* Лента сообщений — высота через CSS min/max, без svh/dvh */}
-      <div className="relative">
+      {/* Лента сообщений */}
+      <div className="relative flex-1 min-h-0 flex flex-col">
         <div
           ref={messagesRef}
           onScroll={handleScroll}
-          className="overflow-y-auto rounded-2xl border border-slate-200 shadow-sm bg-white scrollbar-hide"
-          style={{ minHeight: "280px", maxHeight: "min(520px, 55vh)" }}
+          className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 shadow-sm bg-white scrollbar-hide"
         >
           <div className="p-3 space-y-3">
 
@@ -424,7 +423,7 @@ export default function ChatTab({
       )}
 
       {/* Поле ввода */}
-      <div className="mt-2 bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div className="mt-2 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm" style={{ marginBottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}>
         <div className="flex items-end gap-1 px-2 py-2">
 
           {/* Прикрепить */}
