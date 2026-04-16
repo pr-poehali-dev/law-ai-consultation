@@ -154,10 +154,11 @@ export default function PWAInstallButton() {
       <div className="relative shrink-0">
         <button
           onClick={() => { dismissTooltip(); install(); }}
+          title="Установить как приложение"
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-navy-50 hover:bg-navy-100 border border-navy-200 text-navy-700 text-xs font-semibold transition-colors"
         >
-          <Icon name="Smartphone" size={13} />
-          <span className="hidden sm:inline">На телефон</span>
+          <Icon name="Download" size={13} />
+          <span className="hidden sm:inline text-[11px]">Установить приложение</span>
         </button>
 
         {showTooltip && (
@@ -175,10 +176,11 @@ export default function PWAInstallButton() {
     <div className="relative shrink-0">
       <button
         onClick={() => { dismissTooltip(); setShowIOSGuide((v) => !v); }}
+        title="Установить как приложение на iPhone"
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-navy-50 hover:bg-navy-100 border border-navy-200 text-navy-700 text-xs font-semibold transition-colors"
       >
-        <Icon name="Smartphone" size={13} />
-        <span className="hidden sm:inline">На телефон</span>
+        <Icon name="Download" size={13} />
+        <span className="hidden sm:inline text-[11px]">Установить приложение</span>
       </button>
 
       {showTooltip && !showIOSGuide && (

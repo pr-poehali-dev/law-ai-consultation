@@ -287,7 +287,6 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       </div>
 
       <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
-        {/* Десктоп-сайдбар (внутри BusinessSidebar скрыт на мобиле) */}
         <BusinessSidebar
           activeTool={activeTool}
           isAdmin={user.isAdmin}
@@ -298,15 +297,6 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
 
         {/* Основная область */}
         <div className="flex-1 flex flex-col min-w-0 gap-2">
-
-          {/* Мобильный скролл (внутри BusinessSidebar скрыт на десктопе) */}
-          <BusinessSidebar
-            activeTool={activeTool}
-            isAdmin={user.isAdmin}
-            messageCounts={messageCounts}
-            onSelectTool={handleSelectTool}
-            onPayClick={onPayClick}
-          />
 
           {/* Тул-хедер */}
           <div className={`flex items-center justify-between px-3 py-2 rounded-xl border ${TOOL_COLORS[currentTool.color]} shrink-0`}>
