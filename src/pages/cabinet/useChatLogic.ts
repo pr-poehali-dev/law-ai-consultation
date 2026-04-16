@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
-import { type ChatMsg } from "@/pages/cabinet/ChatTab";
+import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
 import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
@@ -309,7 +309,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;
-      setMessages((p) => [...p, { role: "ai", text: aiText }]);
+      const docHint: DocHint | undefined = data.doc_hint
+        ? { ...data.doc_hint, extracted_text: data.extracted_text }
+        : undefined;
+      setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
       setHistory((p) => [...p,
         { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}` },
         { role: "assistant", content: aiText },

@@ -5,7 +5,8 @@ import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; }
+export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; docHint?: DocHint; }
 
 interface ChatTabProps {
   user: User;
@@ -27,7 +28,7 @@ interface ChatTabProps {
   onPayClick: () => void;
   onGoToDocs: () => void;
   onSelectPlan: () => void;
-  onCreateDocFromMsg?: (aiText: string, userText: string) => void;
+  onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
   creatingDocFromChat?: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
@@ -340,13 +341,15 @@ export default function ChatTab({
                       {/* Кнопка создания документа из ответа AI */}
                       {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && (
                         <button
-                          onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || ""); } }}
+                          onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                           disabled={creatingDocFromChat}
                           className="mt-2 flex items-center gap-2 px-3 py-2 bg-gold-400/15 hover:bg-gold-400/25 border border-gold-400/30 text-navy-700 text-xs font-semibold rounded-xl w-full justify-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {creatingDocFromChat
                             ? <><span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
-                            : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
+                            : msg.docHint?.doc_label
+                              ? <><Icon name="FilePlus" size={12} />Составить: {msg.docHint.doc_label}</>
+                              : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
                           }
                         </button>
                       )}

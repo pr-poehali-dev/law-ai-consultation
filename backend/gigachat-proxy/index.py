@@ -629,11 +629,67 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось извлечь текст из файла. Попробуйте PDF или DOCX."}, ensure_ascii=False)}
 
-            answer = analyze_file_with_yandex(text, comment, iam_token)
+            # Параллельно: анализ документа + генерация подсказки для создания документа
+            analysis_result = [None]
+            hint_result = [None]
+
+            def _do_analysis():
+                analysis_result[0] = analyze_file_with_yandex(text, comment, iam_token)
+
+            def _do_hint():
+                doc_types_list = "claim — исковое заявление, pretension — досудебная претензия, complaint — жалоба, application — заявление/ходатайство, notification — уведомление, order — приказ, contract — договор ГПХ, business_contract — коммерческий договор, court_speech — судебная речь, response_to_claim — отзыв на исковое заявление, objection — возражение, appeal — апелляционная жалоба, cassation — кассационная жалоба, supervisory — надзорная жалоба"
+                hint_prompt = (
+                    f"Ты — помощник юриста. Изучи текст документа и определи:\n"
+                    f"1. Какой ответный или связанный документ чаще всего нужно составить на основе этого.\n"
+                    f"2. Извлеки из документа все известные факты: стороны (ФИО, организации), суммы, даты, адреса, суть спора, реквизиты дела.\n\n"
+                    f"Доступные типы документов: {doc_types_list}\n\n"
+                    f"{'Запрос пользователя: ' + comment + chr(10) + chr(10) if comment else ''}"
+                    f"Текст документа:\n{text[:5000]}\n\n"
+                    f"Ответь СТРОГО в JSON без пояснений:\n"
+                    f'{{\"doc_type\": \"id_типа\", \"details\": \"подробное описание ситуации и всех фактов для составления документа\", \"doc_label\": \"название документа на русском\"}}'
+                )
+                try:
+                    resp = requests.post(
+                        "https://llm.api.cloud.yandex.net/v1/chat/completions",
+                        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+                        json={
+                            "model": YANDEX_MODEL_FAST,
+                            "messages": [{"role": "user", "content": hint_prompt}],
+                            "max_tokens": 800,
+                            "temperature": 0.1,
+                            "stream": False,
+                        },
+                        timeout=30,
+                    )
+                    resp.raise_for_status()
+                    raw = resp.json()["choices"][0]["message"]["content"]
+                    import re as _re
+                    match = _re.search(r'\{[\s\S]*\}', raw)
+                    if match:
+                        hint_result[0] = json.loads(match.group())
+                except Exception:
+                    pass
+
+            t_analysis = threading.Thread(target=_do_analysis)
+            t_hint = threading.Thread(target=_do_hint)
+            t_analysis.start()
+            t_hint.start()
+            t_analysis.join()
+            t_hint.join()
+
+            answer = analysis_result[0] or "Не удалось проанализировать документ."
+
+            response_data = {
+                "answer": answer,
+                "filename": filename,
+                "delete_at": int(time.time()) + FILE_TTL,
+                "extracted_text": text[:6000],
+            }
+            if hint_result[0]:
+                response_data["doc_hint"] = hint_result[0]
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "filename": filename,
-                                        "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
+                    "body": json.dumps(response_data, ensure_ascii=False)}
 
         # ── Бизнес-чат ──
         elif mode == "business_chat":

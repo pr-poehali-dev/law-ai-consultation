@@ -239,7 +239,7 @@ export default function Cabinet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDocFromChat, tab]);
 
-  const createDocFromChat = async (aiText: string, userText: string) => {
+  const createDocFromChat = async (aiText: string, userText: string, docHint?: import("@/pages/cabinet/ChatTab").DocHint) => {
     if (creatingDocFromChat) return;
 
     const canDoc = user!.isAdmin || (user!.paidDocs ?? 0) > 0 ||
@@ -249,9 +249,19 @@ export default function Cabinet() {
       return;
     }
 
+    // Если есть готовая подсказка от анализа файла — используем сразу, без лишнего AI-запроса
+    if (docHint?.doc_type && docHint?.details) {
+      const details = docHint.extracted_text
+        ? `${docHint.details}\n\n[Текст из документа пользователя]:\n${docHint.extracted_text.slice(0, 4000)}`
+        : docHint.details;
+      setPendingDocFromChat({ details, docTypeId: docHint.doc_type });
+      setTab("docs");
+      return;
+    }
+
     setCreatingDocFromChat(true);
 
-    // Берём последние 10 сообщений (5 пар) переписки для контекста
+    // Берём последние 10 сообщений для контекста
     const recentMessages = chat.messages.slice(-10);
     const dialogContext = recentMessages
       .filter(m => m.text && m.text.length > 5)
