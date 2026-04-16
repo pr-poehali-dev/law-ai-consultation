@@ -28,6 +28,7 @@ from auth_handler import (
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
+    SYSTEM_FILE_QA_PROMPT,
     SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
@@ -194,11 +195,17 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
 
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    user_content = f"Вопрос: {comment}\n\n" if comment else ""
-    user_content += f"Документ:\n\n{text[:8000]}"
+    if comment:
+        # Режим QA: пользователь задал конкретный вопрос — отвечаем на него с документом как контекстом
+        system_prompt = SYSTEM_FILE_QA_PROMPT
+        user_content = f"Вопрос пользователя: {comment}\n\nТекст документа:\n\n{text[:8000]}"
+    else:
+        # Режим анализа: общий юридический разбор документа
+        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+        user_content = f"Документ:\n\n{text[:8000]}"
     return _call_openai_compat(
         messages=[
-            {"role": "system", "content": SYSTEM_FILE_ANALYZE_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ],
         max_tokens=2500,
@@ -595,14 +602,19 @@ def handler(event: dict, context) -> dict:
                 try:
                     user_msg_content = [
                         {"type": "text", "text": (
-                            f"{'Вопрос пользователя: ' + comment + chr(10) + chr(10) if comment else ''}"
-                            "Ты — опытный юрист РФ. Пользователь загрузил фото документа для юридического анализа.\n\n"
-                            "СТРОГО ЗАПРЕЩЕНО: пересказывать текст документа — пользователь его уже видел.\n\n"
-                            "Дай краткое практическое юридическое заключение по структуре:\n"
-                            "**Тип и суть** — одной фразой что это за документ.\n"
-                            "**Правовые риски** — конкретные риски с указанием статьи закона РФ, приоритет: 🔴 критично / 🟡 существенно / 🟢 незначительно.\n"
-                            "**Что делать** — 1–3 практических шага.\n\n"
-                            "Если фото нечёткое — скажи об этом и проанализируй видимое."
+                            "Ты — опытный юрист РФ. Пользователь загрузил фото документа.\n\n"
+                            + (
+                                f"Вопрос пользователя: {comment}\n\n"
+                                "Отвечай СТРОГО на этот вопрос, используя содержимое документа на фото как источник фактов. "
+                                "Не делай общий анализ — только ответ на вопрос со ссылками на статьи законов РФ."
+                                if comment else
+                                "СТРОГО ЗАПРЕЩЕНО: пересказывать текст документа.\n\n"
+                                "Дай краткое практическое юридическое заключение:\n"
+                                "**Тип и суть** — одной фразой что это за документ.\n"
+                                "**Правовые риски** — с указанием статьи закона РФ, приоритет: 🔴 критично / 🟡 существенно / 🟢 незначительно.\n"
+                                "**Что делать** — 1–3 практических шага."
+                            )
+                            + "\n\nЕсли фото нечёткое — скажи об этом и проанализируй видимое."
                         )},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{ocr_b64}"}},
                     ]

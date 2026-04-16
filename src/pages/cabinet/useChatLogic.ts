@@ -287,14 +287,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       isFile: true,
     } as ChatMsg]);
     const isImage = /\.(jpg|jpeg|png)$/i.test(file.name);
+    const hasQuestion = !!comment;
     setTyping(true);
     setTypingStatus(isImage ? "Распознаю текст на фото (OCR)..." : "Читаю документ...");
     await consumeQuestion();
     refreshUser();
 
-    const t1 = setTimeout(() => setTypingStatus(isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);
-    const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 10000);
-    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
+    const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документе..." : isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);
+    const t2 = setTimeout(() => setTypingStatus(hasQuestion ? "Формирую ответ..." : "Проверяю соответствие нормам РФ..."), 10000);
+    const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
     try {
       const token = getToken();
