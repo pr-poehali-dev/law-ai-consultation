@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- Фон -->
+  <rect width="192" height="192" rx="38" fill="#0a1628"/>
+
+  <!-- Весы — верхняя перекладина (коромысло) -->
+  <rect x="56" y="72" width="80" height="4" rx="2" fill="#e8a820"/>
+
+  <!-- Центральная стойка -->
+  <rect x="94" y="60" width="4" height="72" rx="2" fill="#e8a820"/>
+
+  <!-- Вершина треугольника (пирамида) -->
+  <polygon points="96,46 87,64 105,64" fill="#e8a820"/>
+
+  <!-- Левая чаша — верёвки -->
+  <line x1="68" y1="76" x2="60" y2="96" stroke="#e8a820" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="68" y1="76" x2="76" y2="96" stroke="#e8a820" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Правая чаша — верёвки -->
+  <line x1="124" y1="76" x2="116" y2="96" stroke="#e8a820" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="124" y1="76" x2="132" y2="96" stroke="#e8a820" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Левая чаша -->
+  <path d="M56 96 Q68 110 80 96" stroke="#e8a820" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Правая чаша -->
+  <path d="M112 96 Q124 110 136 96" stroke="#e8a820" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Основание -->
+  <rect x="82" y="132" width="28" height="4" rx="2" fill="#e8a820" opacity="0.7"/>
+  <rect x="74" y="136" width="44" height="4" rx="2" fill="#e8a820" opacity="0.5"/>
+
+  <!-- Текст ИИ-ПРАВО -->
+  <text x="96" y="158" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#e8a820" text-anchor="middle">ИИ-ПРАВО</text>
+</svg>
