@@ -27,8 +27,16 @@ export function usePWAInstall() {
       return;
     }
 
+    // Событие могло прийти ДО монтирования компонента — забираем из глобала
+    if (window.__pwaPrompt) {
+      setDeferredPrompt(window.__pwaPrompt as BeforeInstallPromptEvent);
+      setStatus("android");
+    }
+
+    // Подписываемся на случай если придёт позже
     const handler = (e: Event) => {
       e.preventDefault();
+      window.__pwaPrompt = e;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setStatus("android");
     };
@@ -44,6 +52,7 @@ export function usePWAInstall() {
     if (choice.outcome === "accepted") {
       setStatus("installed");
       setDeferredPrompt(null);
+      window.__pwaPrompt = undefined;
     }
   };
 
