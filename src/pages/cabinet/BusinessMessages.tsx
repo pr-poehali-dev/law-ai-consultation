@@ -9,6 +9,7 @@ export interface BizMsg {
   body: string;
   tool: BizTool;
   created_at?: string;
+  needsExpert?: boolean;
 }
 
 function fmtDt(iso?: string) {
@@ -48,9 +49,10 @@ interface BusinessMessagesProps {
   sending: boolean;
   userName?: string;
   onSetInput: (v: string) => void;
+  onPayClick?: () => void;
 }
 
-export default function BusinessMessages({ messages, activeTool, sending, userName, onSetInput }: BusinessMessagesProps) {
+export default function BusinessMessages({ messages, activeTool, sending, userName, onSetInput, onPayClick }: BusinessMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const currentTool = TOOLS.find(t => t.id === activeTool)!;
 
@@ -120,6 +122,14 @@ export default function BusinessMessages({ messages, activeTool, sending, userNa
           )}
           <div className={`max-w-[86%] sm:max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${m.role==="user"?"bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm":"bg-white border border-slate-100 text-navy-800 rounded-bl-sm"}`}>
             {m.role === "ai" ? <MarkdownText text={m.body}/> : <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{m.body}</p>}
+            {m.role === "ai" && m.needsExpert && !sending && onPayClick && (
+              <button
+                onClick={onPayClick}
+                className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl w-full justify-center transition-colors"
+              >
+                <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
+              </button>
+            )}
             <p className={`text-[10px] mt-1 ${m.role==="user"?"text-white/40 text-right":"text-muted-foreground/40"}`}>{fmtDt(m.created_at)}</p>
           </div>
           {m.role === "user" && (

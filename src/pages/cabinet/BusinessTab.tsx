@@ -175,7 +175,8 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       });
       const data = await res.json();
       const aiBody = data.answer || "Не удалось получить ответ";
-      const aiMsg: BizMsg = { role: "ai", body: aiBody, tool: activeTool };
+      const needsExpert = !!data.needs_expert;
+      const aiMsg: BizMsg = { role: "ai", body: aiBody, tool: activeTool, needsExpert };
       const finalAll = [...newAll, aiMsg];
       saveMessages(finalAll);
       businessMessageSave("ai", aiBody).catch(() => {});
@@ -335,6 +336,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             sending={sending}
             userName={user.name}
             onSetInput={setInput}
+            onPayClick={() => onPayClick("expert", "Проверка юристом")}
           />
 
           <BusinessInput

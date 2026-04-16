@@ -801,10 +801,21 @@ def handler(event: dict, context) -> dict:
 
             # Для консультаций — быстрая модель, для документов — deepseek
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
+            needs_expert = False
 
             if is_doc_mode:
                 trimmed = biz_messages
                 answer = call_yandex(sys_prompt, trimmed, max_tokens=3500, fast=False, temperature=0.15)
+            elif is_case_law_query(biz_messages):
+                summarized_biz = summarize_old_messages(biz_messages)
+                trimmed, had_pd = strip_personal_data(summarized_biz)
+                answer = call_yandex(SYSTEM_CASE_LAW, trimmed, max_tokens=1400, fast=True, temperature=0.3)
+                if is_case_law_not_found(answer):
+                    needs_expert = True
+                    answer = answer.rstrip()
+                    answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
+                elif had_pd:
+                    answer = NOTICE_PD + answer
             else:
                 # Сжимаем старые сообщения + очищаем персональные данные
                 summarized_biz = summarize_old_messages(biz_messages)
@@ -817,7 +828,7 @@ def handler(event: dict, context) -> dict:
                     answer = NOTICE_PD + answer
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "needs_expert": needs_expert}, ensure_ascii=False)}
 
         # ── Очистка временных файлов ──
         elif mode == "file_cleanup":
