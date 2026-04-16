@@ -246,7 +246,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   };
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(540px, calc(100svh - 155px), 840px)" }}>
+    <div className="max-w-6xl mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(540px, calc(100svh - 155px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 840px)" }}>
 
       {/* Хедер */}
       <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-navy-900 to-navy-700 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0">

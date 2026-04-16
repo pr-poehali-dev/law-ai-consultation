@@ -72,6 +72,17 @@
     overflow-x: hidden;
   }
 
+  /* iOS standalone (PWA) — добавляем отступ под статус-бар сверху */
+  @media all and (display-mode: standalone) {
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+  }
+
   /* Предотвращаем горизонтальный сдвиг */
   img,
   video,
