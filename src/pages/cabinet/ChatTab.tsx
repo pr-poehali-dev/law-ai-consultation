@@ -423,7 +423,7 @@ export default function ChatTab({
       )}
 
       {/* Поле ввода */}
-      <div className="mt-2 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm" style={{ marginBottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="mt-2 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm mb-tab-bar md:mb-2">
         <div className="flex items-end gap-1 px-2 py-2">
 
           {/* Прикрепить */}

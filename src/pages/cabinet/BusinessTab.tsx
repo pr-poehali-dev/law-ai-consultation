@@ -8,7 +8,7 @@ import {
 import type { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import BusinessPaywall from "./BusinessPaywall";
-import BusinessSidebar, { TOOLS, type BizTool } from "./BusinessSidebar";
+import { TOOLS, type BizTool } from "./BusinessSidebar";
 import BusinessMessages, { type BizMsg } from "./BusinessMessages";
 import BusinessInput, { downloadAsDoc } from "./BusinessInput";
 
@@ -246,19 +246,19 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
   };
 
   return (
-    <div className="flex-1 min-h-0 max-w-6xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ paddingBottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}>
+    <div className="flex-1 min-h-0 max-w-6xl w-full mx-auto flex flex-col">
 
-      {/* Хедер */}
-      <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-navy-900 to-navy-700 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-white shrink-0">
-        <div className="w-7 h-7 sm:w-9 sm:h-9 bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
-          <Icon name="Briefcase" size={14} className="text-gold-400" />
+      {/* Хедер организации */}
+      <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-navy-900 to-navy-700 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-white shrink-0 mb-2 sm:mb-3">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+          <Icon name="Briefcase" size={13} className="text-gold-400" />
         </div>
         <div className="flex-1 min-w-0">
           {orgEditing ? (
             <div className="flex items-center gap-1.5">
               <input value={orgName} onChange={e => setOrgName(e.target.value)}
                 placeholder="Название организации"
-                className="bg-white/10 text-white placeholder:text-white/30 text-xs sm:text-sm rounded-lg px-2 py-1 outline-none border border-white/20 focus:border-gold-400 flex-1 min-w-0"
+                className="bg-white/10 text-white placeholder:text-white/30 text-sm rounded-lg px-2 py-1 outline-none border border-white/20 focus:border-gold-400 flex-1 min-w-0"
                 onKeyDown={e => e.key === "Enter" && saveOrgName()} />
               <button onClick={saveOrgName} disabled={orgSaving || !orgName.trim()}
                 className="px-2 py-1 bg-gold-400 text-navy-900 rounded-lg text-[11px] font-semibold disabled:opacity-50 shrink-0">
@@ -268,15 +268,13 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
           ) : (
             <button onClick={() => setOrgEditing(true)} className="flex items-center gap-1.5 group w-full text-left">
               <p className="font-semibold text-white text-sm truncate">{orgName || "Организация"}</p>
-              <Icon name="Pencil" size={11} className="text-white/30 group-hover:text-gold-400 shrink-0 transition-colors" />
+              <Icon name="Pencil" size={10} className="text-white/30 group-hover:text-gold-400 shrink-0 transition-colors" />
             </button>
           )}
-          <p className="text-[9px] text-white/30 hidden sm:block">История: 24 ч · данные на устройстве</p>
         </div>
         <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shrink-0 ${actionsLeft>10?"bg-emerald-500/20 text-emerald-300":actionsLeft>0?"bg-amber-500/20 text-amber-300":"bg-red-500/20 text-red-300"}`}>
           <Icon name="Zap" size={10} />
           {user.isAdmin ? "∞" : actionsLeft}
-          <span className="hidden sm:inline"> дейс.</span>
         </div>
         {!user.isAdmin && actionsLeft <= 30 && (
           <button onClick={() => onPayClick("business_actions_30", "30 действий")}
@@ -286,22 +284,59 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
         )}
       </div>
 
-      <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
-        <BusinessSidebar
-          activeTool={activeTool}
-          isAdmin={user.isAdmin}
-          messageCounts={messageCounts}
-          onSelectTool={handleSelectTool}
-          onPayClick={onPayClick}
-        />
+      {/* Мобильный выбор инструмента */}
+      <div className="sm:hidden shrink-0 mb-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:"none"}}>
+          {TOOLS.map(t => (
+            <button key={t.id} onClick={() => handleSelectTool(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap text-xs font-medium shrink-0 transition-all ${activeTool===t.id?"bg-navy-800 text-white shadow-md":"bg-white border border-border text-navy-600"}`}>
+              <Icon name={t.icon} size={12} className={activeTool===t.id?"text-gold-400":"text-navy-400"} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Основная область */}
-        <div className="flex-1 flex flex-col min-w-0 gap-2">
+      {/* Основная область — flex-1 занимает всё оставшееся */}
+      <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
+
+        {/* Десктоп сайдбар */}
+        <div className="hidden sm:flex flex-col gap-1 w-44 shrink-0 overflow-y-auto">
+          {TOOLS.map(t => {
+            const cnt = messageCounts[t.id] ?? 0;
+            return (
+              <button key={t.id} onClick={() => handleSelectTool(t.id)}
+                className={`flex items-start gap-2 px-3 py-2.5 rounded-xl text-left transition-all ${activeTool===t.id?"bg-navy-800 text-white shadow-md":"bg-white border border-border hover:border-navy-200 hover:bg-slate-50 text-navy-700"}`}>
+                <Icon name={t.icon} size={13} className={activeTool===t.id?"text-gold-400 mt-0.5 shrink-0":"text-navy-400 mt-0.5 shrink-0"} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold leading-tight truncate">{t.label}</p>
+                  <p className={`text-[10px] leading-tight mt-0.5 truncate ${activeTool===t.id?"text-white/50":"text-muted-foreground"}`}>{t.desc}</p>
+                </div>
+                {cnt > 0 && <span className="shrink-0 w-4 h-4 bg-gold-400/30 text-gold-700 text-[9px] font-bold rounded-full flex items-center justify-center">{cnt}</span>}
+              </button>
+            );
+          })}
+          {!user.isAdmin && (
+            <div className="mt-auto pt-2 border-t border-border">
+              <p className="text-[10px] text-muted-foreground mb-1 font-medium px-1">Докупить:</p>
+              {([["business_actions_10","+10","1 000 ₽"],["business_actions_30","+30","3 000 ₽"],["business_actions_50","+50","3 500 ₽"],["business_actions_150","+150","9 000 ₽"]] as [ServiceType,string,string][]).map(([t,l,p])=>(
+                <button key={t} onClick={() => onPayClick(t, l)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-50 border border-border mb-1 transition-colors">
+                  <span className="text-[10px] text-navy-700 font-medium">{l}</span>
+                  <span className="text-[9px] text-navy-500">{p}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Чат-колонка */}
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2">
 
           {/* Тул-хедер */}
           <div className={`flex items-center justify-between px-3 py-2 rounded-xl border ${TOOL_COLORS[currentTool.color]} shrink-0`}>
             <div className="flex items-center gap-2">
-              <Icon name={currentTool.icon} size={14} />
+              <Icon name={currentTool.icon} size={13} />
               <span className="text-xs font-semibold">{currentTool.label}</span>
               {messages.length > 0 && <span className="text-[10px] opacity-60">· {messages.filter(m=>m.role==="user").length} запр.</span>}
             </div>
@@ -320,6 +355,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             </div>
           </div>
 
+          {/* Сообщения — занимают flex-1 */}
           <BusinessMessages
             messages={messages}
             activeTool={activeTool}
@@ -329,29 +365,32 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             onPayClick={() => onPayClick("expert", "Проверка юристом")}
           />
 
-          <BusinessInput
-            activeTool={activeTool}
-            input={input}
-            sending={sending}
-            err={err}
-            attachedFile={attachedFile}
-            attachedFile2={attachedFile2}
-            fileUploading={fileUploading}
-            fillMode={fillMode}
-            fillValues={fillValues}
-            filledDoc={filledDoc}
-            onInputChange={setInput}
-            onSend={sendMessage}
-            onSetAttachedFile={setAttachedFile}
-            onSetAttachedFile2={setAttachedFile2}
-            onSetFileUploading={setFileUploading}
-            onSetErr={setErr}
-            onSetFillMode={setFillMode}
-            onSetFillValues={setFillValues}
-            onApplyFillValues={applyFillValues}
-            adjustTextarea={adjustTextarea}
-            textareaRef={textareaRef}
-          />
+          {/* Инпут — shrink-0 внизу */}
+          <div className="shrink-0 pb-tab-bar md:pb-2">
+            <BusinessInput
+              activeTool={activeTool}
+              input={input}
+              sending={sending}
+              err={err}
+              attachedFile={attachedFile}
+              attachedFile2={attachedFile2}
+              fileUploading={fileUploading}
+              fillMode={fillMode}
+              fillValues={fillValues}
+              filledDoc={filledDoc}
+              onInputChange={setInput}
+              onSend={sendMessage}
+              onSetAttachedFile={setAttachedFile}
+              onSetAttachedFile2={setAttachedFile2}
+              onSetFileUploading={setFileUploading}
+              onSetErr={setErr}
+              onSetFillMode={setFillMode}
+              onSetFillValues={setFillValues}
+              onApplyFillValues={applyFillValues}
+              adjustTextarea={adjustTextarea}
+              textareaRef={textareaRef}
+            />
+          </div>
         </div>
       </div>
     </div>

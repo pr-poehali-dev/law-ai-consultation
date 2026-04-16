@@ -137,6 +137,10 @@
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 
+  .mb-tab-bar {
+    margin-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Минимальная высота экрана с учётом safe area */
   .min-h-screen-safe {
     min-height: calc(
