@@ -35,14 +35,39 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
               AI-платформа юридической помощи, обученная на реальной судебной практике.
             </p>
             <div className="flex gap-3">
-              {["MessageSquare", "Send", "Phone"].map((icon) => (
-                <button
-                  key={icon}
-                  className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"
-                >
-                  <Icon name={icon as any} size={15} className="text-white/70" />
-                </button>
-              ))}
+              <a
+                href="https://vk.ru/ai_pravorf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col items-center gap-1.5"
+                title="ВКонтакте — группа ИИ-Право"
+              >
+                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10 group-hover:ring-white/30 transition-all group-hover:scale-105 group-hover:shadow-blue-500/30">
+                  <img
+                    src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/a81fc685-afd0-49ef-a67b-e1ea030fd098.jpg"
+                    alt="ВКонтакте"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-[10px] text-white/40 group-hover:text-white/70 transition-colors font-medium">ВКонтакте</span>
+              </a>
+
+              <a
+                href="https://vk.com/away.php?to=https%3A%2F%2Fmax.ru%2Fjoin%2FzoHlcjX6QssCLMfhkcWj08KtE0Q_C4HQJhp6WdHNhbY&utf=1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col items-center gap-1.5"
+                title="MAX — канал ИИ-Право"
+              >
+                <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10 group-hover:ring-white/30 transition-all group-hover:scale-105 group-hover:shadow-purple-500/30">
+                  <img
+                    src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/fbf028b9-117f-4d45-a2a3-e11132eeec0c.jpg"
+                    alt="MAX"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-[10px] text-white/40 group-hover:text-white/70 transition-colors font-medium">MAX</span>
+              </a>
             </div>
           </div>
 
@@ -91,7 +116,7 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
               ].map((contact) => (
                 <li key={contact.text} className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
-                    <Icon name={contact.icon as any} size={14} className="text-gold-400" />
+                    <Icon name={contact.icon} size={14} className="text-gold-400" />
                   </div>
                   <span className="text-white/65 text-sm">{contact.text}</span>
                 </li>
