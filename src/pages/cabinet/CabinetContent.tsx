@@ -52,36 +52,34 @@ export default function CabinetContent({
     }>
 
       {tab === "chat" && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <ChatTab
-            user={user}
-            messages={chat.messages}
-            input={chat.input}
-            typing={chat.typing}
-            typingStatus={chat.typingStatus}
-            chatErr={chat.chatErr}
-            attachedFile={chat.attachedFile}
-            fileUploading={chat.fileUploading}
-            totalLeft={totalLeft}
-            onInputChange={chat.setInput}
-            onSend={chat.sendMessage}
-            onSendFile={chat.sendFileAnalysis}
-            onContinueChat={chat.continueChat}
-            onFileSelect={chat.handleFileSelect}
-            onAttachClick={() => chat.fileInputRef.current?.click()}
-            onClearFile={() => chat.setAttachedFile(null)}
-            onPayClick={() => {
-              savePendingAction({ tab: "chat", chatInput: chat.input });
-              setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
-            }}
-            onGoToDocs={() => setTab("docs")}
-            onSelectPlan={openPlanModal}
-            onCreateDocFromMsg={createDocFromChat}
-            creatingDocFromChat={creatingDocFromChat}
-            chatEndRef={chat.chatEndRef}
-            fileInputRef={chat.fileInputRef}
-          />
-        </div>
+        <ChatTab
+          user={user}
+          messages={chat.messages}
+          input={chat.input}
+          typing={chat.typing}
+          typingStatus={chat.typingStatus}
+          chatErr={chat.chatErr}
+          attachedFile={chat.attachedFile}
+          fileUploading={chat.fileUploading}
+          totalLeft={totalLeft}
+          onInputChange={chat.setInput}
+          onSend={chat.sendMessage}
+          onSendFile={chat.sendFileAnalysis}
+          onContinueChat={chat.continueChat}
+          onFileSelect={chat.handleFileSelect}
+          onAttachClick={() => chat.fileInputRef.current?.click()}
+          onClearFile={() => chat.setAttachedFile(null)}
+          onPayClick={() => {
+            savePendingAction({ tab: "chat", chatInput: chat.input });
+            setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+          }}
+          onGoToDocs={() => setTab("docs")}
+          onSelectPlan={openPlanModal}
+          onCreateDocFromMsg={createDocFromChat}
+          creatingDocFromChat={creatingDocFromChat}
+          chatEndRef={chat.chatEndRef}
+          fileInputRef={chat.fileInputRef}
+        />
       )}
 
       {tab === "docs" && (
@@ -138,13 +136,11 @@ export default function CabinetContent({
       )}
 
       {tab === "business" && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <BusinessTab
-            user={user}
-            onPayClick={(type, name) => setPayment({ type, name })}
-            onRefreshUser={refreshUser}
-          />
-        </div>
+        <BusinessTab
+          user={user}
+          onPayClick={(type, name) => setPayment({ type, name })}
+          onRefreshUser={refreshUser}
+        />
       )}
 
       {tab === "history" && (

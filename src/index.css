@@ -65,6 +65,11 @@
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* iOS PWA: black-translucent — статус-бар прозрачный, контент начинается с (0,0).
+       Сдвигаем весь body вниз на высоту статус-бара. */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   html {
@@ -78,6 +83,13 @@
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
+  }
+
+  /* Страницы с h-dvh не должны учитывать body padding — сбрасываем */
+  .pwa-page {
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    height: 100dvh;
   }
 
   /* Предотвращаем горизонтальный сдвиг */

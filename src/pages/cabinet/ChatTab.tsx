@@ -218,7 +218,7 @@ export default function ChatTab({
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto h-full flex flex-col min-h-0">
+    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col">
 
       {/* Скрытые file inputs */}
       <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" tabIndex={-1} onChange={onFileSelect} />
