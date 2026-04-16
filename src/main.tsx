@@ -13,6 +13,8 @@ declare global {
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   window.__pwaPrompt = e;
+  // Уведомляем хук что промпт готов
+  window.dispatchEvent(new Event("pwaPromptReady"));
 });
 
 // Регистрируем Service Worker (обязательно для PWA на Android)

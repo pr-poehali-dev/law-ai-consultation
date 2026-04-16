@@ -1,4 +1,4 @@
-const CACHE = "ii-pravo-v1";
+const CACHE = "ii-pravo-v2";
 const PRECACHE = ["/", "/cabinet", "/manifest.json", "/favicon.svg", "/icon-192.svg", "/icon-512.svg"];
 
 self.addEventListener("install", (e) => {

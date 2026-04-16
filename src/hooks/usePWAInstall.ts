@@ -27,22 +27,21 @@ export function usePWAInstall() {
       return;
     }
 
-    // Событие могло прийти ДО монтирования компонента — забираем из глобала
-    if (window.__pwaPrompt) {
-      setDeferredPrompt(window.__pwaPrompt as BeforeInstallPromptEvent);
-      setStatus("android");
-    }
-
-    // Подписываемся на случай если придёт позже
-    const handler = (e: Event) => {
-      e.preventDefault();
-      window.__pwaPrompt = e;
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setStatus("android");
+    // Событие перехватывается глобально в main.tsx и сохраняется в window.__pwaPrompt
+    const check = () => {
+      if (window.__pwaPrompt) {
+        setDeferredPrompt(window.__pwaPrompt as BeforeInstallPromptEvent);
+        setStatus("android");
+      }
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    // Проверяем сразу (если событие уже пришло до монтирования)
+    check();
+
+    // И подписываемся на кастомный event который main.tsx диспатчит после сохранения
+    const onReady = () => check();
+    window.addEventListener("pwaPromptReady", onReady);
+    return () => window.removeEventListener("pwaPromptReady", onReady);
   }, []);
 
   const install = async () => {
