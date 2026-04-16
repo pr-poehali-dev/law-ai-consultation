@@ -307,14 +307,22 @@ export default function ChatTab({
                   <div className="flex-1 min-w-0">
                     <div className="bg-gradient-to-br from-gold-400/10 to-amber-50 border border-gold-300 rounded-2xl rounded-tl-sm px-3 py-3">
                       <p className="text-sm text-navy-800 leading-relaxed">
-                        💡 У вас остался <strong>1 вопрос</strong>. Возьмите пакет <strong>Старт</strong> — 30 вопросов + 5 документов за 1 490 ₽, и продолжайте прямо сейчас.
+                        💡 У вас остался <strong>1 вопрос</strong>. Приобретите дополнительные <strong>3 вопроса за 100 ₽</strong> или подключите тариф.
                       </p>
-                      <button
-                        onClick={onPayClick}
-                        className="mt-2.5 w-full btn-gold py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
-                      >
-                        <Icon name="Zap" size={12} />Взять пакет Старт — 1 490 ₽
-                      </button>
+                      <div className="mt-2.5 flex gap-2">
+                        <button
+                          onClick={onPayClick}
+                          className="flex-1 btn-gold py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+                        >
+                          <Icon name="Zap" size={12} />3 вопроса — 100 ₽
+                        </button>
+                        <button
+                          onClick={onSelectPlan}
+                          className="flex-1 py-2 rounded-xl text-xs font-semibold border border-gold-400 text-gold-700 hover:bg-gold-50 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <Icon name="Star" size={12} />Выбрать тариф
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
