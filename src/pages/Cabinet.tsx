@@ -73,6 +73,7 @@ export default function Cabinet() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
@@ -142,7 +143,11 @@ export default function Cabinet() {
         }
       } catch { /* продолжаем */ }
       if (attempts < 10) setTimeout(poll, 3000);
-      else await refreshUser();
+      else {
+        await refreshUser();
+        setErrorToast("Оплата не прошла или была отменена");
+        setTimeout(() => setErrorToast(null), 5000);
+      }
     };
     setTimeout(poll, 2000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -477,6 +482,22 @@ export default function Cabinet() {
             <div>
               <p className="text-xs font-semibold opacity-80">Оплата прошла успешно</p>
               <p className="text-sm font-bold">{successToast}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {errorToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div className="flex items-center gap-3 px-5 py-3.5 bg-white border border-red-200 text-navy-800 rounded-2xl shadow-xl font-golos">
+            <div className="w-7 h-7 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-red-500">Оплата не выполнена</p>
+              <p className="text-sm font-bold">{errorToast}</p>
             </div>
           </div>
         </div>
