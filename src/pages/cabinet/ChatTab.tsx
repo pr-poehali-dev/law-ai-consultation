@@ -46,9 +46,10 @@ function renderInline(text: string): React.ReactNode {
 }
 
 function LegalText({ text }: { text: string }) {
+  const safeText = typeof text === "string" ? text : String(text ?? "");
   return (
     <div className="space-y-2 font-golos text-[13.5px] text-navy-700 leading-[1.8]">
-      {text.split(/\n{2,}/).map((para, pi) => {
+      {safeText.split(/\n{2,}/).map((para, pi) => {
         const lines = para.split("\n").filter(Boolean);
         if (!lines.length) return null;
         const sec = lines[0].match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s/]{3,})(.*)/);
@@ -78,22 +79,23 @@ function LegalText({ text }: { text: string }) {
 }
 
 function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
-  const [shown, setShown] = useState(animate ? "" : text);
+  const safeInput = typeof text === "string" ? text : String(text ?? "");
+  const [shown, setShown] = useState(animate ? "" : safeInput);
   const [done, setDone] = useState(!animate);
   useEffect(() => {
-    if (!animate) { setShown(text); setDone(true); return; }
+    if (!animate) { setShown(safeInput); setDone(true); return; }
     setShown(""); setDone(false);
     let i = 0;
     const go = () => {
-      if (i >= text.length) { setDone(true); return; }
-      i += Math.min(6, text.length - i);
-      setShown(text.slice(0, i));
+      if (i >= safeInput.length) { setDone(true); return; }
+      i += Math.min(6, safeInput.length - i);
+      setShown(safeInput.slice(0, i));
       setTimeout(go, 14);
     };
     const t = setTimeout(go, 60);
     return () => clearTimeout(t);
   }, [text, animate]);
-  if (done) return <LegalText text={text} />;
+  if (done) return <LegalText text={safeInput} />;
   return (
     <p className="text-[13.5px] text-navy-700 leading-[1.8] whitespace-pre-wrap font-golos">
       {shown}<span className="inline-block w-0.5 h-4 bg-gold-500 ml-0.5 animate-pulse align-middle rounded-full" />
