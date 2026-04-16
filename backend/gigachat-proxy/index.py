@@ -32,6 +32,7 @@ from prompts import (
     SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
+    SYSTEM_CASE_LAW,
 )
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
@@ -332,6 +333,41 @@ def is_simple_query(messages: list) -> bool:
     if len(text) > 120:
         return False
     return any(marker in text for marker in SIMPLE_QUERY_MARKERS)
+
+
+_CASE_LAW_MARKERS = [
+    "судебная практика", "судебной практике", "судебную практику", "судебной практикой",
+    "аналогичные дела", "аналогичное дело", "похожие дела", "похожие случаи",
+    "судебные решения", "решения судов", "решение суда по", "практика судов",
+    "прецедент", "прецеденты", "как решают суды", "как суды решают",
+    "выигрывают ли", "выигрывают такие дела", "шансы в суде",
+    "судебные прецеденты", "найди дела", "найдите дела", "примеры из практики",
+    "практика по таким делам", "что говорят суды",
+]
+
+def is_case_law_query(messages: list) -> bool:
+    """Определяет является ли запрос о судебной практике / аналогичных делах."""
+    if not messages:
+        return False
+    last_user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+    if not last_user:
+        return False
+    text = last_user.get("content", "").lower()
+    return any(marker in text for marker in _CASE_LAW_MARKERS)
+
+
+_CASE_LAW_NOT_FOUND_MARKERS = [
+    "не могу предоставить", "не могу найти", "нет доступа", "не имею доступа",
+    "не могу осуществить поиск", "не могу провести поиск", "нет возможности",
+    "не могу дать конкретные", "конкретные дела не могу", "базы судебных решений",
+    "не обладаю", "у меня нет доступа", "актуальную практику не могу",
+    "ограничен в доступе", "к сожалению, не могу", "судебные базы",
+]
+
+def is_case_law_not_found(answer: str) -> bool:
+    """Определяет, не смог ли AI найти судебную практику."""
+    low = answer.lower()
+    return any(marker in low for marker in _CASE_LAW_NOT_FOUND_MARKERS)
 
 
 def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
@@ -815,10 +851,20 @@ def handler(event: dict, context) -> dict:
             # Очищаем персональные данные до отправки в модель
             clean_messages, had_pd = strip_personal_data(summarized)
 
+            needs_expert = False
+
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
+            elif is_case_law_query(clean_messages):
+                # Запрос о судебной практике — используем специальный промпт
+                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
+                # Если AI не смог найти практику — выставляем флаг для кнопки "Живой юрист"
+                if is_case_law_not_found(answer):
+                    needs_expert = True
+                    answer = answer.rstrip()
+                    answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
             else:
                 simple = is_simple_query(clean_messages)
                 if simple:
@@ -837,7 +883,7 @@ def handler(event: dict, context) -> dict:
 
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "truncated": truncated}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert}, ensure_ascii=False)}
 
     except Exception as e:
         if hasattr(e, "response") and e.response is not None:

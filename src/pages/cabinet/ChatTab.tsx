@@ -6,7 +6,7 @@ import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; docHint?: DocHint; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; docHint?: DocHint; }
 
 interface ChatTabProps {
   user: User;
@@ -344,6 +344,15 @@ export default function ChatTab({
                       {msg.truncated && i === lastAiIdx && !typing && (
                         <button onClick={() => onContinueChat(msg.text)} className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl w-full justify-center">
                           <Icon name="ChevronDown" size={12} />Читать дальше
+                        </button>
+                      )}
+                      {/* Кнопка живого юриста при отсутствии судебной практики */}
+                      {msg.needsExpert && !typing && (
+                        <button
+                          onClick={onPayClick}
+                          className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl w-full justify-center transition-colors"
+                        >
+                          <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
                         </button>
                       )}
                       {/* Кнопка создания документа из ответа AI */}

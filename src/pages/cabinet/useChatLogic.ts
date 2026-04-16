@@ -107,7 +107,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       const aiText = data.answer as string;
       const truncated = data.truncated as boolean | undefined;
-      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated }]);
+      const needsExpert = data.needs_expert as boolean | undefined;
+      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
       // Upsell при 1 оставшемся вопросе
