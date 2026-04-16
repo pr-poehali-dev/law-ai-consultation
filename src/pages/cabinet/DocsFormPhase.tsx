@@ -3,6 +3,7 @@ import type { User } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import type { GenDoc } from "@/pages/cabinet/DocsTab";
+import PWAInstallButton from "@/components/PWAInstallButton";
 
 const DOC_TYPES_INTERNAL = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500, serviceType: "document" as ServiceType },
@@ -61,7 +62,10 @@ export default function DocsFormPhase({
       {/* Левая колонка — форма */}
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-border p-4 sm:p-6 shadow-sm">
         <PlanBanner user={user} mode="docs" onSelectPlan={onSelectPlan} />
-        <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-1">Создать документ</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">Создать документ</h2>
+          <PWAInstallButton />
+        </div>
         <p className="text-xs sm:text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
         <div className="space-y-2 mb-4">
           {DOC_TYPES_INTERNAL.map((dt) => (

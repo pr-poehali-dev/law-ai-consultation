@@ -1,0 +1,19 @@
+{
+  "name": "ИИ-Право.рф — AI-юрист",
+  "short_name": "ИИ-Право",
+  "description": "Юридические консультации и документы 24/7",
+  "start_url": "/cabinet",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "orientation": "portrait-primary",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

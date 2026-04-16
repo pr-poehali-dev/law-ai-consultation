@@ -4,6 +4,7 @@ import type { User } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
+import PWAInstallButton from "@/components/PWAInstallButton";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; docHint?: DocHint; }
@@ -238,6 +239,7 @@ export default function ChatTab({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <PWAInstallButton />
           {user.isAdmin ? (
             <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium">Админ</span>
           ) : activePlan ? (
