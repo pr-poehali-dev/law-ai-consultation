@@ -23,6 +23,7 @@ export default function Cabinet() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
@@ -81,7 +82,8 @@ export default function Cabinet() {
       setTab(tabParam);
     }
     getUser().then((u) => {
-      if (!u) { navigate("/"); return; }
+      setAuthChecked(true);
+      if (!u) { navigate("/?login=1"); return; }
       setUser(u);
     });
     const stopKeepAlive = startKeepAlive();
@@ -174,7 +176,20 @@ export default function Cabinet() {
     }
   };
 
-  if (!user) return null;
+  if (!authChecked || !user) return (
+    <div className="fixed inset-0 flex items-center justify-center bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div className="flex gap-1.5">
+          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"0ms"}}/>
+          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"150ms"}}/>
+          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"300ms"}}/>
+        </div>
+      </div>
+    </div>
+  );
 
   const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 

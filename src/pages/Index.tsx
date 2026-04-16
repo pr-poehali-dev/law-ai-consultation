@@ -79,16 +79,21 @@ export default function Index() {
   const [pendingTab, setPendingTab] = useState<string | null>(null);
 
   useEffect(() => {
-    // Один запрос — используем для обоих случаев
     getUser().then((u) => {
       setIsLoggedIn(!!u);
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("ref");
+      const needLogin = params.get("login") === "1";
       if (ref) {
         setRefCode(ref);
         localStorage.setItem("ref_code", ref);
-        if (!u) { setFreeTrial(true); setShowLogin(true); }
       }
+      if (!u && (needLogin || ref)) {
+        setFreeTrial(!!ref);
+        setShowLogin(true);
+      }
+      // Убираем ?login=1 из адресной строки
+      if (needLogin) window.history.replaceState({}, "", "/");
     });
   }, []);
 
