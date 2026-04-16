@@ -125,8 +125,8 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
         </div>
       </header>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border safe-bottom">
-        <div className="flex">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-border" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="flex pt-1">
           {TABS_MOBILE.map((t) => (
             <button
               key={t.id}
@@ -135,8 +135,8 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
                 tab === t.id ? "text-navy-700" : "text-muted-foreground"
               }`}
             >
-              <div className={`w-8 h-5 flex items-center justify-center rounded-full transition-colors ${tab === t.id ? "bg-navy-100" : ""}`}>
-                <Icon name={t.icon} size={16} />
+              <div className={`w-8 h-6 flex items-center justify-center rounded-full transition-colors ${tab === t.id ? "bg-navy-100" : ""}`}>
+                <Icon name={t.icon} size={17} />
               </div>
               <span className="leading-none">{t.label}</span>
             </button>

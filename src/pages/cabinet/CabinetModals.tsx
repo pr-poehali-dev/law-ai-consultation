@@ -53,7 +53,7 @@ export default function CabinetModals({
       )}
 
       {successToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <div className="fixed left-1/2 -translate-x-1/2 z-50 animate-fade-in md:bottom-6" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)" }}>
           <div className="flex items-center gap-3 px-5 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-900/20 font-golos">
             <div className="w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -69,7 +69,7 @@ export default function CabinetModals({
       )}
 
       {errorToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <div className="fixed left-1/2 -translate-x-1/2 z-50 animate-fade-in md:bottom-6" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)" }}>
           <div className="flex items-center gap-3 px-5 py-3.5 bg-white border border-red-200 text-navy-800 rounded-2xl shadow-xl font-golos">
             <div className="w-7 h-7 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

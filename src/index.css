@@ -111,6 +111,18 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* Отступ снизу для контента под таббаром + iOS home indicator */
+  .pb-tab-bar {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Минимальная высота экрана с учётом safe area */
+  .min-h-screen-safe {
+    min-height: calc(
+      100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
+  }
 }
 
 @layer components {

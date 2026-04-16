@@ -43,7 +43,7 @@ export default function CabinetContent({
   openPlanModal, createDocFromChat, navigate,
 }: CabinetContentProps) {
   return (
-    <main className="max-w-7xl w-full mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-24 md:pb-8">
+    <main className="max-w-7xl w-full mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-tab-bar md:pb-8">
 
       {tab === "chat" && (
         <ChatTab
