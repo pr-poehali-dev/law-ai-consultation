@@ -34,55 +34,33 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
             <p className="text-white/50 text-sm leading-relaxed mb-5">
               AI-платформа юридической помощи, обученная на реальной судебной практике.
             </p>
-            <div className="mt-1">
-              <p className="text-[11px] text-white/35 uppercase tracking-widest font-medium mb-3">Присоединяйся к проекту</p>
-              <div className="flex flex-col gap-2">
+            <div className="mt-4 pt-4 border-t border-white/8">
+              <p className="text-[10px] text-white/30 uppercase tracking-[0.15em] mb-2.5 font-medium">В социальных сетях</p>
+              <div className="flex gap-2">
                 <a
                   href="https://vk.ru/ai_pravorf"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-white/8 bg-white/5 hover:bg-[#0077FF]/15 hover:border-[#0077FF]/40 transition-all duration-300 overflow-hidden"
+                  className="group relative flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:border-[#0077FF]/50 hover:bg-[#0077FF]/12 transition-all duration-250"
+                  title="ВКонтакте"
                 >
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ background: "linear-gradient(90deg, rgba(0,119,255,0.08) 0%, transparent 100%)" }} />
-                  <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 ring-1 ring-white/10 group-hover:ring-[#0077FF]/50 transition-all duration-300 group-hover:scale-110">
-                    <img
-                      src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/a81fc685-afd0-49ef-a67b-e1ea030fd098.jpg"
-                      alt="ВКонтакте"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-white/15 group-hover:ring-[#0077FF]/60 transition-all duration-250 group-hover:scale-110">
+                    <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/f966fdfe-7ab1-464e-bb46-e70bf162004e.jpg" alt="VK" className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex-1 min-w-0 relative">
-                    <p className="text-[12px] font-semibold text-white/80 group-hover:text-white transition-colors duration-200 leading-none mb-0.5">ВКонтакте</p>
-                    <p className="text-[10px] text-white/35 group-hover:text-white/55 transition-colors duration-200 truncate">Группа ИИ-Право.рф</p>
-                  </div>
-                  <svg className="w-3.5 h-3.5 text-white/20 group-hover:text-[#0077FF]/70 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
+                  <span className="text-[11px] font-medium text-white/55 group-hover:text-white/90 transition-colors duration-200 leading-none">ВКонтакте</span>
                 </a>
 
                 <a
                   href="https://vk.com/away.php?to=https%3A%2F%2Fmax.ru%2Fjoin%2FzoHlcjX6QssCLMfhkcWj08KtE0Q_C4HQJhp6WdHNhbY&utf=1"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-white/8 bg-white/5 hover:bg-[#7B2FF7]/15 hover:border-[#7B2FF7]/40 transition-all duration-300 overflow-hidden"
+                  className="group relative flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:border-[#7B2FF7]/50 hover:bg-[#7B2FF7]/12 transition-all duration-250"
+                  title="MAX"
                 >
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ background: "linear-gradient(90deg, rgba(123,47,247,0.08) 0%, transparent 100%)" }} />
-                  <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 ring-1 ring-white/10 group-hover:ring-[#7B2FF7]/50 transition-all duration-300 group-hover:scale-110">
-                    <img
-                      src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/fbf028b9-117f-4d45-a2a3-e11132eeec0c.jpg"
-                      alt="MAX"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-white/15 group-hover:ring-[#7B2FF7]/60 transition-all duration-250 group-hover:scale-110">
+                    <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/4b6ec240-afc6-41c9-befd-87022247d412.jpg" alt="MAX" className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex-1 min-w-0 relative">
-                    <p className="text-[12px] font-semibold text-white/80 group-hover:text-white transition-colors duration-200 leading-none mb-0.5">MAX</p>
-                    <p className="text-[10px] text-white/35 group-hover:text-white/55 transition-colors duration-200 truncate">Канал ИИ-Право.рф</p>
-                  </div>
-                  <svg className="w-3.5 h-3.5 text-white/20 group-hover:text-[#7B2FF7]/70 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
+                  <span className="text-[11px] font-medium text-white/55 group-hover:text-white/90 transition-colors duration-200 leading-none">MAX</span>
                 </a>
               </div>
             </div>
