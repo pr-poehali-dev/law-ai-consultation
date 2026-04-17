@@ -7,7 +7,7 @@ import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; docHint?: DocHint; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; }
 
 interface ChatTabProps {
   user: User;
@@ -27,6 +27,7 @@ interface ChatTabProps {
   onAttachClick: () => void;
   onClearFile: () => void;
   onPayClick: () => void;
+  onExpertClick: () => void;
   onGoToDocs: () => void;
   onSelectPlan: () => void;
   onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
@@ -131,7 +132,7 @@ export default function ChatTab({
   attachedFile, fileUploading, totalLeft,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onAttachClick, onClearFile,
-  onPayClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, chatEndRef, fileInputRef,
+  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -347,10 +348,24 @@ export default function ChatTab({
                           <Icon name="ChevronDown" size={12} />Читать дальше
                         </button>
                       )}
+                      {/* Плашка + кнопка юриста при персональных данных */}
+                      {msg.personalDataRefused && !typing && (
+                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                          <p className="text-[12px] text-amber-800 leading-relaxed mb-2">
+                            Укажите ваш вопрос без использования персональных данных, наименования районов, городов, сёл и государственных органов. Либо обратитесь к живому юристу-эксперту.
+                          </p>
+                          <button
+                            onClick={onExpertClick}
+                            className="flex items-center gap-2 px-3 py-2 bg-navy-700 hover:bg-navy-800 text-white text-[12px] font-semibold rounded-lg w-full justify-center transition-colors"
+                          >
+                            <Icon name="UserCheck" size={13} />Задать вопрос юристу-эксперту
+                          </button>
+                        </div>
+                      )}
                       {/* Кнопка живого юриста при отсутствии судебной практики */}
-                      {msg.needsExpert && !typing && (
+                      {msg.needsExpert && !msg.personalDataRefused && !typing && (
                         <button
-                          onClick={onPayClick}
+                          onClick={onExpertClick}
                           className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl w-full justify-center transition-colors"
                         >
                           <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта

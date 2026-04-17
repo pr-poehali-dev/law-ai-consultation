@@ -886,15 +886,18 @@ def handler(event: dict, context) -> dict:
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
 
             # Если модель всё равно отказала — заменяем на нейтральный fallback
+            personal_data_refused = False
             if is_refusal(answer):
                 answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
+                personal_data_refused = True
             elif had_pd:
                 # Персональные данные были — prepend уведомление
                 answer = NOTICE_PD + answer
+                personal_data_refused = True
 
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert, "personal_data_refused": personal_data_refused}, ensure_ascii=False)}
 
     except Exception as e:
         if hasattr(e, "response") and e.response is not None:

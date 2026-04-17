@@ -108,7 +108,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const aiText = data.answer as string;
       const truncated = data.truncated as boolean | undefined;
       const needsExpert = data.needs_expert as boolean | undefined;
-      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert }]);
+      const personalDataRefused = data.personal_data_refused as boolean | undefined;
+      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
       // Upsell при 1 оставшемся вопросе

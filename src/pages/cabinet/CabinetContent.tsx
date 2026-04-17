@@ -73,6 +73,14 @@ export default function CabinetContent({
             savePendingAction({ tab: "chat", chatInput: chat.input });
             setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
           }}
+          onExpertClick={() => {
+            if (user.paidExpert || user.isAdmin) {
+              setTab("expert");
+            } else {
+              savePendingAction({ tab: "expert" });
+              setPayment({ type: "expert", name: "Проверка юристом" });
+            }
+          }}
           onGoToDocs={() => setTab("docs")}
           onSelectPlan={openPlanModal}
           onCreateDocFromMsg={createDocFromChat}
