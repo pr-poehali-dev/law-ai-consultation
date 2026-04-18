@@ -52,6 +52,7 @@ interface UseCabinetPaymentParams {
   setTab: (tab: "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin") => void;
   tab: "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
   chatSendMessage: (text: string) => void;
+  chatRemoveUpsell: () => void;
   docsGenerateRef: React.MutableRefObject<((dt: typeof DOC_TYPES[0], details: string) => void) | null>;
   docsGenerateDoc: () => void;
   docsSetDocType: (dt: typeof DOC_TYPES[0]) => void;
@@ -61,7 +62,7 @@ interface UseCabinetPaymentParams {
 
 export function useCabinetPayment({
   setUser, setTab, tab,
-  chatSendMessage, docsGenerateRef,
+  chatSendMessage, chatRemoveUpsell, docsGenerateRef,
   docsGenerateDoc, docsSetDocType, docsSetDocDetails, docsGenerateDocWith,
 }: UseCabinetPaymentParams) {
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
@@ -84,6 +85,7 @@ export function useCabinetPayment({
         const data = await res.json();
         if (data.paid || data.status === "paid") {
           await refreshUser();
+          chatRemoveUpsell();
           const label = data.service_type ? GRANT_LABELS[data.service_type as ServiceType] : null;
           if (label) {
             setSuccessToast(label);
@@ -116,6 +118,7 @@ export function useCabinetPayment({
   const handlePaySuccess = async (svcType: ServiceType) => {
     await new Promise(r => setTimeout(r, 1500));
     await refreshUser();
+    chatRemoveUpsell();
     setPayment(null);
 
     const label = GRANT_LABELS[svcType];

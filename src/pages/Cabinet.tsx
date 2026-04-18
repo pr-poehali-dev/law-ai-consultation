@@ -67,6 +67,7 @@ export default function Cabinet() {
     setTab,
     tab,
     chatSendMessage: chat.sendMessage,
+    chatRemoveUpsell: chat.removeUpsell,
     docsGenerateRef,
     docsGenerateDoc: docs.generateDoc,
     docsSetDocType: docs.setDocType,

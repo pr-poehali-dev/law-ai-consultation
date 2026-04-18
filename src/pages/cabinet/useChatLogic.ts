@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft } from "@/lib/auth";
+import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -74,7 +74,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     const canAsk = await canAskQuestion();
     if (!canAsk) {
-      onPaymentRequired("consultation", "AI-консультация (3 вопроса)");
+      // Показываем upsell-карточку в чате, не открываем модалку сразу
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
       return;
     }
 
@@ -112,16 +116,18 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
-      // Upsell при 0 оставшихся вопросах (использован бесплатный)
+      // Upsell при 0 оставшихся вопросах — сбрасываем кеш чтобы получить актуальные данные
+      invalidateUserCache();
+      await refreshUser();
       const left = await getQuestionsLeft();
       if (left === 0) {
         setTimeout(() => {
-          setMessages((p) => [...p, {
-            role: "ai",
-            text: "💡 Ваш бесплатный вопрос использован. Докупите **3 вопроса за 350 ₽** или выберите тариф и продолжайте прямо сейчас.",
-            isUpsell: true,
-          }]);
-        }, 800);
+          setMessages((p) => {
+            // не добавляем дубль если upsell уже есть
+            if (p.some(m => m.isUpsell)) return p;
+            return [...p, { role: "ai", isUpsell: true, text: "" }];
+          });
+        }, 1200);
       }
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
@@ -335,6 +341,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setMessages((p) => [...p, { role: "ai", text }]);
   };
 
+  // Убрать upsell-карточку после успешной оплаты
+  const removeUpsell = () => {
+    setMessages((p) => p.filter(m => !m.isUpsell));
+  };
+
   return {
     messages,
     history,
@@ -351,5 +362,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     handleFileSelect,
     sendFileAnalysis,
     injectAiMessage,
+    removeUpsell,
   };
 }
