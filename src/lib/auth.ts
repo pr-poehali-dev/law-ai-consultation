@@ -135,12 +135,22 @@ export async function getUser(): Promise<User | null> {
   _userPromise = (async () => {
     try {
       const res = await apiCall({ action: "me" });
-      if (!res.ok) { clearToken(); _userCache = { user: null, ts: Date.now() }; return null; }
+      if (!res.ok) {
+        // 401 — токен точно невалиден, чистим
+        if (res.status === 401) {
+          clearToken();
+          _userCache = { user: null, ts: Date.now() };
+          return null;
+        }
+        // Другие ошибки сервера (500, 502) — возвращаем кэш чтобы не выбивать из приложения
+        return _userCache?.user ?? null;
+      }
       const data = await res.json();
       const user = data.user || null;
       _userCache = { user, ts: Date.now() };
       return user;
     } catch {
+      // Сетевая ошибка (оффлайн, таймаут) — возвращаем кэш, не выбиваем пользователя
       return _userCache?.user ?? null;
     } finally {
       _userPromise = null;

@@ -24,6 +24,7 @@ export default function Cabinet() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
@@ -82,13 +83,21 @@ export default function Cabinet() {
     if (tabParam && ["chat", "docs", "expert", "business", "history", "profile"].includes(tabParam)) {
       setTab(tabParam);
     }
+    // Таймаут 8 сек — если проверка зависла (оффлайн), показываем экран ошибки
+    const timeoutId = setTimeout(() => setAuthTimeout(true), 8000);
+
     getUser().then((u) => {
+      clearTimeout(timeoutId);
       setAuthChecked(true);
-      if (!u) { navigate("/?login=1"); return; }
+      if (!u) {
+        // Нет токена — на страницу входа через location.replace (работает в PWA)
+        window.location.replace("/?login=1");
+        return;
+      }
       setUser(u);
     });
     const stopKeepAlive = startKeepAlive();
-    return stopKeepAlive;
+    return () => { stopKeepAlive(); clearTimeout(timeoutId); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
@@ -177,20 +186,43 @@ export default function Cabinet() {
     }
   };
 
-  if (!authChecked || !user) return (
-    <div className="fixed inset-0 flex items-center justify-center bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <div className="flex gap-1.5">
-          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"0ms"}}/>
-          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"150ms"}}/>
-          <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"300ms"}}/>
+  if (!authChecked || !user) {
+    // Таймаут — нет связи с сервером
+    if (authTimeout) return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className="flex flex-col items-center gap-5 px-8 text-center max-w-xs">
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center shadow-sm">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          </div>
+          <div>
+            <p className="font-semibold text-navy-800 mb-1">Нет соединения</p>
+            <p className="text-sm text-muted-foreground">Проверьте интернет и попробуйте снова</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 bg-navy-800 text-white text-sm font-semibold rounded-xl"
+          >
+            Повторить
+          </button>
         </div>
       </div>
-    </div>
-  );
+    );
+    // Обычная загрузка
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div className="flex gap-1.5">
+            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"0ms"}}/>
+            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"150ms"}}/>
+            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"300ms"}}/>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const totalLeft = user.isAdmin ? 999 : (user.paidQuestions ?? 0);
 

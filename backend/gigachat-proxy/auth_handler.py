@@ -227,9 +227,10 @@ def handle_login(body: dict, ip: str = "") -> dict:
             f"UPDATE {SCHEMA}.users SET last_login_at = NOW() WHERE id = %s",
             (user_id,)
         )
-        # Один сеанс на пользователя — инвалидируем все предыдущие сессии
+        # Множество сессий — каждое устройство имеет свой токен
+        # Удаляем только совсем старые сессии (>30 дней) чтобы не копились
         cur.execute(
-            f"UPDATE {SCHEMA}.sessions SET expires_at = NOW() WHERE user_id = %s AND expires_at > NOW()",
+            f"DELETE FROM {SCHEMA}.sessions WHERE user_id = %s AND expires_at < NOW()",
             (user_id,)
         )
         token = generate_token()
