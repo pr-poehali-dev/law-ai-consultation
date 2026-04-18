@@ -5,6 +5,7 @@ import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
+import UpsellCard from "@/pages/cabinet/UpsellCard";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; }
@@ -302,32 +303,7 @@ export default function ChatTab({
               const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");
 
               if (msg.isUpsell) return (
-                <div key={i} className="flex gap-2 items-start">
-                  <div className="w-8 h-8 bg-gold-400/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                    <Icon name="Zap" size={13} className="text-gold-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-gradient-to-br from-gold-400/10 to-amber-50 border border-gold-300 rounded-2xl rounded-tl-sm px-3 py-3">
-                      <p className="text-sm text-navy-800 leading-relaxed">
-                        💡 Ваш бесплатный вопрос использован. Докупите <strong>3 вопроса за 350 ₽</strong> или выберите тариф.
-                      </p>
-                      <div className="mt-2.5 flex gap-2">
-                        <button
-                          onClick={onPayClick}
-                          className="flex-1 btn-gold py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
-                        >
-                          <Icon name="Zap" size={12} />3 вопроса — 350 ₽
-                        </button>
-                        <button
-                          onClick={onSelectPlan}
-                          className="flex-1 py-2 rounded-xl text-xs font-semibold border border-gold-400 text-gold-700 hover:bg-gold-50 transition-colors flex items-center justify-center gap-1.5"
-                        >
-                          <Icon name="Star" size={12} />Выбрать тариф
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
               );
 
               return (
