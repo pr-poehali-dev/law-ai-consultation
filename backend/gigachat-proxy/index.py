@@ -195,9 +195,9 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
     return resp.json()["choices"][0]["message"]["content"]
 
 
-def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3) -> tuple[str, bool]:
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 50) -> tuple[str, bool]:
     """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан).
-    Таймаут жёсткий 50 сек — как у Яндекса fast-режима."""
+    timeout=50 для чата, 180 для генерации документов."""
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
@@ -217,7 +217,7 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
             "temperature": temperature,
             "stream": False,
         },
-        timeout=50,
+        timeout=timeout,
     )
     resp.raise_for_status()
     choice = resp.json()["choices"][0]
@@ -570,17 +570,17 @@ def handler(event: dict, context) -> dict:
             history_context = ""
             if chat_history:
                 last_pairs = chat_history[-10:]
-                # Извлекаем факты из диалога структурированно
-                user_msgs = [m.get("content", "") for m in last_pairs if m.get("role") == "user"]
-                ai_msgs = [m.get("content", "") for m in last_pairs if m.get("role") != "user"]
                 history_context = (
                     "КОНТЕКСТ ИЗ ПРЕДЫДУЩЕЙ КОНСУЛЬТАЦИИ (используй все упомянутые факты, стороны, суммы, даты):\n"
                 )
                 for msg in last_pairs:
                     role_label = "Пользователь" if msg.get("role") == "user" else "Юрист"
-                    content = msg.get("content", "")[:800]
+                    # Очищаем ПД из истории чтобы Яндекс не отказал при генерации документа
+                    content_raw = msg.get("content", "")[:800]
+                    cleaned_msgs, _ = strip_personal_data([{"role": msg.get("role", "user"), "content": content_raw}])
+                    content = cleaned_msgs[0].get("content", content_raw)
                     history_context += f"{role_label}: {content}\n"
-                history_context += "\nВАЖНО: подстави все конкретные данные из диалога (ФИО, суммы, даты, адреса) напрямую в документ.\n\n"
+                history_context += "\nВАЖНО: подстави все конкретные данные из диалога напрямую в документ. Где данных нет — используй метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}.\n\n"
             # Специальный промпт для судебной речи
             speech_style = ""
             if doc_type in SPEECH_DOC_TYPES:
@@ -603,6 +603,22 @@ def handler(event: dict, context) -> dict:
                 f"Запрещены [...] и ___."
             )
             answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
+            # Если Яндекс отказал при генерации — пробуем DeepSeek V3 (он принимает любые данные)
+            if is_refusal(answer):
+                print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
+                # Для документов используем полный prompt напрямую без очистки ПД
+                raw_prompt = (
+                    body.get("details", "").strip()
+                    + ("\n\nКонтекст диалога:\n" + "\n".join(
+                        f"{'Пользователь' if m.get('role')=='user' else 'Юрист'}: {m.get('content','')[:600]}"
+                        for m in chat_history[-6:]
+                    ) if chat_history else "")
+                    + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
+                    + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
+                )
+                ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=180)
+                answer = ds_answer
+                print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
             # Для речи завершённость определяем по финальному обращению к суду
             if doc_type in SPEECH_DOC_TYPES:
                 truncated = not bool(re.search(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', answer[-400:], re.I))
