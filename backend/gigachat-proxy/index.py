@@ -32,7 +32,7 @@ from prompts import (
     SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
-    SYSTEM_CASE_LAW,
+    SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
 )
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
@@ -193,6 +193,50 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
+
+
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1200, temperature: float = 0.3) -> str:
+    """Прямой вызов DeepSeek API (api.deepseek.com). Используется как fallback при отказе Яндекса."""
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY не задан")
+    recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
+    openai_messages = [{"role": "system", "content": system_prompt}] + [
+        {
+            "role": "user" if m.get("role") == "user" else "assistant",
+            "content": m.get("content", m.get("text", "")),
+        }
+        for m in recent
+    ]
+    resp = requests.post(
+        "https://api.deepseek.com/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": "deepseek-chat",
+            "messages": openai_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        },
+        timeout=90,
+    )
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
+def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
+    """Извлекает [РЕЗЮМЕ] из ответа DeepSeek. Возвращает (текст_без_резюме, резюме)."""
+    marker = "[РЕЗЮМЕ]:"
+    idx = answer.rfind(marker)
+    if idx == -1:
+        # Пробуем без двоеточия
+        marker = "[РЕЗЮМЕ]"
+        idx = answer.rfind(marker)
+    if idx == -1:
+        return answer.strip(), ""
+    main = answer[:idx].strip()
+    summary = answer[idx + len(marker):].strip()
+    return main, summary
 
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
@@ -859,41 +903,81 @@ def handler(event: dict, context) -> dict:
 
             # Сжимаем старые сообщения в резюме если история длинная
             summarized = summarize_old_messages(messages)
-            # Очищаем персональные данные до отправки в модель
+            # Очищаем персональные данные до отправки в Яндекс
             clean_messages, had_pd = strip_personal_data(summarized)
 
             needs_expert = False
+            personal_data_refused = False
+            used_deepseek = False
 
             if messages and messages[0].get("role") == "system":
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
+
             elif is_case_law_query(clean_messages):
-                # Запрос о судебной практике — используем специальный промпт
                 answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
-                # Если AI не смог найти практику — выставляем флаг для кнопки "Живой юрист"
                 if is_case_law_not_found(answer):
                     needs_expert = True
                     answer = answer.rstrip()
                     answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
+
             else:
                 simple = is_simple_query(clean_messages)
                 if simple:
-                    # Простой информационный — короткий промпт, меньше токенов
                     answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=600, fast=True)
                 else:
-                    # Сложный — тот же YandexGPT но с полным промптом и t=0.3
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
 
-            # Если модель всё равно отказала — заменяем на нейтральный fallback
-            personal_data_refused = False
+            # ── Fallback на DeepSeek если Яндекс отказал ───────────────────────
+            # Используем оригинальные (нечищеные) сообщения — DeepSeek принимает любые данные
             if is_refusal(answer):
-                answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
-                personal_data_refused = True
-            elif had_pd:
-                # Персональные данные были — prepend уведомление
-                answer = NOTICE_PD + answer
-                personal_data_refused = True
+                deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+                if deepseek_key:
+                    # Шаг 1: DeepSeek отвечает на полный запрос с персональными данными
+                    ds_answer = call_deepseek(
+                        SYSTEM_CHAT_DEEPSEEK,
+                        summarized,          # оригинал, без очистки ПД
+                        max_tokens=1000,
+                        temperature=0.3,
+                    )
+                    # Шаг 2: Извлекаем резюме из ответа DeepSeek
+                    ds_main, ds_summary = _extract_deepseek_summary(ds_answer)
+
+                    if ds_summary:
+                        # Шаг 3: Яндекс получает резюме (без ПД) и дополняет ответ
+                        relay_messages = [
+                            *clean_messages[:-1],   # история без последнего запроса
+                            {"role": "user", "content":
+                                f"Краткое резюме ситуации: {ds_summary}\n\n"
+                                f"Дай развёрнутый практический ответ со ссылками на нормы РФ."}
+                        ]
+                        try:
+                            yandex_relay = call_yandex(
+                                SYSTEM_DEEPSEEK_SUMMARY_RELAY,
+                                relay_messages,
+                                max_tokens=900,
+                                fast=True,
+                                temperature=0.3,
+                            )
+                            # Склеиваем: основной ответ DeepSeek + дополнение Яндекса
+                            answer = ds_main + "\n\n" + yandex_relay
+                        except Exception:
+                            # Яндекс снова не смог — используем только DeepSeek
+                            answer = ds_main
+                    else:
+                        answer = ds_answer
+
+                    used_deepseek = True
+                    personal_data_refused = False   # ошибки больше нет — отвечаем нормально
+                else:
+                    # DeepSeek ключа нет — старый fallback
+                    personal_data_refused = True
+                    answer = "Пожалуйста, опишите юридическую суть вопроса без персональных данных — и я дам развёрнутый ответ со ссылками на нормы РФ."
+
+            elif had_pd and not used_deepseek:
+                # Персональные данные были, но Яндекс всё же ответил — тихо, без плашки
+                pass
 
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
