@@ -90,13 +90,17 @@ function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) 
     if (!animate) { setShown(safeInput); setDone(true); return; }
     setShown(""); setDone(false);
     let i = 0;
+    // Для длинных ответов (deepseek) — быстрее: больше символов за тик, меньше задержка
+    const len = safeInput.length;
+    const chunkSize = len > 1200 ? 22 : len > 600 ? 12 : 6;
+    const tickMs = len > 1200 ? 10 : len > 600 ? 12 : 14;
     const go = () => {
       if (i >= safeInput.length) { setDone(true); return; }
-      i += Math.min(6, safeInput.length - i);
+      i += Math.min(chunkSize, safeInput.length - i);
       setShown(safeInput.slice(0, i));
-      setTimeout(go, 14);
+      setTimeout(go, tickMs);
     };
-    const t = setTimeout(go, 60);
+    const t = setTimeout(go, 40);
     return () => clearTimeout(t);
   }, [text, animate]);
   if (done) return <LegalText text={safeInput} />;

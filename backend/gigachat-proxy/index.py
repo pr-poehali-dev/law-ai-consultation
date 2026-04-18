@@ -195,8 +195,9 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
     return resp.json()["choices"][0]["message"]["content"]
 
 
-def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1200, temperature: float = 0.3) -> str:
-    """DeepSeek V3 через Яндекс Cloud — fallback при отказе YandexGPT из-за персональных данных."""
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1400, temperature: float = 0.3) -> tuple[str, bool]:
+    """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан)."""
+    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -205,7 +206,25 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1200, te
         }
         for m in recent
     ]
-    return _call_openai_compat(openai_messages, max_tokens, temperature=temperature)
+    resp = requests.post(
+        "https://llm.api.cloud.yandex.net/v1/chat/completions",
+        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+        json={
+            "model": YANDEX_MODEL,
+            "messages": openai_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        },
+        timeout=180,
+    )
+    resp.raise_for_status()
+    choice = resp.json()["choices"][0]
+    text = choice["message"]["content"]
+    was_cut = choice.get("finish_reason") == "length"
+    if was_cut:
+        print(f"[ROUTER] DeepSeek обрезан по токенам (finish_reason=length), длина={len(text)}")
+    return text, was_cut
 
 
 def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
@@ -916,23 +935,24 @@ def handler(event: dict, context) -> dict:
             # ── Fallback на DeepSeek (Яндекс Cloud) если YandexGPT отказал ──────
             if is_refusal(answer):
                 print(f"[ROUTER] YandexGPT отказал → fallback DeepSeek V3")
-                # DeepSeek получает оригинальные сообщения включая персональные данные
-                ds_answer = call_deepseek(
+                ds_raw, ds_cut = call_deepseek(
                     SYSTEM_CHAT_DEEPSEEK,
                     summarized,      # оригинал без очистки ПД
-                    max_tokens=1000,
+                    max_tokens=1400,
                     temperature=0.3,
                 )
-                # Убираем строку [РЕЗЮМЕ] из финального ответа пользователю
-                ds_main, ds_summary = _extract_deepseek_summary(ds_answer)
-                answer = ds_main if ds_main else ds_answer
+                # Убираем строку [РЕЗЮМЕ] из ответа пользователю
+                ds_main, ds_summary = _extract_deepseek_summary(ds_raw)
+                answer = ds_main if ds_main else ds_raw
+                print(f"[ROUTER] DeepSeek ответил, симв={len(answer)}, обрезан={ds_cut}, резюме={'да' if ds_summary else 'нет'}")
 
-                print(f"[ROUTER] DeepSeek ответил, длина={len(answer)} симв, резюме={'есть' if ds_summary else 'нет'}")
+                # Если DeepSeek обрезан — помечаем truncated чтобы пользователь мог дочитать
+                if ds_cut:
+                    truncated = True
 
-                # Шаг 3: если резюме есть — Яндекс добавляет нормативную базу поверх
-                # (только если DeepSeek дал короткий ответ < 400 слов)
+                # Яндекс-relay: только если DeepSeek дал короткий ответ И есть резюме без ПД
                 word_count = len(answer.split())
-                if ds_summary and word_count < 400:
+                if ds_summary and word_count < 350 and not ds_cut:
                     relay_messages = [
                         *clean_messages[:-1],
                         {"role": "user", "content":
@@ -952,12 +972,12 @@ def handler(event: dict, context) -> dict:
                     except Exception as relay_err:
                         print(f"[ROUTER] Яндекс-relay не смог: {relay_err}")
                 else:
-                    print(f"[ROUTER] Яндекс-relay пропущен (слов={word_count}, резюме={'есть' if ds_summary else 'нет'})")
+                    print(f"[ROUTER] Яндекс-relay пропущен (слов={word_count}, обрезан={ds_cut})")
 
                 used_deepseek = True
                 personal_data_refused = False
             else:
-                print(f"[ROUTER] YandexGPT ответил штатно, длина={len(answer)} симв")
+                print(f"[ROUTER] YandexGPT ответил штатно, симв={len(answer)}")
 
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
