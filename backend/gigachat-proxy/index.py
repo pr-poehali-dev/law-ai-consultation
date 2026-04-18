@@ -195,8 +195,9 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
     return resp.json()["choices"][0]["message"]["content"]
 
 
-def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1400, temperature: float = 0.3) -> tuple[str, bool]:
-    """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан)."""
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3) -> tuple[str, bool]:
+    """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан).
+    Таймаут жёсткий 50 сек — как у Яндекса fast-режима."""
     iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
@@ -216,14 +217,14 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1400, te
             "temperature": temperature,
             "stream": False,
         },
-        timeout=180,
+        timeout=50,
     )
     resp.raise_for_status()
     choice = resp.json()["choices"][0]
     text = choice["message"]["content"]
     was_cut = choice.get("finish_reason") == "length"
     if was_cut:
-        print(f"[ROUTER] DeepSeek обрезан по токенам (finish_reason=length), длина={len(text)}")
+        print(f"[ROUTER] DeepSeek обрезан по токенам (finish_reason=length), симв={len(text)}")
     return text, was_cut
 
 
@@ -913,7 +914,10 @@ def handler(event: dict, context) -> dict:
             personal_data_refused = False
             used_deepseek = False
 
-            if messages and messages[0].get("role") == "system":
+            is_system_mode = messages and messages[0].get("role") == "system"
+
+            if is_system_mode:
+                # Внутренний режим (определение типа документа и т.п.) — только Яндекс, без DeepSeek
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
@@ -933,12 +937,13 @@ def handler(event: dict, context) -> dict:
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
 
             # ── Fallback на DeepSeek (Яндекс Cloud) если YandexGPT отказал ──────
-            if is_refusal(answer):
+            # Не используем для system-режима (внутренние задачи) — там fallback не нужен
+            if is_refusal(answer) and not is_system_mode:
                 print(f"[ROUTER] YandexGPT отказал → fallback DeepSeek V3")
                 ds_raw, ds_cut = call_deepseek(
                     SYSTEM_CHAT_DEEPSEEK,
                     summarized,      # оригинал без очистки ПД
-                    max_tokens=1400,
+                    max_tokens=800,  # как у Яндекса для чата (fast=True)
                     temperature=0.3,
                 )
                 # Убираем строку [РЕЗЮМЕ] из ответа пользователю

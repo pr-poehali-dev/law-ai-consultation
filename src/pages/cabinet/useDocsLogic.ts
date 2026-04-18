@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canUseDoc, consumeDoc } from "@/lib/auth";
+import { canUseDoc, consumeDoc, getToken } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
@@ -57,9 +57,10 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, g
         const hist = getChatHistory();
         if (hist.length > 0) reqBody.chat_history = hist.slice(-10);
       }
+      const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify(reqBody),
       });
       const data = await res.json();
@@ -102,9 +103,10 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, g
     setDocGenerating(true);
     setDocErr("");
     try {
+      const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({
           mode: "doc_continue",
           doc_type: docType.id,
