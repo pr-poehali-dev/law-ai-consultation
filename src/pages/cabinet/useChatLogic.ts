@@ -17,7 +17,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_messages");
-      return saved ? JSON.parse(saved) : [{ role: "ai", text: WELCOME }];
+      if (!saved) return [{ role: "ai", text: WELCOME }];
+      // Убираем сохранённый upsell — он будет пересчитан после проверки баланса
+      const parsed: ChatMsg[] = JSON.parse(saved);
+      return parsed.filter(m => !m.isUpsell);
     } catch { return [{ role: "ai", text: WELCOME }]; }
   });
   const [history, setHistory] = useState<{ role: string; content: string }[]>(() => {
@@ -47,6 +50,27 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   }, []);
 
+  // При маунте: если вопросов 0 и есть история сообщений — показываем upsell с анимацией
+  useEffect(() => {
+    const check = async () => {
+      const left = await getQuestionsLeft();
+      if (left === 0) {
+        // Небольшая задержка чтобы чат успел отрендериться и анимация была видна
+        setTimeout(() => {
+          setMessages(p => {
+            if (p.some(m => m.isUpsell)) return p;
+            // Показываем только если есть реальные сообщения (не только приветствие)
+            const hasRealMessages = p.some(m => m.role === "user");
+            if (!hasRealMessages) return p;
+            return [...p, { role: "ai", isUpsell: true, text: "" }];
+          });
+        }, 600);
+      }
+    };
+    check();
+   
+  }, []);
+
   useEffect(() => {
     // instant на первом рендере, smooth при новых сообщениях
     const el = chatEndRef.current;
@@ -61,7 +85,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   }, [messages, typing]);
 
   useEffect(() => {
-    localStorage.setItem("cabinet_messages", JSON.stringify(messages));
+    // Не сохраняем upsell — он пересчитывается при маунте
+    localStorage.setItem("cabinet_messages", JSON.stringify(messages.filter(m => !m.isUpsell)));
   }, [messages]);
 
   useEffect(() => {
@@ -116,18 +141,17 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
-      // Upsell при 0 оставшихся вопросах — сбрасываем кеш чтобы получить актуальные данные
+      // Upsell при 0 оставшихся вопросах
       invalidateUserCache();
-      await refreshUser();
       const left = await getQuestionsLeft();
+      refreshUser(); // обновляем UI счётчика без блокировки
       if (left === 0) {
         setTimeout(() => {
           setMessages((p) => {
-            // не добавляем дубль если upsell уже есть
             if (p.some(m => m.isUpsell)) return p;
             return [...p, { role: "ai", isUpsell: true, text: "" }];
           });
-        }, 1200);
+        }, 900);
       }
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");

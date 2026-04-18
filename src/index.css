@@ -343,6 +343,25 @@
     animation: slideUpFade 0.6s ease 0.35s both;
   }
 
+  @keyframes upsellIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.97);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(-3px) scale(1.005);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .upsell-animate {
+    animation: upsellIn 0.55s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  }
+
   .shimmer-gold {
     background: linear-gradient(90deg, #e8a820 25%, #f8e080 50%, #e8a820 75%);
     background-size: 200% auto;
