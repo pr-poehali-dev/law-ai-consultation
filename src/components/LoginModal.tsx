@@ -99,7 +99,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
               {regName && <p className="font-semibold text-navy-800 mb-3">{regName}</p>}
               <div className="mb-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
                 <Icon name="Gift" size={20} className="text-emerald-500 shrink-0" />
-                <p className="text-sm text-emerald-800 text-left"><strong>3 бесплатных вопроса</strong> уже добавлены на ваш счёт — задайте их прямо сейчас!</p>
+                <p className="text-sm text-emerald-800 text-left"><strong>1 бесплатный вопрос</strong> уже добавлен на ваш счёт — задайте его прямо сейчас!</p>
               </div>
               <button onClick={onSuccess} className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm">
                 Задать вопрос AI-юристу
@@ -118,7 +118,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
                   {mode === "login" ? "Вход в кабинет" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 3 вопроса бесплатно" : "Создайте аккаунт — 3 вопроса бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — 1 вопрос бесплатно"}
                 </p>
               </div>
 

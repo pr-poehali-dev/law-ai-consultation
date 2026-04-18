@@ -158,7 +158,7 @@ export default function HeroSection({ onConsult, onDocument, onPricingClick, onR
               className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 rounded-full px-4 py-2 text-xs sm:text-sm text-white/85 transition-all cursor-pointer"
             >
               <Icon name="Gift" size={14} className="text-gold-400 shrink-0" />
-              <span>Проверьте юриста AI в деле — <strong className="text-white">3 вопроса бесплатно</strong> при первой регистрации</span>
+              <span>Проверьте юриста AI в деле — <strong className="text-white">1 вопрос бесплатно</strong> при первой регистрации</span>
             </button>
           </div>
 

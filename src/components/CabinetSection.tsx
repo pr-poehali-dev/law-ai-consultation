@@ -23,7 +23,7 @@ const MOCK_DOCUMENTS: { id: number; name: string; date: string; type: "PDF" | "D
   { id: 2, name: "Претензия к интернет-магазину", date: "5 апр 2026", type: "DOCX" },
 ];
 
-const WELCOME_MSG = "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию — подготовлю развёрнутый ответ со ссылками на нормативные акты.\n\n*При регистрации вы получите 3 бесплатных вопроса.*";
+const WELCOME_MSG = "Добрый день! Я AI-юрист, обученный на базе реальных юридических дел. Опишите вашу ситуацию — подготовлю развёрнутый ответ со ссылками на нормативные акты.\n\n*При регистрации вы получите 1 бесплатный вопрос.*";
 
 const DOC_TYPES = [
   { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500 },
@@ -75,7 +75,7 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
     if (!canAsk) {
       setChatMessages((prev) => [...prev, {
         role: "ai",
-        text: "⚠️ Вы использовали все 3 бесплатных вопроса. Для продолжения оплатите консультацию (100 ₽ = ещё 3 вопроса).",
+        text: "⚠️ Ваш бесплатный вопрос использован. Для продолжения оплатите консультацию (350 ₽ = 3 вопроса).",
       }]);
       setPendingPaymentService("consultation");
       setShowPayment(true);
