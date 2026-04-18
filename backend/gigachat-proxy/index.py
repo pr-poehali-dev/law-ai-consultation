@@ -196,10 +196,7 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
 
 
 def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1200, temperature: float = 0.3) -> str:
-    """Прямой вызов DeepSeek API (api.deepseek.com). Используется как fallback при отказе Яндекса."""
-    api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("DEEPSEEK_API_KEY не задан")
+    """DeepSeek V3 через Яндекс Cloud — fallback при отказе YandexGPT из-за персональных данных."""
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -208,20 +205,7 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 1200, te
         }
         for m in recent
     ]
-    resp = requests.post(
-        "https://api.deepseek.com/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={
-            "model": "deepseek-chat",
-            "messages": openai_messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": False,
-        },
-        timeout=90,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
+    return _call_openai_compat(openai_messages, max_tokens, temperature=temperature)
 
 
 def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
@@ -929,55 +913,43 @@ def handler(event: dict, context) -> dict:
                 else:
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
 
-            # ── Fallback на DeepSeek если Яндекс отказал ───────────────────────
-            # Используем оригинальные (нечищеные) сообщения — DeepSeek принимает любые данные
+            # ── Fallback на DeepSeek (Яндекс Cloud) если YandexGPT отказал ──────
+            # DeepSeek получает оригинальные сообщения включая персональные данные
             if is_refusal(answer):
-                deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
-                if deepseek_key:
-                    # Шаг 1: DeepSeek отвечает на полный запрос с персональными данными
-                    ds_answer = call_deepseek(
-                        SYSTEM_CHAT_DEEPSEEK,
-                        summarized,          # оригинал, без очистки ПД
-                        max_tokens=1000,
-                        temperature=0.3,
-                    )
-                    # Шаг 2: Извлекаем резюме из ответа DeepSeek
-                    ds_main, ds_summary = _extract_deepseek_summary(ds_answer)
+                # Шаг 1: DeepSeek отвечает на полный запрос с персональными данными
+                ds_answer = call_deepseek(
+                    SYSTEM_CHAT_DEEPSEEK,
+                    summarized,      # оригинал без очистки ПД
+                    max_tokens=1000,
+                    temperature=0.3,
+                )
+                # Шаг 2: Извлекаем резюме из ответа DeepSeek
+                ds_main, ds_summary = _extract_deepseek_summary(ds_answer)
 
-                    if ds_summary:
-                        # Шаг 3: Яндекс получает резюме (без ПД) и дополняет ответ
-                        relay_messages = [
-                            *clean_messages[:-1],   # история без последнего запроса
-                            {"role": "user", "content":
-                                f"Краткое резюме ситуации: {ds_summary}\n\n"
-                                f"Дай развёрнутый практический ответ со ссылками на нормы РФ."}
-                        ]
-                        try:
-                            yandex_relay = call_yandex(
-                                SYSTEM_DEEPSEEK_SUMMARY_RELAY,
-                                relay_messages,
-                                max_tokens=900,
-                                fast=True,
-                                temperature=0.3,
-                            )
-                            # Склеиваем: основной ответ DeepSeek + дополнение Яндекса
-                            answer = ds_main + "\n\n" + yandex_relay
-                        except Exception:
-                            # Яндекс снова не смог — используем только DeepSeek
-                            answer = ds_main
-                    else:
-                        answer = ds_answer
-
-                    used_deepseek = True
-                    personal_data_refused = False   # ошибки больше нет — отвечаем нормально
+                if ds_summary:
+                    # Шаг 3: YandexGPT получает только резюме (без ПД) и дополняет нормами РФ
+                    relay_messages = [
+                        *clean_messages[:-1],
+                        {"role": "user", "content":
+                            f"Краткое резюме ситуации: {ds_summary}\n\n"
+                            f"Дай развёрнутый практический ответ со ссылками на нормы РФ."}
+                    ]
+                    try:
+                        yandex_relay = call_yandex(
+                            SYSTEM_DEEPSEEK_SUMMARY_RELAY,
+                            relay_messages,
+                            max_tokens=900,
+                            fast=True,
+                            temperature=0.3,
+                        )
+                        answer = ds_main + "\n\n" + yandex_relay
+                    except Exception:
+                        answer = ds_main
                 else:
-                    # DeepSeek ключа нет — старый fallback
-                    personal_data_refused = True
-                    answer = "Пожалуйста, опишите юридическую суть вопроса без персональных данных — и я дам развёрнутый ответ со ссылками на нормы РФ."
+                    answer = ds_answer
 
-            elif had_pd and not used_deepseek:
-                # Персональные данные были, но Яндекс всё же ответил — тихо, без плашки
-                pass
+                used_deepseek = True
+                personal_data_refused = False
 
             truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
