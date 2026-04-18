@@ -138,8 +138,8 @@ def handle_register(body: dict) -> dict:
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
-        # 3 бесплатных вопроса всем новым пользователям при регистрации
-        trial_questions = 0 if is_admin else 3
+        # 1 бесплатный вопрос всем новым пользователям при регистрации
+        trial_questions = 0 if is_admin else 1
 
         # Реферальный код — если указан, начислим бонус после создания
         ref_code = sanitize_str(body.get("ref_code") or "", max_len=32)

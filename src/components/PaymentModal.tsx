@@ -34,7 +34,7 @@ interface PaymentModalProps {
 }
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
-  consultation: 100,
+  consultation: 350,
   document: 500,
   expert: 1500,
   business: 1000,
@@ -52,7 +52,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
-  consultation: "3 ответа AI-юриста — дешевле чашки кофе",
+  consultation: "3 ответа AI-юриста на любые правовые вопросы",
   document: "Один юридический документ (исковое, претензия или жалоба)",
   expert: "Живой юрист проанализирует ответ AI и даст заключение. Включает 3 вопроса к AI",
   business: "Подготовка договора и юридических документов для бизнеса",

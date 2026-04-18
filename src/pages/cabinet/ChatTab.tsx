@@ -309,14 +309,14 @@ export default function ChatTab({
                   <div className="flex-1 min-w-0">
                     <div className="bg-gradient-to-br from-gold-400/10 to-amber-50 border border-gold-300 rounded-2xl rounded-tl-sm px-3 py-3">
                       <p className="text-sm text-navy-800 leading-relaxed">
-                        💡 У вас остался <strong>1 вопрос</strong>. Приобретите дополнительные <strong>3 вопроса за 100 ₽</strong> или подключите тариф.
+                        💡 Ваш бесплатный вопрос использован. Докупите <strong>3 вопроса за 350 ₽</strong> или выберите тариф.
                       </p>
                       <div className="mt-2.5 flex gap-2">
                         <button
                           onClick={onPayClick}
                           className="flex-1 btn-gold py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
                         >
-                          <Icon name="Zap" size={12} />3 вопроса — 100 ₽
+                          <Icon name="Zap" size={12} />3 вопроса — 350 ₽
                         </button>
                         <button
                           onClick={onSelectPlan}

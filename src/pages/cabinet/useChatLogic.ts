@@ -112,13 +112,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
-      // Upsell при 1 оставшемся вопросе
+      // Upsell при 0 оставшихся вопросах (использован бесплатный)
       const left = await getQuestionsLeft();
-      if (left === 1) {
+      if (left === 0) {
         setTimeout(() => {
           setMessages((p) => [...p, {
             role: "ai",
-            text: "💡 У вас остался **1 вопрос**. Возьмите пакет Старт — 30 вопросов + 5 документов за 1 490 ₽, и продолжайте прямо сейчас.",
+            text: "💡 Ваш бесплатный вопрос использован. Докупите **3 вопроса за 350 ₽** или выберите тариф и продолжайте прямо сейчас.",
             isUpsell: true,
           }]);
         }, 800);
