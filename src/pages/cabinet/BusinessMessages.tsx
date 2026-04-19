@@ -10,6 +10,8 @@ export interface BizMsg {
   tool: BizTool;
   created_at?: string;
   needsExpert?: boolean;
+  truncated?: boolean;
+  personalDataRefused?: boolean;
 }
 
 function fmtDt(iso?: string) {
@@ -50,9 +52,10 @@ interface BusinessMessagesProps {
   userName?: string;
   onSetInput: (v: string) => void;
   onPayClick?: () => void;
+  onContinue?: (partial: string) => void;
 }
 
-export default function BusinessMessages({ messages, activeTool, sending, userName, onSetInput, onPayClick }: BusinessMessagesProps) {
+export default function BusinessMessages({ messages, activeTool, sending, userName, onSetInput, onPayClick, onContinue }: BusinessMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const currentTool = TOOLS.find(t => t.id === activeTool)!;
 
@@ -122,6 +125,16 @@ export default function BusinessMessages({ messages, activeTool, sending, userNa
           )}
           <div className={`max-w-[86%] sm:max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${m.role==="user"?"bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm":"bg-white border border-slate-100 text-navy-800 rounded-bl-sm"}`}>
             {m.role === "ai" ? <MarkdownText text={m.body}/> : <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{m.body}</p>}
+            {m.role === "ai" && m.personalDataRefused && !sending && (
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <p className="text-[12px] text-amber-800 leading-relaxed">Опишите юридическую суть вопроса без персональных данных — и я дам развёрнутый ответ.</p>
+              </div>
+            )}
+            {m.role === "ai" && m.truncated && i === messages.map((x,j)=>x.role==="ai"?j:-1).filter(j=>j>=0).at(-1) && !sending && onContinue && (
+              <button onClick={() => onContinue(m.body)} className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl w-full justify-center">
+                <Icon name="ChevronDown" size={12} />Читать дальше
+              </button>
+            )}
             {m.role === "ai" && m.needsExpert && !sending && onPayClick && (
               <button
                 onClick={onPayClick}

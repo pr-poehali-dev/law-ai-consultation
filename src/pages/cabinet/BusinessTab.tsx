@@ -176,7 +176,9 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       const data = await res.json();
       const aiBody = data.answer || "Не удалось получить ответ";
       const needsExpert = !!data.needs_expert;
-      const aiMsg: BizMsg = { role: "ai", body: aiBody, tool: activeTool, needsExpert };
+      const truncated = !!data.truncated;
+      const personalDataRefused = !!data.personal_data_refused;
+      const aiMsg: BizMsg = { role: "ai", body: aiBody, tool: activeTool, needsExpert, truncated, personalDataRefused };
       const finalAll = [...newAll, aiMsg];
       saveMessages(finalAll);
       businessMessageSave("ai", aiBody).catch(() => {});
@@ -194,6 +196,34 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       await onRefreshUser();
     } catch {
       setErr("Ошибка запроса. Попробуйте ещё раз.");
+    }
+    setSending(false);
+  };
+
+  const continueChat = async (partialText: string) => {
+    if (sending) return;
+    setSending(true);
+    const toolMessages = allMessages.filter(m => m.tool === activeTool).slice(-10).map(m => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.body,
+    }));
+    setAllMessages(p => p.map((m, i) => i === p.length - 1 ? { ...m, truncated: false } : m));
+    try {
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "chat_continue", messages: toolMessages, partial: partialText }),
+      });
+      const data = await res.json();
+      const continuation = data.answer as string;
+      const merged = partialText + "\n\n" + continuation;
+      setAllMessages(p => {
+        const updated = p.map((m, i) => i === p.length - 1 ? { ...m, body: merged, truncated: false } : m);
+        saveMessages(updated);
+        return updated;
+      });
+    } catch {
+      setErr("Ошибка продолжения ответа.");
     }
     setSending(false);
   };
@@ -363,6 +393,7 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
             userName={user.name}
             onSetInput={setInput}
             onPayClick={() => onPayClick("expert", "Проверка юристом")}
+            onContinue={continueChat}
           />
 
           {/* Инпут — shrink-0 внизу */}

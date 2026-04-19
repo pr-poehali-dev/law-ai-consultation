@@ -866,6 +866,7 @@ def handler(event: dict, context) -> dict:
             # Для консультаций — быстрая модель, для документов — deepseek
             is_doc_mode = biz_mode in ("contract", "orders", "pretension")
             needs_expert = False
+            personal_data_refused = False
 
             if is_doc_mode:
                 trimmed = biz_messages
@@ -873,7 +874,7 @@ def handler(event: dict, context) -> dict:
             elif is_case_law_query(biz_messages):
                 summarized_biz = summarize_old_messages(biz_messages)
                 trimmed, had_pd = strip_personal_data(summarized_biz)
-                answer = call_yandex(SYSTEM_CASE_LAW, trimmed, max_tokens=1400, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CASE_LAW, trimmed, max_tokens=2500, fast=True, temperature=0.3)
                 if is_case_law_not_found(answer):
                     needs_expert = True
                     answer = answer.rstrip()
@@ -885,14 +886,33 @@ def handler(event: dict, context) -> dict:
                 summarized_biz = summarize_old_messages(biz_messages)
                 trimmed, had_pd = strip_personal_data(summarized_biz)
                 # Бизнес-консультации — YandexGPT для скорости, t=0.3 для точности
-                answer = call_yandex(sys_prompt, trimmed, max_tokens=1400, fast=True, temperature=0.3)
+                answer = call_yandex(sys_prompt, trimmed, max_tokens=2500, fast=True, temperature=0.3)
+                personal_data_refused = False
+                used_deepseek_biz = False
                 if is_refusal(answer):
-                    answer = NOTICE_PD + "Пожалуйста, опишите юридическую суть вопроса — и я дам развёрнутый ответ со ссылками на нормы РФ."
+                    # Fallback на DeepSeek — как в обычном чате
+                    print(f"[BIZ_ROUTER] YandexGPT отказал → fallback DeepSeek V3")
+                    ds_raw, ds_cut_biz = call_deepseek(
+                        SYSTEM_CHAT_DEEPSEEK,
+                        summarized_biz,
+                        max_tokens=1200,
+                        temperature=0.3,
+                    )
+                    ds_main, _ = _extract_deepseek_summary(ds_raw)
+                    answer = ds_main if ds_main else ds_raw
+                    print(f"[BIZ_ROUTER] DeepSeek ответил, симв={len(answer)}, обрезан={ds_cut_biz}")
+                    personal_data_refused = False
+                    used_deepseek_biz = True
                 elif had_pd:
                     answer = NOTICE_PD + answer
 
+            # Определяем обрыв ответа (только для консультационных режимов)
+            biz_truncated = False
+            if not is_doc_mode:
+                biz_truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
+
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "needs_expert": needs_expert}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "needs_expert": needs_expert, "truncated": biz_truncated, "personal_data_refused": personal_data_refused if not is_doc_mode else False}, ensure_ascii=False)}
 
         # ── Очистка временных файлов ──
         elif mode == "file_cleanup":
