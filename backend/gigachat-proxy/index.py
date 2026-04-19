@@ -948,9 +948,9 @@ def handler(event: dict, context) -> dict:
             else:
                 simple = is_simple_query(clean_messages)
                 if simple:
-                    answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=600, fast=True)
+                    answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
                 else:
-                    answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
+                    answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2500, fast=True, temperature=0.3)
 
             # ── Fallback на DeepSeek (Яндекс Cloud) если YandexGPT отказал ──────
             # Не используем для system-режима (внутренние задачи) — там fallback не нужен
@@ -959,7 +959,7 @@ def handler(event: dict, context) -> dict:
                 ds_raw, ds_cut = call_deepseek(
                     SYSTEM_CHAT_DEEPSEEK,
                     summarized,      # оригинал без очистки ПД
-                    max_tokens=800,  # как у Яндекса для чата (fast=True)
+                    max_tokens=1200, # 500 слов × ~1.5 токенов/слово + [РЕЗЮМЕ]
                     temperature=0.3,
                 )
                 # Убираем строку [РЕЗЮМЕ] из ответа пользователю
