@@ -404,6 +404,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       });
       return;
     }
+    const isLastQuestion = consumeResult.isLastQuestion;
     refreshUser();
 
     const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документе..." : isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);
@@ -426,7 +427,37 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const docHint: DocHint | undefined = data.doc_hint
         ? { ...data.doc_hint, extracted_text: data.extracted_text }
         : undefined;
-      setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
+
+      // Воронка — та же логика что в sendMessage
+      if (isLastQuestion && aiText.length > 200) {
+        const half = Math.ceil(aiText.length / 2);
+        const cutIdx = aiText.lastIndexOf(" ", half) || half;
+        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
+        setMessages((p) => [...p, {
+          role: "ai",
+          text: visibleText,
+          fullAnswer: aiText,
+          isLastQuestion: true,
+          truncated: false,
+          docHint,
+        }]);
+        ymGoal("chat_funnel_shown");
+      } else {
+        setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
+        // Upsell если вопросы закончились
+        invalidateUserCache();
+        const left = await getQuestionsLeft();
+        refreshUser();
+        if (left === 0) {
+          setTimeout(() => {
+            setMessages((p) => {
+              if (p.some(m => m.isUpsell)) return p;
+              return [...p, { role: "ai", isUpsell: true, text: "" }];
+            });
+          }, 900);
+        }
+      }
+
       setHistory((p) => [...p,
         { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}` },
         { role: "assistant", content: aiText },
