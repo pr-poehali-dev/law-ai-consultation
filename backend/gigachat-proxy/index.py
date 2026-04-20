@@ -7,11 +7,14 @@ import json
 import os
 import re
 import warnings
-import requests
 import base64
 import io
 import time
 import threading
+
+import requests
+import PyPDF2
+from docx import Document as DocxDocument
 
 from auth_handler import (
     handle_register, handle_login, handle_me,
@@ -44,6 +47,19 @@ warnings.filterwarnings("ignore", category=UserWarning)
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
 # Быстрая модель для консультаций
 YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt/latest"
+
+# HTTP-сессия с keep-alive — переиспользуется между вызовами в рамках одного контейнера
+_http = requests.Session()
+_http.headers.update({"Content-Type": "application/json"})
+
+# IAM-токен кэшируем: .strip() дорогой при частых вызовах
+_IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
+
+# Прекомпилированные regex для частых проверок
+_RE_TRUNCATED = re.compile(r'[.!?»\d]\s*$')
+_RE_PLACEHOLDER = re.compile(r'\{\{([^}]+)\}\}')
+_RE_DOC_END_SPEECH = re.compile(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', re.I)
+_RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', re.I)
 
 # ───────────────────────────────────────────────
 # S3 и файловые утилиты
@@ -95,17 +111,30 @@ def cleanup_temp_files(s3) -> list:
     return deleted
 
 
-def extract_pdf_text(data: bytes) -> str:
-    import PyPDF2
+def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
     reader = PyPDF2.PdfReader(io.BytesIO(data))
-    pages = [p.extract_text() or "" for p in reader.pages[:20]]
-    return "\n".join(pages).strip()
+    parts = []
+    total = 0
+    for page in reader.pages[:15]:
+        text = page.extract_text() or ""
+        parts.append(text)
+        total += len(text)
+        if total >= char_limit:
+            break
+    return "\n".join(parts).strip()[:char_limit]
 
 
-def extract_docx_text(data: bytes) -> str:
-    from docx import Document as DocxDocument
+def extract_docx_text(data: bytes, char_limit: int = 12000) -> str:
     doc = DocxDocument(io.BytesIO(data))
-    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())[:12000]
+    parts = []
+    total = 0
+    for p in doc.paragraphs:
+        if p.text.strip():
+            parts.append(p.text)
+            total += len(p.text)
+            if total >= char_limit:
+                break
+    return "\n".join(parts)[:char_limit]
 
 
 def _compress_image(image_data: bytes, max_bytes: int = 900_000) -> bytes:
@@ -136,8 +165,7 @@ def _compress_image(image_data: bytes, max_bytes: int = 900_000) -> bytes:
 
 
 def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
-    iam_token = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
-    if not iam_token:
+    if not _IAM_TOKEN:
         return ""
 
     mime_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
@@ -146,9 +174,9 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
     b64_image = base64.b64encode(compressed).decode("utf-8")
 
     try:
-        resp = requests.post(
+        resp = _http.post(
             "https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze",
-            headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
             json={
                 "analyzeSpecs": [{
                     "content": b64_image,
@@ -178,10 +206,9 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
 
 
 def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3) -> str:
-    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-    resp = requests.post(
+    resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={
             "model": YANDEX_MODEL,
             "messages": messages,
@@ -198,7 +225,6 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
 def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 50) -> tuple[str, bool]:
     """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан).
     timeout=50 для чата, 180 для генерации документов."""
-    iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -207,9 +233,9 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
         }
         for m in recent
     ]
-    resp = requests.post(
+    resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={
             "model": YANDEX_MODEL,
             "messages": openai_messages,
@@ -347,10 +373,9 @@ def summarize_old_messages(messages: list) -> list:
         "Только факты, без рекомендаций.\n\n" + dialog_text
     )
     try:
-        iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-        resp = requests.post(
+        resp = _http.post(
             "https://llm.api.cloud.yandex.net/v1/chat/completions",
-            headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
             json={
                 "model": YANDEX_MODEL_FAST,
                 "messages": [{"role": "user", "content": summary_prompt}],
@@ -428,10 +453,9 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         for m in recent
     ]
     if fast:
-        iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-        resp = requests.post(
+        resp = _http.post(
             "https://llm.api.cloud.yandex.net/v1/chat/completions",
-            headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
             json={"model": YANDEX_MODEL_FAST, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
             timeout=60,
         )
@@ -621,10 +645,10 @@ def handler(event: dict, context) -> dict:
                 print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
             # Для речи завершённость определяем по финальному обращению к суду
             if doc_type in SPEECH_DOC_TYPES:
-                truncated = not bool(re.search(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', answer[-400:], re.I))
+                truncated = not bool(_RE_DOC_END_SPEECH.search(answer[-400:]))
             else:
-                truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
-            placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
+                truncated = not bool(_RE_DOC_END_OTHER.search(answer[-300:]))
+            placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
 
@@ -909,7 +933,7 @@ def handler(event: dict, context) -> dict:
             # Определяем обрыв ответа (только для консультационных режимов)
             biz_truncated = False
             if not is_doc_mode:
-                biz_truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
+                biz_truncated = len(answer) > 200 and not bool(_RE_TRUNCATED.search(answer.rstrip()))
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "needs_expert": needs_expert, "truncated": biz_truncated, "personal_data_refused": personal_data_refused if not is_doc_mode else False}, ensure_ascii=False)}
@@ -941,8 +965,24 @@ def handler(event: dict, context) -> dict:
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
 
-            # Сжимаем старые сообщения в резюме если история длинная
-            summarized = summarize_old_messages(messages)
+            # Определяем маршрут параллельно со сжатием истории
+            is_system_mode = messages and messages[0].get("role") == "system"
+
+            # Запускаем summarize в фоновом потоке — если история короткая, вернётся мгновенно
+            _summary_result: list = []
+            def _run_summary():
+                _summary_result.append(summarize_old_messages(messages))
+            _t_summary = threading.Thread(target=_run_summary, daemon=True)
+            _t_summary.start()
+
+            # Пока summarize выполняется — определяем маршрут на исходных сообщениях (не ждём)
+            _is_case_law = is_case_law_query(messages)
+            _is_simple = (not _is_case_law) and is_simple_query(messages)
+
+            # Ждём summarize (обычно уже готово, т.к. шло параллельно)
+            _t_summary.join()
+            summarized = _summary_result[0] if _summary_result else messages
+
             # Очищаем персональные данные до отправки в Яндекс
             clean_messages, had_pd = strip_personal_data(summarized)
 
@@ -950,15 +990,13 @@ def handler(event: dict, context) -> dict:
             personal_data_refused = False
             used_deepseek = False
 
-            is_system_mode = messages and messages[0].get("role") == "system"
-
             if is_system_mode:
                 # Внутренний режим (определение типа документа и т.п.) — только Яндекс, без DeepSeek
                 custom_system = messages[0].get("content", SYSTEM_CHAT)
                 chat_messages = clean_messages[1:]
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
 
-            elif is_case_law_query(clean_messages):
+            elif _is_case_law:
                 answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
                 if is_case_law_not_found(answer):
                     needs_expert = True
@@ -966,8 +1004,7 @@ def handler(event: dict, context) -> dict:
                     answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
 
             else:
-                simple = is_simple_query(clean_messages)
-                if simple:
+                if _is_simple:
                     answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
                 else:
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2500, fast=True, temperature=0.3)
@@ -1020,7 +1057,7 @@ def handler(event: dict, context) -> dict:
             else:
                 print(f"[ROUTER] YandexGPT ответил штатно, симв={len(answer)}")
 
-            truncated = len(answer) > 200 and not bool(re.search(r'[.!?»\d]\s*$', answer.rstrip()))
+            truncated = len(answer) > 200 and not bool(_RE_TRUNCATED.search(answer.rstrip()))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert, "personal_data_refused": personal_data_refused}, ensure_ascii=False)}
 
