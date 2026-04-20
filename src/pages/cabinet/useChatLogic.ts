@@ -99,7 +99,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const userMsg = (overrideText || input).trim();
     if (!userMsg || typing) return;
 
-    // Один запрос — получаем свежего пользователя и сразу проверяем всё
+    // Один свежий запрос — проверяем баланс
     invalidateUserCache();
     const currentUser = await getUser();
     if (!currentUser) return;
@@ -116,12 +116,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       return;
     }
 
-    // Воронка: этот вопрос последний если paidQuestions === 1 и нет подписки/админа
-    const isLastQuestion =
-      !currentUser.isAdmin &&
-      !hasActiveSubscription(currentUser, "consult") &&
-      currentUser.paidQuestions === 1;
-
     setInput("");
     setChatErr("");
     setMessages((p) => [...p, { role: "user", text: userMsg }]);
@@ -131,7 +125,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
 
-    await consumeQuestion();
+    // Сервер сам определяет — был ли этот вопрос последним
+    const consumeResult = await consumeQuestion();
+    const isLastQuestion = consumeResult.isLastQuestion;
     refreshUser();
 
     const t1 = setTimeout(() => setTypingStatus("Изучаю судебную практику..."), 3000);

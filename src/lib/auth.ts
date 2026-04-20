@@ -177,9 +177,15 @@ export async function updateProfile(name: string, phone?: string): Promise<User 
   return data.user || null;
 }
 
-export async function consumeQuestion(): Promise<boolean> {
+export async function consumeQuestion(): Promise<{ ok: boolean; isLastQuestion: boolean }> {
   const res = await apiCall({ action: "consume-question" });
-  return res.ok;
+  if (!res.ok) return { ok: false, isLastQuestion: false };
+  try {
+    const data = await res.json();
+    return { ok: true, isLastQuestion: !!data.is_last_question };
+  } catch {
+    return { ok: true, isLastQuestion: false };
+  }
 }
 
 export async function consumeDoc(): Promise<boolean> {

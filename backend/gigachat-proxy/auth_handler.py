@@ -305,14 +305,16 @@ def handle_consume_question(token: str) -> dict:
     if not user:
         return _err(401, "Не авторизован")
     if user.get("isAdmin", False) or _has_active_subscription(user, "consult"):
-        return _ok({"ok": True})
+        return _ok({"ok": True, "is_last_question": False})
     conn = get_conn()
     cur = conn.cursor()
     try:
-        if user.get("paidQuestions", 0) > 0:
+        q = user.get("paidQuestions", 0)
+        if q > 0:
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s", (user["id"],))
             conn.commit()
-            return _ok({"ok": True})
+            # is_last_question = True только когда у пользователя был ровно 1 вопрос (последний)
+            return _ok({"ok": True, "is_last_question": q == 1})
         else:
             return _err(403, "Нет доступных вопросов")
     finally:
