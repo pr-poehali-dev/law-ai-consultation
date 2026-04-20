@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser } from "@/lib/auth";
+import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -100,15 +100,28 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const userMsg = (overrideText || input).trim();
     if (!userMsg || typing) return;
 
-    const canAsk = await canAskQuestion();
+    // Один запрос — получаем свежего пользователя и сразу проверяем всё
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+
+    const canAsk = currentUser.isAdmin ||
+      hasActiveSubscription(currentUser, "consult") ||
+      currentUser.paidQuestions > 0;
+
     if (!canAsk) {
-      // Показываем upsell-карточку в чате, не открываем модалку сразу
       setMessages((p) => {
         if (p.some(m => m.isUpsell)) return p;
         return [...p, { role: "ai", isUpsell: true, text: "" }];
       });
       return;
     }
+
+    // Воронка: этот вопрос последний если paidQuestions === 1 и нет подписки/админа
+    const isLastQuestion =
+      !currentUser.isAdmin &&
+      !hasActiveSubscription(currentUser, "consult") &&
+      currentUser.paidQuestions === 1;
 
     setInput("");
     setChatErr("");
@@ -118,12 +131,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
-
-    // Проверяем баланс ДО списания — нужно знать, является ли этот вопрос последним
-    const userBeforeConsume = await getUser();
-    const isLastFreeQuestion = userBeforeConsume && !userBeforeConsume.isAdmin &&
-      !hasActiveSubscription(userBeforeConsume, "consult") &&
-      userBeforeConsume.paidQuestions === 1;
 
     await consumeQuestion();
     refreshUser();
@@ -149,14 +156,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const needsExpert = data.needs_expert as boolean | undefined;
       const personalDataRefused = data.personal_data_refused as boolean | undefined;
 
-      if (isLastFreeQuestion && aiText.length > 200) {
-        // Воронка: показываем первую половину, вторую блюрим
+      // Воронка: прячем вторую половину ответа когда это был последний вопрос
+      if (isLastQuestion && aiText.length > 200) {
         const half = Math.ceil(aiText.length / 2);
         const cutIdx = aiText.lastIndexOf(" ", half) || half;
-        const visibleText = aiText.slice(0, cutIdx);
         setMessages((p) => [...p, {
           role: "ai",
-          text: visibleText,
+          text: aiText.slice(0, cutIdx),
           fullAnswer: aiText,
           isLastQuestion: true,
           truncated: false,
@@ -165,24 +171,29 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }]);
         ymGoal("chat_funnel_shown");
       } else {
-        setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
+        setMessages((p) => [...p, {
+          role: "ai",
+          text: aiText,
+          truncated: !!truncated,
+          needsExpert: !!needsExpert,
+          personalDataRefused: !!personalDataRefused,
+        }]);
+        // Upsell-карточку показываем только если воронка НЕ сработала
+        invalidateUserCache();
+        const left = await getQuestionsLeft();
+        refreshUser();
+        if (left === 0) {
+          setTimeout(() => {
+            setMessages((p) => {
+              if (p.some(m => m.isUpsell)) return p;
+              return [...p, { role: "ai", isUpsell: true, text: "" }];
+            });
+          }, 900);
+        }
       }
 
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
-
-      invalidateUserCache();
-      const left = await getQuestionsLeft();
-      refreshUser();
-      if (left === 0 && !isLastFreeQuestion) {
-        // Upsell-карточка только если воронка не показана
-        setTimeout(() => {
-          setMessages((p) => {
-            if (p.some(m => m.isUpsell)) return p;
-            return [...p, { role: "ai", isUpsell: true, text: "" }];
-          });
-        }, 900);
-      }
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
       setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
