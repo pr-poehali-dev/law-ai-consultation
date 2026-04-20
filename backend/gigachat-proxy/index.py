@@ -817,12 +817,12 @@ def handler(event: dict, context) -> dict:
                 except Exception:
                     pass
 
-            t_analysis = threading.Thread(target=_do_analysis)
-            t_hint = threading.Thread(target=_do_hint)
+            t_analysis = threading.Thread(target=_do_analysis, daemon=True)
+            t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join()
-            t_hint.join()
+            t_analysis.join(timeout=55)
+            t_hint.join(timeout=15)
 
             answer = analysis_result[0] or "Не удалось проанализировать документ."
 
