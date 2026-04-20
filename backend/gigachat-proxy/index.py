@@ -38,8 +38,49 @@ from prompts import (
     SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
 )
 
+import psycopg2
+
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
 SPEECH_DOC_TYPES = {"court_speech"}
+
+SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
+
+
+def _check_quick_question_paid(inv_id: int) -> bool:
+    """Проверяет что заказ quick_question оплачен и не использован."""
+    try:
+        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT status, service_type FROM {SCHEMA}.orders WHERE inv_id = %s",
+            (inv_id,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return False
+        status, svc = row
+        return status == "paid" and svc == "quick_question"
+    except Exception as e:
+        print(f"[QQ] DB check error: {e}")
+        return False
+
+
+def _mark_quick_question_used(inv_id: int) -> None:
+    """Помечает quick_question как использованный (status=used)."""
+    try:
+        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE {SCHEMA}.orders SET status = 'used' WHERE inv_id = %s AND service_type = 'quick_question'",
+            (inv_id,)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"[QQ] DB mark error: {e}")
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -937,6 +978,28 @@ def handler(event: dict, context) -> dict:
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "needs_expert": needs_expert, "truncated": biz_truncated, "personal_data_refused": personal_data_refused if not is_doc_mode else False}, ensure_ascii=False)}
+
+        # ── Быстрый вопрос без регистрации (оплата 50 руб) ──
+        elif mode == "quick_question_chat":
+            inv_id_raw = body.get("inv_id")
+            question = (body.get("question") or "").strip()
+            if not inv_id_raw or not question:
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "inv_id и question обязательны"}, ensure_ascii=False)}
+            try:
+                qq_inv_id = int(inv_id_raw)
+            except (ValueError, TypeError):
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Неверный inv_id"}, ensure_ascii=False)}
+            if not _check_quick_question_paid(qq_inv_id):
+                return {"statusCode": 402, "headers": CORS, "body": json.dumps({"error": "Платёж не найден или уже использован"}, ensure_ascii=False)}
+            _mark_quick_question_used(qq_inv_id)
+            qq_messages = [{"role": "user", "content": question}]
+            qq_answer = call_yandex(SYSTEM_CHAT, qq_messages, max_tokens=2000, fast=True, temperature=0.3)
+            if is_refusal(qq_answer):
+                ds_raw, _ = call_deepseek(SYSTEM_CHAT_DEEPSEEK, qq_messages, max_tokens=1200, temperature=0.3)
+                ds_main, _ = _extract_deepseek_summary(ds_raw)
+                qq_answer = ds_main if ds_main else ds_raw
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": qq_answer}, ensure_ascii=False)}
 
         # ── Очистка временных файлов ──
         elif mode == "file_cleanup":
