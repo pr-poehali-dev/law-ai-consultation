@@ -210,6 +210,7 @@ export async function getQuestionsLeft(): Promise<number> {
 }
 
 export async function canUseDoc(): Promise<boolean> {
+  invalidateUserCache();
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
