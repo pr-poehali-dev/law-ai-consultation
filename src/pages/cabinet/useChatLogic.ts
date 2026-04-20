@@ -155,9 +155,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (isLastQuestion && aiText.length > 200) {
         const half = Math.ceil(aiText.length / 2);
         const cutIdx = aiText.lastIndexOf(" ", half) || half;
+        // Обрываем на границе слова + добавляем троеточие для плавного перехода
+        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
         setMessages((p) => [...p, {
           role: "ai",
-          text: aiText.slice(0, cutIdx),
+          text: visibleText,
           fullAnswer: aiText,
           isLastQuestion: true,
           truncated: false,
@@ -362,11 +364,22 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
   const sendFileAnalysis = async () => {
     if (!attachedFile || typing) return;
-    const canAsk = await canAskQuestion();
+
+    // Свежая проверка баланса (без кэша)
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+    const canAsk = currentUser.isAdmin ||
+      hasActiveSubscription(currentUser, "consult") ||
+      currentUser.paidQuestions > 0;
     if (!canAsk) {
-      onPaymentRequired("consultation", "AI-консультация (3 вопроса)");
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
       return;
     }
+
     const comment = input.trim();
     const file = attachedFile;
     setAttachedFile(null);
@@ -381,7 +394,16 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const hasQuestion = !!comment;
     setTyping(true);
     setTypingStatus(isImage ? "Распознаю текст на фото (OCR)..." : "Читаю документ...");
-    await consumeQuestion();
+    const consumeResult = await consumeQuestion();
+    if (!consumeResult.ok) {
+      setTyping(false);
+      setTypingStatus("");
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
+      return;
+    }
     refreshUser();
 
     const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документе..." : isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);

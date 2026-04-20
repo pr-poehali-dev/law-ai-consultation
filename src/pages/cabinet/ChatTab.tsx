@@ -347,27 +347,27 @@ export default function ChatTab({
                         {/* Золотая линия сверху */}
                         <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(232,168,32,0.6), transparent)" }} />
 
-                        <div className="px-4 py-4">
+                        <div className="px-4 pt-4 pb-3">
                           {/* Шапка */}
-                          <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-start gap-2.5 mb-1">
                             <div
-                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                               style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.2)" }}
                             >
                               <Icon name="Lock" size={14} className="text-gold-400" />
                             </div>
                             <div>
-                              <p className="text-[13px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.95)" }}>
-                                Это ваш последний вопрос
+                              <p className="text-[13.5px] font-bold leading-tight" style={{ color: "rgba(255,255,255,0.97)" }}>
+                                Остаток ответа скрыт
                               </p>
-                              <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-                                Продолжение ответа скрыто до оплаты
+                              <p className="text-[11.5px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+                                Оплатите <span style={{ color: "#f0c060", fontWeight: 600 }}>3 вопроса за 350 ₽</span> — и получите полный ответ прямо сейчас, а также 2 следующих вопроса в запасе.
                               </p>
                             </div>
                           </div>
 
                           {/* Разделитель */}
-                          <div className="mb-3" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+                          <div className="my-3" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
                           {/* Кнопка 1 — 3 вопроса */}
                           <button
@@ -379,8 +379,8 @@ export default function ChatTab({
                               <div className="flex items-center gap-2">
                                 <Icon name="Zap" size={15} className="text-navy-900 shrink-0" />
                                 <div className="text-left">
-                                  <p className="text-navy-900 text-[13px] font-bold leading-tight">3 вопроса к AI-юристу</p>
-                                  <p className="text-[10.5px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>Читать полный ответ прямо сейчас</p>
+                                  <p className="text-navy-900 text-[13px] font-bold leading-tight">Читать полный ответ · 3 вопроса</p>
+                                  <p className="text-[10.5px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>Доступ открывается сразу после оплаты</p>
                                 </div>
                               </div>
                               <span className="text-navy-900 text-[15px] font-bold ml-3 shrink-0">350 ₽</span>
@@ -402,15 +402,15 @@ export default function ChatTab({
                                 <Icon name="Crown" size={14} style={{ color: "#f0c060" }} className="shrink-0" />
                                 <div className="text-left">
                                   <p className="text-[12.5px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Тарифные планы</p>
-                                  <p className="text-[10.5px]" style={{ color: "rgba(255,255,255,0.4)" }}>30–300 вопросов + документы</p>
+                                  <p className="text-[10.5px]" style={{ color: "rgba(255,255,255,0.4)" }}>30–300 вопросов + юридические документы</p>
                                 </div>
                               </div>
                               <Icon name="ChevronRight" size={15} style={{ color: "rgba(255,255,255,0.3)" }} className="shrink-0 ml-2" />
                             </div>
                           </button>
 
-                          <p className="mt-3 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                            Защищённая оплата · ЮКасса · Доступ сразу
+                          <p className="mt-2.5 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                            Защищённая оплата · ЮКасса · Доступ сразу после оплаты
                           </p>
                         </div>
 
