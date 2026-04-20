@@ -69,6 +69,7 @@ export default function Cabinet() {
     tab,
     chatSendMessage: chat.sendMessage,
     chatRemoveUpsell: chat.removeUpsell,
+    chatRevealFunnel: chat.revealLastFunnelAnswer,
     docsGenerateRef,
     docsGenerateDoc: docs.generateDoc,
     docsSetDocType: docs.setDocType,

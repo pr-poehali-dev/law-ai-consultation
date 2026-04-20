@@ -85,8 +85,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   }, [messages, typing]);
 
   useEffect(() => {
-    // Не сохраняем upsell — он пересчитывается при маунте
-    localStorage.setItem("cabinet_messages", JSON.stringify(messages.filter(m => !m.isUpsell)));
+    // Не сохраняем upsell и fullAnswer — upsell пересчитывается при маунте, fullAnswer не хранится в storage
+    const toSave = messages
+      .filter(m => !m.isUpsell)
+      .map(m => m.fullAnswer ? { ...m, fullAnswer: undefined } : m);
+    localStorage.setItem("cabinet_messages", JSON.stringify(toSave));
   }, [messages]);
 
   useEffect(() => {
@@ -115,6 +118,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     const newHist = [...history, { role: "user", content: userMsg }];
     setHistory(newHist);
+
+    // Проверяем баланс ДО списания — нужно знать, является ли этот вопрос последним
+    const userBeforeConsume = await getUser();
+    const isLastFreeQuestion = userBeforeConsume && !userBeforeConsume.isAdmin &&
+      !hasActiveSubscription(userBeforeConsume, "consult") &&
+      userBeforeConsume.paidQuestions === 1;
+
     await consumeQuestion();
     refreshUser();
 
@@ -139,22 +149,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const needsExpert = data.needs_expert as boolean | undefined;
       const personalDataRefused = data.personal_data_refused as boolean | undefined;
 
-      invalidateUserCache();
-      const left = await getQuestionsLeft();
-      const user = await getUser();
-      // Воронка: показываем половину ответа только если остался 1 вопрос
-      // и нет активной подписки/большого пакета (>3 вопросов)
-      const hasBigPlan = user && (
-        hasActiveSubscription(user, "consult") ||
-        user.isAdmin ||
-        user.paidQuestions > 3
-      );
-      const showFunnel = left === 1 && !hasBigPlan;
-
-      if (showFunnel) {
-        // Показываем только первую половину, полный текст сохраняем в fullAnswer
+      if (isLastFreeQuestion && aiText.length > 200) {
+        // Воронка: показываем первую половину, вторую блюрим
         const half = Math.ceil(aiText.length / 2);
-        // Обрезаем по границе слова
         const cutIdx = aiText.lastIndexOf(" ", half) || half;
         const visibleText = aiText.slice(0, cutIdx);
         setMessages((p) => [...p, {
@@ -166,14 +163,19 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
           needsExpert: !!needsExpert,
           personalDataRefused: !!personalDataRefused,
         }]);
+        ymGoal("chat_funnel_shown");
       } else {
         setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
       }
 
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
-      refreshUser(); // обновляем UI счётчика без блокировки
-      if (left === 0) {
+
+      invalidateUserCache();
+      const left = await getQuestionsLeft();
+      refreshUser();
+      if (left === 0 && !isLastFreeQuestion) {
+        // Upsell-карточка только если воронка не показана
         setTimeout(() => {
           setMessages((p) => {
             if (p.some(m => m.isUpsell)) return p;
@@ -421,6 +423,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setMessages((p) => p.filter(m => !m.isUpsell));
   };
 
+  // Раскрыть последний заблюренный ответ (вызывается автоматически после оплаты)
+  const revealLastFunnelAnswer = () => {
+    setMessages((p) => p.map((m) =>
+      m.isLastQuestion && m.fullAnswer
+        ? { ...m, text: m.fullAnswer, isLastQuestion: false, fullAnswer: undefined }
+        : m
+    ));
+  };
+
   return {
     messages,
     history,
@@ -439,5 +450,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     injectAiMessage,
     removeUpsell,
     revealAnswer,
+    revealLastFunnelAnswer,
   };
 }

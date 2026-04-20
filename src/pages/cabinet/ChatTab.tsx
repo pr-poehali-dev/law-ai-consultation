@@ -313,79 +313,92 @@ export default function ChatTab({
 
               // Сообщение с воронкой продаж (последний бесплатный вопрос)
               if (msg.isLastQuestion && msg.fullAnswer && !typing) {
+                const blurText = msg.fullAnswer.slice(Math.floor(msg.fullAnswer.length / 2));
                 return (
-                  <div key={i} className="flex gap-2 items-start">
+                  <div key={i} className="flex gap-2 items-start upsell-animate">
                     <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                       <Icon name="Scale" size={13} className="text-gold-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden">
-                        {/* Видимая часть ответа */}
-                        <div className="px-3 pt-3">
-                          <AnimatedMessage text={msg.text} animate={doAnim} />
+                      {/* Видимая часть */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 pt-3 pb-2 shadow-sm mb-1">
+                        <AnimatedMessage text={msg.text} animate={doAnim} />
+                      </div>
+
+                      {/* Блюр + воронка */}
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                        {/* Размытый текст */}
+                        <div className="px-3 py-2 bg-slate-50 select-none pointer-events-none"
+                          style={{ filter: "blur(4px)", opacity: 0.5, maxHeight: 72, overflow: "hidden" }}>
+                          <LegalText text={blurText} />
                         </div>
-                        {/* Блюр-зона с воронкой */}
-                        <div className="relative mt-1">
-                          {/* Размытый текст второй половины */}
-                          <div className="px-3 pb-1 select-none pointer-events-none" style={{ filter: "blur(5px)", opacity: 0.55 }}>
-                            <LegalText text={msg.fullAnswer.slice(Math.floor(msg.fullAnswer.length / 2))} />
-                          </div>
-                          {/* Градиент-оверлей */}
-                          <div className="absolute inset-x-0 top-0 h-10 pointer-events-none"
-                            style={{ background: "linear-gradient(to bottom, rgba(248,250,252,0) 0%, rgba(248,250,252,0.6) 100%)" }} />
-                          {/* Баннер воронки */}
-                          <div className="relative mx-2 mb-2 rounded-xl overflow-hidden" style={{
-                            background: "linear-gradient(135deg, #0a1628 0%, #0f2040 100%)",
-                            border: "1px solid rgba(232,168,32,0.35)",
-                          }}>
-                            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(232,168,32,0.7), transparent)" }} />
-                            <div className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none"
-                              style={{ background: "radial-gradient(circle, rgba(232,168,32,0.08) 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
-                            <div className="relative px-4 py-3.5">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="w-5 h-5 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.18)" }}>
-                                  <Icon name="Lock" size={11} className="text-gold-400" />
-                                </div>
-                                <p className="text-[12.5px] font-semibold" style={{ color: "rgba(255,255,255,0.95)" }}>
-                                  Ответ скрыт — это ваш последний бесплатный вопрос
+                        {/* Фейд поверх текста → плавный переход в тёмный баннер */}
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-12"
+                          style={{ background: "linear-gradient(to bottom, rgba(248,250,252,0) 0%, rgba(10,22,40,0.55) 100%)" }} />
+
+                        {/* Тёмный баннер */}
+                        <div className="relative overflow-hidden" style={{
+                          background: "linear-gradient(160deg, #0a1628 0%, #0d1c38 100%)",
+                        }}>
+                          {/* Декор */}
+                          <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
+                            style={{ background: "radial-gradient(circle, rgba(232,168,32,0.07) 0%, transparent 65%)", transform: "translate(30%,-30%)" }} />
+                          <div className="absolute bottom-0 left-0 w-20 h-20 pointer-events-none"
+                            style={{ background: "radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)", transform: "translate(-30%,30%)" }} />
+
+                          <div className="relative px-3 pt-3 pb-3">
+                            {/* Заголовок */}
+                            <div className="flex items-start gap-2 mb-2">
+                              <div className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5"
+                                style={{ background: "rgba(232,168,32,0.15)" }}>
+                                <Icon name="Lock" size={12} className="text-gold-400" />
+                              </div>
+                              <div>
+                                <p className="text-[12.5px] font-semibold leading-snug" style={{ color: "rgba(255,255,255,0.95)" }}>
+                                  Это был ваш последний бесплатный вопрос
+                                </p>
+                                <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+                                  Оплатите, чтобы прочитать ответ полностью и продолжить
                                 </p>
                               </div>
-                              <p className="text-[11.5px] leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.6)" }}>
-                                Оплатите пакет, чтобы прочитать полный ответ и продолжить консультацию.
-                              </p>
-                              <div className="flex flex-col gap-2">
-                                <button
-                                  onClick={() => onRevealAnswer?.(i)}
-                                  className="w-full rounded-xl btn-gold active:scale-95 text-[12px] font-bold"
-                                  style={{ padding: "10px 14px" }}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Icon name="Zap" size={13} className="text-navy-900" />
-                                      <span className="text-navy-900">3 вопроса — читать полный ответ</span>
-                                    </div>
-                                    <span className="font-bold text-navy-900">350 ₽</span>
-                                  </div>
-                                </button>
-                                <button
-                                  onClick={onSelectPlan}
-                                  className="w-full rounded-xl text-[12px] font-medium active:scale-95 transition-all"
-                                  style={{ padding: "9px 14px", border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.8)" }}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Icon name="Star" size={12} style={{ color: "#f0c060" }} />
-                                      <span>Тарифные планы · 30–300 вопросов</span>
-                                    </div>
-                                    <Icon name="ChevronRight" size={13} style={{ color: "rgba(255,255,255,0.35)" }} />
-                                  </div>
-                                </button>
-                              </div>
-                              <p className="mt-2.5 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-                                Защищённая оплата · Доступ сразу после оплаты
-                              </p>
                             </div>
-                            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)" }} />
+
+                            {/* Разделитель */}
+                            <div className="mb-2.5" style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
+
+                            {/* Кнопки */}
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => onRevealAnswer?.(i)}
+                                className="w-full rounded-xl btn-gold active:scale-[0.98] transition-transform"
+                                style={{ padding: "11px 14px" }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Icon name="Zap" size={14} className="text-navy-900 shrink-0" />
+                                    <span className="text-navy-900 text-[12.5px] font-bold truncate">Читать полный ответ · 3 вопроса</span>
+                                  </div>
+                                  <span className="text-navy-900 text-[13px] font-bold ml-2 shrink-0">350 ₽</span>
+                                </div>
+                              </button>
+                              <button
+                                onClick={onSelectPlan}
+                                className="w-full rounded-xl active:scale-[0.98] transition-all"
+                                style={{ padding: "10px 14px", border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.05)" }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Icon name="Star" size={13} style={{ color: "#f0c060" }} className="shrink-0" />
+                                    <span className="text-[12px] font-medium truncate" style={{ color: "rgba(255,255,255,0.85)" }}>Тарифные планы · 30–300 вопросов</span>
+                                  </div>
+                                  <Icon name="ChevronRight" size={13} style={{ color: "rgba(255,255,255,0.3)" }} className="shrink-0 ml-1" />
+                                </div>
+                              </button>
+                            </div>
+
+                            <p className="mt-2 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                              Защищённая оплата · Доступ сразу после оплаты
+                            </p>
                           </div>
                         </div>
                       </div>
