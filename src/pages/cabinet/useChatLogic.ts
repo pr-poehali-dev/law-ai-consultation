@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache } from "@/lib/auth";
+import { canAskQuestion, consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -138,12 +138,40 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const truncated = data.truncated as boolean | undefined;
       const needsExpert = data.needs_expert as boolean | undefined;
       const personalDataRefused = data.personal_data_refused as boolean | undefined;
-      setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
-      setHistory((p) => [...p, { role: "assistant", content: aiText }]);
-      ymGoal("chat_question_sent");
-      // Upsell при 0 оставшихся вопросах
+
       invalidateUserCache();
       const left = await getQuestionsLeft();
+      const user = await getUser();
+      // Воронка: показываем половину ответа только если остался 1 вопрос
+      // и нет активной подписки/большого пакета (>3 вопросов)
+      const hasBigPlan = user && (
+        hasActiveSubscription(user, "consult") ||
+        user.isAdmin ||
+        user.paidQuestions > 3
+      );
+      const showFunnel = left === 1 && !hasBigPlan;
+
+      if (showFunnel) {
+        // Показываем только первую половину, полный текст сохраняем в fullAnswer
+        const half = Math.ceil(aiText.length / 2);
+        // Обрезаем по границе слова
+        const cutIdx = aiText.lastIndexOf(" ", half) || half;
+        const visibleText = aiText.slice(0, cutIdx);
+        setMessages((p) => [...p, {
+          role: "ai",
+          text: visibleText,
+          fullAnswer: aiText,
+          isLastQuestion: true,
+          truncated: false,
+          needsExpert: !!needsExpert,
+          personalDataRefused: !!personalDataRefused,
+        }]);
+      } else {
+        setMessages((p) => [...p, { role: "ai", text: aiText, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }]);
+      }
+
+      setHistory((p) => [...p, { role: "assistant", content: aiText }]);
+      ymGoal("chat_question_sent");
       refreshUser(); // обновляем UI счётчика без блокировки
       if (left === 0) {
         setTimeout(() => {
@@ -161,6 +189,29 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setTyping(false);
       setTypingStatus("");
     }
+  };
+
+  // Открываем полный ответ после оплаты (воронка продаж)
+  const revealAnswer = async (msgIndex: number) => {
+    // Сначала проверяем — появились ли вопросы после оплаты
+    invalidateUserCache();
+    const user = await getUser();
+    const canReveal = user && (
+      hasActiveSubscription(user, "consult") ||
+      user.isAdmin ||
+      user.paidQuestions > 0
+    );
+    if (!canReveal) {
+      // Вопросов ещё нет — открываем оплату
+      onPaymentRequired("consultation", "3 вопроса к AI-юристу");
+      return;
+    }
+    // Раскрываем полный ответ
+    setMessages((p) => p.map((m, i) =>
+      i === msgIndex && m.isLastQuestion && m.fullAnswer
+        ? { ...m, text: m.fullAnswer, isLastQuestion: false, fullAnswer: undefined }
+        : m
+    ));
   };
 
   const continueChat = async (partialText: string) => {
@@ -387,5 +438,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     sendFileAnalysis,
     injectAiMessage,
     removeUpsell,
+    revealAnswer,
   };
 }

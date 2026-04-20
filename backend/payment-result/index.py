@@ -131,9 +131,6 @@ def grant_service(conn, user_id: int, service_type: str):
             cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 60 WHERE id = %s", (user_id,))
         elif service_type == "business_actions_150":
             cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 150 WHERE id = %s", (user_id,))
-        elif service_type == "quick_question":
-            # Без привязки к user — просто фиксируем в orders, доступ по inv_id
-            pass
         conn.commit()
     finally:
         cur.close()

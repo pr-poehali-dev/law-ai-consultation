@@ -85,6 +85,7 @@ export default function CabinetContent({
           onSelectPlan={openPlanModal}
           onCreateDocFromMsg={createDocFromChat}
           creatingDocFromChat={creatingDocFromChat}
+          onRevealAnswer={chat.revealAnswer}
           chatEndRef={chat.chatEndRef}
           fileInputRef={chat.fileInputRef}
         />

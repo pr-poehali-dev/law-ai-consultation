@@ -31,8 +31,6 @@ PRICES = {
     "business_actions_60":   "6000.00",
     "business_actions_50":   "3500.00",
     "business_actions_150":  "9000.00",
-    # Быстрый вопрос без регистрации
-    "quick_question":        "50.00",
 }
 
 DESCRIPTIONS = {
@@ -51,7 +49,6 @@ DESCRIPTIONS = {
     "business_actions_60":   "Бизнес: +60 дополнительных действий",
     "business_actions_50":   "Бизнес: +50 дополнительных действий",
     "business_actions_150":  "Бизнес: +150 дополнительных действий",
-    "quick_question":        "Один вопрос AI-юристу без регистрации",
 }
 
 CORS = {
@@ -87,7 +84,7 @@ def _handle(event: dict, context) -> dict:
     service_type = body.get("service_type", "consultation")
     user_email = (body.get("email") or "").strip()
     user_id = body.get("user_id")
-    return_url = body.get("return_url", "https://ии-право.рф/?quick_pay=success")
+    return_url = body.get("return_url", "https://ии-право.рф/cabinet?payment=success")
 
     if service_type not in PRICES:
         return {

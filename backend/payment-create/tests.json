@@ -14,6 +14,14 @@
       "expectedStatus": 400,
       "expectedBody": {"error": "Неизвестный тип услуги: unknown_xyz"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "quick_question type not allowed",
+      "method": "POST",
+      "path": "/",
+      "body": {"service_type": "quick_question"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
     }
   ]
 }
