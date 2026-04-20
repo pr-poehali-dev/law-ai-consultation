@@ -85,10 +85,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   }, [messages, typing]);
 
   useEffect(() => {
-    // Не сохраняем upsell и fullAnswer — upsell пересчитывается при маунте, fullAnswer не хранится в storage
-    const toSave = messages
-      .filter(m => !m.isUpsell)
-      .map(m => m.fullAnswer ? { ...m, fullAnswer: undefined } : m);
+    // Не сохраняем upsell — он пересчитывается при маунте
+    // fullAnswer сохраняем: нужен для отображения воронки после перезагрузки
+    const toSave = messages.filter(m => !m.isUpsell);
     localStorage.setItem("cabinet_messages", JSON.stringify(toSave));
   }, [messages]);
 

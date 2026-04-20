@@ -311,96 +311,111 @@ export default function ChatTab({
                 <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
               );
 
-              // Сообщение с воронкой продаж (последний бесплатный вопрос)
-              if (msg.isLastQuestion && msg.fullAnswer && !typing) {
+              // ── Воронка продаж: последний вопрос ──────────────────────────
+              if (msg.isLastQuestion && msg.fullAnswer) {
                 const blurText = msg.fullAnswer.slice(Math.floor(msg.fullAnswer.length / 2));
                 return (
                   <div key={i} className="flex gap-2 items-start upsell-animate">
+                    {/* Иконка AI */}
                     <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                       <Icon name="Scale" size={13} className="text-gold-400" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      {/* Видимая часть */}
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 pt-3 pb-2 shadow-sm mb-1">
+
+                    <div className="flex-1 min-w-0 space-y-1">
+                      {/* Видимая часть ответа */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 pt-3 pb-3 shadow-sm">
                         <AnimatedMessage text={msg.text} animate={doAnim} />
                       </div>
 
-                      {/* Блюр + воронка */}
-                      <div className="relative rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-                        {/* Размытый текст */}
-                        <div className="px-3 py-2 bg-slate-50 select-none pointer-events-none"
-                          style={{ filter: "blur(4px)", opacity: 0.5, maxHeight: 72, overflow: "hidden" }}>
-                          <LegalText text={blurText} />
-                        </div>
-                        {/* Фейд поверх текста → плавный переход в тёмный баннер */}
-                        <div className="pointer-events-none absolute inset-x-0 top-0 h-12"
-                          style={{ background: "linear-gradient(to bottom, rgba(248,250,252,0) 0%, rgba(10,22,40,0.55) 100%)" }} />
+                      {/* Размытая часть */}
+                      <div
+                        className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2 select-none pointer-events-none"
+                        style={{ filter: "blur(5px)", opacity: 0.45, maxHeight: 64, overflow: "hidden" }}
+                      >
+                        <LegalText text={blurText} />
+                      </div>
 
-                        {/* Тёмный баннер */}
-                        <div className="relative overflow-hidden" style={{
-                          background: "linear-gradient(160deg, #0a1628 0%, #0d1c38 100%)",
-                        }}>
-                          {/* Декор */}
-                          <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
-                            style={{ background: "radial-gradient(circle, rgba(232,168,32,0.07) 0%, transparent 65%)", transform: "translate(30%,-30%)" }} />
-                          <div className="absolute bottom-0 left-0 w-20 h-20 pointer-events-none"
-                            style={{ background: "radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)", transform: "translate(-30%,30%)" }} />
+                      {/* Замок-баннер */}
+                      <div
+                        className="rounded-2xl overflow-hidden"
+                        style={{
+                          background: "linear-gradient(150deg, #0a1628 0%, #0e2040 100%)",
+                          border: "1px solid rgba(232,168,32,0.3)",
+                          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                        }}
+                      >
+                        {/* Золотая линия сверху */}
+                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(232,168,32,0.6), transparent)" }} />
 
-                          <div className="relative px-3 pt-3 pb-3">
-                            {/* Заголовок */}
-                            <div className="flex items-start gap-2 mb-2">
-                              <div className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5"
-                                style={{ background: "rgba(232,168,32,0.15)" }}>
-                                <Icon name="Lock" size={12} className="text-gold-400" />
-                              </div>
-                              <div>
-                                <p className="text-[12.5px] font-semibold leading-snug" style={{ color: "rgba(255,255,255,0.95)" }}>
-                                  Это был ваш последний бесплатный вопрос
-                                </p>
-                                <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-                                  Оплатите, чтобы прочитать ответ полностью и продолжить
-                                </p>
-                              </div>
+                        <div className="px-4 py-4">
+                          {/* Шапка */}
+                          <div className="flex items-center gap-2.5 mb-3">
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.2)" }}
+                            >
+                              <Icon name="Lock" size={14} className="text-gold-400" />
                             </div>
-
-                            {/* Разделитель */}
-                            <div className="mb-2.5" style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
-
-                            {/* Кнопки */}
-                            <div className="flex flex-col gap-2">
-                              <button
-                                onClick={() => onRevealAnswer?.(i)}
-                                className="w-full rounded-xl btn-gold active:scale-[0.98] transition-transform"
-                                style={{ padding: "11px 14px" }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <Icon name="Zap" size={14} className="text-navy-900 shrink-0" />
-                                    <span className="text-navy-900 text-[12.5px] font-bold truncate">Читать полный ответ · 3 вопроса</span>
-                                  </div>
-                                  <span className="text-navy-900 text-[13px] font-bold ml-2 shrink-0">350 ₽</span>
-                                </div>
-                              </button>
-                              <button
-                                onClick={onSelectPlan}
-                                className="w-full rounded-xl active:scale-[0.98] transition-all"
-                                style={{ padding: "10px 14px", border: "1px solid rgba(255,255,255,0.13)", background: "rgba(255,255,255,0.05)" }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <Icon name="Star" size={13} style={{ color: "#f0c060" }} className="shrink-0" />
-                                    <span className="text-[12px] font-medium truncate" style={{ color: "rgba(255,255,255,0.85)" }}>Тарифные планы · 30–300 вопросов</span>
-                                  </div>
-                                  <Icon name="ChevronRight" size={13} style={{ color: "rgba(255,255,255,0.3)" }} className="shrink-0 ml-1" />
-                                </div>
-                              </button>
+                            <div>
+                              <p className="text-[13px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.95)" }}>
+                                Это ваш последний вопрос
+                              </p>
+                              <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                                Продолжение ответа скрыто до оплаты
+                              </p>
                             </div>
-
-                            <p className="mt-2 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>
-                              Защищённая оплата · Доступ сразу после оплаты
-                            </p>
                           </div>
+
+                          {/* Разделитель */}
+                          <div className="mb-3" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+
+                          {/* Кнопка 1 — 3 вопроса */}
+                          <button
+                            onClick={() => onRevealAnswer?.(i)}
+                            className="w-full rounded-xl btn-gold active:scale-[0.98] transition-transform mb-2"
+                            style={{ padding: "12px 16px" }}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <Icon name="Zap" size={15} className="text-navy-900 shrink-0" />
+                                <div className="text-left">
+                                  <p className="text-navy-900 text-[13px] font-bold leading-tight">3 вопроса к AI-юристу</p>
+                                  <p className="text-[10.5px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>Читать полный ответ прямо сейчас</p>
+                                </div>
+                              </div>
+                              <span className="text-navy-900 text-[15px] font-bold ml-3 shrink-0">350 ₽</span>
+                            </div>
+                          </button>
+
+                          {/* Кнопка 2 — тарифы */}
+                          <button
+                            onClick={onSelectPlan}
+                            className="w-full rounded-xl active:scale-[0.98] transition-all"
+                            style={{
+                              padding: "11px 16px",
+                              border: "1px solid rgba(255,255,255,0.12)",
+                              background: "rgba(255,255,255,0.05)",
+                            }}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <Icon name="Crown" size={14} style={{ color: "#f0c060" }} className="shrink-0" />
+                                <div className="text-left">
+                                  <p className="text-[12.5px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Тарифные планы</p>
+                                  <p className="text-[10.5px]" style={{ color: "rgba(255,255,255,0.4)" }}>30–300 вопросов + документы</p>
+                                </div>
+                              </div>
+                              <Icon name="ChevronRight" size={15} style={{ color: "rgba(255,255,255,0.3)" }} className="shrink-0 ml-2" />
+                            </div>
+                          </button>
+
+                          <p className="mt-3 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                            Защищённая оплата · ЮКасса · Доступ сразу
+                          </p>
                         </div>
+
+                        {/* Нижняя линия */}
+                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }} />
                       </div>
                     </div>
                   </div>
