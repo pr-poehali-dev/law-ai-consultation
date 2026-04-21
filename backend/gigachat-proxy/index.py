@@ -337,29 +337,49 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
 
     if comment:
         system_prompt = SYSTEM_FILE_QA_PROMPT
-        user_content = f"Вопрос пользователя: {comment}\n\nТекст документа:\n\n{clean_text[:TEXT_LIMIT]}"
+        user_content = f"Вопрос: {comment}\n\nДокумент:\n\n{clean_text[:TEXT_LIMIT]}"
     else:
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
-        user_content = f"Документ:\n\n{clean_text[:TEXT_LIMIT]}"
+        user_content = f"Документ для анализа:\n\n{clean_text[:TEXT_LIMIT]}"
 
-    messages_ds = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
-
-    # Попытка 1: DeepSeek — лучшее качество юридического анализа
-    # timeout=45с: если не успел — быстро переключаемся на YandexGPT
+    # YandexGPT — стабилен, отвечает за 5–15с, хорошо справляется с юридическими текстами
+    # Попытка 1: стандартные параметры
     try:
-        result = _call_openai_compat(messages=messages_ds, max_tokens=2000, temperature=0.2, timeout=45)
-        if result and len(result.strip()) > 100:
-            print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+        result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
+                             max_tokens=2000, fast=True, temperature=0.2)
+        if result and len(result.strip()) > 150:
+            print(f"[FILE_ANALYZE] YandexGPT OK: {len(result)} симв")
             return result
-        print(f"[FILE_ANALYZE] DeepSeek вернул короткий ответ ({len(result)} симв), fallback Yandex")
+        print(f"[FILE_ANALYZE] YandexGPT короткий ответ ({len(result.strip())} симв), retry")
     except Exception as e1:
-        print(f"[FILE_ANALYZE] DeepSeek упал: {e1}, fallback YandexGPT")
+        print(f"[FILE_ANALYZE] YandexGPT попытка 1 упала: {e1}")
 
-    # Попытка 2: YandexGPT Fast — быстро и стабильно
-    result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
-                         max_tokens=2000, fast=True, temperature=0.2)
-    print(f"[FILE_ANALYZE] YandexGPT Fast OK: {len(result)} симв")
-    return result
+    # Попытка 2: упрощённый запрос без system prompt — Yandex иногда лучше отвечает без него
+    try:
+        simple_content = (
+            f"Ты юрист РФ. Проанализируй документ юридически: опиши тип документа, выяви правовые риски со статьями закона, дай рекомендации.\n\nДокумент:\n{clean_text[:TEXT_LIMIT]}"
+            if not comment else
+            f"Ты юрист РФ. Ответь на вопрос по документу.\n\nВопрос: {comment}\n\nДокумент:\n{clean_text[:TEXT_LIMIT]}"
+        )
+        resp = _http.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {iam_token}"},
+            json={
+                "model": YANDEX_MODEL_FAST,
+                "messages": [{"role": "user", "content": simple_content}],
+                "max_tokens": 2000,
+                "temperature": 0.3,
+                "stream": False,
+            },
+            timeout=25,
+        )
+        resp.raise_for_status()
+        result = resp.json()["choices"][0]["message"]["content"]
+        print(f"[FILE_ANALYZE] YandexGPT retry OK: {len(result)} симв")
+        return result
+    except Exception as e2:
+        print(f"[FILE_ANALYZE] YandexGPT попытка 2 упала: {e2}")
+        raise
 
 
 CORS = {
@@ -934,7 +954,7 @@ def handler(event: dict, context) -> dict:
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=70)  # DeepSeek 45с + YandexGPT fallback 20с + overhead
+            t_analysis.join(timeout=55)  # YandexGPT попытка1 25с + попытка2 25с + overhead
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
