@@ -50,6 +50,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&family=Cormorant:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet"/>
 
+    <!-- Кэш: index.html никогда не кэшировать — иначе после деплоя браузер грузит старый HTML со старыми JS-чанками -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Expires" content="0"/>
+
     <!-- Безопасность: Content Security Policy -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN"/>
