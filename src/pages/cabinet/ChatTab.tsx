@@ -463,8 +463,8 @@ export default function ChatTab({
                           <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
                         </button>
                       )}
-                      {/* Кнопка создания документа из ответа AI */}
-                      {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && (
+                      {/* Кнопка создания документа из ответа AI — только на последнем сообщении */}
+                      {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && (
                         <button
                           onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                           disabled={creatingDocFromChat}

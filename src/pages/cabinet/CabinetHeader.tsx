@@ -135,10 +135,11 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
                 tab === t.id ? "text-navy-700" : "text-muted-foreground"
               }`}
             >
-              <div className={`w-8 h-6 flex items-center justify-center rounded-full transition-colors ${tab === t.id ? "bg-navy-100" : ""}`}>
-                <Icon name={t.icon} size={17} />
+              <div className={`w-10 h-6 flex items-center justify-center rounded-full transition-all ${tab === t.id ? "bg-navy-100" : ""}`}>
+                <Icon name={t.icon} size={17} className={tab === t.id ? "text-navy-700" : "text-slate-400"} />
               </div>
               <span className="leading-none">{t.label}</span>
+              <div className={`w-1 h-1 rounded-full mt-0.5 transition-all ${tab === t.id ? "bg-navy-600 scale-100" : "bg-transparent scale-0"}`} />
             </button>
           ))}
         </div>

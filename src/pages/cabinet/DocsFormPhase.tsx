@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
@@ -57,6 +58,15 @@ export default function DocsFormPhase({
   onSetPhase,
   onSelectPlan,
 }: DocsFormPhaseProps) {
+  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // При смене типа документа — фокус на поле ввода (только десктоп)
+  useEffect(() => {
+    if (window.innerWidth >= 1024) {
+      desktopTextareaRef.current?.focus();
+    }
+  }, [docType.id]);
+
   return (
     <>
     {/* ── МОБИЛЬ: список типов + история + sticky-панель снизу ── */}
@@ -137,7 +147,7 @@ export default function DocsFormPhase({
       </div>
 
       {/* Sticky-панель снизу на мобиле */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-border px-4 pt-3 pb-[calc(56px+env(safe-area-inset-bottom,0px))] shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border px-4 pt-3 pb-[calc(56px+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <p className="text-xs text-navy-500 font-medium mb-1.5">
           <Icon name="FileText" size={11} className="inline mr-1 mb-0.5" />
           {docType.label}
@@ -211,6 +221,7 @@ export default function DocsFormPhase({
           </h3>
           <p className="text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
           <textarea
+            ref={desktopTextareaRef}
             value={docDetails}
             onChange={(e) => onDocDetailsChange(e.target.value)}
             disabled={docGenerating}
