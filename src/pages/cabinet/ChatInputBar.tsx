@@ -12,7 +12,7 @@ interface ChatInputBarProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   onInputChange: (v: string) => void;
   onSend: () => void;
-  onSendFile: () => void;
+  onSendFile: (comment: string) => void;
   onAttachClick: () => void;
   onClearFile: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -54,19 +54,26 @@ export default function ChatInputBar({
     }
   }, [input]);
 
-  // Отправка — читаем из native ref, не из state
+  // Отправка — читаем из native ref, не из state (важно для iOS Safari)
   const handleSend = () => {
-    const text = nativeInputRef.current?.value?.trim() || input.trim();
-    if (!text && !attachedFile) return;
-    if (!nativeInputRef.current?.value?.trim() && input.trim()) {
-      // state уже есть — просто отправляем
-    } else if (nativeInputRef.current?.value?.trim()) {
-      // Обновляем state из native ref перед отправкой
-      onInputChange(nativeInputRef.current.value);
-    }
+    // Берём текст ВСЕГДА из native ref — он актуальнее React-стейта на iOS
+    const nativeVal = nativeInputRef.current?.value ?? "";
+    const comment = nativeVal.trim() || input.trim();
+
+    if (!comment && !attachedFile) return;
+
     if (attachedFile) {
-      onSendFile();
+      // Очищаем textarea немедленно через ref (до async setState)
+      if (nativeInputRef.current) {
+        nativeInputRef.current.value = "";
+        nativeInputRef.current.style.height = "44px";
+      }
+      onInputChange(""); // синхронизируем стейт
+      onSendFile(comment); // передаём комментарий явно — без race condition
     } else {
+      if (nativeVal.trim()) {
+        onInputChange(nativeVal); // синхронизируем стейт перед отправкой
+      }
       onSend();
     }
   };

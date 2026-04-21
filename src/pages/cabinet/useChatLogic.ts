@@ -362,7 +362,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     e.target.value = "";
   };
 
-  const sendFileAnalysis = async () => {
+  // comment передаётся явным параметром из ChatInputBar (native ref) — без iOS race condition
+  const sendFileAnalysis = async (commentFromInput?: string) => {
     if (!attachedFile || typing) return;
 
     // Свежая проверка баланса (без кэша)
@@ -380,7 +381,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       return;
     }
 
-    const comment = input.trim();
+    // Приоритет: явный параметр (из native ref) → стейт (fallback)
+    const comment = (commentFromInput ?? input).trim();
     const file = attachedFile;
     setAttachedFile(null);
     setInput("");

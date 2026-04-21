@@ -21,7 +21,7 @@ interface ChatTabProps {
   totalLeft: number;
   onInputChange: (v: string) => void;
   onSend: () => void;
-  onSendFile: () => void;
+  onSendFile: (comment: string) => void;
   onContinueChat: (partialText: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAttachClick: () => void;
