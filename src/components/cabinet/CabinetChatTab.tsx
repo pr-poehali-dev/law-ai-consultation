@@ -49,7 +49,7 @@ export default function CabinetChatTab({
             className="btn-gold px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1"
           >
             <Icon name="Zap" size={12} />
-            100 ₽ / 3 вопроса
+            350 ₽ / 3 вопроса
           </button>
         )}
       </div>

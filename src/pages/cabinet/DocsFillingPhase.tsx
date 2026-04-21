@@ -115,7 +115,7 @@ export default function DocsFillingPhase({
             <Icon name="Bot" size={15} />
             {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
               ? "Проанализировать AI-юристом"
-              : "Проанализировать AI · 100 ₽"}
+              : "Проанализировать AI · 350 ₽"}
           </button>
           <button
             onClick={onOpenReport}
@@ -157,7 +157,7 @@ export default function DocsFillingPhase({
           <Icon name="Bot" size={15} />
           {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
             ? "Проанализировать AI-юристом"
-            : "Проанализировать AI · 100 ₽"}
+            : "Проанализировать AI · 350 ₽"}
         </button>
       </div>
     </div>
