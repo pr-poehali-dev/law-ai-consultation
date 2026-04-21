@@ -270,7 +270,6 @@ def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
 
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    # Лимит текста: 5000 симв достаточно для юридического анализа, ускоряет ответ в 1.5–2x
     TEXT_LIMIT = 5000
     if comment:
         system_prompt = SYSTEM_FILE_QA_PROMPT
@@ -278,38 +277,19 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     else:
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
         user_content = f"Документ:\n\n{text[:TEXT_LIMIT]}"
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content},
-    ]
-    # Используем быструю модель — YandexGPT отвечает за 3–8с vs 20–50с у DeepSeek
-    # При отказе YandexGPT — fallback на основную модель
+
+    # Попытка 1: YandexGPT Fast — быстро (3–8с), надёжно для юридических документов
     try:
-        resp = _http.post(
-            "https://llm.api.cloud.yandex.net/v1/chat/completions",
-            headers={"Authorization": f"Api-Key {iam_token}"},
-            json={
-                "model": YANDEX_MODEL_FAST,
-                "messages": messages,
-                "max_tokens": 2000,
-                "temperature": 0.2,
-                "stream": False,
-            },
-            timeout=25,
-        )
-        resp.raise_for_status()
-        result = resp.json()["choices"][0]["message"]["content"]
-        # Если YandexGPT отказал по теме — пробуем DeepSeek
-        if is_refusal(result):
-            print("[FILE_ANALYZE] YandexGPT отказал, fallback на DeepSeek")
-            raise ValueError("refusal")
-        print(f"[FILE_ANALYZE] YandexGPT Fast: {len(result)} симв")
+        result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
+                             max_tokens=2000, fast=True, temperature=0.2)
+        print(f"[FILE_ANALYZE] YandexGPT Fast OK: {len(result)} симв")
         return result
     except Exception as e1:
-        if "refusal" not in str(e1):
-            print(f"[FILE_ANALYZE] YandexGPT Fast упал: {e1}, fallback на DeepSeek")
-    # Fallback — основная модель (DeepSeek), timeout=40с
-    return _call_openai_compat(messages=messages, max_tokens=2000, temperature=0.2, timeout=40)
+        print(f"[FILE_ANALYZE] YandexGPT Fast упал: {e1}, fallback DeepSeek")
+
+    # Попытка 2: DeepSeek — надёжный fallback, timeout=45с
+    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
+    return _call_openai_compat(messages=messages, max_tokens=2000, temperature=0.2, timeout=45)
 
 
 CORS = {

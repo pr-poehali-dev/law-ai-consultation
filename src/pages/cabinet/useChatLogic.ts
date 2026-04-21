@@ -29,6 +29,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  // ref всегда хранит актуальное значение истории — нужен для async функций
+  const historyRef = useRef<{ role: string; content: string }[]>([]);
+  useEffect(() => { historyRef.current = history; }, [history]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [typingStatus, setTypingStatus] = useState("");
@@ -122,7 +125,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setTyping(true);
     setTypingStatus("Анализирую запрос...");
 
-    const newHist = [...history, { role: "user", content: userMsg }];
+    // historyRef.current всегда актуален — даже если setHistory ещё не сфлашился
+    const newHist = [...historyRef.current, { role: "user", content: userMsg }];
     setHistory(newHist);
 
     // Сервер сам определяет — был ли этот вопрос последним
@@ -478,6 +482,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       }
 
       const fileNames = files.map(f => f.name).join(", ");
+      // Записываем в историю: пользователь + ответ AI (для уточняющих вопросов)
       setHistory((p) => [...p,
         { role: "user", content: `Я загрузил документ${files.length > 1 ? "ы" : ""}: ${fileNames}${comment ? `. Мой вопрос: ${comment}` : ""}` },
         { role: "assistant", content: aiText },
@@ -485,6 +490,12 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
       setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
+      // При ошибке тоже пишем в историю — без ответа, только запрос пользователя
+      // Это позволит задать уточняющий вопрос вручную
+      const fileNames = files.map(f => f.name).join(", ");
+      setHistory((p) => [...p,
+        { role: "user", content: `Я загрузил документ${files.length > 1 ? "ы" : ""}: ${fileNames}${comment ? `. Мой вопрос: ${comment}` : ""}` },
+      ]);
     } finally {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
@@ -576,7 +587,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
-      // Ответ AI содержит весь нужный контекст для уточняющих вопросов
       setHistory((p) => [...p,
         { role: "user", content: `Я загрузил документ: ${docName}` },
         { role: "assistant", content: aiText },
@@ -584,6 +594,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     } catch (e) {
       setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
       setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
+      setHistory((p) => [...p, { role: "user", content: `Я загрузил документ: ${docName}` }]);
     } finally {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
