@@ -458,11 +458,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
-      // Сохраняем в историю — с текстом документа как контекстом для следующих вопросов
-      const extractedText = data.extracted_text as string | undefined;
-      const docContext = extractedText ? `\n\n[Текст документа для контекста]:\n${extractedText.slice(0, 5000)}` : "";
+      // Сохраняем в историю: ответ AI содержит весь нужный контекст для уточняющих вопросов
       setHistory((p) => [...p,
-        { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}${docContext}` },
+        { role: "user", content: `Я загрузил документ: ${file.name}${comment ? `. Мой вопрос: ${comment}` : ""}` },
         { role: "assistant", content: aiText },
       ]);
     } catch (e) {
@@ -559,10 +557,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
-      // Сохраняем с текстом документа — последующие вопросы будут иметь контекст
-      const docContext = `\n\n[Текст документа для контекста]:\n${docText.slice(0, 5000)}`;
+      // Ответ AI содержит весь нужный контекст для уточняющих вопросов
       setHistory((p) => [...p,
-        { role: "user", content: `Анализ документа: ${docName}${docContext}` },
+        { role: "user", content: `Я загрузил документ: ${docName}` },
         { role: "assistant", content: aiText },
       ]);
     } catch (e) {
