@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getUser, type User, getToken, startKeepAlive } from "@/lib/auth";
+import { getUser, type User, getToken, startKeepAlive, invalidateUserCache } from "@/lib/auth";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -84,8 +84,8 @@ export default function Cabinet() {
     if (tabParam && ["chat", "docs", "expert", "business", "history", "profile"].includes(tabParam)) {
       setTab(tabParam);
     }
-    // Таймаут 8 сек — если проверка зависла (оффлайн), показываем экран ошибки
-    const timeoutId = setTimeout(() => setAuthTimeout(true), 8000);
+    // Таймаут 20 сек — iOS PWA после сна может долго стартовать (cold start + retry)
+    const timeoutId = setTimeout(() => setAuthTimeout(true), 20000);
 
     getUser().then((u) => {
       clearTimeout(timeoutId);
@@ -97,8 +97,27 @@ export default function Cabinet() {
       }
       setUser(u);
     });
+
+    // visibilitychange: при возврате в PWA после долгого сна — обновляем данные пользователя
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      invalidateUserCache();
+      getUser().then((u) => {
+        if (!u) {
+          window.location.replace("/?login=1");
+        } else {
+          setUser(u);
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     const stopKeepAlive = startKeepAlive();
-    return () => { stopKeepAlive(); clearTimeout(timeoutId); };
+    return () => {
+      stopKeepAlive();
+      clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 

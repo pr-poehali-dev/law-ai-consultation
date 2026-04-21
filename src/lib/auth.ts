@@ -133,28 +133,38 @@ export async function getUser(): Promise<User | null> {
   // Дедупликация — если запрос уже летит, ждём его
   if (_userPromise) return _userPromise;
   _userPromise = (async () => {
-    try {
-      const res = await apiCall({ action: "me" });
-      if (!res.ok) {
-        // 401 — токен точно невалиден, чистим
-        if (res.status === 401) {
-          clearToken();
-          _userCache = { user: null, ts: Date.now() };
-          return null;
+    // Два попытки: iOS PWA после сна может иметь нестабильный сигнал
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await apiCall({ action: "me" }, 20000);
+        if (!res.ok) {
+          // 401 — токен точно невалиден, чистим
+          if (res.status === 401) {
+            clearToken();
+            _userCache = { user: null, ts: Date.now() };
+            return null;
+          }
+          // Другие ошибки сервера (500, 502) — возвращаем кэш чтобы не выбивать из приложения
+          return _userCache?.user ?? null;
         }
-        // Другие ошибки сервера (500, 502) — возвращаем кэш чтобы не выбивать из приложения
-        return _userCache?.user ?? null;
+        const data = await res.json();
+        const user = data.user || null;
+        _userCache = { user, ts: Date.now() };
+        return user;
+      } catch {
+        // Сетевая ошибка — если есть хоть какой-то кэш (даже устаревший), не выбиваем пользователя
+        if (_userCache?.user) return _userCache.user;
+        // Первая попытка упала — ждём и повторяем (холодный старт PWA)
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 2500));
+          continue;
+        }
+        // Обе попытки упали и кэша нет — токен есть, но сеть недоступна
+        // Возвращаем null только если токена нет, иначе держим пользователя внутри
+        return getToken() ? null : null;
       }
-      const data = await res.json();
-      const user = data.user || null;
-      _userCache = { user, ts: Date.now() };
-      return user;
-    } catch {
-      // Сетевая ошибка (оффлайн, таймаут) — возвращаем кэш, не выбиваем пользователя
-      return _userCache?.user ?? null;
-    } finally {
-      _userPromise = null;
     }
+    return null;
   })();
   return _userPromise;
 }
