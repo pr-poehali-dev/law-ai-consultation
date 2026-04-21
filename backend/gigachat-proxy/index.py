@@ -669,78 +669,112 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
 
-        # ── Анализ загруженного файла ──
+        # ── Анализ загруженного файла (до 3 файлов одновременно) ──
         elif mode == "file_analyze":
-            file_b64 = body.get("file", "")
-            filename = body.get("filename", "document")
             comment = body.get("comment", "").strip()
+            iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
+            mime_map = {
+                "pdf": "application/pdf",
+                "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg",
+                "png": "image/png", "txt": "text/plain",
+            }
 
-            if not file_b64:
+            # Собираем файлы: поддержка как одного файла (file/filename), так и массива (files[])
+            raw_files = body.get("files", [])
+            if not raw_files:
+                f_b64 = body.get("file", "")
+                f_name = body.get("filename", "document")
+                if f_b64:
+                    raw_files = [{"file": f_b64, "filename": f_name}]
+
+            if not raw_files:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "file required"}, ensure_ascii=False)}
 
-            file_data = base64.b64decode(file_b64)
-            if len(file_data) > MAX_FILE_MB * 1024 * 1024:
+            if len(raw_files) > 3:
+                raw_files = raw_files[:3]
+
+            # ── Извлекаем текст из каждого файла ──
+            file_texts = []     # список (filename, text, ocr_b64_or_None)
+            filenames_list = []
+            first_ocr_b64 = None  # для vision-fallback если все файлы — фото без OCR
+
+            for fi in raw_files:
+                fb64 = fi.get("file", "")
+                fname = fi.get("filename", "document")
+                if not fb64:
+                    continue
+                fdata = base64.b64decode(fb64)
+                if len(fdata) > MAX_FILE_MB * 1024 * 1024:
+                    continue  # пропускаем слишком большой файл
+                ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+                if ext not in ALLOWED_EXTS:
+                    continue
+                # Загружаем в S3 в фоне
+                ct = mime_map.get(ext, "application/octet-stream")
+                def _bg_up(d=fdata, n=fname, c=ct):
+                    try:
+                        s3 = get_s3(); save_temp_file(s3, d, n, c); cleanup_temp_files(s3)
+                    except Exception: pass
+                threading.Thread(target=_bg_up, daemon=True).start()
+
+                if ext == "pdf":
+                    t = extract_pdf_text(fdata)
+                    file_texts.append((fname, t, None))
+                elif ext in ("docx", "doc"):
+                    t = extract_docx_text(fdata)
+                    file_texts.append((fname, t, None))
+                elif ext == "txt":
+                    t = fdata.decode("utf-8", errors="replace")[:12000]
+                    file_texts.append((fname, t, None))
+                else:  # изображения
+                    compressed = _compress_image(fdata, max_bytes=700_000)
+                    ocr_b64 = base64.b64encode(compressed).decode("utf-8")
+                    t = extract_image_text_ocr(compressed, ext)
+                    if not t or len(t.strip()) < 15:
+                        if first_ocr_b64 is None:
+                            first_ocr_b64 = ocr_b64
+                        file_texts.append((fname, "", ocr_b64))
+                    else:
+                        file_texts.append((fname, t, None))
+                filenames_list.append(fname)
+
+            if not file_texts:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-                        "body": json.dumps({"error": f"Файл слишком большой. Максимум {MAX_FILE_MB} МБ."}, ensure_ascii=False)}
+                        "body": json.dumps({"error": "Не удалось обработать файлы. Проверьте формат и размер."}, ensure_ascii=False)}
 
-            ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-            if ext not in ALLOWED_EXTS:
-                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-                        "body": json.dumps({"error": f"Формат .{ext} не поддерживается. Допустимые: PDF, DOCX, DOC, JPEG, JPG, PNG, TXT."}, ensure_ascii=False)}
+            # ── Собираем объединённый текст ──
+            combined_parts = []
+            all_ocr_failed = True
+            for fname, txt, ocr_b64 in file_texts:
+                if txt and len(txt.strip()) >= 15:
+                    all_ocr_failed = False
+                    label = f"[Файл: {fname}]" if len(file_texts) > 1 else ""
+                    combined_parts.append(f"{label}\n{txt.strip()}" if label else txt.strip())
 
-            mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png",
-                        "txt": "text/plain"}
-            content_type = mime_map.get(ext, "application/octet-stream")
-            def _bg_upload():
+            combined_text = "\n\n---\n\n".join(combined_parts)
+
+            # ── Vision-fallback: если фото без OCR-текста — отправляем изображение в модель ──
+            if all_ocr_failed and first_ocr_b64:
                 try:
-                    s3 = get_s3()
-                    save_temp_file(s3, file_data, filename, content_type)
-                    cleanup_temp_files(s3)
-                except Exception:
-                    pass
-            threading.Thread(target=_bg_upload, daemon=True).start()
-
-            is_image_file = ext in ("jpg", "jpeg", "png")
-            ocr_failed = False
-            ocr_b64 = None
-
-            if ext == "pdf":
-                text = extract_pdf_text(file_data)
-            elif ext in ("docx", "doc"):
-                text = extract_docx_text(file_data)
-            elif ext == "txt":
-                text = file_data.decode("utf-8", errors="replace")[:12000]
-            else:
-                compressed = _compress_image(file_data, max_bytes=700_000)
-                ocr_b64 = base64.b64encode(compressed).decode("utf-8")
-                text = extract_image_text_ocr(compressed, ext)
-                if not text or len(text.strip()) < 15:
-                    ocr_failed = True
-                    text = ""
-
-            iam_token = os.environ["YANDEX_IAM_TOKEN"].strip()
-
-            if ocr_failed and ocr_b64:
-                try:
+                    n_files = len(file_texts)
+                    vision_intro = (
+                        f"Ты — опытный юрист РФ. Пользователь загрузил {'фото документа' if n_files == 1 else f'{n_files} фото документов'}.\n\n"
+                    )
+                    vision_task = (
+                        f"Вопрос пользователя: {comment}\n\nОтвечай СТРОГО на этот вопрос, используя документ как источник фактов. "
+                        "Не делай общий анализ — только ответ со ссылками на статьи законов РФ."
+                        if comment else
+                        "СТРОГО ЗАПРЕЩЕНО: пересказывать текст документа.\n\n"
+                        "Дай краткое практическое юридическое заключение:\n"
+                        "**Тип и суть** — одной фразой.\n"
+                        "**Правовые риски** — со статьёй закона РФ: 🔴 критично / 🟡 существенно / 🟢 незначительно.\n"
+                        "**Что делать** — 1–3 практических шага."
+                    )
                     user_msg_content = [
-                        {"type": "text", "text": (
-                            "Ты — опытный юрист РФ. Пользователь загрузил фото документа.\n\n"
-                            + (
-                                f"Вопрос пользователя: {comment}\n\n"
-                                "Отвечай СТРОГО на этот вопрос, используя содержимое документа на фото как источник фактов. "
-                                "Не делай общий анализ — только ответ на вопрос со ссылками на статьи законов РФ."
-                                if comment else
-                                "СТРОГО ЗАПРЕЩЕНО: пересказывать текст документа.\n\n"
-                                "Дай краткое практическое юридическое заключение:\n"
-                                "**Тип и суть** — одной фразой что это за документ.\n"
-                                "**Правовые риски** — с указанием статьи закона РФ, приоритет: 🔴 критично / 🟡 существенно / 🟢 незначительно.\n"
-                                "**Что делать** — 1–3 практических шага."
-                            )
-                            + "\n\nЕсли фото нечёткое — скажи об этом и проанализируй видимое."
-                        )},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{ocr_b64}"}},
+                        {"type": "text", "text": vision_intro + vision_task + "\n\nЕсли фото нечёткое — скажи об этом."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{first_ocr_b64}"}},
                     ]
                     vision_resp = requests.post(
                         "https://llm.api.cloud.yandex.net/v1/chat/completions",
@@ -748,69 +782,62 @@ def handler(event: dict, context) -> dict:
                         json={
                             "model": "gpt://b1g2k5n3ojr7ik7lv73l/yandexgpt-vision-lite/latest",
                             "messages": [{"role": "user", "content": user_msg_content}],
-                            "max_tokens": 2000,
-                            "temperature": 0.1,
+                            "max_tokens": 2000, "temperature": 0.1,
                         },
                         timeout=30,
                     )
                     if vision_resp.ok:
                         answer = vision_resp.json()["choices"][0]["message"]["content"]
                         return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                                "body": json.dumps({"answer": answer, "filename": filename,
+                                "body": json.dumps({"answer": answer, "filename": filenames_list[0],
                                                     "delete_at": int(time.time()) + FILE_TTL}, ensure_ascii=False)}
                 except Exception:
                     pass
 
-            if not text or len(text.strip()) < 20:
+            if not combined_text or len(combined_text.strip()) < 20:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-                        "body": json.dumps({"error": "Не удалось извлечь текст из файла. Попробуйте PDF или DOCX."}, ensure_ascii=False)}
+                        "body": json.dumps({"error": "Не удалось извлечь текст из файлов. Попробуйте PDF или DOCX."}, ensure_ascii=False)}
 
-            # Параллельно: анализ документа + генерация подсказки для создания документа
+            # ── Параллельно: анализ + подсказка для создания документа ──
             analysis_result = [None]
             analysis_error = [None]
             hint_result = [None]
+            n_files = len(file_texts)
+            combined_filename = filenames_list[0] if len(filenames_list) == 1 else f"{filenames_list[0]} +{len(filenames_list)-1}"
 
             def _do_analysis():
                 try:
-                    analysis_result[0] = analyze_file_with_yandex(text, comment, iam_token)
+                    analysis_result[0] = analyze_file_with_yandex(combined_text, comment, iam_token)
                 except Exception as _ae:
                     analysis_error[0] = str(_ae)
                     print(f"[FILE_ANALYZE] Поток упал: {_ae}")
 
             def _do_hint():
                 doc_types_list = "claim — исковое заявление, pretension — досудебная претензия, complaint — жалоба, application — заявление/ходатайство, notification — уведомление, order — приказ, contract — договор ГПХ, business_contract — коммерческий договор, court_speech — судебная речь, response_to_claim — отзыв на исковое заявление, objection — возражение, appeal — апелляционная жалоба, cassation — кассационная жалоба, supervisory — надзорная жалоба"
+                doc_intro = f"Пользователь загрузил {n_files} документа" if n_files > 1 else "Пользователь загрузил документ"
                 if comment:
-                    # Пользователь явно указал что нужно — это приоритет
                     hint_prompt = (
-                        f"Ты — помощник юриста. Пользователь загрузил документ и ЯВНО УКАЗАЛ какой документ нужно составить.\n\n"
+                        f"Ты — помощник юриста. {doc_intro} и ЯВНО УКАЗАЛ какой документ нужно составить.\n\n"
                         f"ЗАПРОС ПОЛЬЗОВАТЕЛЯ (ПРИОРИТЕТ): {comment}\n\n"
                         f"Доступные типы документов: {doc_types_list}\n\n"
-                        f"Текст загруженного документа (используй как источник фактов):\n{text[:5000]}\n\n"
-                        f"Определи doc_type строго по запросу пользователя. Извлеки из документа все факты: стороны, суммы, даты, адреса, номера дел.\n"
-                        f"Ответь СТРОГО в JSON без пояснений:\n"
-                        f'{{\"doc_type\": \"id_типа\", \"details\": \"подробное описание ситуации и всех фактов для составления документа\", \"doc_label\": \"название документа на русском\"}}'
+                        f"Текст документов:\n{combined_text[:5000]}\n\n"
+                        f"Определи doc_type строго по запросу. Извлеки все факты: стороны, суммы, даты, адреса, номера дел.\n"
+                        f"Ответь СТРОГО в JSON:\n"
+                        f'{{\"doc_type\": \"id_типа\", \"details\": \"подробное описание\", \"doc_label\": \"название на русском\"}}'
                     )
                 else:
-                    # Нет запроса — определяем ответный документ сами
                     hint_prompt = (
-                        f"Ты — помощник юриста. Изучи текст документа и определи какой ответный или связанный документ нужно составить.\n"
-                        f"Извлеки из документа все известные факты: стороны (ФИО, организации), суммы, даты, адреса, суть спора, реквизиты дела.\n\n"
-                        f"Доступные типы документов: {doc_types_list}\n\n"
-                        f"Текст документа:\n{text[:5000]}\n\n"
-                        f"Ответь СТРОГО в JSON без пояснений:\n"
-                        f'{{\"doc_type\": \"id_типа\", \"details\": \"подробное описание ситуации и всех фактов для составления документа\", \"doc_label\": \"название документа на русском\"}}'
+                        f"Ты — помощник юриста. {doc_intro}. Определи какой ответный документ нужно составить.\n"
+                        f"Доступные типы: {doc_types_list}\n\nТекст:\n{combined_text[:5000]}\n\n"
+                        f"Ответь СТРОГО в JSON:\n"
+                        f'{{\"doc_type\": \"id_типа\", \"details\": \"подробное описание\", \"doc_label\": \"название на русском\"}}'
                     )
                 try:
                     resp = requests.post(
                         "https://llm.api.cloud.yandex.net/v1/chat/completions",
                         headers={"Authorization": f"Api-Key {iam_token}", "Content-Type": "application/json"},
-                        json={
-                            "model": YANDEX_MODEL_FAST,
-                            "messages": [{"role": "user", "content": hint_prompt}],
-                            "max_tokens": 800,
-                            "temperature": 0.1,
-                            "stream": False,
-                        },
+                        json={"model": YANDEX_MODEL_FAST, "messages": [{"role": "user", "content": hint_prompt}],
+                              "max_tokens": 800, "temperature": 0.1, "stream": False},
                         timeout=30,
                     )
                     resp.raise_for_status()
@@ -826,20 +853,19 @@ def handler(event: dict, context) -> dict:
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=52)  # HTTP timeout=50 + 2с overhead
+            t_analysis.join(timeout=52)
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
-                # Если поток завис (timeout) — даём понятную ошибку
                 err_msg = "Анализ занял слишком много времени. Попробуйте ещё раз — обычно это разовый сбой." if not analysis_error[0] else "Не удалось проанализировать документ. Попробуйте ещё раз."
                 return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": err_msg}, ensure_ascii=False)}
 
             response_data = {
                 "answer": analysis_result[0],
-                "filename": filename,
+                "filename": combined_filename,
                 "delete_at": int(time.time()) + FILE_TTL,
-                "extracted_text": text[:6000],
+                "extracted_text": combined_text[:6000],
             }
             if hint_result[0]:
                 response_data["doc_hint"] = hint_result[0]

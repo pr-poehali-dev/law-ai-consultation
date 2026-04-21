@@ -59,7 +59,7 @@ export default function CabinetContent({
           typing={chat.typing}
           typingStatus={chat.typingStatus}
           chatErr={chat.chatErr}
-          attachedFile={chat.attachedFile}
+          attachedFiles={chat.attachedFiles}
           fileUploading={chat.fileUploading}
           totalLeft={totalLeft}
           onInputChange={chat.setInput}
@@ -68,7 +68,7 @@ export default function CabinetContent({
           onContinueChat={chat.continueChat}
           onFileSelect={chat.handleFileSelect}
           onAttachClick={() => chat.fileInputRef.current?.click()}
-          onClearFile={() => chat.setAttachedFile(null)}
+          onRemoveFile={(idx) => chat.setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
           onPayClick={() => {
             savePendingAction({ tab: "chat", chatInput: chat.input });
             setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });

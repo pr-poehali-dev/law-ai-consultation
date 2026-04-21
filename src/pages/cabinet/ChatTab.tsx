@@ -16,7 +16,7 @@ interface ChatTabProps {
   typing: boolean;
   typingStatus?: string;
   chatErr: string;
-  attachedFile: { name: string; b64: string; size: string } | null;
+  attachedFiles: { name: string; b64: string; size: string }[];
   fileUploading: boolean;
   totalLeft: number;
   onInputChange: (v: string) => void;
@@ -25,7 +25,7 @@ interface ChatTabProps {
   onContinueChat: (partialText: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAttachClick: () => void;
-  onClearFile: () => void;
+  onRemoveFile: (idx: number) => void;
   onPayClick: () => void;
   onExpertClick: () => void;
   onGoToDocs: () => void;
@@ -39,9 +39,9 @@ interface ChatTabProps {
 
 export default function ChatTab({
   user, messages, input, typing, typingStatus, chatErr,
-  attachedFile, fileUploading, totalLeft,
+  attachedFiles, fileUploading, totalLeft,
   onInputChange, onSend, onSendFile, onContinueChat,
-  onFileSelect, onAttachClick, onClearFile,
+  onFileSelect, onAttachClick, onRemoveFile,
   onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
@@ -124,13 +124,13 @@ export default function ChatTab({
         typing={typing}
         fileUploading={fileUploading}
         totalLeft={totalLeft}
-        attachedFile={attachedFile}
+        attachedFiles={attachedFiles}
         fileInputRef={fileInputRef}
         onInputChange={onInputChange}
         onSend={onSend}
         onSendFile={onSendFile}
         onAttachClick={onAttachClick}
-        onClearFile={onClearFile}
+        onRemoveFile={onRemoveFile}
         onFileSelect={onFileSelect}
       />
 

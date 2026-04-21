@@ -35,7 +35,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const [chatErr, setChatErr] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [attachedFile, setAttachedFile] = useState<{ name: string; b64: string; size: string } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; b64: string; size: string }[]>([]);
   const [fileUploading, setFileUploading] = useState(false);
 
   // Автоочистка чата раз в сутки
@@ -301,72 +301,79 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
-    const isDoc = /\.(pdf|doc|docx)$/i.test(file.name)
-      || ["application/pdf", "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
-
-    if (!isImage && !isDoc) {
-      setChatErr("Допустимые форматы: PDF, DOC, DOCX или любое фото");
+    // Берём только первые 3 с учётом уже прикреплённых
+    const slotsLeft = 3 - attachedFiles.length;
+    if (slotsLeft <= 0) {
+      setChatErr("Можно прикрепить не более 3 файлов");
+      e.target.value = "";
       return;
     }
+    const toProcess = files.slice(0, slotsLeft);
 
-    const maxMb = isImage ? 20 : 10;
-    if (file.size > maxMb * 1024 * 1024) {
-      setChatErr(`Файл слишком большой. Максимум ${maxMb} МБ.`);
-      return;
-    }
-
-    setFileUploading(true);
     setChatErr("");
+    setFileUploading(true);
 
-    if (isImage) {
-      // Сжимаем через Canvas — работает с любым форматом (HEIC, WebP, BMP и т.д.)
-      // и гарантированно отдаёт JPEG до 800 КБ
-      const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
-      const normalizedName = baseName + ".jpg";
-      compressImageCanvas(file)
-        .then(({ b64, sizeStr }) => {
-          setAttachedFile({ name: normalizedName, b64, size: sizeStr });
-          setFileUploading(false);
-        })
-        .catch(() => {
-          // Fallback: читаем как есть если Canvas не справился
+    const processFile = (file: File): Promise<{ name: string; b64: string; size: string } | null> => {
+      const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
+      const isDoc = /\.(pdf|doc|docx)$/i.test(file.name)
+        || ["application/pdf", "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
+
+      if (!isImage && !isDoc) return Promise.resolve(null);
+
+      const maxMb = isImage ? 20 : 10;
+      if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
+
+      if (isImage) {
+        const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+        const normalizedName = baseName + ".jpg";
+        return compressImageCanvas(file)
+          .then(({ b64, sizeStr }) => ({ name: normalizedName, b64, size: sizeStr }))
+          .catch(() => new Promise((res) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const b64 = (reader.result as string).split(",")[1];
+              res({ name: normalizedName, b64, size: `${(file.size / (1024 * 1024)).toFixed(1)} МБ` });
+            };
+            reader.onerror = () => res(null);
+            reader.readAsDataURL(file);
+          }));
+      } else {
+        return new Promise((res) => {
           const reader = new FileReader();
           reader.onload = () => {
             const b64 = (reader.result as string).split(",")[1];
-            const sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
-            setAttachedFile({ name: normalizedName, b64, size: sizeStr });
-            setFileUploading(false);
+            const sizeStr = file.size < 1024 * 1024
+              ? `${Math.round(file.size / 1024)} КБ`
+              : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
+            res({ name: file.name, b64, size: sizeStr });
           };
-          reader.onerror = () => { setChatErr("Не удалось прочитать файл"); setFileUploading(false); };
+          reader.onerror = () => res(null);
           reader.readAsDataURL(file);
         });
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = (reader.result as string).split(",")[1];
-        const sizeStr = file.size < 1024 * 1024
-          ? `${Math.round(file.size / 1024)} КБ`
-          : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
-        setAttachedFile({ name: file.name, b64, size: sizeStr });
-        setFileUploading(false);
-      };
-      reader.onerror = () => { setChatErr("Не удалось прочитать файл"); setFileUploading(false); };
-      reader.readAsDataURL(file);
-    }
+      }
+    };
+
+    Promise.all(toProcess.map(processFile)).then((results) => {
+      const valid = results.filter((r): r is { name: string; b64: string; size: string } => r !== null);
+      if (valid.length) {
+        setAttachedFiles((prev) => [...prev, ...valid].slice(0, 3));
+      } else {
+        setChatErr("Допустимые форматы: PDF, DOC, DOCX или фото (JPG, PNG). Максимум 10 МБ.");
+      }
+      setFileUploading(false);
+    });
 
     e.target.value = "";
   };
 
   // comment передаётся явным параметром из ChatInputBar (native ref) — без iOS race condition
   const sendFileAnalysis = async (commentFromInput?: string) => {
-    if (!attachedFile || typing) return;
+    if (!attachedFiles.length || typing) return;
 
-    // Свежая проверка баланса (без кэша)
     invalidateUserCache();
     const currentUser = await getUser();
     if (!currentUser) return;
@@ -381,21 +388,29 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       return;
     }
 
-    // Приоритет: явный параметр (из native ref) → стейт (fallback)
     const comment = (commentFromInput ?? input).trim();
-    const file = attachedFile;
-    setAttachedFile(null);
+    const files = attachedFiles;
+    setAttachedFiles([]);
     setInput("");
     setChatErr("");
+
+    // Сообщение пользователя со списком файлов
+    const filesLabel = files.map(f => `📎 ${f.name}`).join("\n");
     setMessages((p) => [...p, {
       role: "user",
-      text: `📎 ${file.name}${comment ? `\n${comment}` : ""}`,
+      text: `${filesLabel}${comment ? `\n${comment}` : ""}`,
       isFile: true,
     } as ChatMsg]);
-    const isImage = /\.(jpg|jpeg|png)$/i.test(file.name);
+
+    const hasImages = files.some(f => /\.(jpg|jpeg|png)$/i.test(f.name));
     const hasQuestion = !!comment;
+    const multiFile = files.length > 1;
     setTyping(true);
-    setTypingStatus(isImage ? "Распознаю текст на фото (OCR)..." : "Читаю документ...");
+    setTypingStatus(
+      multiFile ? "Читаю документы..." :
+      hasImages ? "Распознаю текст на фото (OCR)..." : "Читаю документ..."
+    );
+
     const consumeResult = await consumeQuestion();
     if (!consumeResult.ok) {
       setTyping(false);
@@ -409,7 +424,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const isLastQuestion = consumeResult.isLastQuestion;
     refreshUser();
 
-    const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документе..." : isImage ? "Извлекаю текст из изображения..." : "Анализирую структуру и содержание..."), 4000);
+    const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документах..." : "Анализирую структуру и содержание..."), 4000);
     const t2 = setTimeout(() => setTypingStatus(hasQuestion ? "Формирую ответ..." : "Проверяю соответствие нормам РФ..."), 10000);
     const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
@@ -421,7 +436,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
           "Content-Type": "application/json",
           ...(token ? { "X-Auth-Token": token } : {}),
         },
-        body: JSON.stringify({ mode: "file_analyze", file: file.b64, filename: file.name, comment }),
+        body: JSON.stringify({
+          mode: "file_analyze",
+          comment,
+          files: files.map(f => ({ file: f.b64, filename: f.name })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
@@ -430,7 +449,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         ? { ...data.doc_hint, extracted_text: data.extracted_text }
         : undefined;
 
-      // Воронка — та же логика что в sendMessage
       if (isLastQuestion && aiText.length > 200) {
         const half = Math.ceil(aiText.length / 2);
         const cutIdx = aiText.lastIndexOf(" ", half) || half;
@@ -446,7 +464,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         ymGoal("chat_funnel_shown");
       } else {
         setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
-        // Upsell если вопросы закончились
         invalidateUserCache();
         const left = await getQuestionsLeft();
         refreshUser();
@@ -460,9 +477,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
-      // Сохраняем в историю: ответ AI содержит весь нужный контекст для уточняющих вопросов
+      const fileNames = files.map(f => f.name).join(", ");
       setHistory((p) => [...p,
-        { role: "user", content: `Я загрузил документ: ${file.name}${comment ? `. Мой вопрос: ${comment}` : ""}` },
+        { role: "user", content: `Я загрузил документ${files.length > 1 ? "ы" : ""}: ${fileNames}${comment ? `. Мой вопрос: ${comment}` : ""}` },
         { role: "assistant", content: aiText },
       ]);
     } catch (e) {
@@ -600,7 +617,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     typing,
     typingStatus,
     chatErr,
-    attachedFile, setAttachedFile,
+    attachedFiles, setAttachedFiles,
     fileUploading,
     chatEndRef,
     fileInputRef,
