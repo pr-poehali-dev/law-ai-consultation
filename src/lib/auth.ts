@@ -123,7 +123,43 @@ export async function login(
 // Кэш пользователя — один запрос в 30 сек вместо многократных дублей
 let _userCache: { user: User | null; ts: number } | null = null;
 const USER_CACHE_TTL = 30_000;
-let _userPromise: Promise<User | null> | null = null;
+let _userPromise: Promise<{ user: User | null; unauthorized: boolean }> | null = null;
+
+// Внутренняя функция — возвращает user + флаг unauthorized (true только при 401, не при сетевых ошибках)
+async function _fetchUser(): Promise<{ user: User | null; unauthorized: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await apiCall({ action: "me" }, 20000);
+      if (!res.ok) {
+        if (res.status === 401) {
+          // 401 — токен точно невалиден, чистим и разлогиниваем
+          clearToken();
+          _userCache = { user: null, ts: Date.now() };
+          return { user: null, unauthorized: true };
+        }
+        // 500, 502 и пр. — проблема сервера, НЕ разлогиниваем
+        // Возвращаем кэш если есть, иначе null без разлогина
+        return { user: _userCache?.user ?? null, unauthorized: false };
+      }
+      const data = await res.json();
+      const user = data.user || null;
+      _userCache = { user, ts: Date.now() };
+      return { user, unauthorized: false };
+    } catch {
+      // Сетевая ошибка — если есть кэш (даже устаревший), держим пользователя
+      if (_userCache?.user) return { user: _userCache.user, unauthorized: false };
+      // Первая попытка — ждём и повторяем (холодный старт PWA, iOS после сна)
+      if (attempt === 0) {
+        await new Promise(r => setTimeout(r, 2500));
+        continue;
+      }
+      // Обе попытки упали, кэша нет — токен есть, но сеть недоступна.
+      // НЕ разлогиниваем — покажем экран "нет соединения"
+      return { user: null, unauthorized: false };
+    }
+  }
+  return { user: null, unauthorized: false };
+}
 
 export async function getUser(): Promise<User | null> {
   const token = getToken();
@@ -131,42 +167,25 @@ export async function getUser(): Promise<User | null> {
   // Отдаём кэш если свежий
   if (_userCache && Date.now() - _userCache.ts < USER_CACHE_TTL) return _userCache.user;
   // Дедупликация — если запрос уже летит, ждём его
+  if (_userPromise) return (await _userPromise).user;
+  _userPromise = _fetchUser();
+  const result = await _userPromise;
+  _userPromise = null;
+  return result.user;
+}
+
+// Расширенная версия — для Cabinet, где нужно знать причину null
+export async function getUserWithStatus(): Promise<{ user: User | null; unauthorized: boolean }> {
+  const token = getToken();
+  if (!token) { _userCache = null; _userPromise = null; return { user: null, unauthorized: true }; }
+  if (_userCache && Date.now() - _userCache.ts < USER_CACHE_TTL) {
+    return { user: _userCache.user, unauthorized: _userCache.user === null };
+  }
   if (_userPromise) return _userPromise;
-  _userPromise = (async () => {
-    // Два попытки: iOS PWA после сна может иметь нестабильный сигнал
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await apiCall({ action: "me" }, 20000);
-        if (!res.ok) {
-          // 401 — токен точно невалиден, чистим
-          if (res.status === 401) {
-            clearToken();
-            _userCache = { user: null, ts: Date.now() };
-            return null;
-          }
-          // Другие ошибки сервера (500, 502) — возвращаем кэш чтобы не выбивать из приложения
-          return _userCache?.user ?? null;
-        }
-        const data = await res.json();
-        const user = data.user || null;
-        _userCache = { user, ts: Date.now() };
-        return user;
-      } catch {
-        // Сетевая ошибка — если есть хоть какой-то кэш (даже устаревший), не выбиваем пользователя
-        if (_userCache?.user) return _userCache.user;
-        // Первая попытка упала — ждём и повторяем (холодный старт PWA)
-        if (attempt === 0) {
-          await new Promise(r => setTimeout(r, 2500));
-          continue;
-        }
-        // Обе попытки упали и кэша нет — токен есть, но сеть недоступна
-        // Возвращаем null только если токена нет, иначе держим пользователя внутри
-        return getToken() ? null : null;
-      }
-    }
-    return null;
-  })();
-  return _userPromise;
+  _userPromise = _fetchUser();
+  const result = await _userPromise;
+  _userPromise = null;
+  return result;
 }
 
 export function invalidateUserCache() {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getUser, type User, getToken, startKeepAlive, invalidateUserCache } from "@/lib/auth";
+import { getUserWithStatus, type User, getToken, startKeepAlive, invalidateUserCache } from "@/lib/auth";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -88,13 +88,17 @@ export default function Cabinet() {
     // Таймаут 20 сек — iOS PWA после сна может долго стартовать (cold start + retry)
     const timeoutId = setTimeout(() => setAuthTimeout(true), 20000);
 
-    getUser().then((u) => {
+    getUserWithStatus().then(({ user: u, unauthorized }) => {
       clearTimeout(timeoutId);
       setAuthChecked(true);
       if (!u) {
-        // Нет токена или сессия истекла — полная перезагрузка на главную
-        // (window.location.href, а не replace — чтобы браузер загрузил свежий index.html)
-        window.location.href = "/?login=1";
+        // Редиректим ТОЛЬКО при явном 401 (нет токена / токен невалиден)
+        // При сетевых ошибках или 500 — показываем экран "нет соединения", не разлогиниваем
+        if (unauthorized) {
+          window.location.href = "/?login=1";
+        } else {
+          setAuthTimeout(true);
+        }
         return;
       }
       setUser(u);
@@ -104,12 +108,14 @@ export default function Cabinet() {
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") return;
       invalidateUserCache();
-      getUser().then((u) => {
-        if (!u) {
+      getUserWithStatus().then(({ user: u, unauthorized }) => {
+        if (!u && unauthorized) {
+          // Только настоящий 401 — разлогиниваем
           window.location.href = "/?login=1";
-        } else {
+        } else if (u) {
           setUser(u);
         }
+        // При сетевой ошибке — оставляем пользователя на месте
       });
     };
     document.addEventListener("visibilitychange", handleVisibility);
