@@ -342,51 +342,30 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
         user_content = f"Документ для анализа:\n\n{clean_text}"
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
 
-    # Для DeepSeek — всё в одном user-сообщении (меньше токенов, быстрее)
-    ds_content = (
-        f"{system_prompt}\n\n{user_content}"
-    )
-    messages_ds = [{"role": "user", "content": ds_content}]
-    # Для Яндекс — с system prompt
-    messages_ya = [
+    messages_for_ds = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
 
-    def _post(model_uri: str, msgs: list, timeout: int) -> str | None:
-        try:
-            resp = _http.post(
-                "https://llm.api.cloud.yandex.net/v1/chat/completions",
-                headers={"Authorization": f"Api-Key {iam_token}"},
-                json={"model": model_uri, "messages": msgs,
-                      "max_tokens": 1200, "temperature": 0.2, "stream": False},
-                timeout=timeout,
-            )
-            resp.raise_for_status()
-            result = resp.json()["choices"][0]["message"]["content"].strip()
-            if len(result) < 120 or any(m in result.lower() for m in [
-                "не могу обсуждать", "не могу помочь", "давайте поговорим",
-                "обратитесь к специалисту", "не предназначен для",
-            ]):
-                print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} отказ: {result[:80]!r}")
-                return None
-            print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} OK: {len(result)} симв")
-            return result
-        except Exception as e:
-            print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} ошибка: {e}")
-            return None
-
-    # 1. DeepSeek — нет фильтров, один user-msg = меньше токенов = быстрее
-    result = _post(YANDEX_MODEL, messages_ds, timeout=35)
-    if result:
-        return result
-
-    # 2. YandexGPT Fast — запасной
-    result = _post(YANDEX_MODEL_FAST, messages_ya, timeout=25)
-    if result:
-        return result
-
-    raise RuntimeError("Все модели недоступны. Попробуйте ещё раз.")
+    # DeepSeek через Яндекс Cloud — единственная модель для анализа документов.
+    # timeout=60с: такой же как для генерации документов, где DeepSeek работает отлично.
+    # Большой входной контекст = DeepSeek долго "читает" перед ответом — это нормально.
+    resp = _http.post(
+        "https://llm.api.cloud.yandex.net/v1/chat/completions",
+        headers={"Authorization": f"Api-Key {iam_token}"},
+        json={
+            "model": YANDEX_MODEL,  # deepseek-v32
+            "messages": messages_for_ds,
+            "max_tokens": 1500,
+            "temperature": 0.2,
+            "stream": False,
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    result = resp.json()["choices"][0]["message"]["content"].strip()
+    print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+    return result
 
 
 CORS = {
@@ -961,7 +940,7 @@ def handler(event: dict, context) -> dict:
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=55)  # YandexGPT попытка1 25с + попытка2 25с + overhead
+            t_analysis.join(timeout=65)  # DeepSeek timeout=60с + 5с overhead
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
