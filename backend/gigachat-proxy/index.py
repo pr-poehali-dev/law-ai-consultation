@@ -332,53 +332,66 @@ def _sanitize_doc_text(text: str) -> str:
 
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    TEXT_LIMIT = 5000
-    clean_text = _sanitize_doc_text(text)
+    # Лимит 2500 симв — DeepSeek успевает ответить за 15–25с (vs таймаут на 5000 симв)
+    TEXT_LIMIT = 2500
+    clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
 
     if comment:
         system_prompt = SYSTEM_FILE_QA_PROMPT
-        user_content = f"Вопрос: {comment}\n\nДокумент:\n\n{clean_text[:TEXT_LIMIT]}"
+        user_content = f"Вопрос: {comment}\n\nДокумент:\n\n{clean_text}"
     else:
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
-        user_content = f"Документ для анализа:\n\n{clean_text[:TEXT_LIMIT]}"
+        user_content = f"Документ для анализа:\n\n{clean_text}"
 
-    # YandexGPT — стабилен, отвечает за 5–15с, хорошо справляется с юридическими текстами
-    # Попытка 1: стандартные параметры
-    try:
-        result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
-                             max_tokens=2000, fast=True, temperature=0.2)
-        if result and len(result.strip()) > 150:
-            print(f"[FILE_ANALYZE] YandexGPT OK: {len(result)} симв")
-            return result
-        print(f"[FILE_ANALYZE] YandexGPT короткий ответ ({len(result.strip())} симв), retry")
-    except Exception as e1:
-        print(f"[FILE_ANALYZE] YandexGPT попытка 1 упала: {e1}")
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
 
-    # Попытка 2: упрощённый запрос без system prompt — Yandex иногда лучше отвечает без него
+    # DeepSeek через Яндекс — глубокий юридический анализ
+    # 2500 симв контекста → ответ за 15–25с, укладывается в timeout
     try:
-        simple_content = (
-            f"Ты юрист РФ. Проанализируй документ юридически: опиши тип документа, выяви правовые риски со статьями закона, дай рекомендации.\n\nДокумент:\n{clean_text[:TEXT_LIMIT]}"
-            if not comment else
-            f"Ты юрист РФ. Ответь на вопрос по документу.\n\nВопрос: {comment}\n\nДокумент:\n{clean_text[:TEXT_LIMIT]}"
-        )
         resp = _http.post(
             "https://llm.api.cloud.yandex.net/v1/chat/completions",
             headers={"Authorization": f"Api-Key {iam_token}"},
             json={
-                "model": YANDEX_MODEL_FAST,
-                "messages": [{"role": "user", "content": simple_content}],
-                "max_tokens": 2000,
-                "temperature": 0.3,
+                "model": YANDEX_MODEL,  # deepseek-v32
+                "messages": messages,
+                "max_tokens": 1500,
+                "temperature": 0.2,
                 "stream": False,
             },
-            timeout=25,
+            timeout=30,
         )
         resp.raise_for_status()
         result = resp.json()["choices"][0]["message"]["content"]
-        print(f"[FILE_ANALYZE] YandexGPT retry OK: {len(result)} симв")
+        if result and len(result.strip()) > 100:
+            print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+            return result
+        print(f"[FILE_ANALYZE] DeepSeek короткий ответ ({len(result.strip())} симв), fallback Yandex")
+    except Exception as e1:
+        print(f"[FILE_ANALYZE] DeepSeek упал: {e1}, fallback YandexGPT Pro")
+
+    # Fallback: YandexGPT Pro — строгий режим без фильтра контента для бизнес-задач
+    try:
+        resp = _http.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {iam_token}"},
+            json={
+                "model": "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-pro/latest",
+                "messages": messages,
+                "max_tokens": 1500,
+                "temperature": 0.2,
+                "stream": False,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        result = resp.json()["choices"][0]["message"]["content"]
+        print(f"[FILE_ANALYZE] YandexGPT Pro OK: {len(result)} симв")
         return result
     except Exception as e2:
-        print(f"[FILE_ANALYZE] YandexGPT попытка 2 упала: {e2}")
+        print(f"[FILE_ANALYZE] YandexGPT Pro упал: {e2}")
         raise
 
 
