@@ -92,8 +92,9 @@ export default function Cabinet() {
       clearTimeout(timeoutId);
       setAuthChecked(true);
       if (!u) {
-        // Нет токена — на страницу входа через location.replace (работает в PWA)
-        window.location.replace("/?login=1");
+        // Нет токена или сессия истекла — полная перезагрузка на главную
+        // (window.location.href, а не replace — чтобы браузер загрузил свежий index.html)
+        window.location.href = "/?login=1";
         return;
       }
       setUser(u);
@@ -105,7 +106,7 @@ export default function Cabinet() {
       invalidateUserCache();
       getUser().then((u) => {
         if (!u) {
-          window.location.replace("/?login=1");
+          window.location.href = "/?login=1";
         } else {
           setUser(u);
         }

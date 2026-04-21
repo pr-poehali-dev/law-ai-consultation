@@ -153,7 +153,7 @@ def handle_register(body: dict) -> dict:
 
         token = generate_token()
         cur.execute(
-            f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
+            f"INSERT INTO {SCHEMA}.sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '90 days')",
             (user_id, token)
         )
         conn.commit()
@@ -235,7 +235,7 @@ def handle_login(body: dict, ip: str = "") -> dict:
         )
         token = generate_token()
         cur.execute(
-            f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)",
+            f"INSERT INTO {SCHEMA}.sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '90 days')",
             (user_id, token)
         )
         conn.commit()
