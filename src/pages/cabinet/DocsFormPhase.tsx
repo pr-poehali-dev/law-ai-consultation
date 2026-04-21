@@ -171,17 +171,17 @@ export default function DocsFormPhase({
       </div>
     </div>
 
-    {/* ── ДЕСКТОП: двухколоночная сетка (без изменений) ── */}
+    {/* ── ДЕСКТОП: слева — выбор типа, справа — форма + история ── */}
     <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-      {/* Левая колонка — форма */}
+      {/* Левая колонка — только выбор типа документа */}
       <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
         <PlanBanner user={user} mode="docs" onSelectPlan={onSelectPlan} />
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-cormorant font-bold text-2xl text-navy-800">Создать документ</h2>
+          <h2 className="font-cormorant font-bold text-2xl text-navy-800">Тип документа</h2>
           <PWAInstallButton />
         </div>
-        <p className="text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
-        <div className="space-y-2 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">Выберите нужный тип — справа опишите ситуацию.</p>
+        <div className="space-y-2">
           {DOC_TYPES_INTERNAL.map((dt) => (
             <button
               key={dt.id}
@@ -200,50 +200,59 @@ export default function DocsFormPhase({
             </button>
           ))}
         </div>
-        <textarea
-          value={docDetails}
-          onChange={(e) => onDocDetailsChange(e.target.value)}
-          disabled={docGenerating}
-          placeholder={`Опишите ситуацию для «${docType.label}»...\n\nНапример: что произошло, с кем, когда, какой результат нужен. Реквизиты сторон можно добавить после генерации документа.`}
-          rows={5}
-          className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
-        />
-        {docErr && (
-          <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
-            <Icon name="AlertCircle" size={13} className="shrink-0" />{docErr}
-          </div>
-        )}
-        {user?.isAdmin && (
-          <div className="mb-3 flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-800">
-            <Icon name="ShieldCheck" size={13} />
-            Администратор · все функции бесплатны
-          </div>
-        )}
-        <button
-          onClick={onGenerate}
-          disabled={docGenerating || !docDetails.trim()}
-          className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {docGenerating ? (
-            <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
-          ) : user && !user.isAdmin && user.paidDocs === 0 ? (
-            <><Icon name="Lock" size={16} />Оплатить и сгенерировать · {docType.price} ₽</>
-          ) : (
-            <><Icon name="Zap" size={16} />Сгенерировать документ</>
-          )}
-        </button>
-        {docGenerating && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            AI-юрист составляет документ... После генерации вы сможете заполнить реквизиты сторон.
-          </p>
-        )}
       </div>
 
-      {/* Правая колонка — история документов */}
-      <div className="space-y-4">
+      {/* Правая колонка — форма генерации + история */}
+      <div className="flex flex-col gap-4">
+        {/* Форма */}
+        <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
+          <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">
+            {docType.label}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">Опишите ситуацию — AI-юрист составит полный документ. Реквизиты заполните после генерации.</p>
+          <textarea
+            value={docDetails}
+            onChange={(e) => onDocDetailsChange(e.target.value)}
+            disabled={docGenerating}
+            placeholder={`Опишите ситуацию для «${docType.label}»...\n\nНапример: что произошло, с кем, когда, какой результат нужен. Реквизиты сторон можно добавить после генерации документа.`}
+            rows={7}
+            className="w-full bg-slate-50 border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-3 disabled:opacity-60"
+          />
+          {docErr && (
+            <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+              <Icon name="AlertCircle" size={13} className="shrink-0" />{docErr}
+            </div>
+          )}
+          {user?.isAdmin && (
+            <div className="mb-3 flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-800">
+              <Icon name="ShieldCheck" size={13} />
+              Администратор · все функции бесплатны
+            </div>
+          )}
+          <button
+            onClick={onGenerate}
+            disabled={docGenerating || !docDetails.trim()}
+            className="btn-gold w-full py-3.5 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {docGenerating ? (
+              <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+            ) : user && !user.isAdmin && user.paidDocs === 0 ? (
+              <><Icon name="Lock" size={16} />Оплатить и сгенерировать · {docType.price} ₽</>
+            ) : (
+              <><Icon name="Zap" size={16} />Сгенерировать документ</>
+            )}
+          </button>
+          {docGenerating && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              AI-юрист составляет документ... После генерации вы сможете заполнить реквизиты сторон.
+            </p>
+          )}
+        </div>
+
+        {/* История документов */}
         <button
           onClick={onGoToChat}
-          className="w-full flex items-center gap-3 px-4 py-3 sm:py-3.5 bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 text-white rounded-2xl transition-all group"
+          className="w-full flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 text-white rounded-2xl transition-all group"
         >
           <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
             <Icon name="MessageCircle" size={16} className="text-gold-400" />
@@ -255,7 +264,7 @@ export default function DocsFormPhase({
           <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
         </button>
 
-        {genDocs.length > 0 ? (
+        {genDocs.length > 0 && (
           <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
             <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
             <div className="space-y-2">
@@ -287,13 +296,6 @@ export default function DocsFormPhase({
                 </div>
               ))}
             </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-3xl border border-border shadow-sm p-10 text-center">
-            <div className="w-12 h-12 bg-navy-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Icon name="FileText" size={22} className="text-navy-400" />
-            </div>
-            <p className="text-sm text-muted-foreground">Опишите ситуацию — AI составит документ</p>
           </div>
         )}
       </div>
