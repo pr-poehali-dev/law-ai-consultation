@@ -332,67 +332,61 @@ def _sanitize_doc_text(text: str) -> str:
 
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    # Лимит 2500 симв — DeepSeek успевает ответить за 15–25с (vs таймаут на 5000 симв)
     TEXT_LIMIT = 2500
     clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
 
     if comment:
-        system_prompt = SYSTEM_FILE_QA_PROMPT
         user_content = f"Вопрос: {comment}\n\nДокумент:\n\n{clean_text}"
+        system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
-        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
         user_content = f"Документ для анализа:\n\n{clean_text}"
+        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
 
-    messages = [
+    # Для DeepSeek — всё в одном user-сообщении (меньше токенов, быстрее)
+    ds_content = (
+        f"{system_prompt}\n\n{user_content}"
+    )
+    messages_ds = [{"role": "user", "content": ds_content}]
+    # Для Яндекс — с system prompt
+    messages_ya = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
 
-    # DeepSeek через Яндекс — глубокий юридический анализ
-    # 2500 симв контекста → ответ за 15–25с, укладывается в timeout
-    try:
-        resp = _http.post(
-            "https://llm.api.cloud.yandex.net/v1/chat/completions",
-            headers={"Authorization": f"Api-Key {iam_token}"},
-            json={
-                "model": YANDEX_MODEL,  # deepseek-v32
-                "messages": messages,
-                "max_tokens": 1500,
-                "temperature": 0.2,
-                "stream": False,
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        result = resp.json()["choices"][0]["message"]["content"]
-        if result and len(result.strip()) > 100:
-            print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+    def _post(model_uri: str, msgs: list, timeout: int) -> str | None:
+        try:
+            resp = _http.post(
+                "https://llm.api.cloud.yandex.net/v1/chat/completions",
+                headers={"Authorization": f"Api-Key {iam_token}"},
+                json={"model": model_uri, "messages": msgs,
+                      "max_tokens": 1200, "temperature": 0.2, "stream": False},
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            result = resp.json()["choices"][0]["message"]["content"].strip()
+            if len(result) < 120 or any(m in result.lower() for m in [
+                "не могу обсуждать", "не могу помочь", "давайте поговорим",
+                "обратитесь к специалисту", "не предназначен для",
+            ]):
+                print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} отказ: {result[:80]!r}")
+                return None
+            print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} OK: {len(result)} симв")
             return result
-        print(f"[FILE_ANALYZE] DeepSeek короткий ответ ({len(result.strip())} симв), fallback Yandex")
-    except Exception as e1:
-        print(f"[FILE_ANALYZE] DeepSeek упал: {e1}, fallback YandexGPT Pro")
+        except Exception as e:
+            print(f"[FILE_ANALYZE] {model_uri.split('/')[-2]} ошибка: {e}")
+            return None
 
-    # Fallback: YandexGPT Pro — строгий режим без фильтра контента для бизнес-задач
-    try:
-        resp = _http.post(
-            "https://llm.api.cloud.yandex.net/v1/chat/completions",
-            headers={"Authorization": f"Api-Key {iam_token}"},
-            json={
-                "model": "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-pro/latest",
-                "messages": messages,
-                "max_tokens": 1500,
-                "temperature": 0.2,
-                "stream": False,
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        result = resp.json()["choices"][0]["message"]["content"]
-        print(f"[FILE_ANALYZE] YandexGPT Pro OK: {len(result)} симв")
+    # 1. DeepSeek — нет фильтров, один user-msg = меньше токенов = быстрее
+    result = _post(YANDEX_MODEL, messages_ds, timeout=35)
+    if result:
         return result
-    except Exception as e2:
-        print(f"[FILE_ANALYZE] YandexGPT Pro упал: {e2}")
-        raise
+
+    # 2. YandexGPT Fast — запасной
+    result = _post(YANDEX_MODEL_FAST, messages_ya, timeout=25)
+    if result:
+        return result
+
+    raise RuntimeError("Все модели недоступны. Попробуйте ещё раз.")
 
 
 CORS = {
