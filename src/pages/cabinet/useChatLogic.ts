@@ -458,8 +458,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
+      // Сохраняем в историю — с текстом документа как контекстом для следующих вопросов
+      const extractedText = data.extracted_text as string | undefined;
+      const docContext = extractedText ? `\n\n[Текст документа для контекста]:\n${extractedText.slice(0, 5000)}` : "";
       setHistory((p) => [...p,
-        { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}` },
+        { role: "user", content: `Анализ документа: ${file.name}${comment ? `. Вопрос: ${comment}` : ""}${docContext}` },
         { role: "assistant", content: aiText },
       ]);
     } catch (e) {
@@ -516,7 +519,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const token = getToken();
       // Кодируем текст документа как .txt файл в base64
       const textBytes = new TextEncoder().encode(docText.slice(0, 12000));
-      const b64 = btoa(String.fromCharCode(...textBytes));
+      // btoa на больших данных — безопасный способ через reduce
+      const b64 = btoa(Array.from(textBytes).map(b => String.fromCharCode(b)).join(""));
       const filename = `${docName}.txt`;
 
       const res = await fetch(GIGACHAT_URL, {
@@ -530,15 +534,18 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;
+      const docHint: DocHint | undefined = data.doc_hint
+        ? { ...data.doc_hint, extracted_text: data.extracted_text }
+        : undefined;
 
       if (isLastQuestion && aiText.length > 200) {
         const half = Math.ceil(aiText.length / 2);
         const cutIdx = aiText.lastIndexOf(" ", half) || half;
         const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
-        setMessages((p) => [...p, { role: "ai", text: visibleText, fullAnswer: aiText, isLastQuestion: true, truncated: false }]);
+        setMessages((p) => [...p, { role: "ai", text: visibleText, fullAnswer: aiText, isLastQuestion: true, truncated: false, docHint }]);
         ymGoal("chat_funnel_shown");
       } else {
-        setMessages((p) => [...p, { role: "ai", text: aiText }]);
+        setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
         invalidateUserCache();
         const left = await getQuestionsLeft();
         refreshUser();
@@ -552,8 +559,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         }
       }
 
+      // Сохраняем с текстом документа — последующие вопросы будут иметь контекст
+      const docContext = `\n\n[Текст документа для контекста]:\n${docText.slice(0, 5000)}`;
       setHistory((p) => [...p,
-        { role: "user", content: `Анализ документа: ${docName}` },
+        { role: "user", content: `Анализ документа: ${docName}${docContext}` },
         { role: "assistant", content: aiText },
       ]);
     } catch (e) {

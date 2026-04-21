@@ -271,21 +271,33 @@ def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     if comment:
-        # Режим QA: пользователь задал конкретный вопрос — отвечаем на него с документом как контекстом
         system_prompt = SYSTEM_FILE_QA_PROMPT
         user_content = f"Вопрос пользователя: {comment}\n\nТекст документа:\n\n{text[:8000]}"
     else:
-        # Режим анализа: общий юридический разбор документа
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
         user_content = f"Документ:\n\n{text[:8000]}"
-    return _call_openai_compat(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        max_tokens=2500,
-        temperature=0.2,
-    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+    # Попытка 1 — основная модель (YandexGPT/DeepSeek)
+    try:
+        return _call_openai_compat(messages=messages, max_tokens=2500, temperature=0.2)
+    except Exception as e1:
+        print(f"[FILE_ANALYZE] Основная модель упала: {e1}, пробую DeepSeek fallback")
+    # Попытка 2 — DeepSeek через call_deepseek
+    try:
+        result, _ = call_deepseek(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_content}],
+            max_tokens=2500,
+            temperature=0.2,
+            timeout=50,
+        )
+        return result
+    except Exception as e2:
+        print(f"[FILE_ANALYZE] DeepSeek fallback тоже упал: {e2}")
+        raise
 
 
 CORS = {
@@ -827,10 +839,12 @@ def handler(event: dict, context) -> dict:
             t_analysis.join(timeout=55)
             t_hint.join(timeout=15)
 
-            answer = analysis_result[0] or "Не удалось проанализировать документ."
+            if not analysis_result[0]:
+                return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось проанализировать документ. AI-сервис временно недоступен, попробуйте позже."}, ensure_ascii=False)}
 
             response_data = {
-                "answer": answer,
+                "answer": analysis_result[0],
                 "filename": filename,
                 "delete_at": int(time.time()) + FILE_TTL,
                 "extracted_text": text[:6000],
