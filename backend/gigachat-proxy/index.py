@@ -205,7 +205,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 
-def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3) -> str:
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3, timeout: int = 180) -> str:
     resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
@@ -216,7 +216,7 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
             "temperature": temperature,
             "stream": False,
         },
-        timeout=180,
+        timeout=timeout,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -280,24 +280,9 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
-    # Попытка 1 — основная модель (YandexGPT/DeepSeek)
-    try:
-        return _call_openai_compat(messages=messages, max_tokens=2500, temperature=0.2)
-    except Exception as e1:
-        print(f"[FILE_ANALYZE] Основная модель упала: {e1}, пробую DeepSeek fallback")
-    # Попытка 2 — DeepSeek через call_deepseek
-    try:
-        result, _ = call_deepseek(
-            system_prompt=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
-            max_tokens=2500,
-            temperature=0.2,
-            timeout=50,
-        )
-        return result
-    except Exception as e2:
-        print(f"[FILE_ANALYZE] DeepSeek fallback тоже упал: {e2}")
-        raise
+    # Единственная попытка с разумным таймаутом.
+    # t_analysis.join(timeout=55) — поток живёт 55с, даём 50с на HTTP
+    return _call_openai_compat(messages=messages, max_tokens=2500, temperature=0.2, timeout=50)
 
 
 CORS = {
@@ -782,10 +767,15 @@ def handler(event: dict, context) -> dict:
 
             # Параллельно: анализ документа + генерация подсказки для создания документа
             analysis_result = [None]
+            analysis_error = [None]
             hint_result = [None]
 
             def _do_analysis():
-                analysis_result[0] = analyze_file_with_yandex(text, comment, iam_token)
+                try:
+                    analysis_result[0] = analyze_file_with_yandex(text, comment, iam_token)
+                except Exception as _ae:
+                    analysis_error[0] = str(_ae)
+                    print(f"[FILE_ANALYZE] Поток упал: {_ae}")
 
             def _do_hint():
                 doc_types_list = "claim — исковое заявление, pretension — досудебная претензия, complaint — жалоба, application — заявление/ходатайство, notification — уведомление, order — приказ, contract — договор ГПХ, business_contract — коммерческий договор, court_speech — судебная речь, response_to_claim — отзыв на исковое заявление, objection — возражение, appeal — апелляционная жалоба, cassation — кассационная жалоба, supervisory — надзорная жалоба"
@@ -836,12 +826,14 @@ def handler(event: dict, context) -> dict:
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=55)
+            t_analysis.join(timeout=52)  # HTTP timeout=50 + 2с overhead
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
+                # Если поток завис (timeout) — даём понятную ошибку
+                err_msg = "Анализ занял слишком много времени. Попробуйте ещё раз — обычно это разовый сбой." if not analysis_error[0] else "Не удалось проанализировать документ. Попробуйте ещё раз."
                 return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
-                        "body": json.dumps({"error": "Не удалось проанализировать документ. AI-сервис временно недоступен, попробуйте позже."}, ensure_ascii=False)}
+                        "body": json.dumps({"error": err_msg}, ensure_ascii=False)}
 
             response_data = {
                 "answer": analysis_result[0],
