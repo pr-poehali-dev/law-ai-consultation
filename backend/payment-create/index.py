@@ -14,7 +14,7 @@ YUKASSA_API = "https://api.yookassa.ru/v3/payments"
 YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
-    "consultation":         "100.00",
+    "consultation":         "350.00",
     "document":             "500.00",
     "expert":               "1500.00",
     "business":             "1000.00",
@@ -34,7 +34,7 @@ PRICES = {
 }
 
 DESCRIPTIONS = {
-    "consultation":         "AI-консультация (3 вопроса)",
+    "consultation":         "AI-консультация · 3 вопроса",
     "document":             "Подготовка юридического документа",
     "expert":               "Экспертная проверка юристом",
     "business":             "Бизнес-пакет (договор + документы)",

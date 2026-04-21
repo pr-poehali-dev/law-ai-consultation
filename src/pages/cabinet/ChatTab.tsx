@@ -1,11 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import { ymGoal } from "@/lib/metrika";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
-import UpsellCard from "@/pages/cabinet/UpsellCard";
+import ChatMessageList from "@/pages/cabinet/ChatMessageList";
+import ChatInputBar from "@/pages/cabinet/ChatInputBar";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; }
@@ -38,101 +37,6 @@ interface ChatTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
-// ─── Рендер текста ─────────────────────────────────────────────────
-function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*(?:\s*ГК|ТК|СК|НК|КоАП|АПК|ГПК|КАС|УК)?(?:\s*РФ)?|статьи?\s+\d+[\w.-]*)/gi);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**"))
-      return <strong key={i} className="font-semibold text-navy-800">{part.slice(2, -2)}</strong>;
-    if (/^(ст\.|статьи?)\s*\d+/i.test(part))
-      return <span key={i} className="font-semibold text-navy-700 bg-gold-400/20 px-1 rounded text-[12.5px]">{part}</span>;
-    return part;
-  });
-}
-
-function LegalText({ text }: { text: string }) {
-  const safeText = typeof text === "string" ? text : String(text ?? "");
-  return (
-    <div className="space-y-2 font-golos text-[13.5px] text-navy-700 leading-[1.8]">
-      {safeText.split(/\n{2,}/).map((para, pi) => {
-        const lines = para.split("\n").filter(Boolean);
-        if (!lines.length) return null;
-        const sec = lines[0].match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s/]{3,})(.*)/);
-        if (sec) return (
-          <div key={pi} className="mt-3 first:mt-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-md bg-navy-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{sec[1]}</span>
-              <span className="text-[12px] font-bold text-navy-700 uppercase tracking-wider">{sec[2]}{sec[3]}</span>
-            </div>
-            {lines.slice(1).map((l, li) => <p key={li} className="pl-7">{renderInline(l)}</p>)}
-          </div>
-        );
-        if (lines.every(l => /^[-•·–]\s/.test(l))) return (
-          <ul key={pi} className="space-y-1 pl-1">
-            {lines.map((l, li) => (
-              <li key={li} className="flex items-start gap-2">
-                <span className="text-gold-500 font-bold shrink-0 leading-[1.8]">·</span>
-                <span>{renderInline(l.replace(/^[-•·–]\s/, ""))}</span>
-              </li>
-            ))}
-          </ul>
-        );
-        return <div key={pi}>{lines.map((l, li) => <p key={li}>{renderInline(l)}</p>)}</div>;
-      })}
-    </div>
-  );
-}
-
-function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
-  const safeInput = typeof text === "string" ? text : String(text ?? "");
-  const [shown, setShown] = useState(animate ? "" : safeInput);
-  const [done, setDone] = useState(!animate);
-  useEffect(() => {
-    if (!animate) { setShown(safeInput); setDone(true); return; }
-    setShown(""); setDone(false);
-    let i = 0;
-    // Для длинных ответов (deepseek) — быстрее: больше символов за тик, меньше задержка
-    const len = safeInput.length;
-    const chunkSize = len > 1200 ? 22 : len > 600 ? 12 : 6;
-    const tickMs = len > 1200 ? 10 : len > 600 ? 12 : 14;
-    const go = () => {
-      if (i >= safeInput.length) { setDone(true); return; }
-      i += Math.min(chunkSize, safeInput.length - i);
-      setShown(safeInput.slice(0, i));
-      setTimeout(go, tickMs);
-    };
-    const t = setTimeout(go, 40);
-    return () => clearTimeout(t);
-  }, [text, animate]);
-  if (done) return <LegalText text={safeInput} />;
-  return (
-    <p className="text-[13.5px] text-navy-700 leading-[1.8] whitespace-pre-wrap font-golos">
-      {shown}<span className="inline-block w-0.5 h-4 bg-gold-500 ml-0.5 animate-pulse align-middle rounded-full" />
-    </p>
-  );
-}
-
-function TypingIndicator({ status }: { status: string }) {
-  return (
-    <div className="flex gap-2 items-start">
-      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-        <Icon name="Scale" size={13} className="text-gold-400" />
-      </div>
-      <div className="bg-white border border-navy-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="flex gap-1">
-            <span className="typing-dot w-1.5 h-1.5 bg-navy-300 rounded-full" />
-            <span className="typing-dot w-1.5 h-1.5 bg-navy-400 rounded-full" />
-            <span className="typing-dot w-1.5 h-1.5 bg-navy-300 rounded-full" />
-          </div>
-          <span className="text-[11px] text-muted-foreground italic">{status || "анализирует..."}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Главный компонент ─────────────────────────────────────────────
 export default function ChatTab({
   user, messages, input, typing, typingStatus, chatErr,
   attachedFile, fileUploading, totalLeft,
@@ -143,93 +47,9 @@ export default function ChatTab({
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
-  const animatedRef = useRef<number>(-1);
-  const messagesRef = useRef<HTMLDivElement>(null);
-  const [showScrollBtn, setShowScrollBtn] = useState(false);
-
-  // Неконтролируемый ref для textarea — решает проблему iOS Safari desync
-  const nativeInputRef = useRef<HTMLTextAreaElement>(null);
-
-  const shouldAnimate = useCallback((idx: number) => {
-    if (idx !== lastAiIdx) return false;
-    if (animatedRef.current === idx) return false;
-    animatedRef.current = idx;
-    return true;
-  }, [lastAiIdx]);
-
-  // Синхронизируем внешний input state → native textarea
-  useEffect(() => {
-    const el = nativeInputRef.current;
-    if (!el) return;
-    // Обновляем только если значение реально отличается (не трогаем при фокусе)
-    if (el !== document.activeElement && el.value !== input) {
-      el.value = input;
-    }
-  }, [input]);
-
-  // Сброс textarea после отправки
-  useEffect(() => {
-    if (input === "" && nativeInputRef.current) {
-      nativeInputRef.current.value = "";
-      nativeInputRef.current.style.height = "44px";
-    }
-  }, [input]);
-
-  // Скролл вниз при новых сообщениях и при появлении кнопки "Читать дальше"
-  useEffect(() => {
-    const el = messagesRef.current;
-    if (!el) return;
-    // Небольшая задержка чтобы DOM успел обновиться (кнопка "Читать дальше" рендерится после typing=false)
-    const raf = requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [messages, typing]);
-
-  const handleScroll = () => {
-    const el = messagesRef.current;
-    if (!el) return;
-    setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 120);
-  };
-
-  const scrollToBottom = () => {
-    const el = messagesRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  };
-
-  // Отправка — читаем из native ref, не из state
-  const handleSend = () => {
-    const text = nativeInputRef.current?.value?.trim() || input.trim();
-    if (!text && !attachedFile) return;
-    if (!nativeInputRef.current?.value?.trim() && input.trim()) {
-      // state уже есть — просто отправляем
-    } else if (nativeInputRef.current?.value?.trim()) {
-      // Обновляем state из native ref перед отправкой
-      onInputChange(nativeInputRef.current.value);
-    }
-    if (attachedFile) {
-      onSendFile();
-    } else {
-      onSend();
-    }
-  };
-
-  // Автовысота textarea
-  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
-    // Обновляем React state
-    onInputChange(el.value);
-    // Авто-высота
-    el.style.height = "44px";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
-  };
 
   return (
     <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col">
-
-      {/* Скрытые file inputs */}
-      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" tabIndex={-1} onChange={onFileSelect} />
-      <input id="camera-input" type="file" accept="image/*" capture="environment" className="hidden" tabIndex={-1} onChange={onFileSelect} />
 
       {/* Шапка */}
       <div className="flex items-center justify-between mb-2 px-0.5">
@@ -261,7 +81,7 @@ export default function ChatTab({
             </button>
           ) : totalLeft === 0 ? (
             <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
-              <Icon name="Plus" size={11} />100 ₽ · 3 вопр.
+              <Icon name="Plus" size={11} />350 ₽ · 3 вопр.
             </button>
           ) : (
             <button
@@ -279,316 +99,40 @@ export default function ChatTab({
       <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
 
       {/* Лента сообщений */}
-      <div className="relative flex-1 min-h-0 flex flex-col">
-        <div
-          ref={messagesRef}
-          onScroll={handleScroll}
-          className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 shadow-sm bg-white scrollbar-hide"
-        >
-          <div className="p-3 space-y-3">
+      <ChatMessageList
+        user={user}
+        messages={messages}
+        typing={typing}
+        typingStatus={typingStatus}
+        chatErr={chatErr}
+        lastAiIdx={lastAiIdx}
+        chatEndRef={chatEndRef}
+        onPayClick={onPayClick}
+        onSelectPlan={onSelectPlan}
+        onGoToDocs={onGoToDocs}
+        onContinueChat={onContinueChat}
+        onExpertClick={onExpertClick}
+        onRevealAnswer={onRevealAnswer}
+        onCreateDocFromMsg={onCreateDocFromMsg}
+        creatingDocFromChat={creatingDocFromChat}
+      />
 
-            {messages.map((msg, i) => {
-              const isDocRedir = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
-              const doAnim = msg.role === "ai" && !typing && shouldAnimate(i);
-
-              if (msg.role === "user") return (
-                <div key={i} className="flex gap-2 justify-end items-end">
-                  <div className="max-w-[82%]">
-                    <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-3 py-2.5 shadow-sm">
-                      <p className="whitespace-pre-wrap font-golos" style={{ fontSize: "15px", lineHeight: "1.5" }}>{msg.text}</p>
-                    </div>
-                  </div>
-                  <div className="w-7 h-7 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase">
-                    {user.name?.[0] ?? "U"}
-                  </div>
-                </div>
-              );
-
-              // Находим предшествующее сообщение пользователя
-              const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");
-
-              if (msg.isUpsell) return (
-                <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
-              );
-
-              // ── Воронка продаж: последний вопрос ──────────────────────────
-              if (msg.isLastQuestion && msg.fullAnswer) {
-                const blurText = msg.fullAnswer.slice(Math.floor(msg.fullAnswer.length / 2));
-                return (
-                  <div key={i} className="flex gap-2 items-start upsell-animate">
-                    {/* Иконка AI */}
-                    <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                      <Icon name="Scale" size={13} className="text-gold-400" />
-                    </div>
-
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {/* Видимая часть ответа */}
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 pt-3 pb-3 shadow-sm">
-                        <AnimatedMessage text={msg.text} animate={doAnim} />
-                      </div>
-
-                      {/* Размытая часть */}
-                      <div
-                        className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2 select-none pointer-events-none"
-                        style={{ filter: "blur(5px)", opacity: 0.45, maxHeight: 64, overflow: "hidden" }}
-                      >
-                        <LegalText text={blurText} />
-                      </div>
-
-                      {/* Замок-баннер */}
-                      <div
-                        className="rounded-2xl overflow-hidden"
-                        style={{
-                          background: "linear-gradient(150deg, #0a1628 0%, #0e2040 100%)",
-                          border: "1px solid rgba(232,168,32,0.3)",
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-                        }}
-                      >
-                        {/* Золотая линия сверху */}
-                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(232,168,32,0.6), transparent)" }} />
-
-                        <div className="px-4 pt-4 pb-3">
-                          {/* Шапка */}
-                          <div className="flex items-start gap-2.5 mb-1">
-                            <div
-                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                              style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.2)" }}
-                            >
-                              <Icon name="Lock" size={14} className="text-gold-400" />
-                            </div>
-                            <div>
-                              <p className="text-[13.5px] font-bold leading-tight" style={{ color: "rgba(255,255,255,0.97)" }}>
-                                Остаток ответа скрыт
-                              </p>
-                              <p className="text-[11.5px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
-                                Оплатите <span style={{ color: "#f0c060", fontWeight: 600 }}>3 вопроса за 350 ₽</span> — и получите полный ответ прямо сейчас, а также 2 следующих вопроса в запасе.
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Разделитель */}
-                          <div className="my-3" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-
-                          {/* Кнопка 1 — 3 вопроса */}
-                          <button
-                            onClick={() => onRevealAnswer?.(i)}
-                            className="w-full rounded-xl btn-gold active:scale-[0.98] transition-transform mb-2"
-                            style={{ padding: "12px 16px" }}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <Icon name="Zap" size={15} className="text-navy-900 shrink-0" />
-                                <div className="text-left">
-                                  <p className="text-navy-900 text-[13px] font-bold leading-tight">Читать полный ответ · 3 вопроса</p>
-                                  <p className="text-[10.5px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>Доступ открывается сразу после оплаты</p>
-                                </div>
-                              </div>
-                              <span className="text-navy-900 text-[15px] font-bold ml-3 shrink-0">350 ₽</span>
-                            </div>
-                          </button>
-
-                          {/* Кнопка 2 — тарифы */}
-                          <button
-                            onClick={onSelectPlan}
-                            className="w-full rounded-xl active:scale-[0.98] transition-all"
-                            style={{
-                              padding: "11px 16px",
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              background: "rgba(255,255,255,0.05)",
-                            }}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <Icon name="Crown" size={14} style={{ color: "#f0c060" }} className="shrink-0" />
-                                <div className="text-left">
-                                  <p className="text-[12.5px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Тарифные планы</p>
-                                  <p className="text-[10.5px]" style={{ color: "rgba(255,255,255,0.4)" }}>30–300 вопросов + юридические документы</p>
-                                </div>
-                              </div>
-                              <Icon name="ChevronRight" size={15} style={{ color: "rgba(255,255,255,0.3)" }} className="shrink-0 ml-2" />
-                            </div>
-                          </button>
-
-                          <p className="mt-2.5 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                            Защищённая оплата · ЮКасса · Доступ сразу после оплаты
-                          </p>
-                        </div>
-
-                        {/* Нижняя линия */}
-                        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={i} className="flex gap-2 items-start">
-                  <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                    <Icon name="Scale" size={13} className="text-gold-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 py-3 shadow-sm">
-                      <AnimatedMessage text={msg.text} animate={doAnim} />
-                      {isDocRedir && (
-                        <button onClick={onGoToDocs} className="mt-3 flex items-center gap-2 px-3 py-2 bg-navy-700 text-white text-xs font-semibold rounded-xl w-full justify-center">
-                          <Icon name="FileText" size={12} />Перейти в «Документы»
-                        </button>
-                      )}
-                      {msg.truncated && i === lastAiIdx && !typing && (
-                        <button onClick={() => onContinueChat(msg.text)} className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl w-full justify-center">
-                          <Icon name="ChevronDown" size={12} />Читать дальше
-                        </button>
-                      )}
-                      {/* Плашка + кнопка юриста при персональных данных */}
-                      {msg.personalDataRefused && !typing && (
-                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                          <p className="text-[12px] text-amber-800 leading-relaxed mb-2">
-                            Укажите ваш вопрос без использования персональных данных, наименования районов, городов, сёл и государственных органов. Либо обратитесь к живому юристу-эксперту.
-                          </p>
-                          <button
-                            onClick={onExpertClick}
-                            className="flex items-center gap-2 px-3 py-2 bg-navy-700 hover:bg-navy-800 text-white text-[12px] font-semibold rounded-lg w-full justify-center transition-colors"
-                          >
-                            <Icon name="UserCheck" size={13} />Задать вопрос юристу-эксперту
-                          </button>
-                        </div>
-                      )}
-                      {/* Кнопка живого юриста при отсутствии судебной практики */}
-                      {msg.needsExpert && !msg.personalDataRefused && !typing && (
-                        <button
-                          onClick={onExpertClick}
-                          className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl w-full justify-center transition-colors"
-                        >
-                          <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
-                        </button>
-                      )}
-                      {/* Кнопка создания документа из ответа AI — только на последнем сообщении */}
-                      {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && (
-                        <button
-                          onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
-                          disabled={creatingDocFromChat}
-                          className="mt-2 flex items-center gap-2 px-3 py-2 bg-gold-400/15 hover:bg-gold-400/25 border border-gold-400/30 text-navy-700 text-xs font-semibold rounded-xl w-full justify-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {creatingDocFromChat
-                            ? <><span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
-                            : msg.docHint?.doc_label
-                              ? <><Icon name="FilePlus" size={12} />Составить: {msg.docHint.doc_label}</>
-                              : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
-                          }
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {typing && <TypingIndicator status={typingStatus || ""} />}
-
-            {chatErr && (
-              <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
-                <Icon name="AlertCircle" size={12} className="shrink-0" />{chatErr}
-              </div>
-            )}
-
-            <div ref={chatEndRef} className="h-1" />
-          </div>
-        </div>
-
-        {/* Кнопка вниз */}
-        {showScrollBtn && (
-          <button
-            onClick={scrollToBottom}
-            className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full gradient-navy shadow-lg flex items-center justify-center"
-            style={{ animation: "bounce 2s infinite" }}
-          >
-            <Icon name="ChevronDown" size={16} className="text-gold-400" />
-          </button>
-        )}
-      </div>
-
-      {/* Прикреплённый файл */}
-      {attachedFile && (
-        <div className="mt-2 space-y-1.5">
-          <div className="flex items-center gap-2 px-3 py-2 bg-navy-50 border border-navy-200 rounded-xl">
-            <div className="w-7 h-7 rounded-lg bg-navy-100 flex items-center justify-center shrink-0">
-              <Icon name={/\.(jpg|jpeg|png)$/i.test(attachedFile.name) ? "Image" : "FileText"} size={13} className="text-navy-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-navy-800 truncate">{attachedFile.name}</p>
-              <p className="text-[10px] text-muted-foreground">{attachedFile.size}</p>
-            </div>
-            <button onClick={onClearFile} className="p-1 text-muted-foreground hover:text-red-500">
-              <Icon name="X" size={13} />
-            </button>
-          </div>
-          {/\.(jpg|jpeg|png)$/i.test(attachedFile.name) && (
-            <p className="text-[11px] text-amber-600 px-1">⚠ Фото должно быть чётким — плохое качество снизит точность AI</p>
-          )}
-        </div>
-      )}
-
-      {/* Поле ввода */}
-      <div className="mt-2 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm mb-tab-bar md:mb-2">
-        <div className="flex items-end gap-1 px-2 py-2">
-
-          {/* Прикрепить */}
-          <button onClick={onAttachClick} disabled={typing || fileUploading}
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40 active:bg-slate-100">
-            {fileUploading
-              ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
-              : <Icon name="Paperclip" size={17} className={attachedFile ? "text-navy-600" : ""} />
-            }
-          </button>
-
-          {/* Камера (мобайл) */}
-          <button onClick={() => document.getElementById("camera-input")?.click()} disabled={typing || fileUploading}
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40 active:bg-slate-100 sm:hidden">
-            <Icon name="Camera" size={17} />
-          </button>
-
-          {/*
-            КРИТИЧНО: неконтролируемый textarea (без value prop) + ref
-            Это единственный надёжный способ ввода на iOS Safari.
-            value prop вызывает desync: iOS обновляет DOM, React перезаписывает → текст исчезает.
-          */}
-          <textarea
-            ref={nativeInputRef}
-            rows={1}
-            defaultValue=""
-            onInput={handleInput}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={typing}
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            placeholder={
-              attachedFile ? "Вопрос к документу..." :
-              (user.isAdmin || totalLeft > 0) ? "Опишите ситуацию или задайте вопрос..." :
-              "Оплатите консультацию — 100 ₽ / 3 вопроса"
-            }
-            className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 outline-none resize-none py-2.5 font-golos"
-            style={{ fontSize: "16px", lineHeight: "1.4", minHeight: "44px", maxHeight: "120px" }}
-          />
-
-          {/* Отправить */}
-          <button
-            onClick={handleSend}
-            disabled={typing}
-            className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shrink-0 disabled:opacity-30 active:scale-95 shadow-sm"
-          >
-            <Icon name="Send" size={14} className="text-white ml-0.5" />
-          </button>
-        </div>
-        <div className="px-3 pb-2 pt-1 border-t border-slate-100 mt-1">
-          <p className="text-[10px] text-slate-400">Носят информационный характер</p>
-        </div>
-      </div>
+      {/* Поле ввода + файл */}
+      <ChatInputBar
+        user={user}
+        input={input}
+        typing={typing}
+        fileUploading={fileUploading}
+        totalLeft={totalLeft}
+        attachedFile={attachedFile}
+        fileInputRef={fileInputRef}
+        onInputChange={onInputChange}
+        onSend={onSend}
+        onSendFile={onSendFile}
+        onAttachClick={onAttachClick}
+        onClearFile={onClearFile}
+        onFileSelect={onFileSelect}
+      />
 
     </div>
   );
