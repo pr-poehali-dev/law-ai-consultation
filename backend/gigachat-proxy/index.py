@@ -68,7 +68,7 @@ FILE_TTL = 1800
 FILE_BUCKET = "files"
 FILE_PREFIX = "temp-docs/"
 MAX_FILE_MB = 10
-ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png"}
+ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png", "txt"}
 
 
 def get_s3():
@@ -690,10 +690,11 @@ def handler(event: dict, context) -> dict:
             ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             if ext not in ALLOWED_EXTS:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-                        "body": json.dumps({"error": f"Формат .{ext} не поддерживается. Допустимые: PDF, DOCX, DOC, JPEG, JPG, PNG."}, ensure_ascii=False)}
+                        "body": json.dumps({"error": f"Формат .{ext} не поддерживается. Допустимые: PDF, DOCX, DOC, JPEG, JPG, PNG, TXT."}, ensure_ascii=False)}
 
             mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png"}
+                        "doc": "application/msword", "jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png",
+                        "txt": "text/plain"}
             content_type = mime_map.get(ext, "application/octet-stream")
             def _bg_upload():
                 try:
@@ -712,6 +713,8 @@ def handler(event: dict, context) -> dict:
                 text = extract_pdf_text(file_data)
             elif ext in ("docx", "doc"):
                 text = extract_docx_text(file_data)
+            elif ext == "txt":
+                text = file_data.decode("utf-8", errors="replace")[:12000]
             else:
                 compressed = _compress_image(file_data, max_bytes=700_000)
                 ocr_b64 = base64.b64encode(compressed).decode("utf-8")

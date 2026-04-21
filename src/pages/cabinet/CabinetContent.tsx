@@ -127,9 +127,8 @@ export default function CabinetContent({
               setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
               return;
             }
-            const prompt = `Проанализируй подготовленный документ:\n\n${doc.name}\n\n${doc.filled || doc.content}`;
             setTab("chat");
-            setTimeout(() => chat.sendMessage(prompt), 200);
+            setTimeout(() => chat.sendDocAnalysis(doc.name, doc.filled || doc.content), 200);
           }}
           onSelectPlan={openPlanModal}
         />

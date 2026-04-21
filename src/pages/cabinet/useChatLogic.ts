@@ -472,6 +472,100 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
+  // Анализ готового/заполненного документа из раздела Документы
+  const sendDocAnalysis = async (docName: string, docText: string) => {
+    if (typing) return;
+
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+    const canAsk = currentUser.isAdmin ||
+      hasActiveSubscription(currentUser, "consult") ||
+      currentUser.paidQuestions > 0;
+    if (!canAsk) {
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
+      return;
+    }
+
+    setChatErr("");
+    setMessages((p) => [...p, { role: "user", text: `📄 Проанализировать: ${docName}`, isFile: true } as ChatMsg]);
+    setTyping(true);
+    setTypingStatus("Читаю документ...");
+
+    const consumeResult = await consumeQuestion();
+    if (!consumeResult.ok) {
+      setTyping(false);
+      setTypingStatus("");
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
+      return;
+    }
+    const isLastQuestion = consumeResult.isLastQuestion;
+    refreshUser();
+
+    const t1 = setTimeout(() => setTypingStatus("Анализирую структуру и содержание..."), 4000);
+    const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 10000);
+    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
+
+    try {
+      const token = getToken();
+      // Кодируем текст документа как .txt файл в base64
+      const textBytes = new TextEncoder().encode(docText.slice(0, 12000));
+      const b64 = btoa(String.fromCharCode(...textBytes));
+      const filename = `${docName}.txt`;
+
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
+        body: JSON.stringify({ mode: "file_analyze", file: b64, filename, comment: "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка анализа");
+      const aiText = data.answer as string;
+
+      if (isLastQuestion && aiText.length > 200) {
+        const half = Math.ceil(aiText.length / 2);
+        const cutIdx = aiText.lastIndexOf(" ", half) || half;
+        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
+        setMessages((p) => [...p, { role: "ai", text: visibleText, fullAnswer: aiText, isLastQuestion: true, truncated: false }]);
+        ymGoal("chat_funnel_shown");
+      } else {
+        setMessages((p) => [...p, { role: "ai", text: aiText }]);
+        invalidateUserCache();
+        const left = await getQuestionsLeft();
+        refreshUser();
+        if (left === 0) {
+          setTimeout(() => {
+            setMessages((p) => {
+              if (p.some(m => m.isUpsell)) return p;
+              return [...p, { role: "ai", isUpsell: true, text: "" }];
+            });
+          }, 900);
+        }
+      }
+
+      setHistory((p) => [...p,
+        { role: "user", content: `Анализ документа: ${docName}` },
+        { role: "assistant", content: aiText },
+      ]);
+    } catch (e) {
+      setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
+      setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
+    } finally {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      setTyping(false);
+      setTypingStatus("");
+    }
+  };
+
   // Вставить сообщение AI без запроса к серверу (для диалога уточнения документа)
   const injectAiMessage = (text: string) => {
     setMessages((p) => [...p, { role: "ai", text }]);
@@ -506,6 +600,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     continueChat,
     handleFileSelect,
     sendFileAnalysis,
+    sendDocAnalysis,
     injectAiMessage,
     removeUpsell,
     revealAnswer,
