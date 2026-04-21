@@ -4,7 +4,6 @@ import { getUser, type User, getToken, startKeepAlive, invalidateUserCache } fro
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
-const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
@@ -16,6 +15,8 @@ import {
 } from "@/pages/cabinet/useCabinetPayment";
 import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
+
+const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
 
