@@ -68,7 +68,8 @@ FILE_TTL = 1800
 FILE_BUCKET = "files"
 FILE_PREFIX = "temp-docs/"
 MAX_FILE_MB = 10
-ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png", "txt"}
+# heic/heif/webp/bmp — фронтенд конвертирует их в JPEG перед отправкой, но на всякий случай принимаем
+ALLOWED_EXTS = {"pdf", "docx", "doc", "jpeg", "jpg", "png", "txt", "heic", "heif", "webp", "bmp", "tiff", "tif"}
 
 
 def get_s3():
@@ -112,6 +113,7 @@ def cleanup_temp_files(s3) -> list:
 
 
 def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
+    """Извлекает текст из PDF. Для сканов (нет текстового слоя) — OCR через Vision API."""
     reader = PyPDF2.PdfReader(io.BytesIO(data))
     parts = []
     total = 0
@@ -121,7 +123,42 @@ def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
         total += len(text)
         if total >= char_limit:
             break
-    return "\n".join(parts).strip()[:char_limit]
+    result = "\n".join(parts).strip()[:char_limit]
+
+    # PDF-скан: текстового слоя нет — пробуем OCR через Yandex Vision (принимает PDF напрямую)
+    if len(result.strip()) < 50 and _IAM_TOKEN:
+        try:
+            b64_pdf = base64.b64encode(data).decode("utf-8")
+            vision_resp = _http.post(
+                "https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze",
+                headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
+                json={"analyzeSpecs": [{
+                    "content": b64_pdf,
+                    "features": [{"type": "TEXT_DETECTION", "textDetectionConfig": {"languageCodes": ["ru", "en"]}}],
+                    "mimeType": "application/pdf",
+                }]},
+                timeout=15,
+            )
+            if vision_resp.ok:
+                blocks = (vision_resp.json().get("results", [{}])[0]
+                          .get("results", [{}])[0]
+                          .get("textDetection", {})
+                          .get("pages", []))
+                lines = []
+                for page in blocks:
+                    for block in page.get("blocks", []):
+                        for line in block.get("lines", []):
+                            words = [w.get("text", "") for w in line.get("words", [])]
+                            if words:
+                                lines.append(" ".join(words))
+                ocr_text = "\n".join(lines).strip()
+                if ocr_text and len(ocr_text.strip()) > 30:
+                    print(f"[PDF_OCR] Скан-PDF Vision: {len(ocr_text)} симв")
+                    return ocr_text[:char_limit]
+        except Exception as pdf_ocr_err:
+            print(f"[PDF_OCR] Vision не смог: {pdf_ocr_err}")
+
+    return result
 
 
 def extract_docx_text(data: bytes, char_limit: int = 12000) -> str:
@@ -168,8 +205,23 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
     if not _IAM_TOKEN:
         return ""
 
+    # Для форматов не поддерживаемых Vision API (HEIC, WEBP, BMP и т.д.) — конвертируем в JPEG
+    ext_lower = ext.lower()
+    if ext_lower not in ("jpg", "jpeg", "png"):
+        try:
+            from PIL import Image as PILImage
+            img = PILImage.open(io.BytesIO(image_data))
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=85)
+            image_data = buf.getvalue()
+            ext_lower = "jpg"
+        except Exception:
+            pass  # Отправляем как есть, Vision API попробует
+
     mime_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
-    mime_type = mime_map.get(ext, "image/jpeg")
+    mime_type = mime_map.get(ext_lower, "image/jpeg")
     compressed = _compress_image(image_data)
     b64_image = base64.b64encode(compressed).decode("utf-8")
 
@@ -269,16 +321,29 @@ def _extract_deepseek_summary(answer: str) -> tuple[str, str]:
     return main, summary
 
 
+def _sanitize_doc_text(text: str) -> str:
+    """Заменяет персданные в тексте документа на плейсхолдеры.
+    Это предотвращает отказ YandexGPT и ошибки обработки ПД.
+    Имена/организации НЕ трогаем — они нужны для юридического анализа."""
+    result = text
+    for pattern, replacement in _PD_PATTERNS:
+        result = pattern.sub(replacement, result)
+    return result
+
+
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     TEXT_LIMIT = 5000
+    # Чистим персданные из текста документа — предотвращает отказ YandexGPT
+    clean_text = _sanitize_doc_text(text)
+
     if comment:
         system_prompt = SYSTEM_FILE_QA_PROMPT
-        user_content = f"Вопрос пользователя: {comment}\n\nТекст документа:\n\n{text[:TEXT_LIMIT]}"
+        user_content = f"Вопрос пользователя: {comment}\n\nТекст документа:\n\n{clean_text[:TEXT_LIMIT]}"
     else:
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
-        user_content = f"Документ:\n\n{text[:TEXT_LIMIT]}"
+        user_content = f"Документ:\n\n{clean_text[:TEXT_LIMIT]}"
 
-    # Попытка 1: YandexGPT Fast — быстро (3–8с), надёжно для юридических документов
+    # Попытка 1: YandexGPT Fast — быстро (3–8с)
     try:
         result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
                              max_tokens=2000, fast=True, temperature=0.2)
