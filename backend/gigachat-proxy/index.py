@@ -333,7 +333,6 @@ def _sanitize_doc_text(text: str) -> str:
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     TEXT_LIMIT = 5000
-    # Чистим персданные из текста документа — предотвращает отказ YandexGPT
     clean_text = _sanitize_doc_text(text)
 
     if comment:
@@ -343,18 +342,24 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
         user_content = f"Документ:\n\n{clean_text[:TEXT_LIMIT]}"
 
-    # Попытка 1: YandexGPT Fast — быстро (3–8с)
-    try:
-        result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
-                             max_tokens=2000, fast=True, temperature=0.2)
-        print(f"[FILE_ANALYZE] YandexGPT Fast OK: {len(result)} симв")
-        return result
-    except Exception as e1:
-        print(f"[FILE_ANALYZE] YandexGPT Fast упал: {e1}, fallback DeepSeek")
+    messages_ds = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
 
-    # Попытка 2: DeepSeek — надёжный fallback, timeout=45с
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
-    return _call_openai_compat(messages=messages, max_tokens=2000, temperature=0.2, timeout=45)
+    # Попытка 1: DeepSeek — лучшее качество юридического анализа
+    # timeout=45с: если не успел — быстро переключаемся на YandexGPT
+    try:
+        result = _call_openai_compat(messages=messages_ds, max_tokens=2000, temperature=0.2, timeout=45)
+        if result and len(result.strip()) > 100:
+            print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+            return result
+        print(f"[FILE_ANALYZE] DeepSeek вернул короткий ответ ({len(result)} симв), fallback Yandex")
+    except Exception as e1:
+        print(f"[FILE_ANALYZE] DeepSeek упал: {e1}, fallback YandexGPT")
+
+    # Попытка 2: YandexGPT Fast — быстро и стабильно
+    result = call_yandex(system_prompt, [{"role": "user", "content": user_content}],
+                         max_tokens=2000, fast=True, temperature=0.2)
+    print(f"[FILE_ANALYZE] YandexGPT Fast OK: {len(result)} симв")
+    return result
 
 
 CORS = {
@@ -929,7 +934,7 @@ def handler(event: dict, context) -> dict:
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=52)
+            t_analysis.join(timeout=70)  # DeepSeek 45с + YandexGPT fallback 20с + overhead
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
