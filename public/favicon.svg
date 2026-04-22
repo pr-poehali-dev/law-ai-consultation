@@ -1,6 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#0a1628"/>
-  <text x="32" y="24" font-family="Georgia, serif" font-size="13" font-weight="bold" fill="#e8a820" text-anchor="middle" dominant-baseline="middle">ИИ</text>
-  <text x="32" y="42" font-family="Georgia, serif" font-size="10" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">право</text>
-  <rect x="8" y="49" width="48" height="1.5" rx="1" fill="#e8a820" opacity="0.6"/>
+  <!-- Центральная стойка -->
+  <rect x="31" y="18" width="3" height="26" rx="1.5" fill="#e8a820"/>
+  <!-- Вершина (треугольник) -->
+  <polygon points="32.5,12 27,20 38,20" fill="#e8a820"/>
+  <!-- Перекладина -->
+  <rect x="16" y="24" width="33" height="3" rx="1.5" fill="#e8a820"/>
+  <!-- Левая чаша — верёвки -->
+  <line x1="22" y1="27" x2="18" y2="35" stroke="#e8a820" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="22" y1="27" x2="26" y2="35" stroke="#e8a820" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Правая чаша — верёвки -->
+  <line x1="43" y1="27" x2="39" y2="35" stroke="#e8a820" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="43" y1="27" x2="47" y2="35" stroke="#e8a820" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Левая чаша -->
+  <path d="M14 35 Q22 42 30 35" stroke="#e8a820" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Правая чаша -->
+  <path d="M35 35 Q43 42 51 35" stroke="#e8a820" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Основание -->
+  <rect x="26" y="44" width="13" height="2" rx="1" fill="#e8a820" opacity="0.8"/>
+  <rect x="22" y="46" width="21" height="2" rx="1" fill="#e8a820" opacity="0.6"/>
 </svg>
