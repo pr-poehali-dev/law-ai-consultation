@@ -1,38 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
-  <!-- Фон -->
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0a1628"/>
-      <stop offset="100%" style="stop-color:#162d5a"/>
+      <stop offset="0%" stop-color="#0a1628"/>
+      <stop offset="60%" stop-color="#162d5a"/>
+      <stop offset="100%" stop-color="#1e3a6e"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0c060"/>
+      <stop offset="100%" stop-color="#e8a820"/>
     </linearGradient>
   </defs>
+
+  <!-- Фон -->
   <rect width="1200" height="630" fill="url(#bg)"/>
 
   <!-- Декоративные круги -->
-  <circle cx="1050" cy="120" r="200" fill="#1e3a6e" opacity="0.4"/>
-  <circle cx="150" cy="500" r="150" fill="#e8a820" opacity="0.06"/>
+  <circle cx="1050" cy="315" r="280" fill="#1e3a6e" opacity="0.35"/>
+  <circle cx="1050" cy="315" r="200" fill="#162d5a" opacity="0.4"/>
+  <circle cx="120" cy="560" r="140" fill="#e8a820" opacity="0.04"/>
 
-  <!-- Логотип -->
-  <rect x="80" y="80" width="80" height="80" rx="18" fill="#e8a820"/>
-  <text x="120" y="112" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#0a1628" text-anchor="middle">ИИ</text>
-  <text x="120" y="144" font-family="Georgia, serif" font-size="16" fill="#0a1628" text-anchor="middle">право</text>
+  <!-- Большие весы справа -->
+  <!-- Стойка -->
+  <rect x="1005" y="140" width="10" height="290" rx="5" fill="url(#gold)" opacity="0.9"/>
+  <!-- Вершина-пирамида -->
+  <polygon points="1010,100 975,150 1045,150" fill="url(#gold)" opacity="0.9"/>
+  <!-- Перекладина -->
+  <rect x="870" y="188" width="280" height="10" rx="5" fill="url(#gold)" opacity="0.9"/>
+  <!-- Левая чаша верёвки -->
+  <line x1="905" y1="198" x2="885" y2="268" stroke="#e8a820" stroke-width="4" stroke-linecap="round"/>
+  <line x1="905" y1="198" x2="935" y2="268" stroke="#e8a820" stroke-width="4" stroke-linecap="round"/>
+  <!-- Правая чаша верёвки -->
+  <line x1="1115" y1="198" x2="1090" y2="268" stroke="#e8a820" stroke-width="4" stroke-linecap="round"/>
+  <line x1="1115" y1="198" x2="1145" y2="268" stroke="#e8a820" stroke-width="4" stroke-linecap="round"/>
+  <!-- Левая чаша -->
+  <path d="M860 268 Q910 310 960 268" stroke="url(#gold)" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- Правая чаша -->
+  <path d="M1065 268 Q1115 310 1165 268" stroke="url(#gold)" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- Основание весов -->
+  <rect x="970" y="430" width="80" height="8" rx="4" fill="url(#gold)" opacity="0.7"/>
+  <rect x="940" y="438" width="140" height="8" rx="4" fill="url(#gold)" opacity="0.5"/>
+
+  <!-- Логотип-иконка слева вверху -->
+  <rect x="80" y="72" width="72" height="72" rx="16" fill="#e8a820"/>
+  <!-- Маленькие весы в иконке -->
+  <rect x="114" y="84" width="4" height="44" rx="2" fill="#0a1628"/>
+  <polygon points="116,80 109,90 123,90" fill="#0a1628"/>
+  <rect x="92" y="92" width="48" height="4" rx="2" fill="#0a1628"/>
+  <path d="M90 96 Q100 106 110 96" stroke="#0a1628" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M122 96 Q132 106 142 96" stroke="#0a1628" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <rect x="108" y="116" width="16" height="3" rx="1.5" fill="#0a1628" opacity="0.7"/>
 
   <!-- Основной заголовок -->
-  <text x="80" y="260" font-family="Georgia, serif" font-size="64" font-weight="bold" fill="#ffffff">ИИ-Право.рф</text>
+  <text x="80" y="240" font-family="Georgia, serif" font-size="72" font-weight="bold" fill="#ffffff">ИИ-Право.рф</text>
+
+  <!-- Золотая линия-разделитель -->
+  <rect x="80" y="262" width="520" height="3" rx="1.5" fill="#e8a820" opacity="0.6"/>
 
   <!-- Подзаголовок -->
-  <text x="80" y="330" font-family="Arial, sans-serif" font-size="32" fill="#e8a820">AI-юрист онлайн · Юридическая помощь 24/7</text>
+  <text x="80" y="320" font-family="Arial, sans-serif" font-size="34" fill="#e8a820">AI-юрист онлайн · Помощь 24/7</text>
 
   <!-- Описание -->
-  <text x="80" y="400" font-family="Arial, sans-serif" font-size="24" fill="#a0b4cc">Консультации · Документы · Иски · Претензии · Договоры</text>
+  <text x="80" y="380" font-family="Arial, sans-serif" font-size="24" fill="#7fa5cc">Консультации · Документы · Иски · Претензии</text>
 
-  <!-- Цена -->
-  <rect x="80" y="450" width="260" height="60" rx="30" fill="#e8a820"/>
-  <text x="210" y="487" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#0a1628" text-anchor="middle">от 100 ₽</text>
+  <!-- Кнопки -->
+  <rect x="80" y="430" width="220" height="58" rx="29" fill="#e8a820"/>
+  <text x="190" y="465" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#0a1628" text-anchor="middle">от 100 ₽</text>
 
-  <rect x="360" y="450" width="300" height="60" rx="30" fill="#ffffff" opacity="0.1"/>
-  <text x="510" y="487" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">Ответ за 2 минуты</text>
+  <rect x="318" y="430" width="280" height="58" rx="29" fill="#ffffff" opacity="0.08"/>
+  <rect x="318" y="430" width="280" height="58" rx="29" fill="none" stroke="#e8a820" stroke-width="1.5" opacity="0.4"/>
+  <text x="458" y="465" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">Ответ за 2 минуты</text>
 
   <!-- Нижняя строка -->
-  <text x="1180" y="600" font-family="Arial, sans-serif" font-size="20" fill="#4a6080" text-anchor="end">ии-право.рф</text>
+  <text x="80" y="590" font-family="Arial, sans-serif" font-size="18" fill="#4a6080">Обучен практикующими юристами · Нормы РФ</text>
+  <text x="1160" y="590" font-family="Arial, sans-serif" font-size="18" fill="#4a6080" text-anchor="end">ии-право.рф</text>
 </svg>
