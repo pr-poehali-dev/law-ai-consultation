@@ -92,6 +92,16 @@
     height: 100dvh;
   }
 
+  /* На планшете и ПК — обычный min-h вместо фиксированного 100dvh */
+  @media (min-width: 768px) {
+    .pwa-page {
+      height: auto;
+      min-height: 100dvh;
+      margin-top: 0;
+      padding-top: 0;
+    }
+  }
+
   /* Предотвращаем горизонтальный сдвиг */
   img,
   video,

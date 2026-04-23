@@ -47,9 +47,10 @@ export default function CabinetContent({
   return (
     <main className={
       isFlex
-        ? "flex-1 flex flex-col min-h-0 overflow-hidden px-3 sm:px-4 pt-3 sm:pt-4"
-        : "flex-1 overflow-y-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-tab-bar md:pb-8"
+        ? "flex-1 flex flex-col min-h-0 overflow-hidden px-3 sm:px-4 md:px-6 pt-3 sm:pt-4"
+        : "flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-tab-bar md:pb-8"
     }>
+      <div className={isFlex ? "flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto" : "w-full max-w-4xl mx-auto"}>
 
       {tab === "chat" && (
         <ChatTab
