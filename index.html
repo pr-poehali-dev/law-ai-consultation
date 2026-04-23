@@ -127,6 +127,22 @@
 </head>
 
 <body>
+<!-- Инлайн-стиль: устраняет белый экран во всех браузерах до загрузки JS/CSS.
+     Применяется мгновенно — никакой вспышки белого цвета. -->
+<style>
+  html, body { margin: 0; padding: 0; background: #0a1628; }
+  #root { min-height: 100dvh; background: #0a1628; }
+</style>
+<!-- Скрипт определяет маршрут — для /cabinet показываем тёмный экран,
+     для / показываем тёмно-синий градиент hero. Работает до React. -->
+<script>
+  (function() {
+    var path = window.location.pathname;
+    var bg = path.indexOf('/cabinet') === 0 ? '#0a1628' : '#060d18';
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+  })();
+</script>
 <div id="root"></div>
 <script type="module" src="/src/main.tsx"></script>
 

@@ -12,6 +12,23 @@ const DAILY_KEY = "landing_daily_questions";
 const CHAT_HISTORY_KEY = "landing_chat_history";
 const PENDING_DOC_KEY = "landing_pending_doc";
 const PENDING_SERVICE_KEY = "landing_pending_service";
+const PENDING_TIMESTAMP_KEY = "landing_pending_ts";
+const PENDING_TTL_MS = 30 * 60 * 1000; // 30 минут
+
+function clearLandingPending() {
+  localStorage.removeItem(CHAT_HISTORY_KEY);
+  localStorage.removeItem(PENDING_DOC_KEY);
+  localStorage.removeItem(PENDING_SERVICE_KEY);
+  localStorage.removeItem(PENDING_TIMESTAMP_KEY);
+}
+
+function checkAndClearExpiredPending() {
+  const ts = localStorage.getItem(PENDING_TIMESTAMP_KEY);
+  if (!ts) return;
+  if (Date.now() - parseInt(ts, 10) > PENDING_TTL_MS) {
+    clearLandingPending();
+  }
+}
 
 interface DailyData { date: string; count: number }
 
@@ -34,7 +51,10 @@ function incrementDailyCount() {
 }
 
 function saveHistoryToStorage(hist: { role: string; content: string }[]) {
-  try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist));
+    localStorage.setItem(PENDING_TIMESTAMP_KEY, String(Date.now()));
+  } catch { /* ignore */ }
 }
 
 const FREE_LIMIT = 3;
@@ -215,6 +235,14 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const history = useRef<{ role: string; content: string }[]>([]);
   const isFirstRender = useRef(true);
+
+  // При маунте — чистим устаревший pending если прошло > 30 мин
+  useEffect(() => {
+    checkAndClearExpiredPending();
+    // Таймер — очистка через 30 минут если пользователь остался на странице
+    const timer = setTimeout(() => clearLandingPending(), PENDING_TTL_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Скролл только внутри чат-бокса
   useEffect(() => {

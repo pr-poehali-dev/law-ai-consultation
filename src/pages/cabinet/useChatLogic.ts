@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser } from "@/lib/auth";
+import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser, getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -107,8 +107,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const currentUser = await getUser();
     if (!currentUser) return;
 
+    const hasDailyFree = getDailyFreeLeft() > 0;
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
+      hasDailyFree ||
       currentUser.paidQuestions > 0;
 
     if (!canAsk) {
@@ -117,6 +119,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         return [...p, { role: "ai", isUpsell: true, text: "" }];
       });
       return;
+    }
+
+    // Если использует бесплатный дневной вопрос — инкрементируем счётчик
+    if (hasDailyFree && !currentUser.isAdmin && !hasActiveSubscription(currentUser, "consult") && currentUser.paidQuestions === 0) {
+      incrementDailyFreeCount();
     }
 
     setInput("");
@@ -129,9 +136,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const newHist = [...historyRef.current, { role: "user", content: userMsg }];
     setHistory(newHist);
 
-    // Сервер сам определяет — был ли этот вопрос последним
-    const consumeResult = await consumeQuestion();
-    const isLastQuestion = consumeResult.isLastQuestion;
+    // Если это дневной бесплатный вопрос — не списываем платный баланс
+    const usingDailyFree = !currentUser.isAdmin && !hasActiveSubscription(currentUser, "consult") && currentUser.paidQuestions === 0 && getDailyFreeLeft() >= 0;
+    let isLastQuestion = false;
+    if (!usingDailyFree) {
+      const consumeResult = await consumeQuestion();
+      isLastQuestion = consumeResult.isLastQuestion;
+    }
     refreshUser();
 
     const t1 = setTimeout(() => setTypingStatus("Изучаю судебную практику..."), 3000);

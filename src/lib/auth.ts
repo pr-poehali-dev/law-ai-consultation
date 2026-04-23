@@ -222,11 +222,41 @@ export async function consumeDoc(): Promise<boolean> {
   return res.ok;
 }
 
+// ── Дневной лимит бесплатных вопросов (3/день, общий для лендинга и ЛК) ──────
+const FREE_DAILY_KEY = "landing_daily_questions";
+const FREE_DAILY_LIMIT = 3;
+
+function getTodayStr(): string {
+  return new Date().toLocaleDateString("ru-RU");
+}
+
+export function getDailyFreeCount(): number {
+  try {
+    const raw = localStorage.getItem(FREE_DAILY_KEY);
+    if (!raw) return 0;
+    const d = JSON.parse(raw);
+    if (d.date !== getTodayStr()) return 0;
+    return d.count || 0;
+  } catch { return 0; }
+}
+
+export function incrementDailyFreeCount(): number {
+  const count = getDailyFreeCount() + 1;
+  localStorage.setItem(FREE_DAILY_KEY, JSON.stringify({ date: getTodayStr(), count }));
+  return count;
+}
+
+export function getDailyFreeLeft(): number {
+  return Math.max(0, FREE_DAILY_LIMIT - getDailyFreeCount());
+}
+
 export async function canAskQuestion(): Promise<boolean> {
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
   if (hasActiveSubscription(user, "consult")) return true;
+  // Сначала дневной бесплатный лимит (3/день, общий с лендингом)
+  if (getDailyFreeLeft() > 0) return true;
   return user.paidQuestions > 0;
 }
 
@@ -235,7 +265,10 @@ export async function getQuestionsLeft(): Promise<number> {
   if (!user) return 0;
   if (user.isAdmin) return 999;
   if (hasActiveSubscription(user, "consult")) return 999;
-  return user.paidQuestions ?? 0;
+  // Бесплатный дневной лимит + платные вопросы
+  const dailyFree = getDailyFreeLeft();
+  const paid = user.paidQuestions ?? 0;
+  return dailyFree + paid;
 }
 
 export async function canUseDoc(): Promise<boolean> {

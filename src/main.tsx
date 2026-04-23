@@ -25,15 +25,29 @@ if ("serviceWorker" in navigator) {
 }
 
 // Если чанк не загрузился (старый SW отдал устаревший index.html) — перезагружаем
+// Работает во всех браузерах: Chrome, Яндекс, Safari, Opera, Firefox
 window.addEventListener("error", (e) => {
-  const src = (e.target as HTMLScriptElement)?.src || "";
+  const target = e.target as HTMLScriptElement | HTMLLinkElement;
+  const src = (target as HTMLScriptElement)?.src || (target as HTMLLinkElement)?.href || "";
   if (src.includes("/assets/")) {
     const reloadKey = "chunk_reload_attempted";
     if (!sessionStorage.getItem(reloadKey)) {
       sessionStorage.setItem(reloadKey, "1");
+      // Принудительно инвалидируем SW-кэш перед перезагрузкой
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "SKIP_WAITING" });
+      }
       window.location.reload();
     }
   }
 }, true);
+
+// Сбрасываем фон после монтирования React — убираем инлайн-стиль из body
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    document.documentElement.style.removeProperty("background");
+    document.body.style.removeProperty("background");
+  }, 50);
+});
 
 createRoot(document.getElementById("root")!).render(<App />);

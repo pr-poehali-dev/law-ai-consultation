@@ -127,7 +127,12 @@ export default function Index() {
   }, [isLoggedIn, navigate]);
 
   const handleOpenLogin = useCallback((opts?: { freeTrial?: boolean; pendingTab?: string }) => {
-    if (isLoggedIn) { navigate("/cabinet"); return; }
+    if (isLoggedIn) {
+      // Для залогиненных — сразу в кабинет с нужным табом
+      if (opts?.pendingTab) navigate(`/cabinet?tab=${opts.pendingTab}`);
+      else navigate("/cabinet");
+      return;
+    }
     if (opts?.pendingTab) setPendingTab(opts.pendingTab);
     setFreeTrial(opts?.freeTrial ?? false);
     setShowLogin(true);

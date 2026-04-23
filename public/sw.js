@@ -18,6 +18,13 @@ self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
+// Обработка SKIP_WAITING от страницы (при ошибке чанка)
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // Activate — удаляем старые кэши
 self.addEventListener("activate", (e) => {
   e.waitUntil(
