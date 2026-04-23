@@ -36,7 +36,7 @@ interface PaymentModalProps {
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
   consultation: 990,
-  document: 500,
+  document: 600,
   expert: 990,
   business: 1000,
   subscription_consult: 1990,

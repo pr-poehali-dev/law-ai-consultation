@@ -7,18 +7,18 @@ import type { GenDoc } from "@/pages/cabinet/DocsTab";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
 const DOC_TYPES_INTERNAL = [
-  { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 500, serviceType: "document" as ServiceType },
-  { id: "response_to_claim", label: "Отзыв на иск", icon: "FileSearch", price: 500, serviceType: "document" as ServiceType },
-  { id: "objection", label: "Возражение", icon: "ShieldAlert", price: 500, serviceType: "document" as ServiceType },
-  { id: "appeal", label: "Апелляционная жалоба", icon: "ArrowUpCircle", price: 500, serviceType: "document" as ServiceType },
-  { id: "cassation", label: "Кассационная жалоба", icon: "RefreshCcw", price: 500, serviceType: "document" as ServiceType },
-  { id: "supervisory", label: "Надзорная жалоба", icon: "Eye", price: 500, serviceType: "document" as ServiceType },
-  { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 500, serviceType: "document" as ServiceType },
-  { id: "complaint", label: "Жалоба", icon: "Building", price: 500, serviceType: "document" as ServiceType },
-  { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 500, serviceType: "document" as ServiceType },
-  { id: "notification", label: "Уведомления", icon: "Bell", price: 500, serviceType: "document" as ServiceType },
-  { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 500, serviceType: "document" as ServiceType },
-  { id: "court_speech", label: "Речь для суда", icon: "Mic", price: 500, serviceType: "document" as ServiceType },
+  { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 600, serviceType: "document" as ServiceType },
+  { id: "response_to_claim", label: "Отзыв на иск", icon: "FileSearch", price: 600, serviceType: "document" as ServiceType },
+  { id: "objection", label: "Возражение", icon: "ShieldAlert", price: 600, serviceType: "document" as ServiceType },
+  { id: "appeal", label: "Апелляционная жалоба", icon: "ArrowUpCircle", price: 600, serviceType: "document" as ServiceType },
+  { id: "cassation", label: "Кассационная жалоба", icon: "RefreshCcw", price: 600, serviceType: "document" as ServiceType },
+  { id: "supervisory", label: "Надзорная жалоба", icon: "Eye", price: 600, serviceType: "document" as ServiceType },
+  { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 600, serviceType: "document" as ServiceType },
+  { id: "complaint", label: "Жалоба", icon: "Building", price: 600, serviceType: "document" as ServiceType },
+  { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 600, serviceType: "document" as ServiceType },
+  { id: "notification", label: "Уведомления", icon: "Bell", price: 600, serviceType: "document" as ServiceType },
+  { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 600, serviceType: "document" as ServiceType },
+  { id: "court_speech", label: "Речь для суда", icon: "Mic", price: 600, serviceType: "document" as ServiceType },
 ];
 
 interface DocsFormPhaseProps {
