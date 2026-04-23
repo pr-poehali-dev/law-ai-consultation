@@ -73,7 +73,7 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
                     </div>
                   </div>
                   <div className="flex items-baseline gap-0.5">
-                    <span className="text-[20px] font-bold text-navy-900 leading-none">350</span>
+                    <span className="text-[20px] font-bold text-navy-900 leading-none">290</span>
                     <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
                   </div>
                 </div>

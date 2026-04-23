@@ -75,7 +75,7 @@ export default function CabinetSection({ isLoggedIn, onLogin }: CabinetSectionPr
     if (!canAsk) {
       setChatMessages((prev) => [...prev, {
         role: "ai",
-        text: "⚠️ Ваш бесплатный вопрос использован. Для продолжения оплатите консультацию (350 ₽ = 3 вопроса).",
+        text: "⚠️ Ваш бесплатный вопрос использован. Для продолжения оплатите консультацию (290 ₽ = 3 вопроса).",
       }]);
       setPendingPaymentService("consultation");
       setShowPayment(true);

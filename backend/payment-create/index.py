@@ -14,7 +14,7 @@ YUKASSA_API = "https://api.yookassa.ru/v3/payments"
 YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
-    "consultation":         "350.00",
+    "consultation":         "290.00",
     "document":             "500.00",
     "expert":               "1500.00",
     "business":             "1000.00",

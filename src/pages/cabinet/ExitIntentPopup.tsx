@@ -66,127 +66,150 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4 transition-all duration-300 ${visible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-      style={{ background: "rgba(6, 13, 24, 0.75)", backdropFilter: "blur(6px)" }}
+      className={`fixed inset-0 z-[9999] flex items-end sm:items-center justify-center transition-all duration-300 ${visible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+      style={{ background: "rgba(6, 13, 24, 0.8)", backdropFilter: "blur(8px)" }}
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
+      {/* Контейнер — снизу на мобиле, по центру на десктопе */}
       <div
-        className={`relative w-full max-w-md transition-all duration-300 ${visible ? "translate-y-0 scale-100" : "translate-y-8 scale-95"}`}
+        className={`relative w-full sm:max-w-md transition-all duration-300 ${
+          visible ? "translate-y-0 scale-100" : "translate-y-full sm:translate-y-8 sm:scale-95"
+        }`}
       >
-        {/* Glow */}
-        <div className="absolute -inset-1 rounded-3xl opacity-60 blur-xl"
+        {/* Glow — только на десктопе */}
+        <div className="absolute -inset-1 rounded-3xl opacity-50 blur-xl hidden sm:block"
           style={{ background: "linear-gradient(135deg, #e8a820 0%, #162d5a 60%)" }} />
 
         {/* Card */}
-        <div className="relative rounded-3xl overflow-hidden"
-          style={{ background: "linear-gradient(160deg, #0f1f3d 0%, #0a1628 60%, #060e1c 100%)", border: "1px solid rgba(232,168,32,0.25)" }}>
+        <div
+          className="relative overflow-hidden sm:rounded-3xl rounded-t-3xl"
+          style={{
+            background: "linear-gradient(160deg, #0f1f3d 0%, #0a1628 60%, #060e1c 100%)",
+            border: "1px solid rgba(232,168,32,0.22)",
+            borderBottom: "none",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          }}
+        >
+          {/* Верхняя золотая линия */}
+          <div className="h-[3px] w-full" style={{ background: "linear-gradient(90deg, transparent, #e8a820 30%, #f0c060 50%, #e8a820 70%, transparent)" }} />
 
-          {/* Top accent line */}
-          <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #e8a820, #f0c060, #e8a820)" }} />
+          {/* Индикатор свайпа (мобиле) */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
+          </div>
 
-          {/* Close button */}
+          {/* Кнопка закрыть */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}
           >
             <Icon name="X" size={14} />
           </button>
 
-          <div className="px-6 pt-6 pb-7">
+          <div className="px-5 pt-3 pb-5 sm:px-6 sm:pt-5 sm:pb-7">
+
             {/* Бейдж */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5"
-              style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.3)" }}>
-              <span className="text-xs font-bold tracking-wide" style={{ color: "#f0c060" }}>⚡ СПЕЦИАЛЬНОЕ ПРЕДЛОЖЕНИЕ</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3"
+              style={{ background: "rgba(232,168,32,0.13)", border: "1px solid rgba(232,168,32,0.28)" }}>
+              <span className="text-[11px] font-bold tracking-wide" style={{ color: "#f0c060" }}>⚡ СПЕЦИАЛЬНОЕ ПРЕДЛОЖЕНИЕ</span>
             </div>
 
             {/* Заголовок */}
-            <h2 className="font-bold text-white leading-tight mb-2" style={{ fontSize: "22px", fontFamily: "Georgia, serif" }}>
-              Подождите! Только сейчас<br />
-              <span style={{ color: "#f0c060" }}>скидка 50%</span> на пакет «Старт»
+            <h2 className="font-bold text-white leading-snug mb-1.5"
+              style={{ fontSize: "clamp(18px, 5vw, 22px)", fontFamily: "Georgia, serif" }}>
+              Подождите! Только сейчас{" "}
+              <span style={{ color: "#f0c060" }}>скидка 50%</span>
             </h2>
-            <p className="text-sm mb-5" style={{ color: "rgba(160,180,204,0.85)" }}>
-              Получите полный доступ к AI-юристу по минимальной цене — это предложение исчезнет, когда вы уйдёте.
+            <p className="text-sm mb-4 leading-relaxed" style={{ color: "rgba(160,180,204,0.82)" }}>
+              Полный доступ к AI-юристу по минимальной цене — предложение исчезнет, когда вы уйдёте.
             </p>
 
             {/* Пакет */}
-            <div className="rounded-2xl p-4 mb-5"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center justify-between mb-3">
+            <div className="rounded-2xl p-4 mb-4"
+              style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.08)" }}>
+
+              {/* Шапка пакета */}
+              <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
                     style={{ background: "rgba(232,168,32,0.15)" }}>
-                    <Icon name="Scale" size={16} color="#e8a820" />
+                    <Icon name="Scale" size={14} color="#e8a820" />
                   </div>
-                  <span className="font-bold text-white text-base">Пакет «Старт»</span>
+                  <span className="font-bold text-white text-[15px]">Пакет «Старт»</span>
                 </div>
-                <div className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                <div className="rounded-full px-2 py-0.5 text-[11px] font-bold"
                   style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)" }}>
                   −50%
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Icon name="MessageCircle" size={14} color="#a0b4cc" />
-                  <span className="text-sm" style={{ color: "#a0b4cc" }}>30 вопросов юристу</span>
+              {/* Состав */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-1">
+                  <Icon name="MessageCircle" size={12} color="#a0b4cc" />
+                  <span className="text-xs" style={{ color: "#a0b4cc" }}>30 вопросов</span>
                 </div>
-                <div className="w-1 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
-                <div className="flex items-center gap-1.5">
-                  <Icon name="FileText" size={14} color="#a0b4cc" />
-                  <span className="text-sm" style={{ color: "#a0b4cc" }}>5 документов</span>
+                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>·</span>
+                <div className="flex items-center gap-1">
+                  <Icon name="FileText" size={12} color="#a0b4cc" />
+                  <span className="text-xs" style={{ color: "#a0b4cc" }}>5 документов</span>
                 </div>
+                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>·</span>
+                <span className="text-xs" style={{ color: "#a0b4cc" }}>Анализ PDF</span>
               </div>
 
+              {/* Цена */}
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black" style={{ color: "#f0c060" }}>745 ₽</span>
-                <span className="text-base line-through" style={{ color: "rgba(160,180,204,0.45)" }}>1 490 ₽</span>
-                <span className="text-xs font-semibold ml-1" style={{ color: "#4ade80" }}>Максимальная выгода!</span>
+                <span className="font-black" style={{ color: "#f0c060", fontSize: "clamp(26px, 8vw, 32px)" }}>745 ₽</span>
+                <span className="text-sm line-through" style={{ color: "rgba(160,180,204,0.4)" }}>1 490 ₽</span>
+                <span className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Максимальная выгода!</span>
               </div>
             </div>
 
-            {/* Фичи */}
-            <div className="flex flex-col gap-2 mb-6">
+            {/* Фичи — горизонтально на мобиле */}
+            <div className="flex flex-col gap-1.5 mb-5">
               {[
                 "Ответы со ссылками на статьи закона РФ",
                 "Иски, претензии, договоры за 3 минуты",
-                "Анализ PDF-документов",
+                "Анализ прикреплённых документов",
               ].map((f) => (
                 <div key={f} className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: "rgba(232,168,32,0.2)" }}>
-                    <Icon name="Check" size={10} color="#e8a820" />
+                    style={{ background: "rgba(232,168,32,0.18)" }}>
+                    <Icon name="Check" size={9} color="#e8a820" />
                   </div>
-                  <span className="text-xs" style={{ color: "rgba(160,180,204,0.8)" }}>{f}</span>
+                  <span style={{ fontSize: "12px", color: "rgba(160,180,204,0.78)" }}>{f}</span>
                 </div>
               ))}
             </div>
 
-            {/* Кнопки */}
+            {/* CTA */}
             <button
               onClick={handleAccept}
-              className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-200 mb-3 relative overflow-hidden group"
-              style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 50%, #e8a820 100%)", color: "#0a1628", backgroundSize: "200% 100%" }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundPosition = "right center")}
-              onMouseLeave={e => (e.currentTarget.style.backgroundPosition = "left center")}
+              className="w-full rounded-2xl font-bold transition-all duration-150 active:scale-[0.97]"
+              style={{
+                padding: "14px 16px",
+                background: "linear-gradient(135deg, #e8a820, #f0c060)",
+                color: "#0a1628",
+                fontSize: "15px",
+                boxShadow: "0 4px 20px rgba(232,168,32,0.3)",
+              }}
             >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                <Icon name="Zap" size={18} />
-                Забрать за 745 ₽ со скидкой 50%
+              <span className="flex items-center justify-center gap-2">
+                <Icon name="Zap" size={17} />
+                Забрать за 745 ₽ · скидка 50%
               </span>
             </button>
 
             <button
               onClick={handleClose}
-              className="w-full py-2.5 text-sm transition-colors"
-              style={{ color: "rgba(160,180,204,0.5)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(160,180,204,0.8)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(160,180,204,0.5)")}
+              className="w-full py-3 text-sm mt-2"
+              style={{ color: "rgba(160,180,204,0.45)" }}
             >
               Нет, спасибо
             </button>
+
           </div>
         </div>
       </div>

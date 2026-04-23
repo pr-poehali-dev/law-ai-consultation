@@ -157,7 +157,7 @@ export default function ChatMessageList({
                               Остаток ответа скрыт
                             </p>
                             <p className="text-[11.5px] leading-relaxed mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
-                              Оплатите <span style={{ color: "#f0c060", fontWeight: 600 }}>3 вопроса за 350 ₽</span> — и получите полный ответ прямо сейчас, а также 2 следующих вопроса в запасе.
+                              Оплатите <span style={{ color: "#f0c060", fontWeight: 600 }}>3 вопроса за 290 ₽</span> — и получите полный ответ прямо сейчас, а также 2 следующих вопроса в запасе.
                             </p>
                           </div>
                         </div>
@@ -179,7 +179,7 @@ export default function ChatMessageList({
                                 <p className="text-[10.5px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>Доступ открывается сразу после оплаты</p>
                               </div>
                             </div>
-                            <span className="text-navy-900 text-[15px] font-bold ml-3 shrink-0">350 ₽</span>
+                            <span className="text-navy-900 text-[15px] font-bold ml-3 shrink-0">290 ₽</span>
                           </div>
                         </button>
 

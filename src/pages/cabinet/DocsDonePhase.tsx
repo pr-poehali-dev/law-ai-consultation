@@ -74,7 +74,7 @@ export default function DocsDonePhase({
           <Icon name="Bot" size={15} />
           {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
             ? "Проанализировать AI"
-            : "Проанализировать · 350 ₽"}
+            : "Проанализировать · 290 ₽"}
         </button>
         <button
           onClick={onGoToChat}

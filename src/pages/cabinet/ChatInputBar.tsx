@@ -202,7 +202,7 @@ export default function ChatInputBar({
             placeholder={
               hasFiles ? "Вопрос к документу (необязательно)..." :
               (user.isAdmin || totalLeft > 0) ? "Опишите ситуацию или прикрепите документ..." :
-              "Оплатите консультацию — 350 ₽ / 3 вопроса"
+              "Оплатите консультацию — 290 ₽ / 3 вопроса"
             }
             className="flex-1 bg-transparent text-navy-800 placeholder:text-slate-400 outline-none resize-none py-2.5 font-golos"
             style={{ fontSize: "16px", lineHeight: "1.4", minHeight: "44px", maxHeight: "120px" }}
