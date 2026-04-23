@@ -117,6 +117,28 @@ export default function Cabinet() {
         return;
       }
       setUser(u);
+
+      // Подхватываем контекст диалога с лендинга для генерации документа
+      const pendingDocType = localStorage.getItem("landing_pending_doc");
+      const rawHist = localStorage.getItem("landing_chat_history");
+      if (pendingDocType && rawHist) {
+        localStorage.removeItem("landing_pending_doc");
+        localStorage.removeItem("landing_chat_history");
+        try {
+          const hist: { role: string; content: string }[] = JSON.parse(rawHist);
+          const dt = DOC_TYPES.find(d => d.id === pendingDocType);
+          if (dt) {
+            // Строим детали из последних сообщений пользователя
+            const userMsgs = hist.filter(m => m.role === "user").map(m => m.content).join("\n");
+            const details = userMsgs.slice(0, 2000);
+            setTab("docs");
+            setTimeout(() => {
+              savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
+              docsGenerateRef.current?.(dt, details);
+            }, 800);
+          }
+        } catch { /* ignore */ }
+      }
     });
 
     // visibilitychange: при возврате в PWA после долгого сна — обновляем данные пользователя

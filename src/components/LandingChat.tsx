@@ -7,14 +7,14 @@ import PaymentModal from "@/components/PaymentModal";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
-// ── Лимит: 3 бесплатных вопроса в день, сброс в полночь ─────────────────────
+// ── Лимит: 3 бесплатных вопроса в день ───────────────────────────────────────
 const DAILY_KEY = "landing_daily_questions";
+const CHAT_HISTORY_KEY = "landing_chat_history";
 interface DailyData { date: string; count: number }
 
 function getTodayStr() {
   return new Date().toLocaleDateString("ru-RU");
 }
-
 function getDailyCount(): number {
   try {
     const raw = localStorage.getItem(DAILY_KEY);
@@ -24,20 +24,57 @@ function getDailyCount(): number {
     return d.count;
   } catch { return 0; }
 }
-
 function incrementDailyCount() {
-  const today = getTodayStr();
   const count = getDailyCount() + 1;
-  localStorage.setItem(DAILY_KEY, JSON.stringify({ date: today, count }));
+  localStorage.setItem(DAILY_KEY, JSON.stringify({ date: getTodayStr(), count }));
   return count;
 }
 
+// Сохраняем контекст диалога чтобы после регистрации не потерять
+function saveHistoryToStorage(hist: { role: string; content: string }[]) {
+  try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist)); } catch { /* ignore */ }
+}
+
 const FREE_LIMIT = 3;
+
+// Ключевые слова, по которым AI может предложить документ
+const DOC_KEYWORDS = [
+  "иск", "претензи", "жалоб", "заявлени", "договор", "апелляц", "кассаци",
+  "ходатайств", "уведомлени", "суд", "взыскани", "возражени",
+];
+
+function detectDocSuggestion(text: string): string | null {
+  const lower = text.toLowerCase();
+  if (lower.includes("исков")) return "claim";
+  if (lower.includes("претензи")) return "pretension";
+  if (lower.includes("апелляц")) return "appeal";
+  if (lower.includes("кассаци")) return "cassation";
+  if (lower.includes("жалоб")) return "complaint";
+  if (lower.includes("договор")) return "contract";
+  if (lower.includes("ходатайств") || lower.includes("заявлени")) return "application";
+  if (lower.includes("уведомлени")) return "notification";
+  // Общая проверка — если AI упоминает составление документа
+  const hasDocKeyword = DOC_KEYWORDS.some(k => lower.includes(k));
+  if (hasDocKeyword) return "claim";
+  return null;
+}
+
+const DOC_LABELS: Record<string, string> = {
+  claim: "Исковое заявление",
+  pretension: "Претензию",
+  complaint: "Жалобу",
+  appeal: "Апелляционную жалобу",
+  cassation: "Кассационную жалобу",
+  contract: "Договор ГПХ",
+  application: "Заявление / Ходатайство",
+  notification: "Уведомление",
+};
 
 interface Message {
   role: "user" | "ai";
   text: string;
   typing?: boolean;
+  suggestDocType?: string; // если AI предложил документ
 }
 
 interface LandingChatProps {
@@ -68,15 +105,25 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [pendingDocType, setPendingDocType] = useState<string | null>(null);
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [fileUploading, setFileUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // scrollIntoView только внутри чат-контейнера, не страницы
+  const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const history = useRef<{ role: string; content: string }[]>([]);
+  const isFirstRender = useRef(true);
 
+  // Скролл ТОЛЬКО внутри чат-бокса, не двигаем страницу
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const box = chatBoxRef.current;
+    const end = chatEndRef.current;
+    if (!box || !end) return;
+    // scrollTop внутри контейнера — страница не трогается
+    box.scrollTop = box.scrollHeight;
   }, [messages]);
 
   const autoResize = () => {
@@ -92,10 +139,9 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
     const used = getDailyCount();
     if (used >= FREE_LIMIT) {
-      // Лимит исчерпан — предлагаем войти/купить
       setMessages(p => [...p, {
         role: "ai",
-        text: "Вы использовали 3 бесплатных вопроса на сегодня. Войдите в личный кабинет или приобретите пакет «Старт» — 30 вопросов + 5 документов всего за **990 ₽**.",
+        text: "Вы использовали 3 бесплатных вопроса на сегодня. Войдите в личный кабинет или приобретите пакет «Старт» — 30 вопросов + 5 документов за **990 ₽**.",
       }]);
       setShowPayment(true);
       return;
@@ -122,19 +168,24 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка");
       const aiText = data.answer as string;
-      history.current = [...newHist, { role: "assistant", content: aiText }];
+      const updatedHist = [...newHist, { role: "assistant", content: aiText }];
+      history.current = updatedHist;
+      // Сохраняем историю — понадобится после регистрации для генерации документа
+      saveHistoryToStorage(updatedHist);
+
+      // Определяем, предложить ли кнопку документа
+      const suggestDocType = detectDocSuggestion(aiText);
 
       setMessages(p => {
         const next = p.filter(m => !m.typing);
-        return [...next, { role: "ai", text: aiText }];
+        return [...next, { role: "ai", text: aiText, suggestDocType: suggestDocType ?? undefined }];
       });
 
-      // После последнего бесплатного вопроса — показываем предложение
       if (newCount >= FREE_LIMIT) {
         setTimeout(() => {
           setMessages(p => [...p, {
             role: "ai",
-            text: "Это был ваш последний бесплатный вопрос на сегодня. Для продолжения работы с AI-юристом — **войдите** или **приобретите пакет «Старт»** — 30 вопросов + 5 документов за **990 ₽**.",
+            text: "Это был ваш последний бесплатный вопрос на сегодня. Для продолжения — **войдите** или приобретите пакет «Старт» — 30 вопросов + 5 документов за **990 ₽**.",
           }]);
         }, 600);
       }
@@ -155,23 +206,22 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     }
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
     e.target.value = "";
-
-    // Файлы — только для платного тарифа, требуется регистрация
     setMessages(p => [...p, {
       role: "ai",
       text: "📎 Загрузка и анализ документов доступны в пакете **«Старт»** (990 ₽). Войдите или зарегистрируйтесь, чтобы получить доступ.",
     }]);
     setShowPayment(true);
-    setAttachedFile(file);
   };
 
-  const handleDocGenerate = (docTypeId: string) => {
+  // Нажатие «Создать документ» — сохраняем тип и историю, ведём к оплате/регистрации
+  const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
-    // Генерация документов — требует регистрации и оплаты
+    // Сохраняем тип документа и контекст диалога для кабинета
+    localStorage.setItem("landing_pending_doc", docTypeId);
+    saveHistoryToStorage(history.current);
     setPendingDocType(docTypeId);
     setShowPayment(true);
   };
@@ -199,10 +249,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           style={{ borderColor: "rgba(255,255,255,0.08)" }}
         >
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)" }}
-            >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)" }}>
               <Icon name="Scale" size={14} color="#e8a820" />
             </div>
             <div>
@@ -212,8 +260,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               </p>
             </div>
           </div>
-
-          {/* Счётчик вопросов */}
           <div
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
             style={{
@@ -222,67 +268,78 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               border: `1px solid ${questionsLeft > 0 ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
             }}
           >
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }}
-            />
+            <div className="w-1.5 h-1.5 rounded-full"
+              style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }} />
             {questionsLeft > 0 ? `${questionsLeft} из ${FREE_LIMIT} вопросов` : "Лимит исчерпан"}
           </div>
         </div>
 
-        {/* Сообщения */}
+        {/* Сообщения — overflow-y-auto только внутри блока */}
         <div
+          ref={chatBoxRef}
           className="overflow-y-auto px-4 py-4 space-y-3"
           style={{ height: "clamp(300px, 40vh, 420px)" }}
         >
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              {msg.role === "ai" && (
+            <div key={i}>
+              <div className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                {msg.role === "ai" && (
+                  <div
+                    className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}
+                  >
+                    <Icon name="Scale" size={11} color="#e8a820" />
+                  </div>
+                )}
                 <div
-                  className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm"
+                  }`}
+                  style={
+                    msg.role === "user"
+                      ? { background: "linear-gradient(135deg, #162d5a, #0a1e3f)", border: "1px solid rgba(232,168,32,0.2)" }
+                      : { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.9)" }
+                  }
                 >
-                  <Icon name="Scale" size={11} color="#e8a820" />
+                  {msg.typing ? (
+                    <div className="flex items-center gap-1 py-1">
+                      {[0, 150, 300].map(d => (
+                        <div key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                          style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
+                  )}
+                </div>
+              </div>
+
+              {/* Кнопка «Создать документ» — появляется под ответом AI если детектирован тип */}
+              {msg.role === "ai" && !msg.typing && msg.suggestDocType && (
+                <div className="ml-9 mt-2">
+                  <button
+                    onClick={() => handleCreateDoc(msg.suggestDocType!)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(232,168,32,0.2), rgba(232,168,32,0.1))",
+                      border: "1px solid rgba(232,168,32,0.35)",
+                      color: "#f0c060",
+                    }}
+                  >
+                    <Icon name="FileText" size={13} color="#f0c060" />
+                    Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"} · 600 ₽
+                  </button>
                 </div>
               )}
-
-              <div
-                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "rounded-tr-sm text-white"
-                    : "rounded-tl-sm"
-                }`}
-                style={
-                  msg.role === "user"
-                    ? { background: "linear-gradient(135deg, #162d5a, #0a1e3f)", border: "1px solid rgba(232,168,32,0.2)" }
-                    : { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.9)" }
-                }
-              >
-                {msg.typing ? (
-                  <div className="flex items-center gap-1 py-1">
-                    {[0, 150, 300].map(d => (
-                      <div
-                        key={d}
-                        className="w-1.5 h-1.5 rounded-full animate-bounce"
-                        style={{ background: "#e8a820", animationDelay: `${d}ms` }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
-                )}
-              </div>
             </div>
           ))}
           <div ref={chatEndRef} />
         </div>
 
-        {/* Действия после лимита */}
+        {/* Блок действий при исчерпанном лимите */}
         {questionsLeft === 0 && !typing && (
-          <div
-            className="mx-4 mb-3 p-3 rounded-2xl"
-            style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.2)" }}
-          >
+          <div className="mx-4 mb-3 p-3 rounded-2xl"
+            style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.2)" }}>
             <p className="text-xs text-center mb-2.5" style={{ color: "rgba(255,255,255,0.7)" }}>
               Получите полный доступ к AI-юристу
             </p>
@@ -306,13 +363,9 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         )}
 
         {/* Инпут */}
-        <div
-          className="border-t px-3 py-2.5"
-          style={{ borderColor: "rgba(255,255,255,0.08)" }}
-        >
+        <div className="border-t px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <div className="flex items-end gap-2">
-
-            {/* Скрепка — загрузка документа */}
+            {/* Скрепка */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
@@ -322,7 +375,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               <Icon name="Paperclip" size={15} />
             </button>
 
-            {/* Кнопка документа */}
+            {/* Меню документов */}
             <div className="relative shrink-0">
               <button
                 onClick={() => setShowDocMenu(v => !v)}
@@ -332,17 +385,17 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               >
                 <Icon name="FileText" size={15} />
               </button>
-
               {showDocMenu && (
                 <div
                   className="absolute bottom-12 left-0 rounded-2xl overflow-hidden shadow-2xl z-50 w-52"
                   style={{ background: "#0f1f3d", border: "1px solid rgba(255,255,255,0.1)" }}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-widest px-3 pt-3 pb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Создать документ</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest px-3 pt-3 pb-1"
+                    style={{ color: "rgba(255,255,255,0.35)" }}>Создать документ</p>
                   {DOC_TYPES.map(dt => (
                     <button
                       key={dt.id}
-                      onClick={() => handleDocGenerate(dt.id)}
+                      onClick={() => handleCreateDoc(dt.id)}
                       className="w-full text-left px-3 py-2.5 text-sm transition-colors"
                       style={{ color: "rgba(255,255,255,0.8)" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
@@ -369,11 +422,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               disabled={questionsLeft === 0 && messages.length > 1}
               rows={1}
               className="flex-1 bg-transparent outline-none resize-none py-2.5 text-sm font-golos leading-snug"
-              style={{
-                color: "rgba(255,255,255,0.9)",
-                minHeight: "40px",
-                maxHeight: "120px",
-              }}
+              style={{ color: "rgba(255,255,255,0.9)", minHeight: "40px", maxHeight: "120px" }}
             />
 
             {/* Отправить */}
@@ -394,7 +443,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         </div>
       </div>
 
-      {/* Кнопка живого юриста */}
+      {/* Кнопка живого юриста + PWA */}
       <div className="mt-3 flex flex-col sm:flex-row gap-2">
         <button
           onClick={() => onOpenLogin({ freeTrial: false, pendingTab: "expert" })}
@@ -405,37 +454,26 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             color: "rgba(255,255,255,0.85)",
           }}
         >
-          <div
-            className="w-6 h-6 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(232,168,32,0.15)" }}
-          >
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(232,168,32,0.15)" }}>
             <Icon name="UserCheck" size={13} color="#e8a820" />
           </div>
           <span>Консультация живого юриста</span>
-          <span
-            className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ background: "rgba(232,168,32,0.15)", color: "#f0c060" }}
-          >
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+            style={{ background: "rgba(232,168,32,0.15)", color: "#f0c060" }}>
             990 ₽
           </span>
         </button>
-
-        {/* PWA install подсказка */}
         <PWAInstallButton />
       </div>
 
-      {/* Сноска под чатом */}
       <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>
-        3 вопроса бесплатно каждый день · Без регистрации · Для документов и анализа файлов — пакет «Старт» 990 ₽
+        3 вопроса бесплатно каждый день · Без регистрации · Документы и анализ файлов — пакет «Старт» 990 ₽
       </p>
 
-      <input
-        ref={fileInputRef}
-        type="file"
+      <input ref={fileInputRef} type="file"
         accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.heic,.webp"
-        className="hidden"
-        onChange={handleFileSelect}
-      />
+        className="hidden" onChange={handleFileSelect} />
 
       {showLogin && (
         <LoginModal
@@ -449,11 +487,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         <PaymentModal
           serviceType="plan_starter"
           serviceName="Пакет «Старт»"
-          onClose={() => { setShowPayment(false); setPendingDocType(null); setAttachedFile(null); }}
-          onSuccess={() => {
-            setShowPayment(false);
-            setShowLogin(true);
-          }}
+          onClose={() => { setShowPayment(false); setPendingDocType(null); }}
+          onSuccess={() => { setShowPayment(false); }}
           showRegisterPrompt={true}
           onRegisterAfterPay={() => {
             setShowPayment(false);
@@ -465,7 +500,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   );
 }
 
-// ── Мини-кнопка PWA Install ───────────────────────────────────────────────────
+// ── PWA Install ───────────────────────────────────────────────────────────────
 function PWAInstallButton() {
   const [show, setShow] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -476,70 +511,46 @@ function PWAInstallButton() {
     if (isStandalone) return;
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const hasPrompt = !!(window as unknown as Record<string, unknown>).__pwaPrompt;
-    if (ios || hasPrompt) {
-      setIsIOS(ios);
-      setShow(true);
-    }
+    if (ios || hasPrompt) { setIsIOS(ios); setShow(true); }
   }, []);
 
   if (!show) return null;
 
   const handleClick = async () => {
-    if (isIOS) {
-      setShowGuide(true);
-      return;
-    }
+    if (isIOS) { setShowGuide(true); return; }
     const prompt = (window as unknown as Record<string, unknown>).__pwaPrompt as { prompt: () => void } | undefined;
-    if (prompt) {
-      prompt.prompt();
-    }
+    prompt?.prompt();
   };
 
   return (
     <>
-      <button
-        onClick={handleClick}
+      <button onClick={handleClick}
         className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm transition-all active:scale-[0.98] shrink-0"
-        style={{
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          color: "rgba(255,255,255,0.7)",
-        }}
-        title="Добавить на экран"
-      >
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+        title="Добавить на экран">
         <Icon name="Smartphone" size={15} />
         <span className="hidden sm:inline">Добавить на экран</span>
       </button>
-
       {showGuide && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center p-4"
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4"
           style={{ background: "rgba(0,0,0,0.7)" }}
-          onClick={() => setShowGuide(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl p-5"
+          onClick={() => setShowGuide(false)}>
+          <div className="w-full max-w-sm rounded-3xl p-5"
             style={{ background: "#0f1f3d", border: "1px solid rgba(255,255,255,0.1)" }}
-            onClick={e => e.stopPropagation()}
-          >
+            onClick={e => e.stopPropagation()}>
             <p className="font-bold text-white mb-3">Добавить на экран (iOS)</p>
-            {[
-              "Нажмите кнопку «Поделиться» (□↑) внизу Safari",
-              "Прокрутите и выберите «На экран Домой»",
-              "Нажмите «Добавить»",
-            ].map((step, i) => (
+            {["Нажмите кнопку «Поделиться» (□↑) внизу Safari", "Прокрутите и выберите «На экран Домой»", "Нажмите «Добавить»"].map((step, i) => (
               <div key={i} className="flex items-start gap-2.5 mb-2">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(232,168,32,0.2)" }}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "rgba(232,168,32,0.2)" }}>
                   <span className="text-[10px] font-bold" style={{ color: "#e8a820" }}>{i + 1}</span>
                 </div>
                 <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>{step}</p>
               </div>
             ))}
-            <button
-              onClick={() => setShowGuide(false)}
+            <button onClick={() => setShowGuide(false)}
               className="w-full mt-3 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
-            >
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
               Понятно
             </button>
           </div>
