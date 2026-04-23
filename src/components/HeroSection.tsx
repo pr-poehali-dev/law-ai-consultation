@@ -74,7 +74,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
           </h1>
 
           <p className={`text-white/65 text-sm sm:text-base max-w-2xl mx-auto mb-3 text-center transition-all duration-600 delay-150 px-2 leading-relaxed ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            Наш AI обучен на судебной практике и актуальной редакции законов РФ. Он мгновенно структурирует хаос: составит иск, проверит контрагента или напомнит о сроках давности. Ручная проверка сложных кейсов живым юристом доступна на сайте.
+            Наш AI обучен на судебной практике и актуальной редакции законов РФ. Он мгновенно структурирует хаос: составит иск, ответит на вопросы или напомнит о сроках давности. Ручная проверка сложных кейсов живым юристом доступна на сайте.
           </p>
 
           {/* Бесплатный лимит */}

@@ -102,6 +102,12 @@ export default function PaymentModal({
 
   const price = SERVICE_PRICES[serviceType];
 
+  // Блокируем скролл страницы пока модал открыт
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   // Загружаем email из профиля если пользователь авторизован
   useEffect(() => {
     getUser().then((u) => { if (u?.email) setEmail(u.email); });
@@ -184,12 +190,23 @@ export default function PaymentModal({
   const canClose = step !== "polling" && step !== "redirected";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       <div
         className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm"
         onClick={canClose ? onClose : undefined}
       />
-      <div className="relative bg-card rounded-3xl border border-border shadow-2xl w-full max-w-md animate-scale-in">
+      <div
+        className="relative bg-card w-full sm:max-w-md sm:mx-4 sm:rounded-3xl rounded-t-3xl border border-border shadow-2xl animate-scale-in overflow-y-auto"
+        style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 16px)" }}
+      >
+
+        {/* Свайп-индикатор на мобиле */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-slate-200" />
+        </div>
 
         {canClose && (
           <button
@@ -202,7 +219,7 @@ export default function PaymentModal({
 
         {/* === ФОРМА ВВОДА EMAIL === */}
         {step === "form" && (
-          <div className="p-8">
+          <div className="px-5 py-4 sm:p-8">
             <div className="mb-5">
               <div className="inline-flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-1.5 mb-4">
                 <Icon name="ShieldCheck" size={14} className="text-emerald-600" />
@@ -282,7 +299,7 @@ export default function PaymentModal({
 
         {/* === ОЖИДАНИЕ ПЕРЕХОДА === */}
         {step === "redirected" && (
-          <div className="p-8 text-center">
+          <div className="px-5 py-6 sm:p-8 text-center">
             <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
               <Icon name="ExternalLink" size={36} className="text-blue-500" />
             </div>
@@ -305,7 +322,7 @@ export default function PaymentModal({
 
         {/* === ПОЛЛИНГ (ОЖИДАНИЕ) === */}
         {step === "polling" && (
-          <div className="p-8 text-center">
+          <div className="px-5 py-6 sm:p-8 text-center">
             <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
               <Icon name="Clock" size={36} className="text-amber-500" />
             </div>
@@ -328,7 +345,7 @@ export default function PaymentModal({
 
         {/* === УСПЕХ === */}
         {step === "success" && (
-          <div className="p-8 text-center">
+          <div className="px-5 py-6 sm:p-8 text-center">
             <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
               <Icon name="CheckCircle" size={36} className="text-emerald-500" />
             </div>
@@ -353,7 +370,7 @@ export default function PaymentModal({
 
         {/* === ОШИБКА === */}
         {step === "error" && (
-          <div className="p-8 text-center">
+          <div className="px-5 py-6 sm:p-8 text-center">
             <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
               <Icon name="XCircle" size={36} className="text-red-500" />
             </div>

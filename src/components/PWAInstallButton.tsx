@@ -189,6 +189,7 @@ export default function PWAInstallButton() {
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-navy-50 hover:bg-navy-100 border border-navy-200 text-navy-700 text-xs font-semibold transition-colors"
           >
             <Icon name="Smartphone" size={13} />
+            <span className="text-[11px]">Приложение</span>
           </button>
           {showTooltip && (
             <MobileTooltip
@@ -212,6 +213,7 @@ export default function PWAInstallButton() {
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-navy-50 hover:bg-navy-100 border border-navy-200 text-navy-700 text-xs font-semibold transition-colors"
         >
           <Icon name="Smartphone" size={13} />
+          <span className="text-[11px]">Приложение</span>
         </button>
         {showTooltip && !showIOSGuide && (
           <MobileTooltip
