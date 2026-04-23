@@ -1,18 +1,16 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { getUser } from "@/lib/auth";
 import HeroSection from "@/components/HeroSection";
+import FeaturesSection from "@/components/FeaturesSection";
+import ServicesSection from "@/components/ServicesSection";
+import PricingSection from "@/components/PricingSection";
+import ReviewsSection from "@/components/ReviewsSection";
+import FooterSection from "@/components/FooterSection";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import CookieBanner from "@/components/CookieBanner";
-
-// Ленивая загрузка тяжёлых секций
-const FeaturesSection = lazy(() => import("@/components/FeaturesSection"));
-const ServicesSection = lazy(() => import("@/components/ServicesSection"));
-const PricingSection = lazy(() => import("@/components/PricingSection"));
-const ReviewsSection = lazy(() => import("@/components/ReviewsSection"));
-const FooterSection = lazy(() => import("@/components/FooterSection"));
 
 const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> = {
   "Готовые документы": "docs",
@@ -22,7 +20,7 @@ const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> =
   "Договор ГПХ": "docs",
   "Для бизнеса": "business",
   "AI-консультация": "chat",
-  "Проверка юристом": "expert",
+  "Консультация юриста": "expert",
 };
 
 const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
@@ -46,17 +44,11 @@ const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
   "Максимум": "plan_max",
   "Бизнес-тариф": "business_subscription",
   "Готовые документы": "document",
-  "Проверка юристом": "expert",
+  "Консультация юриста": "expert",
   "Для бизнеса": "business_subscription",
   "Безлимитные консультации": "subscription_consult",
   "Безлимитные документы": "subscription_docs",
 };
-
-const SectionLoader = () => (
-  <div className="py-16 flex justify-center">
-    <div className="w-6 h-6 border-2 border-navy-300 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
 
 export default function Index() {
   const navigate = useNavigate();
@@ -71,32 +63,43 @@ export default function Index() {
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
+  // Если токен есть — сразу редиректим в кабинет, не показываем главную
+  const [checking, setChecking] = useState(!!localStorage.getItem("yurist_ai_token"));
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    const needLogin = params.get("login") === "1";
+    const paymentSuccess = params.get("payment") === "success";
+
+    if (ref) localStorage.setItem("ref_code", ref);
+    if (needLogin) window.history.replaceState({}, "", "/");
+
     getUser().then((u) => {
       setIsLoggedIn(!!u);
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref");
-      const needLogin = params.get("login") === "1";
-      if (ref) localStorage.setItem("ref_code", ref);
+      setChecking(false);
+
+      if (u && !paymentSuccess && !needLogin) {
+        // Залогинен — сразу в кабинет
+        navigate("/cabinet", { replace: true });
+        return;
+      }
+
       if (!u && (needLogin || ref)) {
         setFreeTrial(!!ref);
         setShowLogin(true);
       }
-      if (needLogin) window.history.replaceState({}, "", "/");
-    });
-  }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("payment") === "success" && !isLoggedIn) {
-      const invId = params.get("inv_id");
-      if (invId) localStorage.setItem("pending_inv_id", invId);
-      window.history.replaceState({}, "", "/");
-      setShowRegisterAfterPay(true);
-      setShowLogin(true);
-    }
-  }, [isLoggedIn]);
+      if (paymentSuccess && !u) {
+        const invId = params.get("inv_id");
+        if (invId) localStorage.setItem("pending_inv_id", invId);
+        window.history.replaceState({}, "", "/");
+        setShowRegisterAfterPay(true);
+        setShowLogin(true);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNavigate = useCallback((section: string) => {
     setActiveSection(section);
@@ -156,6 +159,33 @@ export default function Index() {
     navigate("/cabinet");
   }, [isLoggedIn, navigate]);
 
+  // Пока проверяем токен — показываем тёмный экран в цвет hero, без белой вспышки
+  if (checking) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg, #060d18 0%, #0a1628 50%, #0d1e38 100%)" }}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div className="flex gap-1.5">
+            {[0, 150, 300].map(d => (
+              <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen font-golos">
       <Header
@@ -177,33 +207,19 @@ export default function Index() {
         />
       </div>
 
-      <Suspense fallback={<SectionLoader />}>
-        <FeaturesSection />
-      </Suspense>
-
-      <Suspense fallback={<SectionLoader />}>
-        <ServicesSection
-          onSelectService={(service) => {
-            const tab = SERVICE_TAB_MAP[service] || "chat";
-            if (isLoggedIn) navigate(`/cabinet?tab=${tab}`);
-            else { setPendingTab(tab); setFreeTrial(true); setShowLogin(true); }
-          }}
-        />
-      </Suspense>
-
-      <Suspense fallback={<SectionLoader />}>
-        <PricingSection
-          onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
-        />
-      </Suspense>
-
-      <Suspense fallback={<SectionLoader />}>
-        <ReviewsSection />
-      </Suspense>
-
-      <Suspense fallback={<SectionLoader />}>
-        <FooterSection onNavigate={handleNavigate} />
-      </Suspense>
+      <FeaturesSection />
+      <ServicesSection
+        onSelectService={(service) => {
+          const tab = SERVICE_TAB_MAP[service] || "chat";
+          if (isLoggedIn) navigate(`/cabinet?tab=${tab}`);
+          else { setPendingTab(tab); setFreeTrial(true); setShowLogin(true); }
+        }}
+      />
+      <PricingSection
+        onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
+      />
+      <ReviewsSection />
+      <FooterSection onNavigate={handleNavigate} />
 
       {showPayment && (
         <PaymentModal
