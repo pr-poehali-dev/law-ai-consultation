@@ -118,11 +118,11 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
             {/* Заголовок */}
             <h2 className="font-bold text-white leading-snug mb-1.5"
               style={{ fontSize: "clamp(18px, 5vw, 22px)", fontFamily: "Georgia, serif" }}>
-              Подождите! Только сейчас{" "}
-              <span style={{ color: "#f0c060" }}>скидка 50%</span>
+              Подождите! Получите{" "}
+              <span style={{ color: "#f0c060" }}>полный доступ</span> всего за 990 ₽
             </h2>
             <p className="text-sm mb-4 leading-relaxed" style={{ color: "rgba(160,180,204,0.82)" }}>
-              Полный доступ к AI-юристу по минимальной цене — предложение исчезнет, когда вы уйдёте.
+              30 вопросов AI-юристу + 5 документов — начните решать юридические вопросы прямо сейчас.
             </p>
 
             {/* Пакет */}
@@ -161,9 +161,8 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
 
               {/* Цена */}
               <div className="flex items-baseline gap-2">
-                <span className="font-black" style={{ color: "#f0c060", fontSize: "clamp(26px, 8vw, 32px)" }}>745 ₽</span>
-                <span className="text-sm line-through" style={{ color: "rgba(160,180,204,0.4)" }}>1 490 ₽</span>
-                <span className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Максимальная выгода!</span>
+                <span className="font-black" style={{ color: "#f0c060", fontSize: "clamp(26px, 8vw, 32px)" }}>990 ₽</span>
+                <span className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Полный доступ!</span>
               </div>
             </div>
 
@@ -198,7 +197,7 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
             >
               <span className="flex items-center justify-center gap-2">
                 <Icon name="Zap" size={17} />
-                Забрать за 745 ₽ · скидка 50%
+                Забрать пакет «Старт» за 990 ₽
               </span>
             </button>
 

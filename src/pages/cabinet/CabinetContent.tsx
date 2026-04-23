@@ -71,7 +71,7 @@ export default function CabinetContent({
           onRemoveFile={(idx) => chat.setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
           onPayClick={() => {
             savePendingAction({ tab: "chat", chatInput: chat.input });
-            setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+            setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
           }}
           onExpertClick={() => {
             if (user.paidExpert || user.isAdmin) {
@@ -124,7 +124,7 @@ export default function CabinetContent({
             const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
               (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);
             if (!canAsk) {
-              setPayment({ type: "consultation", name: "AI-консультация (3 вопроса)" });
+              setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
               return;
             }
             setTab("chat");

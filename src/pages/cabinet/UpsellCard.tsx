@@ -55,7 +55,7 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
               {/* Разделитель */}
               <div className="mb-4" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-              {/* Кнопка 1 — 3 вопроса */}
+              {/* Кнопка 1 — пакет Старт */}
               <button
                 onClick={onPayClick}
                 className="w-full rounded-xl mb-2.5 btn-gold active:scale-95"
@@ -68,12 +68,12 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
                       <Icon name="Zap" size={13} className="text-navy-900" />
                     </div>
                     <div className="text-left">
-                      <p className="text-[12px] font-bold text-navy-900 leading-tight">3 вопроса к AI-юристу</p>
-                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>Продолжите прямо сейчас</p>
+                      <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
+                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · анализ PDF</p>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-0.5">
-                    <span className="text-[20px] font-bold text-navy-900 leading-none">290</span>
+                    <span className="text-[20px] font-bold text-navy-900 leading-none">990</span>
                     <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
                   </div>
                 </div>

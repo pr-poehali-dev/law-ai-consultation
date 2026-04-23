@@ -16,7 +16,7 @@ CORS = {
 }
 
 DESCRIPTIONS = {
-    "consultation":          "+3 вопроса к AI-юристу",
+    "consultation":          "Консультация живого юриста активирована",
     "document":              "+1 документ",
     "expert":                "Экспертная проверка юристом",
     "business":              "Бизнес-пакет",
@@ -60,8 +60,9 @@ def grant_service(conn, user_id: int, service_type: str):
     cur = conn.cursor()
     try:
         if service_type == "consultation":
+            # Консультация живого юриста — активируем paid_expert
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s",
+                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s",
                 (user_id,)
             )
         elif service_type == "document":

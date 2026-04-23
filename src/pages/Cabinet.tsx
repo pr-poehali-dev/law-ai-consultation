@@ -316,7 +316,7 @@ export default function Cabinet() {
           onAccept={() => {
             setShowExitIntent(false);
             savePendingAction({ tab: "chat" });
-            pay.setPayment({ type: "plan_starter_discount", name: "Пакет «Старт» — скидка 50%" });
+            pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
           }}
           onClose={() => setShowExitIntent(false)}
         />

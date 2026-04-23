@@ -30,7 +30,7 @@ export function clearPendingAction() {
 }
 
 export const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
-  consultation:          "+3 вопроса к AI-юристу",
+  consultation:          "Консультация живого юриста активирована",
   document:              "+1 документ",
   expert:                "Экспертная проверка активирована",
   business:              "Бизнес-пакет активирован",

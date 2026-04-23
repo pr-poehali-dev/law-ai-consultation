@@ -155,42 +155,23 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const needsExpert = data.needs_expert as boolean | undefined;
       const personalDataRefused = data.personal_data_refused as boolean | undefined;
 
-      // Воронка: прячем вторую половину ответа когда это был последний вопрос
-      if (isLastQuestion && aiText.length > 200) {
-        const half = Math.ceil(aiText.length / 2);
-        const cutIdx = aiText.lastIndexOf(" ", half) || half;
-        // Обрываем на границе слова + добавляем троеточие для плавного перехода
-        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
-        setMessages((p) => [...p, {
-          role: "ai",
-          text: visibleText,
-          fullAnswer: aiText,
-          isLastQuestion: true,
-          truncated: false,
-          needsExpert: !!needsExpert,
-          personalDataRefused: !!personalDataRefused,
-        }]);
-        ymGoal("chat_funnel_shown");
-      } else {
-        setMessages((p) => [...p, {
-          role: "ai",
-          text: aiText,
-          truncated: !!truncated,
-          needsExpert: !!needsExpert,
-          personalDataRefused: !!personalDataRefused,
-        }]);
-        // Upsell-карточку показываем только если воронка НЕ сработала
-        invalidateUserCache();
-        const left = await getQuestionsLeft();
-        refreshUser();
-        if (left === 0) {
-          setTimeout(() => {
-            setMessages((p) => {
-              if (p.some(m => m.isUpsell)) return p;
-              return [...p, { role: "ai", isUpsell: true, text: "" }];
-            });
-          }, 900);
-        }
+      setMessages((p) => [...p, {
+        role: "ai",
+        text: aiText,
+        truncated: !!truncated,
+        needsExpert: !!needsExpert,
+        personalDataRefused: !!personalDataRefused,
+      }]);
+      invalidateUserCache();
+      const left = await getQuestionsLeft();
+      refreshUser();
+      if (left === 0) {
+        setTimeout(() => {
+          setMessages((p) => {
+            if (p.some(m => m.isUpsell)) return p;
+            return [...p, { role: "ai", isUpsell: true, text: "" }];
+          });
+        }, 900);
       }
 
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
@@ -205,28 +186,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
-  // Открываем полный ответ после оплаты (воронка продаж)
-  const revealAnswer = async (msgIndex: number) => {
-    // Сначала проверяем — появились ли вопросы после оплаты
-    invalidateUserCache();
-    const user = await getUser();
-    const canReveal = user && (
-      hasActiveSubscription(user, "consult") ||
-      user.isAdmin ||
-      user.paidQuestions > 0
-    );
-    if (!canReveal) {
-      // Вопросов ещё нет — открываем оплату
-      onPaymentRequired("consultation", "3 вопроса к AI-юристу");
-      return;
-    }
-    // Раскрываем полный ответ
-    setMessages((p) => p.map((m, i) =>
-      i === msgIndex && m.isLastQuestion && m.fullAnswer
-        ? { ...m, text: m.fullAnswer, isLastQuestion: false, fullAnswer: undefined }
-        : m
-    ));
-  };
+  const revealAnswer = (_msgIndex: number) => { /* воронка отключена */ };
 
   const continueChat = async (partialText: string) => {
     if (typing) return;

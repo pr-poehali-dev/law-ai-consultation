@@ -35,14 +35,14 @@ interface PaymentModalProps {
 }
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
-  consultation: 290,
+  consultation: 990,
   document: 500,
-  expert: 1500,
+  expert: 990,
   business: 1000,
   subscription_consult: 1990,
   subscription_docs: 4990,
-  plan_starter: 1490,
-  plan_starter_discount: 745,
+  plan_starter: 990,
+  plan_starter_discount: 495,
   plan_pro: 3990,
   plan_max: 5990,
   business_subscription: 4990,
@@ -54,14 +54,14 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
-  consultation: "3 ответа AI-юриста на любые правовые вопросы",
+  consultation: "Консультация живого юриста по вашей ситуации",
   document: "Один юридический документ (исковое, претензия или жалоба)",
-  expert: "Живой юрист проанализирует ответ AI и даст заключение. Включает 3 вопроса к AI",
+  expert: "Консультация живого юриста — разбор ситуации и стратегия действий",
   business: "Подготовка договора и юридических документов для бизнеса",
   subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
   subscription_docs: "Безлимитная подготовка документов — 1 месяц",
-  plan_starter: "30 вопросов + 5 документов · Анализ PDF/фото · Генерация .doc из диалога",
-  plan_starter_discount: "30 вопросов + 5 документов · Анализ PDF/фото · Генерация .doc из диалога · Скидка 50%",
+  plan_starter: "30 вопросов AI-юристу + 5 документов · Анализ PDF/фото · Генерация .doc",
+  plan_starter_discount: "30 вопросов AI-юристу + 5 документов · Анализ PDF/фото · Скидка 50%",
   plan_pro: "100 вопросов + 20 документов · Анализ документов · Определение перспективы дела · Генерация .doc",
   plan_max: "до 300 вопросов + 50 документов · Всё включено · Приоритетный доступ",
   business_subscription: "150 действий/мес · Приказы, договоры, анализ PDF/DOC · Сравнение · Due diligence · Скачивание .doc · История 24 ч",

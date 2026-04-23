@@ -17,7 +17,7 @@ const PLANS: Plan[] = [
   {
     id: "plan_starter",
     name: "Старт",
-    price: "1 490",
+    price: "990",
     questions: 30,
     docs: 5,
     features: ["30 вопросов AI-юристу", "5 готовых документов", "Анализ PDF и фото"],

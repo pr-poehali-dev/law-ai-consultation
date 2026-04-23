@@ -81,7 +81,7 @@ export default function ChatTab({
             </button>
           ) : totalLeft === 0 ? (
             <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
-              <Icon name="Plus" size={11} />290 ₽ · 3 вопр.
+              <Icon name="Plus" size={11} />Купить доступ
             </button>
           ) : (
             <button

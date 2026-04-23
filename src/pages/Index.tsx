@@ -1,34 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { getUser } from "@/lib/auth";
 import HeroSection from "@/components/HeroSection";
-import ServicesSection from "@/components/ServicesSection";
-import FeaturesSection from "@/components/FeaturesSection";
-import PricingSection from "@/components/PricingSection";
-import FooterSection from "@/components/FooterSection";
-import ReviewsSection from "@/components/ReviewsSection";
-import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import LoginModal from "@/components/LoginModal";
+import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import CookieBanner from "@/components/CookieBanner";
+
+// Ленивая загрузка тяжёлых секций
+const FeaturesSection = lazy(() => import("@/components/FeaturesSection"));
+const ServicesSection = lazy(() => import("@/components/ServicesSection"));
+const PricingSection = lazy(() => import("@/components/PricingSection"));
+const ReviewsSection = lazy(() => import("@/components/ReviewsSection"));
+const FooterSection = lazy(() => import("@/components/FooterSection"));
 
 const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> = {
   "Готовые документы": "docs",
   "Исковое заявление": "docs",
   "Претензия": "docs",
   "Жалоба": "docs",
-  "Жалоба в Роспотребнадзор": "docs",
   "Договор ГПХ": "docs",
-  "Договор для бизнеса": "docs",
-  "Заявления / Ходатайства": "docs",
-  "Уведомления": "docs",
+  "Для бизнеса": "business",
   "AI-консультация": "chat",
   "Проверка юристом": "expert",
-  "Для бизнеса": "business",
 };
 
 const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
-  consultation: "consultation",
+  consultation: "plan_starter",
   document: "document",
   business: "business",
   expert: "expert",
@@ -42,25 +40,23 @@ const SERVICE_TYPE_MAP: Record<string, ServiceType> = {
   business_actions_30: "business_actions_30",
   business_actions_50: "business_actions_50",
   business_actions_150: "business_actions_150",
-  "AI-консультация": "consultation",
+  "AI-консультация": "plan_starter",
   "Старт": "plan_starter",
   "Профи": "plan_pro",
   "Максимум": "plan_max",
   "Бизнес-тариф": "business_subscription",
   "Готовые документы": "document",
-  "Исковое заявление": "document",
-  "Претензия": "document",
-  "Жалоба": "document",
-  "Жалоба в Роспотребнадзор": "document",
-  "Договор ГПХ": "document",
-  "Договор для бизнеса": "document",
-  "Заявления / Ходатайства": "document",
-  "Уведомления": "document",
   "Проверка юристом": "expert",
   "Для бизнеса": "business_subscription",
   "Безлимитные консультации": "subscription_consult",
   "Безлимитные документы": "subscription_docs",
 };
+
+const SectionLoader = () => (
+  <div className="py-16 flex justify-center">
+    <div className="w-6 h-6 border-2 border-navy-300 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 export default function Index() {
   const navigate = useNavigate();
@@ -70,12 +66,10 @@ export default function Index() {
   const [showRegisterAfterPay, setShowRegisterAfterPay] = useState(false);
   const [freeTrial, setFreeTrial] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
-    type: "consultation",
-    name: "AI-консультация",
+    type: "plan_starter",
+    name: "Пакет «Старт»",
   });
-
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [refCode, setRefCode] = useState("");
   const [pendingTab, setPendingTab] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,20 +78,15 @@ export default function Index() {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("ref");
       const needLogin = params.get("login") === "1";
-      if (ref) {
-        setRefCode(ref);
-        localStorage.setItem("ref_code", ref);
-      }
+      if (ref) localStorage.setItem("ref_code", ref);
       if (!u && (needLogin || ref)) {
         setFreeTrial(!!ref);
         setShowLogin(true);
       }
-      // Убираем ?login=1 из адресной строки
       if (needLogin) window.history.replaceState({}, "", "/");
     });
   }, []);
 
-  // Проверяем возврат с ЮКасса для незарегистрированного пользователя
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment") === "success" && !isLoggedIn) {
@@ -109,40 +98,63 @@ export default function Index() {
     }
   }, [isLoggedIn]);
 
-  const handleNavigate = (section: string) => {
+  const handleNavigate = useCallback((section: string) => {
     setActiveSection(section);
     if (section === "cabinet") {
-      if (isLoggedIn) { navigate("/cabinet"); }
-      else { setShowLogin(true); }
+      if (isLoggedIn) navigate("/cabinet");
+      else setShowLogin(true);
       return;
     }
     const el = document.getElementById(section === "home" ? "hero" : section);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  }, [isLoggedIn, navigate]);
 
-  const openPayment = (name: string, serviceTypeId?: string) => {
+  const openPayment = useCallback((name: string, serviceTypeId?: string) => {
     const type = (serviceTypeId && SERVICE_TYPE_MAP[serviceTypeId])
       || SERVICE_TYPE_MAP[name]
-      || "consultation";
+      || "plan_starter";
     setSelectedService({ type, name });
     setShowPayment(true);
-  };
+  }, []);
 
-  // Кнопка «Попробовать бесплатно» — регистрация с 1 бесплатным вопросом
-  const handleTryClick = () => {
+  const handleTryClick = useCallback(() => {
     if (isLoggedIn) { navigate("/cabinet"); return; }
     setFreeTrial(true);
     setShowLogin(true);
-  };
+  }, [isLoggedIn, navigate]);
 
-  const handlePaymentSuccess = async (_svcType: ServiceType) => {
+  const handleOpenLogin = useCallback((opts?: { freeTrial?: boolean; pendingTab?: string }) => {
+    if (isLoggedIn) { navigate("/cabinet"); return; }
+    if (opts?.pendingTab) setPendingTab(opts.pendingTab);
+    setFreeTrial(opts?.freeTrial ?? false);
+    setShowLogin(true);
+  }, [isLoggedIn, navigate]);
+
+  const handleLoginSuccess = useCallback(() => {
+    setShowLogin(false);
+    setFreeTrial(false);
+    setShowRegisterAfterPay(false);
+    const pendingInvId = localStorage.getItem("pending_inv_id");
+    if (pendingInvId) {
+      localStorage.removeItem("pending_inv_id");
+      navigate(`/cabinet?payment=success&inv_id=${pendingInvId}`);
+    } else if (pendingTab) {
+      const tab = pendingTab;
+      setPendingTab(null);
+      navigate(`/cabinet?tab=${tab}`);
+    } else {
+      navigate("/cabinet");
+    }
+  }, [navigate, pendingTab]);
+
+  const handlePaymentSuccess = useCallback(async (_svcType: ServiceType) => {
     if (!isLoggedIn) {
       setShowRegisterAfterPay(true);
       return;
     }
     setShowPayment(false);
     navigate("/cabinet");
-  };
+  }, [isLoggedIn, navigate]);
 
   return (
     <div className="min-h-screen font-golos">
@@ -157,35 +169,41 @@ export default function Index() {
         <HeroSection
           onConsult={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
           onDocument={() => {
-            if (isLoggedIn) { navigate("/cabinet?tab=docs"); }
+            if (isLoggedIn) navigate("/cabinet?tab=docs");
             else { setPendingTab("docs"); setFreeTrial(true); setShowLogin(true); }
           }}
           onRegister={handleTryClick}
+          onOpenLogin={handleOpenLogin}
         />
       </div>
 
-      <FeaturesSection />
+      <Suspense fallback={<SectionLoader />}>
+        <FeaturesSection />
+      </Suspense>
 
-      <ServicesSection
-        onSelectService={(service) => {
-          const tab = SERVICE_TAB_MAP[service] || "chat";
-          if (isLoggedIn) {
-            navigate(`/cabinet?tab=${tab}`);
-          } else {
-            setPendingTab(tab);
-            setFreeTrial(true);
-            setShowLogin(true);
-          }
-        }}
-      />
+      <Suspense fallback={<SectionLoader />}>
+        <ServicesSection
+          onSelectService={(service) => {
+            const tab = SERVICE_TAB_MAP[service] || "chat";
+            if (isLoggedIn) navigate(`/cabinet?tab=${tab}`);
+            else { setPendingTab(tab); setFreeTrial(true); setShowLogin(true); }
+          }}
+        />
+      </Suspense>
 
-      <PricingSection
-        onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
-      />
+      <Suspense fallback={<SectionLoader />}>
+        <PricingSection
+          onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
+        />
+      </Suspense>
 
-      <ReviewsSection />
+      <Suspense fallback={<SectionLoader />}>
+        <ReviewsSection />
+      </Suspense>
 
-      <FooterSection onNavigate={handleNavigate} />
+      <Suspense fallback={<SectionLoader />}>
+        <FooterSection onNavigate={handleNavigate} />
+      </Suspense>
 
       {showPayment && (
         <PaymentModal
@@ -205,22 +223,7 @@ export default function Index() {
       {showLogin && (
         <LoginModal
           onClose={() => { setShowLogin(false); setFreeTrial(false); setShowRegisterAfterPay(false); setPendingTab(null); }}
-          onSuccess={() => {
-            setShowLogin(false);
-            setFreeTrial(false);
-            setShowRegisterAfterPay(false);
-            const pendingInvId = localStorage.getItem("pending_inv_id");
-            if (pendingInvId) {
-              localStorage.removeItem("pending_inv_id");
-              navigate(`/cabinet?payment=success&inv_id=${pendingInvId}`);
-            } else if (pendingTab) {
-              const tab = pendingTab;
-              setPendingTab(null);
-              navigate(`/cabinet?tab=${tab}`);
-            } else {
-              navigate("/cabinet");
-            }
-          }}
+          onSuccess={handleLoginSuccess}
           freeTrial={freeTrial}
           showRegisterAfterPay={showRegisterAfterPay}
         />
