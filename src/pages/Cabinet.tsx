@@ -15,6 +15,7 @@ import {
 } from "@/pages/cabinet/useCabinetPayment";
 import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
+import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
@@ -28,6 +29,7 @@ export default function Cabinet() {
   const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
+  const [showExitIntent, setShowExitIntent] = useState(false);
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
 
@@ -76,6 +78,19 @@ export default function Cabinet() {
     docsSetDocType: docs.setDocType,
     docsSetDocDetails: docs.setDocDetails,
     docsGenerateDocWith: docs.generateDocWith,
+  });
+
+  const hasNoPurchase = user
+    ? (!user.isAdmin &&
+       (user.paidQuestions ?? 0) === 0 &&
+       (user.paidDocs ?? 0) === 0 &&
+       !user.subscriptionConsultUntil &&
+       !user.subscriptionDocsUntil)
+    : false;
+
+  useExitIntent({
+    enabled: hasNoPurchase,
+    onShow: () => setShowExitIntent(true),
   });
 
   useEffect(() => {
@@ -295,6 +310,17 @@ export default function Cabinet() {
         onClosePlanModal={pay.closePlanModal}
         onSelectPlan={pay.handleSelectPlan}
       />
+
+      {showExitIntent && (
+        <ExitIntentPopup
+          onAccept={() => {
+            setShowExitIntent(false);
+            savePendingAction({ tab: "chat" });
+            pay.setPayment({ type: "plan_starter_discount", name: "Пакет «Старт» — скидка 50%" });
+          }}
+          onClose={() => setShowExitIntent(false)}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ export type ServiceType =
   | "subscription_consult"
   | "subscription_docs"
   | "plan_starter"
+  | "plan_starter_discount"
   | "plan_pro"
   | "plan_max"
   | "business_subscription"
@@ -41,6 +42,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   subscription_consult: 1990,
   subscription_docs: 4990,
   plan_starter: 1490,
+  plan_starter_discount: 745,
   plan_pro: 3990,
   plan_max: 5990,
   business_subscription: 4990,
@@ -59,6 +61,7 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
   subscription_docs: "Безлимитная подготовка документов — 1 месяц",
   plan_starter: "30 вопросов + 5 документов · Анализ PDF/фото · Генерация .doc из диалога",
+  plan_starter_discount: "30 вопросов + 5 документов · Анализ PDF/фото · Генерация .doc из диалога · Скидка 50%",
   plan_pro: "100 вопросов + 20 документов · Анализ документов · Определение перспективы дела · Генерация .doc",
   plan_max: "до 300 вопросов + 50 документов · Всё включено · Приоритетный доступ",
   business_subscription: "150 действий/мес · Приказы, договоры, анализ PDF/DOC · Сравнение · Due diligence · Скачивание .doc · История 24 ч",
@@ -72,6 +75,7 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   subscription_consult: "Выгодно",
   plan_starter: "Старт",
+  plan_starter_discount: "−50%",
   plan_pro: "Хит",
   plan_max: "Максимум",
   business_subscription: "Бизнес",

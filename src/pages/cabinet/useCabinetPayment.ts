@@ -37,6 +37,7 @@ export const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
   subscription_consult:  "Подписка на консультации активирована",
   subscription_docs:     "Подписка на документы активирована",
   plan_starter:          "+30 вопросов и +5 документов",
+  plan_starter_discount: "+30 вопросов и +5 документов",
   plan_pro:              "+100 вопросов и +20 документов",
   plan_max:              "+300 вопросов и +50 документов",
   business_subscription: "+150 бизнес-действий и подписка",
