@@ -24,4 +24,16 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Если чанк не загрузился (старый SW отдал устаревший index.html) — перезагружаем
+window.addEventListener("error", (e) => {
+  const src = (e.target as HTMLScriptElement)?.src || "";
+  if (src.includes("/assets/")) {
+    const reloadKey = "chunk_reload_attempted";
+    if (!sessionStorage.getItem(reloadKey)) {
+      sessionStorage.setItem(reloadKey, "1");
+      window.location.reload();
+    }
+  }
+}, true);
+
 createRoot(document.getElementById("root")!).render(<App />);
