@@ -15,8 +15,8 @@ export default function ExpertPaywall({ onPayClick }: ExpertPaywallProps) {
               <Icon name="UserCheck" size={26} className="text-gold-400" />
             </div>
             <div>
-              <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">Проверка живым юристом</h2>
-              <p className="text-sm text-muted-foreground mt-1">Эксперт-юрист проанализирует ответ AI или ваш документ</p>
+              <h2 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800">Консультация живого юриста</h2>
+              <p className="text-sm text-muted-foreground mt-1">Личная консультация юриста по вашей ситуации</p>
             </div>
           </div>
 
@@ -44,7 +44,7 @@ export default function ExpertPaywall({ onPayClick }: ExpertPaywallProps) {
             className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
           >
             <Icon name="UserCheck" size={16} />
-            Подключить — 1 500 ₽
+            Подключить — 990 ₽
           </button>
           <p className="text-xs text-muted-foreground mt-3 text-center">Защищённая оплата · доступ сразу после оплаты</p>
         </div>

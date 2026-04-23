@@ -25,6 +25,8 @@ export default function Cabinet() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  // Если токена нет — сразу редиректим без белого экрана
+  const hasToken = useRef(!!localStorage.getItem("yurist_ai_token")).current;
   const [authChecked, setAuthChecked] = useState(false);
   const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
@@ -94,6 +96,12 @@ export default function Cabinet() {
   });
 
   useEffect(() => {
+    // Нет токена — мгновенный редирект без белого экрана
+    if (!hasToken) {
+      window.location.replace("/");
+      return;
+    }
+
     const ref = searchParams.get("ref");
     if (ref) localStorage.setItem("ref_code", ref);
     const tabParam = searchParams.get("tab") as Tab | null;
@@ -263,26 +271,35 @@ export default function Cabinet() {
             <p className="font-semibold text-navy-800 mb-1">Нет соединения</p>
             <p className="text-sm text-muted-foreground">Проверьте интернет и попробуйте снова</p>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2.5 bg-navy-800 text-white text-sm font-semibold rounded-xl"
-          >
-            Повторить
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2.5 bg-navy-800 text-white text-sm font-semibold rounded-xl"
+            >
+              Повторить
+            </button>
+            <button
+              onClick={() => { localStorage.removeItem("yurist_ai_token"); window.location.replace("/"); }}
+              className="px-6 py-2.5 bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl"
+            >
+              На главную
+            </button>
+          </div>
         </div>
       </div>
     );
     // Обычная загрузка
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 gradient-navy rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-navy-900 to-navy-800" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl" style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
+          <p className="text-white/70 text-sm font-medium">Загружаем кабинет...</p>
           <div className="flex gap-1.5">
-            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"0ms"}}/>
-            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"150ms"}}/>
-            <span className="w-1.5 h-1.5 bg-navy-400 rounded-full animate-bounce" style={{animationDelay:"300ms"}}/>
+            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"0ms"}}/>
+            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"150ms"}}/>
+            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"300ms"}}/>
           </div>
         </div>
       </div>
