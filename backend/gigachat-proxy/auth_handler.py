@@ -652,6 +652,12 @@ def handle_admin_reports(token: str, body: dict) -> dict:
             reply_text = sanitize_str(body.get("reply", ""), max_len=2000)
             if not report_id or not reply_text:
                 return _err(400, "Укажите report_id и reply")
+            # Получаем email и сообщение пользователя для уведомления
+            cur.execute(
+                f"SELECT user_email, user_name, message FROM {SCHEMA}.reports WHERE id = %s",
+                (report_id,)
+            )
+            report_row = cur.fetchone()
             cur.execute(
                 f"""UPDATE {SCHEMA}.reports
                     SET admin_reply = %s, status = 'replied', replied_at = NOW()
@@ -659,6 +665,24 @@ def handle_admin_reports(token: str, body: dict) -> dict:
                 (reply_text, report_id)
             )
             conn.commit()
+            # Отправляем email-уведомление пользователю
+            if report_row:
+                user_email_to, user_name_to, orig_message = report_row
+                try:
+                    _send_email(
+                        to_email=user_email_to,
+                        subject=f"Ответ на ваше обращение #{report_id} — ИИ-Право.рф",
+                        body_text=(
+                            f"Здравствуйте{', ' + user_name_to if user_name_to else ''}!\n\n"
+                            f"Мы ответили на ваше обращение #{report_id}.\n\n"
+                            f"Ваше сообщение:\n{orig_message}\n\n"
+                            f"Ответ юриста:\n{reply_text}\n\n"
+                            f"---\nС уважением, команда ИИ-Право.рф\n"
+                            f"Посмотреть все обращения: https://ии-право.рф/cabinet"
+                        )
+                    )
+                except Exception as e:
+                    print(f"[REPORT_REPLY] Email не отправлен: {e}")
             return _ok({"ok": True})
 
         elif action == "close":

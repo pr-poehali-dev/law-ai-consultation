@@ -203,11 +203,34 @@ def handler(event: dict, context) -> dict:
 
         effective_service = db_service_type or service_type
         effective_amount = float(db_amount) if db_amount else amount_val
-        effective_email = db_user_email or ""
+        effective_email = (db_user_email or "").strip().lower()
+
+        # Fallback: если user_id не привязан, ищем пользователя по email (без учёта регистра)
+        if not effective_user_id and effective_email:
+            cur2 = conn.cursor()
+            try:
+                cur2.execute(
+                    f"SELECT id FROM {SCHEMA}.users WHERE LOWER(email) = %s",
+                    (effective_email,)
+                )
+                uid_row = cur2.fetchone()
+                if uid_row:
+                    effective_user_id = uid_row[0]
+                    # Обновляем ордер — привязываем найденного пользователя
+                    cur2.execute(
+                        f"UPDATE {SCHEMA}.orders SET user_id = %s WHERE id = %s",
+                        (effective_user_id, order_id)
+                    )
+                    conn.commit()
+                    print(f"[PAYMENT] Привязали user_id={effective_user_id} по email={effective_email}")
+            finally:
+                cur2.close()
 
         if effective_user_id and effective_service:
             grant_service(conn, effective_user_id, effective_service)
             write_billing_log(conn, effective_user_id, effective_email, effective_service, effective_amount, payment_id)
+        else:
+            print(f"[PAYMENT] WARN: не смогли зачислить — user_id={effective_user_id}, email={effective_email}, service={effective_service}")
 
     finally:
         cur.close()

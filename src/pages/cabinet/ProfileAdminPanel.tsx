@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { getAdminReports, replyToReport, closeReport, getBillingLog, listUsers, type Report, type BillingLogEntry } from "@/lib/auth";
+import AdminLegalDocs from "@/pages/cabinet/AdminLegalDocs";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -205,9 +206,9 @@ function AdminReportsPanel() {
           <p className="text-xs text-muted-foreground">Нет обращений</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+        <div className="space-y-3">
           {reports.map(r => (
-            <div key={r.id} className={`rounded-2xl border p-3 space-y-2 ${r.status === "new" ? "border-amber-200 bg-amber-50/40" : r.status === "replied" ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50/50"}`}>
+            <div key={r.id} className={`rounded-2xl border p-4 space-y-2.5 ${r.status === "new" ? "border-amber-200 bg-amber-50/40" : r.status === "replied" ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50/50"}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-navy-800 truncate">{r.user_name} · {r.user_email}</p>
@@ -270,9 +271,10 @@ function AdminReportsPanel() {
 
 export default function ProfileAdminPanel() {
   return (
-    <>
-      <AdminUserBilling />
+    <div className="space-y-4">
+      <AdminLegalDocs />
       <AdminReportsPanel />
-    </>
+      <AdminUserBilling />
+    </div>
   );
 }

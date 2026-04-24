@@ -84,7 +84,7 @@ def _handle(event: dict, context) -> dict:
 
     body = json.loads(event.get("body") or "{}")
     service_type = body.get("service_type", "consultation")
-    user_email = (body.get("email") or "").strip()
+    user_email = (body.get("email") or "").strip().lower()
     user_id = body.get("user_id")
     return_url = body.get("return_url", "https://ии-право.рф/cabinet?payment=success")
 

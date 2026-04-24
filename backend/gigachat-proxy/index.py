@@ -42,6 +42,12 @@ from state_duty import (
     is_duty_query, get_duty_context_for_chat, get_duty_context_for_doc,
     DUTY_DOC_TYPES,
 )
+from legal_docs_handler import (
+    handle_legal_docs,
+    get_legal_context_for_ai,
+    is_case_law_in_db,
+    is_state_duty_in_db,
+)
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
 SPEECH_DOC_TYPES = {"court_speech"}
@@ -624,6 +630,7 @@ def handler(event: dict, context) -> dict:
         "get-all-billing-log": lambda: handle_get_all_billing_log(token, body),
         "get-new-users": lambda: handle_get_new_users(token, body),
         "admin-grant": lambda: handle_admin_grant(token, body),
+        "legal-docs": lambda: handle_legal_docs(token, body),
     }
     if action in auth_actions:
         result = auth_actions[action]()
@@ -711,8 +718,13 @@ def handler(event: dict, context) -> dict:
                     "Заголовки блоков — жирный. Ключевые тезисы — **полужирный** или _курсив_. "
                     "Ссылки на доказательства: (т. 1, л.д. 15). Нумерация страниц — внизу по центру.\n\n"
                 )
-            # Для исковых документов — добавляем актуальные ставки госпошлины
+            # Для исковых документов — добавляем актуальные ставки госпошлины + файлы из БД
             duty_block = get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else ""
+            # Файлы госпошлины из БД (если загружены админом)
+            if doc_type in DUTY_DOC_TYPES:
+                duty_block += get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000)
+            # Файлы судебной практики — для всех типов документов
+            case_law_block = get_legal_context_for_ai("case_law", max_files=2, max_chars=4000)
 
             prompt = (
                 history_context
@@ -721,6 +733,7 @@ def handler(event: dict, context) -> dict:
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
                 + LEGAL_QUALITY_ADDON
                 + duty_block
+                + case_law_block
                 + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
@@ -734,6 +747,7 @@ def handler(event: dict, context) -> dict:
                 ) if chat_history else "")
                 + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
                 + duty_block
+                + case_law_block
                 + f"\n\nСоставь {label}. Используй актуальные нормы РФ на {TODAY}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
             answer = ""
@@ -1157,18 +1171,19 @@ def handler(event: dict, context) -> dict:
                     answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
 
             elif _is_duty:
-                # Вопрос о госпошлине — инжектируем актуальный справочник ставок в последнее сообщение
+                # Вопрос о госпошлине — инжектируем справочник ставок + файлы из БД
                 duty_ctx = get_duty_context_for_chat()
+                # Дополнительно читаем файлы госпошлины загруженные админом
+                duty_db_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=5000)
                 duty_messages = list(clean_messages)
-                # Добавляем справочник как системный контекст перед последним user-сообщением
                 last_user_idx = next((i for i in range(len(duty_messages)-1, -1, -1)
                                       if duty_messages[i].get("role") == "user"), None)
                 if last_user_idx is not None:
                     orig = duty_messages[last_user_idx].get("content", "")
                     duty_messages[last_user_idx] = {**duty_messages[last_user_idx],
-                                                    "content": orig + duty_ctx}
+                                                    "content": orig + duty_ctx + duty_db_ctx}
                 answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=1800, fast=True, temperature=0.2)
-                print(f"[ROUTER] Запрос о госпошлине → справочник инжектирован")
+                print(f"[ROUTER] Запрос о госпошлине → справочник инжектирован, файлы из БД: {bool(duty_db_ctx)}")
 
             else:
                 if _is_simple:

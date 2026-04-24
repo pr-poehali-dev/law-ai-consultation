@@ -340,6 +340,44 @@ export async function closeReport(reportId: number): Promise<void> {
   await apiCall({ action: "admin-reports", sub_action: "close", report_id: reportId });
 }
 
+export interface LegalDoc {
+  id: number;
+  category: "case_law" | "state_duty";
+  title: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+  description: string;
+  download_url: string;
+}
+
+export async function getLegalDocs(category?: string): Promise<LegalDoc[]> {
+  const res = await apiCall({ action: "legal-docs", action_sub: "list", category: category || "" });
+  const data = await res.json();
+  return data.docs || [];
+}
+
+export async function uploadLegalDoc(params: {
+  category: "case_law" | "state_duty";
+  title: string;
+  description: string;
+  file: string; // base64
+  filename: string;
+}): Promise<{ ok?: boolean; id?: number; error?: string }> {
+  const res = await apiCall({ action: "legal-docs", action_sub: "upload", ...params });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка загрузки" };
+  return { ok: true, id: data.id };
+}
+
+export async function deleteLegalDoc(docId: number): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "legal-docs", action_sub: "delete", doc_id: docId });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка удаления" };
+  return { ok: true };
+}
+
 export function getFreeLeft(user: User): number {
   return user.isAdmin ? 999 : user.paidQuestions;
 }
