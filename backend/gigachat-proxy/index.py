@@ -36,6 +36,7 @@ from prompts import (
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
     SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
+    LEGAL_QUALITY_ADDON,
 )
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
@@ -707,6 +708,7 @@ def handler(event: dict, context) -> dict:
                 + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
+                + LEGAL_QUALITY_ADDON
                 + f"Там где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
@@ -723,6 +725,7 @@ def handler(event: dict, context) -> dict:
                         for m in chat_history[-6:]
                     ) if chat_history else "")
                     + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
+                    + LEGAL_QUALITY_ADDON
                     + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
                 )
                 ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=180)
