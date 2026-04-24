@@ -1,5 +1,7 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
+import { sendReport } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -37,6 +39,42 @@ interface ChatTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
+function ReportPopoverChat({ onClose }: { onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    const result = await sendReport(text.trim());
+    setSending(false);
+    if (result.ok) { setSent(true); setTimeout(onClose, 1800); }
+    else setErr(result.error || "Ошибка");
+  };
+  return (
+    <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-2xl border border-border shadow-2xl z-50 p-4" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-sm font-semibold text-navy-800">Сообщить о проблеме</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-navy-700"><Icon name="X" size={13} /></button>
+      </div>
+      {sent ? (
+        <div className="flex items-center gap-2 text-emerald-600 py-2"><Icon name="CheckCircle" size={15} /><span className="text-sm font-medium">Отправлено!</span></div>
+      ) : (
+        <>
+          <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Опишите что случилось..." rows={3}
+            className="w-full bg-slate-50 border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 resize-none mb-2" autoFocus />
+          {err && <p className="text-xs text-red-500 mb-1.5">{err}</p>}
+          <button onClick={handleSend} disabled={sending || !text.trim()}
+            className="w-full py-2 rounded-xl text-sm font-semibold btn-gold disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {sending ? <><Icon name="Loader" size={13} className="animate-spin" />Отправка...</> : <><Icon name="Send" size={13} />Отправить</>}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ChatTab({
   user, messages, input, typing, typingStatus, chatErr,
   attachedFiles, fileUploading, totalLeft,
@@ -47,9 +85,11 @@ export default function ChatTab({
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
+  const [showReport, setShowReport] = useState(false);
 
   return (
     <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col">
+      {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
 
       {/* Шапка */}
       <div className="flex items-center justify-between mb-2 px-0.5">
@@ -67,6 +107,20 @@ export default function ChatTab({
         </div>
         <div className="flex items-center gap-2">
           <PWAInstallButton />
+          {/* Кнопка «Сообщить о проблеме» */}
+          <div className="relative">
+            <button
+              onClick={() => setShowReport(v => !v)}
+              title="Сообщить о проблеме"
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs transition-colors border ${
+                showReport ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-slate-50 border-border text-muted-foreground hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
+              }`}
+            >
+              <Icon name="LifeBuoy" size={13} />
+              <span className="hidden sm:inline font-medium">Проблема?</span>
+            </button>
+            {showReport && <ReportPopoverChat onClose={() => setShowReport(false)} />}
+          </div>
           {user.isAdmin ? (
             <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium">Админ</span>
           ) : activePlan ? (

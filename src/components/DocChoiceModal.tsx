@@ -15,43 +15,42 @@ interface DocChoiceModalProps {
 
 export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, onClose }: DocChoiceModalProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-full sm:max-w-md sm:mx-4 sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-scale-in"
-        style={{ background: "#0a1628", maxHeight: "calc(100dvh - 32px)" }}
+        className="relative w-full sm:max-w-md sm:mx-4 sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-scale-in"
+        style={{ background: "#0a1628", maxHeight: "90dvh" }}
       >
         {/* Золотая линия сверху */}
-        <div style={{ height: 3, background: "linear-gradient(90deg, transparent, #e8a820 30%, #f0c060 50%, #e8a820 70%, transparent)" }} />
+        <div className="shrink-0" style={{ height: 3, background: "linear-gradient(90deg, transparent, #e8a820 30%, #f0c060 50%, #e8a820 70%, transparent)" }} />
 
-        {/* Свайп на мобиле */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+        {/* Свайп-индикатор на мобиле */}
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden shrink-0">
           <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
         </div>
 
         <button onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-full flex items-center justify-center z-10"
           style={{ background: "rgba(255,255,255,0.08)" }}>
           <Icon name="X" size={15} color="rgba(255,255,255,0.6)" />
         </button>
 
-        <div className="px-5 py-4 sm:p-7">
+        <div className="overflow-y-auto flex-1 px-4 py-3 sm:p-7" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))" }}>
           {/* Заголовок */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0"
               style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.3)" }}>
-              <Icon name="FileText" size={18} color="#e8a820" />
+              <Icon name="FileText" size={16} color="#e8a820" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base leading-tight">Создать «{docLabel}»</h3>
+              <h3 className="font-bold text-white text-sm sm:text-base leading-tight">Создать «{docLabel}»</h3>
               <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>Выберите удобный вариант</p>
             </div>
           </div>
 
           {/* Рекомендуемый — пакет Старт */}
           <div
-            className="rounded-2xl p-4 mb-3 cursor-pointer transition-all active:scale-[0.98]"
+            className="rounded-2xl p-3 sm:p-4 mb-3 cursor-pointer transition-all active:scale-[0.98]"
             style={{
               background: "linear-gradient(135deg, rgba(232,168,32,0.15), rgba(232,168,32,0.07))",
               border: "1.5px solid rgba(232,168,32,0.4)",
@@ -136,4 +135,3 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
     </div>
   );
 }
-

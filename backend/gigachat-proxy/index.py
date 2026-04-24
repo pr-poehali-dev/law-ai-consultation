@@ -300,7 +300,7 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
     )
     resp.raise_for_status()
     choice = resp.json()["choices"][0]
-    text = choice["message"]["content"]
+    text = choice["message"]["content"] or ""
     was_cut = choice.get("finish_reason") == "length"
     if was_cut:
         print(f"[ROUTER] DeepSeek обрезан по токенам (finish_reason=length), симв={len(text)}")
@@ -376,7 +376,9 @@ CORS = {
 }
 
 
-def is_refusal(text: str) -> bool:
+def is_refusal(text) -> bool:
+    if not text:
+        return False
     low = text.lower()
     return any(m in low for m in REFUSAL_MARKERS)
 
@@ -518,8 +520,10 @@ _CASE_LAW_NOT_FOUND_MARKERS = [
     "ограничен в доступе", "к сожалению, не могу", "судебные базы",
 ]
 
-def is_case_law_not_found(answer: str) -> bool:
+def is_case_law_not_found(answer) -> bool:
     """Определяет, не смог ли AI найти судебную практику."""
+    if not answer:
+        return True
     low = answer.lower()
     return any(marker in low for marker in _CASE_LAW_NOT_FOUND_MARKERS)
 
@@ -713,24 +717,33 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
-            # Если Яндекс отказал при генерации — пробуем DeepSeek V3 (он принимает любые данные)
-            if is_refusal(answer):
-                print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
-                # Для документов используем полный prompt напрямую без очистки ПД
-                raw_prompt = (
-                    body.get("details", "").strip()
-                    + ("\n\nКонтекст диалога:\n" + "\n".join(
-                        f"{'Пользователь' if m.get('role')=='user' else 'Юрист'}: {m.get('content','')[:600]}"
-                        for m in chat_history[-6:]
-                    ) if chat_history else "")
-                    + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
-                    + LEGAL_QUALITY_ADDON
-                    + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
-                )
-                ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=180)
-                answer = ds_answer
-                print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
+            # Общий raw_prompt для fallback DeepSeek (без очистки ПД — он принимает всё)
+            raw_prompt = (
+                body.get("details", "").strip()
+                + ("\n\nКонтекст диалога:\n" + "\n".join(
+                    f"{'Пользователь' if m.get('role')=='user' else 'Юрист'}: {m.get('content','')[:600]}"
+                    for m in chat_history[-6:]
+                ) if chat_history else "")
+                + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
+                + f"\n\nСоставь {label}. Используй актуальные нормы РФ на {TODAY}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
+            )
+            answer = ""
+            try:
+                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
+            except Exception as e:
+                print(f"[DOC_GEN] YandexGPT упал: {e} → fallback DeepSeek V3")
+            # Если Яндекс отказал или упал — пробуем DeepSeek V3
+            if not answer or is_refusal(answer):
+                print(f"[DOC_GEN] YandexGPT отказал/пуст → fallback DeepSeek V3")
+                try:
+                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=180)
+                    answer = ds_answer or answer
+                    print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
+                except Exception as e:
+                    print(f"[DOC_GEN] DeepSeek тоже упал: {e}")
+            if not answer:
+                return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось сгенерировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
             # Для речи завершённость определяем по финальному обращению к суду
             if doc_type in SPEECH_DOC_TYPES:
                 truncated = not bool(_RE_DOC_END_SPEECH.search(answer[-400:]))
