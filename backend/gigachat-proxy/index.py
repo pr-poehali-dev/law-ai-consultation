@@ -38,6 +38,10 @@ from prompts import (
     SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
     LEGAL_QUALITY_ADDON,
 )
+from state_duty import (
+    is_duty_query, get_duty_context_for_chat, get_duty_context_for_doc,
+    DUTY_DOC_TYPES,
+)
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
 SPEECH_DOC_TYPES = {"court_speech"}
@@ -707,13 +711,17 @@ def handler(event: dict, context) -> dict:
                     "Заголовки блоков — жирный. Ключевые тезисы — **полужирный** или _курсив_. "
                     "Ссылки на доказательства: (т. 1, л.д. 15). Нумерация страниц — внизу по центру.\n\n"
                 )
+            # Для исковых документов — добавляем актуальные ставки госпошлины
+            duty_block = get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else ""
+
             prompt = (
                 history_context
                 + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
                 + LEGAL_QUALITY_ADDON
-                + f"Там где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
+                + duty_block
+                + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
@@ -725,6 +733,7 @@ def handler(event: dict, context) -> dict:
                     for m in chat_history[-6:]
                 ) if chat_history else "")
                 + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
+                + duty_block
                 + f"\n\nСоставь {label}. Используй актуальные нормы РФ на {TODAY}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
             answer = ""
@@ -1120,7 +1129,8 @@ def handler(event: dict, context) -> dict:
 
             # Пока summarize выполняется — определяем маршрут на исходных сообщениях (не ждём)
             _is_case_law = is_case_law_query(messages)
-            _is_simple = (not _is_case_law) and is_simple_query(messages)
+            _is_duty = (not _is_case_law) and is_duty_query(messages)
+            _is_simple = (not _is_case_law) and (not _is_duty) and is_simple_query(messages)
 
             # Ждём summarize (обычно уже готово, т.к. шло параллельно)
             _t_summary.join()
@@ -1145,6 +1155,20 @@ def handler(event: dict, context) -> dict:
                     needs_expert = True
                     answer = answer.rstrip()
                     answer += "\n\n---\nБолее детальный поиск судебной практики по вашему делу может провести наш юрист-эксперт — он имеет доступ к базам КонсультантПлюс и Гарант и подберёт конкретные решения судов по схожим ситуациям."
+
+            elif _is_duty:
+                # Вопрос о госпошлине — инжектируем актуальный справочник ставок в последнее сообщение
+                duty_ctx = get_duty_context_for_chat()
+                duty_messages = list(clean_messages)
+                # Добавляем справочник как системный контекст перед последним user-сообщением
+                last_user_idx = next((i for i in range(len(duty_messages)-1, -1, -1)
+                                      if duty_messages[i].get("role") == "user"), None)
+                if last_user_idx is not None:
+                    orig = duty_messages[last_user_idx].get("content", "")
+                    duty_messages[last_user_idx] = {**duty_messages[last_user_idx],
+                                                    "content": orig + duty_ctx}
+                answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=1800, fast=True, temperature=0.2)
+                print(f"[ROUTER] Запрос о госпошлине → справочник инжектирован")
 
             else:
                 if _is_simple:
