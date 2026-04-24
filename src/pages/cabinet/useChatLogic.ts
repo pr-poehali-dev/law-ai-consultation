@@ -121,8 +121,12 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       return;
     }
 
-    // Если использует бесплатный дневной вопрос — инкрементируем счётчик
-    if (hasDailyFree && !currentUser.isAdmin && !hasActiveSubscription(currentUser, "consult") && currentUser.paidQuestions === 0) {
+    // Определяем тип вопроса: бесплатный дневной или платный
+    const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
+    const usingDailyFree = !isPremium && hasDailyFree && currentUser.paidQuestions === 0;
+
+    // Если это бесплатный дневной вопрос — инкрементируем счётчик (не списываем платное)
+    if (usingDailyFree) {
       incrementDailyFreeCount();
     }
 
@@ -132,14 +136,12 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setTyping(true);
     setTypingStatus("Анализирую запрос...");
 
-    // historyRef.current всегда актуален — даже если setHistory ещё не сфлашился
     const newHist = [...historyRef.current, { role: "user", content: userMsg }];
     setHistory(newHist);
 
-    // Если это дневной бесплатный вопрос — не списываем платный баланс
-    const usingDailyFree = !currentUser.isAdmin && !hasActiveSubscription(currentUser, "consult") && currentUser.paidQuestions === 0 && getDailyFreeLeft() >= 0;
+    // Списываем платный вопрос только если не бесплатный дневной
     let isLastQuestion = false;
-    if (!usingDailyFree) {
+    if (!usingDailyFree && !isPremium) {
       const consumeResult = await consumeQuestion();
       isLastQuestion = consumeResult.isLastQuestion;
     }

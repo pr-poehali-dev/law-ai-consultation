@@ -4,11 +4,11 @@ import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
+import { getDailyFreeCount, getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
-// ── Лимит: 3 бесплатных вопроса в день ───────────────────────────────────────
-const DAILY_KEY = "landing_daily_questions";
+// ── Контекст лендинга (история, pending) ─────────────────────────────────────
 const CHAT_HISTORY_KEY = "landing_chat_history";
 const PENDING_DOC_KEY = "landing_pending_doc";
 const PENDING_SERVICE_KEY = "landing_pending_service";
@@ -30,34 +30,12 @@ function checkAndClearExpiredPending() {
   }
 }
 
-interface DailyData { date: string; count: number }
-
-function getTodayStr() { return new Date().toLocaleDateString("ru-RU"); }
-
-function getDailyCount(): number {
-  try {
-    const raw = localStorage.getItem(DAILY_KEY);
-    if (!raw) return 0;
-    const d: DailyData = JSON.parse(raw);
-    if (d.date !== getTodayStr()) return 0;
-    return d.count;
-  } catch { return 0; }
-}
-
-function incrementDailyCount() {
-  const count = getDailyCount() + 1;
-  localStorage.setItem(DAILY_KEY, JSON.stringify({ date: getTodayStr(), count }));
-  return count;
-}
-
 function saveHistoryToStorage(hist: { role: string; content: string }[]) {
   try {
     localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist));
     localStorage.setItem(PENDING_TIMESTAMP_KEY, String(Date.now()));
   } catch { /* ignore */ }
 }
-
-const FREE_LIMIT = 3;
 
 function detectDocSuggestion(text: string): string | null {
   const lower = text.toLowerCase();
@@ -222,8 +200,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [questionsLeft, setQuestionsLeft] = useState(FREE_LIMIT - getDailyCount());
-  const [showUpsell, setShowUpsell] = useState(getDailyCount() >= FREE_LIMIT);
+  const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
+  const [showUpsell, setShowUpsell] = useState(getDailyFreeLeft() === 0);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
@@ -281,14 +259,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
 
-    const used = getDailyCount();
-    if (used >= FREE_LIMIT) {
+    if (getDailyFreeLeft() === 0) {
       setShowUpsell(true);
       return;
     }
 
-    const newCount = incrementDailyCount();
-    setQuestionsLeft(FREE_LIMIT - newCount);
+    incrementDailyFreeCount();
+    setQuestionsLeft(getDailyFreeLeft());
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
@@ -320,7 +297,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       });
 
       // После последнего бесплатного — показываем upsell-блок
-      if (newCount >= FREE_LIMIT) {
+      if (getDailyFreeLeft() === 0) {
         setTimeout(() => setShowUpsell(true), 800);
       }
     } catch {
@@ -404,7 +381,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             }}
           >
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }} />
-            {questionsLeft > 0 ? `${questionsLeft} из ${FREE_LIMIT} вопросов` : "Лимит исчерпан"}
+            {questionsLeft > 0 ? `${questionsLeft} из 3 вопросов` : "Лимит исчерпан"}
           </div>
         </div>
 
