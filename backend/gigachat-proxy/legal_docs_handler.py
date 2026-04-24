@@ -231,6 +231,9 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
     """
     Читает последние N активных файлов из указанной категории,
     извлекает текст и возвращает блок для инжекции в AI-промпт.
+
+    AI получает инструкцию использовать материалы только если они
+    релевантны запросу — иначе игнорировать.
     Безопасно: при любой ошибке возвращает пустую строку.
     """
     try:
@@ -253,6 +256,7 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
         if not rows:
             return ""
 
+        # S3 инициализируем только если файлы есть в БД
         s3_client = _s3()
         parts = []
         for doc_id, title, filename, s3_key, mime_type in rows:
@@ -262,8 +266,7 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
                 ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
                 text = _extract_text(data, ext)
                 if text.strip():
-                    text_trimmed = text[:max_chars]
-                    parts.append(f"[{title}]\n{text_trimmed}")
+                    parts.append(f"Документ: «{title}»\n{text[:max_chars]}")
             except Exception as e:
                 print(f"[LEGAL_DOCS] Не удалось прочитать {s3_key}: {e}")
                 continue
@@ -271,8 +274,22 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
         if not parts:
             return ""
 
-        label = "СУДЕБНАЯ ПРАКТИКА" if category == "case_law" else "СПРАВОЧНИК ГОСПОШЛИНЫ"
-        return f"\n\n[{label} — загружено администратором]\n" + "\n\n---\n".join(parts) + f"\n[/{label}]"
+        if category == "case_law":
+            instruction = (
+                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика (загружена администратором).\n"
+                "Используй эти материалы ТОЛЬКО если они релевантны запросу пользователя: "
+                "цитируй конкретные выводы судов, ссылайся на документ по названию. "
+                "Если материалы не относятся к данному вопросу — игнорируй их."
+            )
+        else:
+            instruction = (
+                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — актуальные ставки госпошлины (загружены администратором).\n"
+                "Используй эти данные для точного расчёта пошлины если они применимы. "
+                "Если данные не относятся к вопросу — игнорируй их."
+            )
+
+        separator = "\n\n— — —\n\n"
+        return f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
 
     except Exception as e:
         print(f"[LEGAL_DOCS] get_legal_context error: {e}")

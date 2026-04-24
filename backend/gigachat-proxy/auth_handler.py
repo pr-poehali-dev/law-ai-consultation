@@ -667,18 +667,19 @@ def handle_admin_reports(token: str, body: dict) -> dict:
             conn.commit()
             # Отправляем email-уведомление пользователю
             if report_row:
-                user_email_to, user_name_to, orig_message = report_row
+                user_email_to, user_name_to, _ = report_row
                 try:
+                    greeting = f"Здравствуйте, {user_name_to.strip()}!" if user_name_to and user_name_to.strip() else "Здравствуйте!"
                     _send_email(
                         to_email=user_email_to,
-                        subject=f"Ответ на ваше обращение #{report_id} — ИИ-Право.рф",
+                        subject="Ответ на ваше обращение — ИИ-Право.рф",
                         body_text=(
-                            f"Здравствуйте{', ' + user_name_to if user_name_to else ''}!\n\n"
-                            f"Мы ответили на ваше обращение #{report_id}.\n\n"
-                            f"Ваше сообщение:\n{orig_message}\n\n"
-                            f"Ответ юриста:\n{reply_text}\n\n"
-                            f"---\nС уважением, команда ИИ-Право.рф\n"
-                            f"Посмотреть все обращения: https://ии-право.рф/cabinet"
+                            f"{greeting}\n\n"
+                            f"Юрист ответил на ваше обращение:\n\n"
+                            f"{reply_text}\n\n"
+                            f"---\n"
+                            f"С уважением, команда ИИ-Право.рф\n"
+                            f"Просмотреть переписку: https://ии-право.рф/cabinet"
                         )
                     )
                 except Exception as e:
@@ -728,7 +729,8 @@ def handle_admin_reports(token: str, body: dict) -> dict:
 
 
 def handle_my_reports(token: str) -> dict:
-    """Возвращает репорты текущего пользователя (включая ответы администратора)."""
+    """Возвращает репорты текущего пользователя (включая ответы администратора).
+    При загрузке помечает отвеченные как прочитанные."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
@@ -737,21 +739,34 @@ def handle_my_reports(token: str) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at
+            f"""SELECT id, user_id, user_name, user_email, message, status, admin_reply, replied_at, created_at, reply_seen
                 FROM {SCHEMA}.reports WHERE user_id = %s ORDER BY created_at DESC""",
             (user["id"],)
         )
         rows = cur.fetchall()
         reports = []
+        unseen_ids = []
         for r in rows:
             replied_at = r[7].isoformat() if r[7] else None
             created_at = r[8].isoformat() if r[8] else None
+            reply_seen = r[9]
+            # Собираем ID непрочитанных ответов
+            if r[5] == "replied" and r[6] and not reply_seen:
+                unseen_ids.append(r[0])
             reports.append({
                 "id": r[0], "user_id": r[1], "user_name": r[2], "user_email": r[3],
                 "message": r[4], "status": r[5], "admin_reply": r[6],
-                "replied_at": replied_at, "created_at": created_at
+                "replied_at": replied_at, "created_at": created_at,
+                "reply_seen": reply_seen,
             })
-        return _ok({"reports": reports})
+        # Помечаем как прочитанные
+        if unseen_ids:
+            cur.execute(
+                f"UPDATE {SCHEMA}.reports SET reply_seen = TRUE WHERE id = ANY(%s)",
+                (unseen_ids,)
+            )
+            conn.commit()
+        return _ok({"reports": reports, "unseen_count": len(unseen_ids)})
     finally:
         cur.close()
         conn.close()

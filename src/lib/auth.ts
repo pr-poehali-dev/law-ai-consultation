@@ -315,12 +315,23 @@ export interface Report {
   admin_reply: string | null;
   replied_at: string | null;
   created_at: string;
+  reply_seen?: boolean;
 }
 
-export async function getMyReports(): Promise<Report[]> {
+export async function getMyReports(): Promise<{ reports: Report[]; unseen_count: number }> {
   const res = await apiCall({ action: "my-reports" });
   const data = await res.json();
-  return data.reports || [];
+  return { reports: data.reports || [], unseen_count: data.unseen_count || 0 };
+}
+
+export async function getUnseenRepliesCount(): Promise<number> {
+  try {
+    const res = await apiCall({ action: "my-reports" });
+    const data = await res.json();
+    return data.unseen_count || 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function getAdminReports(statusFilter = "all"): Promise<Report[]> {
