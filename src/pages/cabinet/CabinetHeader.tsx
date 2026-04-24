@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import { logout, type User } from "@/lib/auth";
+import { logout, sendReport, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
@@ -30,13 +31,88 @@ const TABS_MOBILE = [
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 
+function ReportPopover({ onClose }: { onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    setErr("");
+    const result = await sendReport(text.trim());
+    setSending(false);
+    if (result.ok) {
+      setSent(true);
+      setTimeout(onClose, 2000);
+    } else {
+      setErr(result.error || "Ошибка отправки");
+    }
+  };
+
+  return (
+    <div
+      className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl border border-border shadow-2xl z-50 p-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-orange-50 rounded-lg flex items-center justify-center">
+            <Icon name="AlertTriangle" size={12} className="text-orange-500" />
+          </div>
+          <span className="text-sm font-semibold text-navy-800">Сообщить о проблеме</span>
+        </div>
+        <button onClick={onClose} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-navy-700">
+          <Icon name="X" size={12} />
+        </button>
+      </div>
+
+      {sent ? (
+        <div className="flex items-center gap-2 py-3 text-emerald-600">
+          <Icon name="CheckCircle" size={16} />
+          <span className="text-sm font-medium">Обращение отправлено!</span>
+        </div>
+      ) : (
+        <>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Опишите проблему — что произошло, при каких действиях..."
+            rows={3}
+            className="w-full bg-slate-50 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-navy-400 transition-colors resize-none mb-2.5"
+            autoFocus
+          />
+          {err && <p className="text-xs text-red-500 mb-2">{err}</p>}
+          <button
+            onClick={handleSend}
+            disabled={sending || !text.trim()}
+            className="w-full btn-gold py-2 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {sending
+              ? <><Icon name="Loader" size={13} className="animate-spin" />Отправка...</>
+              : <><Icon name="Send" size={13} />Отправить</>
+            }
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSelectPlan }: CabinetHeaderProps) {
   const navigate = useNavigate();
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
+  const [showReport, setShowReport] = useState(false);
 
   return (
     <>
+      {/* Overlay для закрытия поповера */}
+      {showReport && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />
+      )}
+
       <header className="sticky top-0 z-40 shrink-0 bg-white/95 border-b border-border shadow-sm md:bg-white/80 md:backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between gap-4">
           <button onClick={() => navigate("/")} className="flex items-center gap-2 shrink-0">
@@ -100,6 +176,23 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
                 </span>
               </button>
             )}
+
+            {/* Кнопка «Сообщить о проблеме» — доступна всегда */}
+            <div className="relative">
+              <button
+                onClick={() => setShowReport(v => !v)}
+                title="Сообщить о проблеме"
+                className={`flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-xl transition-colors ${
+                  showReport
+                    ? "bg-orange-100 text-orange-600"
+                    : "bg-slate-100 text-muted-foreground hover:bg-orange-50 hover:text-orange-500"
+                }`}
+              >
+                <Icon name="LifeBuoy" size={15} />
+              </button>
+              {showReport && <ReportPopover onClose={() => setShowReport(false)} />}
+            </div>
+
             {/* Кнопка Админ на мобиле */}
             {user.isAdmin && (
               <button

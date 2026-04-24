@@ -206,12 +206,15 @@ export default function Cabinet() {
   }, [pendingDocFromChat, tab]);
 
   const createDocFromChat = async (aiText: string, userText: string, docHint?: DocHint) => {
-    if (creatingDocFromChat) return;
+    if (creatingDocFromChat || !user) return;
 
-    const canDoc = user!.isAdmin || (user!.paidDocs ?? 0) > 0 ||
-      (user!.subscriptionDocsUntil ? new Date(user!.subscriptionDocsUntil) > new Date() : false);
+    const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
+      (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
     if (!canDoc) {
-      pay.setPayment({ type: "document", name: "Генерация документа" });
+      // Показываем выбор: 1 документ 600р vs пакет Старт 990р
+      const hintDocId = docHint?.doc_type || "claim";
+      const hintDocLabel = docHint?.doc_label || "документ";
+      setShowDocChoice({ docTypeId: hintDocId, docLabel: hintDocLabel });
       return;
     }
 
