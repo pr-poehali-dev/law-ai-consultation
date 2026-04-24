@@ -4,7 +4,8 @@ import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getDailyFreeCount, getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
+import { getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
+import DocChoiceModal from "@/components/DocChoiceModal";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
@@ -203,6 +204,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
   const [showUpsell, setShowUpsell] = useState(getDailyFreeLeft() === 0);
   const [showDocMenu, setShowDocMenu] = useState(false);
+  const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentService, setPaymentService] = useState<{ type: ServiceType; name: string }>({ type: "plan_starter", name: "Пакет «Старт»" });
@@ -330,7 +332,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
-    openDocPayment(docTypeId);
+    // Показываем выбор: 1 документ 600р vs пакет Старт 990р
+    const DOC_LABELS_MAP: Record<string, string> = {
+      claim: "Исковое заявление", pretension: "Претензию", complaint: "Жалобу",
+      appeal: "Апелляционную жалобу", cassation: "Кассационную жалобу",
+      contract: "Договор ГПХ", application: "Заявление / Ходатайство", notification: "Уведомление",
+    };
+    setShowDocChoice({ docTypeId, docLabel: DOC_LABELS_MAP[docTypeId] || "документ" });
   };
 
   // После успешной оплаты — переходим к регистрации, данные сохранены
@@ -434,7 +442,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
                     }}
                   >
                     <Icon name="FileText" size={13} color="#f0c060" />
-                    Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"} · 600 ₽
+                    Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
                   </button>
                 </div>
               )}
@@ -445,7 +453,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           {showUpsell && (
             <UpsellBlock
               onBuyPlan={openPlanPayment}
-              onBuyDoc={() => openDocPayment()}
+              onBuyDoc={() => setShowDocChoice({ docTypeId: "claim", docLabel: "документ" })}
               onLogin={() => onOpenLogin({ freeTrial: false })}
             />
           )}
@@ -568,6 +576,28 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onSuccess={handlePaymentSuccess}
           showRegisterPrompt={true}
           onRegisterAfterPay={handlePaymentSuccess}
+        />
+      )}
+
+      {showDocChoice && (
+        <DocChoiceModal
+          docLabel={showDocChoice.docLabel}
+          onChooseDoc={() => {
+            const dtId = showDocChoice.docTypeId;
+            setShowDocChoice(null);
+            openDocPayment(dtId);
+          }}
+          onChoosePlan={() => {
+            const dtId = showDocChoice.docTypeId;
+            setShowDocChoice(null);
+            saveHistoryToStorage(history.current);
+            localStorage.setItem(PENDING_DOC_KEY, dtId);
+            localStorage.setItem(PENDING_SERVICE_KEY, "plan");
+            setPaymentService({ type: "plan_starter", name: "Пакет «Старт»" });
+            setPendingDocType(dtId);
+            setShowPayment(true);
+          }}
+          onClose={() => setShowDocChoice(null)}
         />
       )}
     </div>

@@ -30,6 +30,7 @@ interface CabinetContentProps {
   setViewDoc: (doc: GenDoc | null) => void;
   setPendingDocType: (dt: DocsLogic["docType"] | null) => void;
   openPlanModal: () => void;
+  openDocChoice: (docTypeId: string, docLabel: string) => void;
   createDocFromChat: (aiText: string, userText: string, docHint?: DocHint) => void;
   navigate: (path: string) => void;
 }
@@ -40,7 +41,7 @@ export default function CabinetContent({
   creatingDocFromChat,
   refreshUser,
   setTab, setPayment, setViewDoc, setPendingDocType,
-  openPlanModal, createDocFromChat, navigate,
+  openPlanModal, openDocChoice, createDocFromChat, navigate,
 }: CabinetContentProps) {
   const isFlex = tab === "chat" || tab === "business";
 
@@ -122,8 +123,7 @@ export default function CabinetContent({
             onOpenDoc={setViewDoc}
             onPayForDoc={(dt) => {
               savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
-              setPayment({ type: dt.serviceType, name: dt.label });
-              setPendingDocType(dt);
+              openDocChoice(dt.id, dt.label);
             }}
             onAnalyzeDoc={(doc) => {
               const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||

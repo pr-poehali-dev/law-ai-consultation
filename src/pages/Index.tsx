@@ -91,11 +91,43 @@ export default function Index() {
       }
 
       if (paymentSuccess && !u) {
-        const invId = params.get("inv_id");
+        // inv_id может прийти через URL-параметр или уже сохранён в pending_payment
+        let invId = params.get("inv_id");
+        if (!invId) {
+          // Пробуем восстановить из pending_payment (если ЮКасса вернула без параметра)
+          try {
+            const pp = localStorage.getItem("pending_payment");
+            if (pp) {
+              const parsed = JSON.parse(pp);
+              // Не старше 2 часов
+              if (Date.now() - (parsed.created_at || 0) < 2 * 60 * 60 * 1000) {
+                invId = String(parsed.inv_id);
+              }
+            }
+          } catch { /* ignore */ }
+        }
         if (invId) localStorage.setItem("pending_inv_id", invId);
         window.history.replaceState({}, "", "/");
         setShowRegisterAfterPay(true);
         setShowLogin(true);
+      }
+
+      // Восстановление: если пользователь не залогинен, но в localStorage есть pending_payment
+      // (оплатил, закрыл вкладку, вернулся позже)
+      if (!u && !paymentSuccess) {
+        try {
+          const pp = localStorage.getItem("pending_payment");
+          if (pp) {
+            const parsed = JSON.parse(pp);
+            if (Date.now() - (parsed.created_at || 0) < 2 * 60 * 60 * 1000) {
+              localStorage.setItem("pending_inv_id", String(parsed.inv_id));
+              setShowRegisterAfterPay(true);
+              setShowLogin(true);
+            } else {
+              localStorage.removeItem("pending_payment");
+            }
+          }
+        } catch { /* ignore */ }
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps

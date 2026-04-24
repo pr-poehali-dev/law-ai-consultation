@@ -16,6 +16,8 @@ import {
 import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
 import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
+import DocSavedToast from "@/components/DocSavedToast";
+import DocChoiceModal from "@/components/DocChoiceModal";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
@@ -34,6 +36,8 @@ export default function Cabinet() {
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
+  const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
+  const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
 
   const chatSendRef = useRef<((text: string) => void) | null>(null);
   const docsGenerateRef = useRef<((dt: typeof DOC_TYPES[0], details: string) => void) | null>(null);
@@ -51,12 +55,15 @@ export default function Cabinet() {
     refreshUser,
     onPaymentRequired: (type, name, pendingDt) => {
       if (pendingDt) {
-        savePendingAction({ tab: "docs", docTypeId: pendingDt.id, docDetails: docs.docDetails });
+        // Показываем выбор: 1 документ vs пакет Старт
+        setShowDocChoice({ docTypeId: pendingDt.id, docLabel: pendingDt.label });
+      } else {
+        pay.setPayment({ type, name });
+        pay.setPendingDocType(pendingDt);
       }
-      pay.setPayment({ type, name });
-      pay.setPendingDocType(pendingDt);
     },
     onDocGenerated: (doc) => setViewDoc(doc),
+    onDocSaved: (docName) => setDocSavedToast(docName),
     getChatHistory: () => chat.history,
   });
 
@@ -342,6 +349,7 @@ export default function Cabinet() {
         setViewDoc={setViewDoc}
         setPendingDocType={pay.setPendingDocType}
         openPlanModal={pay.openPlanModal}
+        openDocChoice={(docTypeId, docLabel) => setShowDocChoice({ docTypeId, docLabel })}
         createDocFromChat={createDocFromChat}
         navigate={navigate}
       />
@@ -369,6 +377,36 @@ export default function Cabinet() {
             pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
           }}
           onClose={() => setShowExitIntent(false)}
+        />
+      )}
+
+      {/* Toast: документ сохранён */}
+      {docSavedToast && (
+        <DocSavedToast
+          docName={docSavedToast}
+          onClose={() => setDocSavedToast(null)}
+        />
+      )}
+
+      {/* Выбор: 1 документ 600р vs Пакет Старт 990р */}
+      {showDocChoice && (
+        <DocChoiceModal
+          docLabel={showDocChoice.docLabel}
+          onChooseDoc={() => {
+            const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
+            setShowDocChoice(null);
+            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
+            pay.setPayment({ type: "document", name: dt.label });
+            pay.setPendingDocType(dt);
+          }}
+          onChoosePlan={() => {
+            const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
+            setShowDocChoice(null);
+            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
+            pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
+            pay.setPendingDocType(dt);
+          }}
+          onClose={() => setShowDocChoice(null)}
         />
       )}
     </div>

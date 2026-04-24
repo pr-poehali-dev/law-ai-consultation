@@ -142,6 +142,23 @@ export default function PaymentModal({
       setPayUrl(data.pay_url);
       setStep("redirected");
 
+      // КРИТИЧНО: сохраняем inv_id, service_type и email в localStorage немедленно.
+      // Это гарантирует что оплата не потеряется если:
+      //  - пользователь закрыл вкладку после оплаты
+      //  - ЮКасса вернула на другой URL
+      //  - браузер не вернулся на return_url автоматически
+      const pendingPayload = {
+        inv_id: data.inv_id,
+        service_type: serviceType,
+        email,
+        created_at: Date.now(),
+      };
+      localStorage.setItem("pending_payment", JSON.stringify(pendingPayload));
+      // Для незарегистрированных — также сохраняем inv_id отдельно
+      if (!user) {
+        localStorage.setItem("pending_inv_id", String(data.inv_id));
+      }
+
       // Открываем страницу оплаты ЮКасса
       window.open(data.pay_url, "_blank");
 
@@ -168,6 +185,8 @@ export default function PaymentModal({
         if (data.paid || data.status === "paid") {
           // Начисляем услугу (fallback на случай если webhook не успел) — передаём inv_id для защиты от дублирования
           await addPaidService(serviceType, id);
+          // Очищаем pending после успешного начисления
+          localStorage.removeItem("pending_payment");
           setStep("success");
           ymGoal("payment_success", { service: serviceType });
           setTimeout(() => onSuccess(serviceType), 2000);

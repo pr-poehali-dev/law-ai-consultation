@@ -11,10 +11,11 @@ interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;
   onPaymentRequired: (type: ServiceType, name: string, pendingDocType: typeof DOC_TYPES[0]) => void;
   onDocGenerated?: (doc: GenDoc) => void;
+  onDocSaved?: (docName: string) => void;
   getChatHistory?: () => { role: string; content: string }[];
 }
 
-export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, getChatHistory }: UseDocsLogicProps) {
+export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, onDocSaved, getChatHistory }: UseDocsLogicProps) {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [docPhase, setDocPhase] = useState<DocPhase>("form");
   const [docDetails, setDocDetails] = useState("");
@@ -119,6 +120,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, g
       setDocPhase(placeholders.length > 0 ? "filling" : "done");
       ymGoal("doc_generated", { doc_type: activeType.id });
       if (onDocGenerated) onDocGenerated(newDoc);
+      if (onDocSaved) onDocSaved(activeType.label);
 
       // Обновляем данные пользователя в фоне (не блокируем UI)
       refreshUser().catch(() => {});
