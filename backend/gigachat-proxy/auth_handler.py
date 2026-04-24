@@ -341,6 +341,24 @@ def handle_consume_doc(token: str) -> dict:
         conn.close()
 
 
+def handle_refund_doc(token: str) -> dict:
+    """Возврат 1 слота документа если генерация упала на стороне AI — best-effort."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+    if user.get("isAdmin", False) or _has_active_subscription(user, "docs"):
+        return _ok({"ok": True})
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
+        conn.commit()
+        return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()
+
+
 def handle_add_paid_service(token: str, body: dict) -> dict:
     user = get_user_by_token(token)
     if not user:

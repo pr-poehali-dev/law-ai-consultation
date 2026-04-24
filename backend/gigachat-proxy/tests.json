@@ -107,6 +107,24 @@
       "expectedStatus": 400,
       "expectedBody": {"error": "Неверный или истёкший код"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "doc_generate — unauthorized (no token)",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_generate", "doc_type": "claim", "details": "Иванов не вернул долг"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Требуется авторизация"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "refund-doc — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "refund-doc"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Не авторизован"},
+      "bodyMatcher": "partial"
     }
   ]
 }

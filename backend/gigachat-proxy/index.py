@@ -19,7 +19,7 @@ from docx import Document as DocxDocument
 from auth_handler import (
     handle_register, handle_login, handle_me,
     handle_logout, handle_update_profile,
-    handle_consume_question, handle_consume_doc, handle_add_paid_service,
+    handle_consume_question, handle_consume_doc, handle_refund_doc, handle_add_paid_service,
     handle_report, handle_send_otp, handle_verify_otp, sanitize_str,
     handle_lawyer_send, handle_lawyer_messages,
     handle_admin_reports, handle_my_reports,
@@ -597,6 +597,7 @@ def handler(event: dict, context) -> dict:
         "update-profile": lambda: handle_update_profile(token, body),
         "consume-question": lambda: handle_consume_question(token),
         "consume-doc": lambda: handle_consume_doc(token),
+        "refund-doc": lambda: handle_refund_doc(token),
         "add-paid-service": lambda: handle_add_paid_service(token, body),
         "report": lambda: handle_report(token, body),
         "my-reports": lambda: handle_my_reports(token),
@@ -630,6 +631,10 @@ def handler(event: dict, context) -> dict:
 
         # ── Генерация документа из описания пользователя ──
         if mode == "doc_generate":
+            # Серверная проверка авторизации — токен обязателен для генерации документа
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Требуется авторизация"}, ensure_ascii=False)}
             doc_type = body.get("doc_type", "claim")
             details = body.get("details", "").strip()
             file_b64 = body.get("file", "")
