@@ -28,6 +28,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
   const [docPhase, setDocPhase] = useState<DocPhase>("form");
   const [docDetails, setDocDetails] = useState("");
   const [docGenerating, setDocGenerating] = useState(false);
+  const [docRetrying, setDocRetrying] = useState(false);
   const [docErr, setDocErr] = useState("");
   const [currentDoc, setCurrentDoc] = useState<GenDoc | null>(null);
   const [fillValues, setFillValues] = useState<Record<string, string>>({});
@@ -58,6 +59,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     }
 
     setDocGenerating(true);
+    setDocRetrying(false);
     setDocPhase("generating");
     setDocErr("");
 
@@ -94,7 +96,8 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         GIGACHAT_URL,
         { method: "POST", headers: authHeaders(token), body: JSON.stringify(reqBody) },
         DOC_TIMEOUT_MS,
-        1
+        1,
+        () => setDocRetrying(true)
       );
 
       const data = await res.json();
@@ -147,6 +150,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       refreshUser().catch(() => {});
     } finally {
       setDocGenerating(false);
+      setDocRetrying(false);
     }
   };
 
@@ -224,6 +228,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     docPhase, setDocPhase,
     docDetails, setDocDetails,
     docGenerating,
+    docRetrying,
     docErr, setDocErr,
     currentDoc, setCurrentDoc,
     fillValues, setFillValues,

@@ -50,7 +50,8 @@ export async function fetchSafe(
   url: string,
   options: RequestInit,
   timeoutMs: number,
-  retries = 1
+  retries = 1,
+  onRetry?: () => void
 ): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
@@ -64,6 +65,7 @@ export async function fetchSafe(
       const isAbort = err instanceof DOMException && err.name === "AbortError";
       const isNetwork = err instanceof TypeError;
       if ((isAbort || isNetwork) && attempt < retries) {
+        onRetry?.();
         await new Promise((r) => setTimeout(r, 2000));
         continue;
       }

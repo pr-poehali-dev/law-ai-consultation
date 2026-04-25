@@ -104,6 +104,7 @@ export default function CabinetContent({
             docPhase={docs.docPhase}
             docDetails={docs.docDetails}
             docGenerating={docs.docGenerating}
+            docRetrying={docs.docRetrying}
             docErr={docs.docErr}
             currentDoc={docs.currentDoc}
             fillValues={docs.fillValues}

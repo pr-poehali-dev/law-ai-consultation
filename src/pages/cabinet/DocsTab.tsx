@@ -43,6 +43,7 @@ interface DocsTabProps {
   docPhase: DocPhase;
   docDetails: string;
   docGenerating: boolean;
+  docRetrying?: boolean;
   docErr: string;
   currentDoc: GenDoc | null;
   fillValues: Record<string, string>;
@@ -71,6 +72,7 @@ export default function DocsTab({
   docPhase,
   docDetails,
   docGenerating,
+  docRetrying,
   docErr,
   currentDoc,
   fillValues,
@@ -115,7 +117,7 @@ export default function DocsTab({
 
       {/* Оверлей генерации */}
       {docGenerating && docPhase === "generating" && (
-        <DocsGeneratingOverlay docLabel={docType.label} />
+        <DocsGeneratingOverlay docLabel={docType.label} retrying={docRetrying} />
       )}
 
       {/* ФАЗА: форма запроса */}
