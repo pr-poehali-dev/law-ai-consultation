@@ -4,7 +4,7 @@ import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import { getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
+import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
 import DocChoiceModal from "@/components/DocChoiceModal";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
@@ -279,11 +279,11 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     history.current = newHist;
 
     try {
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "chat", messages: newHist }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка");
       const aiText = data.answer as string;

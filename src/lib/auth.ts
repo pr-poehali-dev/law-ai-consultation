@@ -42,6 +42,39 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * fetch с таймаутом + автоматическая retry при сетевой ошибке (мобильные сети, нестабильный 4G).
+ * При AbortError/TypeError — понятное сообщение пользователю.
+ */
+export async function fetchSafe(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+  retries = 1
+): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(tid);
+      return res;
+    } catch (err) {
+      clearTimeout(tid);
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      const isNetwork = err instanceof TypeError;
+      if ((isAbort || isNetwork) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 2000));
+        continue;
+      }
+      if (isAbort) throw new Error("Превышено время ожидания. Проверьте интернет и попробуйте ещё раз.");
+      if (isNetwork) throw new Error("Нет соединения с сервером. Проверьте интернет и попробуйте ещё раз.");
+      throw err;
+    }
+  }
+  throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
+}
+
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();

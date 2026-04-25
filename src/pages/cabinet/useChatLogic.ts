@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser, getDailyFreeLeft, incrementDailyFreeCount } from "@/lib/auth";
+import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser, getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -153,14 +153,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     try {
       const token = getToken();
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({ mode: "chat", messages: newHist }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       const aiText = data.answer as string;
@@ -207,11 +204,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setTypingStatus("Продолжаю ответ...");
     setMessages((p) => p.map((m, i) => i === p.length - 1 ? { ...m, truncated: false } : m));
     try {
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "chat_continue", messages: history, partial: partialText }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка");
       const continuation = data.answer as string;
@@ -407,18 +404,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     try {
       const token = getToken();
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({
           mode: "file_analyze",
           comment,
           files: files.map(f => ({ file: f.b64, filename: f.name })),
         }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;
@@ -524,14 +518,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const b64 = btoa(Array.from(textBytes).map(b => String.fromCharCode(b)).join(""));
       const filename = `${docName}.txt`;
 
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({ mode: "file_analyze", file: b64, filename, comment: "" }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
-import { getUser, type User } from "@/lib/auth";
+import { getUser, type User, fetchSafe } from "@/lib/auth";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
@@ -83,7 +83,7 @@ export function useCabinetPayment({
     const poll = async () => {
       attempts++;
       try {
-        const res = await fetch(`${CHECK_URL}?inv_id=${invId}`);
+        const res = await fetchSafe(`${CHECK_URL}?inv_id=${invId}`, { method: "GET" }, 15_000, 0);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
           await refreshUser();

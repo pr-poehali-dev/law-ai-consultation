@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { canUseDoc, consumeDoc, getToken, invalidateUserCache } from "@/lib/auth";
+import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
 import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
+const DOC_TIMEOUT_MS = 120_000; // 120 секунд — генерация может занять до 42с
 
 interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;
@@ -13,6 +14,13 @@ interface UseDocsLogicProps {
   onDocGenerated?: (doc: GenDoc) => void;
   onDocSaved?: (docName: string) => void;
   getChatHistory?: () => { role: string; content: string }[];
+}
+
+function authHeaders(token: string | null) {
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "X-Auth-Token": token } : {}),
+  };
 }
 
 export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, onDocSaved, getChatHistory }: UseDocsLogicProps) {
@@ -42,7 +50,6 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
     if (!activeDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
 
-    // Всегда инвалидируем кэш перед проверкой — чтобы видеть актуальный paid_docs
     invalidateUserCache();
     const canDoc = await canUseDoc();
     if (!canDoc) {
@@ -55,11 +62,8 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     setDocErr("");
 
     // КРИТИЧНО: списываем документ ДО генерации.
-    // Это предотвращает потерю документа при обрыве соединения после генерации.
-    // Если генерация упадёт — сервер вернёт слот обратно (см. бэкенд).
     const consumed = await consumeDoc();
     if (!consumed) {
-      // Если сервер вернул ошибку (нет слотов или auth проблема) — останавливаем
       invalidateUserCache();
       const stillCan = await canUseDoc();
       if (!stillCan) {
@@ -84,15 +88,15 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         const hist = getChatHistory();
         if (hist.length > 0) reqBody.chat_history = hist.slice(-10);
       }
+
       const token = getToken();
-      const res = await fetch(GIGACHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
-        body: JSON.stringify(reqBody),
-      });
+      const res = await fetchSafe(
+        GIGACHAT_URL,
+        { method: "POST", headers: authHeaders(token), body: JSON.stringify(reqBody) },
+        DOC_TIMEOUT_MS,
+        1
+      );
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
 
@@ -108,8 +112,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         truncated,
       };
 
-      // Сохраняем документ в localStorage немедленно — до любых setState
-      // Это гарантирует что при обрыве соединения документ не потеряется
+      // Сохраняем немедленно — до любых setState
       const updatedDocs = [newDoc, ...genDocs];
       localStorage.setItem("cabinet_docs", JSON.stringify(updatedDocs));
 
@@ -122,26 +125,24 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       if (onDocGenerated) onDocGenerated(newDoc);
       if (onDocSaved) onDocSaved(activeType.label);
 
-      // Обновляем данные пользователя в фоне (не блокируем UI)
       refreshUser().catch(() => {});
 
     } catch (e) {
-      // Генерация упала — пытаемся вернуть слот документа пользователю
-      try {
-        await fetch(GIGACHAT_URL, {
+      // Генерация упала — возвращаем слот (best-effort, без таймаута не блокируем UI)
+      fetchSafe(
+        GIGACHAT_URL,
+        {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(getToken() ? { "X-Auth-Token": getToken()! } : {}),
-          },
+          headers: authHeaders(getToken()),
           body: JSON.stringify({ action: "refund-doc" }),
-        });
-      } catch { /* refund best-effort */ }
+        },
+        15_000,
+        0
+      ).catch(() => {});
 
-      const errMsg = e instanceof Error ? e.message : "Ошибка генерации";
+      const errMsg = e instanceof Error ? e.message : "Ошибка генерации. Попробуйте ещё раз.";
       setDocErr(errMsg);
       setDocPhase("form");
-      // Обновляем данные чтобы счётчик документов был актуален
       invalidateUserCache();
       refreshUser().catch(() => {});
     } finally {
@@ -159,15 +160,20 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     setDocErr("");
     try {
       const token = getToken();
-      const res = await fetch(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({
-          mode: "doc_continue",
-          doc_type: docType.id,
-          partial: currentDoc.content,
-        }),
-      });
+      const res = await fetchSafe(
+        GIGACHAT_URL,
+        {
+          method: "POST",
+          headers: authHeaders(token),
+          body: JSON.stringify({
+            mode: "doc_continue",
+            doc_type: docType.id,
+            partial: currentDoc.content,
+          }),
+        },
+        DOC_TIMEOUT_MS,
+        1
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка продолжения");
       const merged = currentDoc.content + "\n" + data.answer;
@@ -194,7 +200,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       }
       setDocPhase(newPlaceholders.length > 0 ? "filling" : "done");
     } catch (e) {
-      setDocErr(e instanceof Error ? e.message : "Ошибка продолжения");
+      setDocErr(e instanceof Error ? e.message : "Ошибка продолжения. Попробуйте ещё раз.");
     } finally {
       setDocGenerating(false);
     }

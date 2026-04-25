@@ -3,7 +3,7 @@ import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import {
   hasBusinessSubscription, businessUpdateOrg, businessConsumeAction,
-  businessMessagesGet, businessMessageSave,
+  businessMessagesGet, businessMessageSave, fetchSafe,
 } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
@@ -168,11 +168,11 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       if (attachedFile) { reqBody.file = attachedFile.b64; reqBody.filename = attachedFile.name; }
       if (attachedFile2) { reqBody.file2 = attachedFile2.b64; reqBody.filename2 = attachedFile2.name; }
 
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqBody),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       const aiBody = data.answer || "Не удалось получить ответ";
       const needsExpert = !!data.needs_expert;
@@ -209,11 +209,11 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
     }));
     setAllMessages(p => p.map((m, i) => i === p.length - 1 ? { ...m, truncated: false } : m));
     try {
-      const res = await fetch(GIGACHAT_URL, {
+      const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "chat_continue", messages: toolMessages, partial: partialText }),
-      });
+      }, 90_000, 1);
       const data = await res.json();
       const continuation = data.answer as string;
       const merged = partialText + "\n\n" + continuation;

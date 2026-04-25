@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
-import { getUser, addPaidService } from "@/lib/auth";
+import { getUser, addPaidService, fetchSafe } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 
 const CREATE_URL = (func2url as Record<string, string>)["payment-create"];
@@ -123,7 +123,7 @@ export default function PaymentModal({
 
     try {
       const user = await getUser();
-      const res = await fetch(CREATE_URL, {
+      const res = await fetchSafe(CREATE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +134,7 @@ export default function PaymentModal({
             ? `${window.location.origin}/cabinet?payment=success`
             : `${window.location.origin}/?payment=success`,
         }),
-      });
+      }, 30_000, 1);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка создания платежа");
 
@@ -180,7 +180,7 @@ export default function PaymentModal({
     const poll = async () => {
       attempts++;
       try {
-        const res = await fetch(`${CHECK_URL}?inv_id=${id}`);
+        const res = await fetchSafe(`${CHECK_URL}?inv_id=${id}`, { method: "GET" }, 15_000, 0);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
           // Начисляем услугу (fallback на случай если webhook не успел) — передаём inv_id для защиты от дублирования
