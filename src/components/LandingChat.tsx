@@ -4,6 +4,7 @@ import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
+import ExpertOfferModal from "@/components/ExpertOfferModal";
 import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
 import DocChoiceModal from "@/components/DocChoiceModal";
 
@@ -207,7 +208,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentService, setPaymentService] = useState<{ type: ServiceType; name: string }>({ type: "plan_starter", name: "Пакет «Старт»" });
+  const [showProOffer, setShowProOffer] = useState(false);
+  const [paymentService, setPaymentService] = useState<{ type: ServiceType; name: string }>({ type: "plan_pro", name: "Тариф «Профи»" });
   const [pendingDocType, setPendingDocType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatBoxRef = useRef<HTMLDivElement>(null);
@@ -322,12 +324,11 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     e.target.value = "";
-    // Анализ файлов — только с пакетом 990р
+    // Анализ файлов — только с тарифа «Профи»
     saveHistoryToStorage(history.current);
     localStorage.setItem(PENDING_SERVICE_KEY, "plan");
-    setPaymentService({ type: "plan_starter", name: "Пакет «Старт» · Анализ документов" });
     setPendingDocType(null);
-    setShowPayment(true);
+    setShowProOffer(true);
   };
 
   const handleCreateDoc = (docTypeId: string) => {
@@ -469,7 +470,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               onClick={() => fileInputRef.current?.click()}
               className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
               style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
-              title="Анализ документа — пакет Старт"
+              title="Анализ документа — тариф «Профи»"
             >
               <Icon name="Paperclip" size={15} />
             </button>
@@ -565,6 +566,18 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onClose={() => setShowLogin(false)}
           onSuccess={() => { setShowLogin(false); navigate("/cabinet"); }}
           freeTrial={false}
+        />
+      )}
+
+      {showProOffer && (
+        <ExpertOfferModal
+          onClose={() => setShowProOffer(false)}
+          onSelectOffer={(type, name) => {
+            setShowProOffer(false);
+            setPaymentService({ type, name });
+            setShowPayment(true);
+          }}
+          mode="pro"
         />
       )}
 

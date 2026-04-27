@@ -47,6 +47,7 @@ export default function CabinetContent({
   openPlanModal, openDocChoice, createDocFromChat, navigate,
 }: CabinetContentProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
+  const [showProOffer, setShowProOffer] = useState(false);
   const isFlex = tab === "chat" || tab === "business";
 
   return (
@@ -73,6 +74,7 @@ export default function CabinetContent({
             fileUploading={chat.fileUploading}
             totalLeft={totalLeft}
             canUploadFiles={canUploadFiles}
+            onUpgradeClick={() => setShowProOffer(true)}
             onInputChange={chat.setInput}
             onSend={chat.sendMessage}
             onSendFile={chat.sendFileAnalysis}
@@ -159,6 +161,17 @@ export default function CabinetContent({
             onClose={() => setShowExpertOffer(false)}
             onSelectOffer={(type, name) => {
               setShowExpertOffer(false);
+              setPayment({ type, name });
+            }}
+          />
+        )}
+
+        {showProOffer && (
+          <ExpertOfferModal
+            mode="pro"
+            onClose={() => setShowProOffer(false)}
+            onSelectOffer={(type, name) => {
+              setShowProOffer(false);
               setPayment({ type, name });
             }}
           />

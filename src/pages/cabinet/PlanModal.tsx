@@ -20,7 +20,7 @@ const PLANS: Plan[] = [
     price: "990",
     questions: 30,
     docs: 5,
-    features: ["30 вопросов AI-юристу", "5 готовых документов", "Анализ одного PDF или фото"],
+    features: ["30 вопросов AI-юристу", "5 готовых документов", "Генерация .doc из диалога", "Скачивание в .doc"],
     popular: false,
     badge: null,
   },

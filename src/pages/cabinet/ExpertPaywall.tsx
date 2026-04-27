@@ -44,9 +44,9 @@ export default function ExpertPaywall({ onPayClick }: ExpertPaywallProps) {
             className="btn-gold w-full py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
           >
             <Icon name="UserCheck" size={16} />
-            Подключить — 990 ₽
+            Выбрать вариант
           </button>
-          <p className="text-xs text-muted-foreground mt-3 text-center">Защищённая оплата · доступ сразу после оплаты</p>
+          <p className="text-xs text-muted-foreground mt-3 text-center">Тариф «Максимум» 5 990 ₽ · или 1 консультация 990 ₽</p>
         </div>
       </div>
     </div>
