@@ -1,9 +1,11 @@
+import { useState } from "react";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
+import ExpertOfferModal from "@/components/ExpertOfferModal";
 import ViewDocModal from "@/pages/cabinet/ViewDocModal";
 import PlanModal from "@/pages/cabinet/PlanModal";
 import type { User } from "@/lib/auth";
 import type { GenDoc } from "@/pages/cabinet/DocsTab";
-import type { PendingAction } from "@/pages/cabinet/useCabinetPayment";
+
 
 interface CabinetModalsProps {
   user: User;
@@ -26,6 +28,8 @@ export default function CabinetModals({
   onClosePayment, onPaySuccess,
   onCloseViewDoc, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
+  const [showExpertOffer, setShowExpertOffer] = useState(false);
+
   return (
     <>
       {payment && (
@@ -44,11 +48,28 @@ export default function CabinetModals({
         />
       )}
 
-      {showPlanModal && (
+      {showPlanModal && !showExpertOffer && (
         <PlanModal
           user={user}
           onClose={onClosePlanModal}
-          onSelectPlan={(name, _price, id) => onSelectPlan(name, id as ServiceType)}
+          onSelectPlan={(name, _price, id) => {
+            if (id === "plan_max") {
+              onClosePlanModal();
+              setShowExpertOffer(true);
+            } else {
+              onSelectPlan(name, id as ServiceType);
+            }
+          }}
+        />
+      )}
+
+      {showExpertOffer && (
+        <ExpertOfferModal
+          onClose={() => setShowExpertOffer(false)}
+          onSelectOffer={(type, name) => {
+            setShowExpertOffer(false);
+            onSelectPlan(name, type);
+          }}
         />
       )}
 

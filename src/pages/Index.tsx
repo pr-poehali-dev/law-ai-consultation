@@ -261,6 +261,7 @@ export default function Index() {
       />
       <PricingSection
         onSelectPlan={(name, _price, serviceTypeId) => openPayment(name, serviceTypeId)}
+        onSelectMax={() => setShowExpertOffer(true)}
       />
       <ReviewsSection />
       <FooterSection onNavigate={handleNavigate} />

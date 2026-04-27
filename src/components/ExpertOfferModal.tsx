@@ -106,7 +106,7 @@ export default function ExpertOfferModal({ onClose, onSelectOffer }: ExpertOffer
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-2xl font-bold text-white">6 990 <span className="text-sm font-normal text-white/50">₽</span></div>
-                  <div className="text-[11px] text-white/50 mt-0.5">Сэкономьте 990 ₽ vs покупки по отдельности</div>
+                  <div className="text-[11px] text-white/50 mt-0.5">Всё включено · Один выгодный пакет</div>
                 </div>
                 <button
                   onClick={() => { onSelectOffer("plan_max_expert", "Максимум + Юрист"); handleClose(); }}

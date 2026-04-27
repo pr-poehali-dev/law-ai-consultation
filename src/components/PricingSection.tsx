@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 
 interface PricingSectionProps {
   onSelectPlan: (plan: string, price: string, serviceType: string) => void;
+  onSelectMax?: () => void;
 }
 
 const USER_PLANS = [
@@ -16,9 +17,9 @@ const USER_PLANS = [
     features: [
       "30 вопросов AI-юристу",
       "5 готовых документов",
-      "Анализ одного PDF или фото",
       "Подготовка документов AI",
       "Генерация .doc из диалога",
+      "Скачивание в .doc формате",
     ],
     popular: false,
     gradient: "",
@@ -28,7 +29,7 @@ const USER_PLANS = [
     id: "plan_pro",
     name: "Профи",
     price: "3 990",
-    period: "/ месяц",
+    period: "",
     desc: "Оптимальный выбор для активного использования",
     badge: "Хит",
     features: [
@@ -38,6 +39,7 @@ const USER_PLANS = [
       "Определение перспективы дела",
       "Генерация .doc из диалога",
       "История консультаций",
+      "Скачивание .doc",
     ],
     popular: true,
     gradient: "from-navy-600/60 to-navy-800/80",
@@ -47,15 +49,17 @@ const USER_PLANS = [
     id: "plan_max",
     name: "Максимум",
     price: "5 990",
-    period: "/ месяц",
+    period: "",
     desc: "Для частых юридических задач",
-    badge: "Максимум",
+    badge: "Рекомендуем",
     features: [
       "до 300 вопросов AI-юристу",
       "50 готовых документов",
       "Всё из тарифа «Профи»",
       "Приоритетный доступ к AI",
       "Анализ нескольких документов сразу",
+      "Консультация живого юриста на сайте или по телефону",
+      "Подготовка документов живым юристом — 2 документа",
     ],
     popular: false,
     gradient: "from-navy-800/5 to-navy-900/10",
@@ -74,8 +78,16 @@ const BIZ_FEATURES = [
   { icon: "Plus", text: "Возможность докупить действия" },
 ];
 
-export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
+export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSectionProps) {
   const [hovered, setHovered] = useState<string | null>(null);
+
+  const handlePlanClick = (plan: typeof USER_PLANS[0]) => {
+    if (plan.id === "plan_max" && onSelectMax) {
+      onSelectMax();
+    } else {
+      onSelectPlan(plan.name, plan.price, plan.id);
+    }
+  };
 
   return (
     <section id="pricing" className="py-16 sm:py-24 bg-gradient-to-b from-background to-slate-50 overflow-hidden">
@@ -101,7 +113,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               key={plan.id}
               onMouseEnter={() => setHovered(plan.id)}
               onMouseLeave={() => setHovered(null)}
-              onClick={() => onSelectPlan(plan.name, plan.price, plan.id)}
+              onClick={() => handlePlanClick(plan)}
               className={`plan-card-animate relative flex flex-col rounded-3xl cursor-pointer transition-all duration-300 overflow-hidden ${
                 plan.popular
                   ? "pricing-popular lg:scale-105"
@@ -147,7 +159,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
 
               <div className="p-6 sm:p-7 pt-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); onSelectPlan(plan.name, plan.price, plan.id); }}
+                  onClick={(e) => { e.stopPropagation(); handlePlanClick(plan); }}
                   className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
                     plan.popular
                       ? "btn-gold hover:scale-[1.02] active:scale-[0.98]"
