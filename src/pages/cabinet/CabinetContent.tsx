@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { downloadDoc } from "@/lib/docUtils";
 import { logout } from "@/lib/auth";
 import type { User } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
+import ExpertOfferModal from "@/components/ExpertOfferModal";
 import ChatTab, { type DocHint } from "@/pages/cabinet/ChatTab";
 import DocsTab, { type GenDoc } from "@/pages/cabinet/DocsTab";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
@@ -44,6 +46,7 @@ export default function CabinetContent({
   setTab, setPayment, setViewDoc, setPendingDocType,
   openPlanModal, openDocChoice, createDocFromChat, navigate,
 }: CabinetContentProps) {
+  const [showExpertOffer, setShowExpertOffer] = useState(false);
   const isFlex = tab === "chat" || tab === "business";
 
   return (
@@ -86,7 +89,7 @@ export default function CabinetContent({
                 setTab("expert");
               } else {
                 savePendingAction({ tab: "expert" });
-                setPayment({ type: "expert", name: "Консультация живого юриста" });
+                setShowExpertOffer(true);
               }
             }}
             onGoToDocs={() => setTab("docs")}
@@ -147,7 +150,17 @@ export default function CabinetContent({
             user={user}
             messages={chat.messages}
             genDocs={docs.genDocs}
-            onPayClick={() => setPayment({ type: "expert", name: "Консультация живого юриста" })}
+            onPayClick={() => setShowExpertOffer(true)}
+          />
+        )}
+
+        {showExpertOffer && (
+          <ExpertOfferModal
+            onClose={() => setShowExpertOffer(false)}
+            onSelectOffer={(type, name) => {
+              setShowExpertOffer(false);
+              setPayment({ type, name });
+            }}
           />
         )}
 

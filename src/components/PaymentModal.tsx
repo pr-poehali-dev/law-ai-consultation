@@ -18,6 +18,7 @@ export type ServiceType =
   | "plan_starter_discount"
   | "plan_pro"
   | "plan_max"
+  | "plan_max_expert"
   | "business_subscription"
   | "business_actions_10"
   | "business_actions_30"
@@ -45,6 +46,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   plan_starter_discount: 495,
   plan_pro: 3990,
   plan_max: 5990,
+  plan_max_expert: 6990,
   business_subscription: 4990,
   business_actions_10: 1000,
   business_actions_30: 3000,
@@ -64,6 +66,7 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   plan_starter_discount: "30 вопросов AI-юристу + 5 документов · Анализ PDF/фото · Скидка 50%",
   plan_pro: "100 вопросов + 20 документов · Анализ документов · Определение перспективы дела · Генерация .doc",
   plan_max: "до 300 вопросов + 50 документов · Всё включено · Приоритетный доступ",
+  plan_max_expert: "Максимум + консультация юриста на сайте/телефону + 2 документа юристом · 300 вопросов · 50 документов AI",
   business_subscription: "150 действий/мес · Приказы, договоры, анализ PDF/DOC · Сравнение · Due diligence · Скачивание .doc · История 24 ч",
   business_actions_10: "Дополнительно 10 действий к текущему пакету",
   business_actions_30: "Дополнительно 30 действий к текущему пакету",
@@ -78,6 +81,7 @@ const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   plan_starter_discount: "−50%",
   plan_pro: "Хит",
   plan_max: "Максимум",
+  plan_max_expert: "Рекомендуем",
   business_subscription: "Бизнес",
   business_actions_150: "Выгодно",
   subscription_docs: "Выгодно",

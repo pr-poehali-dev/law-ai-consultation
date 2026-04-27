@@ -157,7 +157,7 @@ export default function ChatInputBar({
             onClick={canUploadFiles ? onAttachClick : undefined}
             disabled={typing || fileUploading || !canAddMore || !canUploadFiles}
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40 active:bg-slate-100"
-            title={canUploadFiles ? "Прикрепить до 3 файлов (PDF, DOCX, фото)" : "Доступно при наличии платного тарифа"}
+            title={canUploadFiles ? "Прикрепить до 3 файлов (PDF, DOCX, фото)" : "Доступно в тарифе «Профи» и выше"}
           >
             {fileUploading
               ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
@@ -223,7 +223,7 @@ export default function ChatInputBar({
           <p className="text-[10px] text-slate-400">Носят информационный характер</p>
           {!hasFiles && (
             <p className="text-[10px] text-slate-300">
-              {canUploadFiles ? "📎 до 3 файлов · PDF, DOCX, фото" : "🔒 файлы — в платном тарифе"}
+              {canUploadFiles ? "📎 до 3 файлов · PDF, DOCX, фото" : "🔒 файлы — в тарифе «Профи»+"}
             </p>
           )}
         </div>

@@ -10,6 +10,7 @@ import ReviewsSection from "@/components/ReviewsSection";
 import FooterSection from "@/components/FooterSection";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
+import ExpertOfferModal from "@/components/ExpertOfferModal";
 import CookieBanner from "@/components/CookieBanner";
 
 const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> = {
@@ -63,6 +64,7 @@ export default function Index() {
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [showExpertOffer, setShowExpertOffer] = useState(false);
   // Если токен есть — сразу редиректим в кабинет, не показываем главную
   const [checking, setChecking] = useState(!!localStorage.getItem("yurist_ai_token"));
 
@@ -247,6 +249,11 @@ export default function Index() {
       <FeaturesSection />
       <ServicesSection
         onSelectService={(service) => {
+          if (service === "Консультация юриста") {
+            // Специальная модалка с выбором: Максимум+Юрист или просто юрист
+            setShowExpertOffer(true);
+            return;
+          }
           const tab = SERVICE_TAB_MAP[service] || "chat";
           if (isLoggedIn) navigate(`/cabinet?tab=${tab}`);
           else { setPendingTab(tab); setFreeTrial(true); setShowLogin(true); }
@@ -257,6 +264,17 @@ export default function Index() {
       />
       <ReviewsSection />
       <FooterSection onNavigate={handleNavigate} />
+
+      {showExpertOffer && (
+        <ExpertOfferModal
+          onClose={() => setShowExpertOffer(false)}
+          onSelectOffer={(type, name) => {
+            setShowExpertOffer(false);
+            setSelectedService({ type, name });
+            setShowPayment(true);
+          }}
+        />
+      )}
 
       {showPayment && (
         <PaymentModal

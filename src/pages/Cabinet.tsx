@@ -328,8 +328,8 @@ export default function Cabinet() {
   const totalLeft = user.isAdmin || isPremium
     ? 999
     : getDailyFreeLeft() + (user.paidQuestions ?? 0);
-  // Загрузка файлов в чат — только при оплаченном тарифе (не бесплатные вопросы)
-  const canUploadFiles = user.isAdmin || isPremium || (user.paidQuestions ?? 0) > 0;
+  // Загрузка файлов в чат — только с тарифа «Профи» (100+ вопросов) и выше, или подписка, или админ
+  const canUploadFiles = user.isAdmin || isPremium || (user.paidQuestions ?? 0) >= 100;
 
   return (
     <div className="pwa-page flex flex-col bg-slate-50 font-golos">
