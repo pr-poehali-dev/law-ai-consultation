@@ -21,6 +21,7 @@ interface CabinetContentProps {
   tab: Tab;
   user: User;
   totalLeft: number;
+  canUploadFiles: boolean;
   chat: ChatLogic;
   docs: DocsLogic;
   creatingDocFromChat: boolean;
@@ -36,7 +37,7 @@ interface CabinetContentProps {
 }
 
 export default function CabinetContent({
-  tab, user, totalLeft,
+  tab, user, totalLeft, canUploadFiles,
   chat, docs,
   creatingDocFromChat,
   refreshUser,
@@ -68,6 +69,7 @@ export default function CabinetContent({
             attachedFiles={chat.attachedFiles}
             fileUploading={chat.fileUploading}
             totalLeft={totalLeft}
+            canUploadFiles={canUploadFiles}
             onInputChange={chat.setInput}
             onSend={chat.sendMessage}
             onSendFile={chat.sendFileAnalysis}

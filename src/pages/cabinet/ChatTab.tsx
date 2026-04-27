@@ -21,6 +21,7 @@ interface ChatTabProps {
   attachedFiles: { name: string; b64: string; size: string }[];
   fileUploading: boolean;
   totalLeft: number;
+  canUploadFiles?: boolean;
   onInputChange: (v: string) => void;
   onSend: () => void;
   onSendFile: (comment: string) => void;
@@ -77,7 +78,7 @@ function ReportPopoverChat({ onClose }: { onClose: () => void }) {
 
 export default function ChatTab({
   user, messages, input, typing, typingStatus, chatErr,
-  attachedFiles, fileUploading, totalLeft,
+  attachedFiles, fileUploading, totalLeft, canUploadFiles = false,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onAttachClick, onRemoveFile,
   onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, chatEndRef, fileInputRef,
@@ -178,6 +179,7 @@ export default function ChatTab({
         typing={typing}
         fileUploading={fileUploading}
         totalLeft={totalLeft}
+        canUploadFiles={canUploadFiles}
         attachedFiles={attachedFiles}
         fileInputRef={fileInputRef}
         onInputChange={onInputChange}

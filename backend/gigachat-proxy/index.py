@@ -719,12 +719,20 @@ def handler(event: dict, context) -> dict:
                     "Ссылки на доказательства: (т. 1, л.д. 15). Нумерация страниц — внизу по центру.\n\n"
                 )
             # Для исковых документов — добавляем актуальные ставки госпошлины + файлы из БД
-            duty_block = get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else ""
-            # Файлы госпошлины из БД (если загружены админом)
-            if doc_type in DUTY_DOC_TYPES:
-                duty_block += get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000)
-            # Файлы судебной практики — для всех типов документов
-            case_law_block = get_legal_context_for_ai("case_law", max_files=2, max_chars=4000)
+            # Запросы к legal_docs выполняем параллельно (кэш — обычно мгновенно, но при промахе тоже быстро)
+            _duty_db_result: list = []
+            _case_law_result: list = []
+            def _fetch_duty_db():
+                if doc_type in DUTY_DOC_TYPES:
+                    _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000))
+            def _fetch_case_law():
+                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=4000))
+            _t_duty = threading.Thread(target=_fetch_duty_db, daemon=True)
+            _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
+            _t_duty.start(); _t_case.start()
+            _t_duty.join(); _t_case.join()
+            duty_block = (get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else "") + (_duty_db_result[0] if _duty_db_result else "")
+            case_law_block = _case_law_result[0] if _case_law_result else ""
 
             prompt = (
                 history_context

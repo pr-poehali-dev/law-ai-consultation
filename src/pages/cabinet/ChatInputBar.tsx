@@ -8,6 +8,7 @@ interface ChatInputBarProps {
   typing: boolean;
   fileUploading: boolean;
   totalLeft: number;
+  canUploadFiles?: boolean;
   attachedFiles: { name: string; b64: string; size: string }[];
   fileInputRef: React.RefObject<HTMLInputElement>;
   onInputChange: (v: string) => void;
@@ -24,6 +25,7 @@ export default function ChatInputBar({
   typing,
   fileUploading,
   totalLeft,
+  canUploadFiles = false,
   attachedFiles,
   fileInputRef,
   onInputChange,
@@ -152,10 +154,10 @@ export default function ChatInputBar({
 
           {/* Прикрепить */}
           <button
-            onClick={onAttachClick}
-            disabled={typing || fileUploading || !canAddMore}
+            onClick={canUploadFiles ? onAttachClick : undefined}
+            disabled={typing || fileUploading || !canAddMore || !canUploadFiles}
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40 active:bg-slate-100"
-            title="Прикрепить до 3 файлов (PDF, DOCX, фото)"
+            title={canUploadFiles ? "Прикрепить до 3 файлов (PDF, DOCX, фото)" : "Доступно при наличии платного тарифа"}
           >
             {fileUploading
               ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
@@ -174,8 +176,8 @@ export default function ChatInputBar({
 
           {/* Камера (мобайл) */}
           <button
-            onClick={() => document.getElementById("camera-input")?.click()}
-            disabled={typing || fileUploading || !canAddMore}
+            onClick={canUploadFiles ? () => document.getElementById("camera-input")?.click() : undefined}
+            disabled={typing || fileUploading || !canAddMore || !canUploadFiles}
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40 active:bg-slate-100 sm:hidden"
           >
             <Icon name="Camera" size={17} />
@@ -220,7 +222,9 @@ export default function ChatInputBar({
         <div className="px-3 pb-2 pt-1 border-t border-slate-100 mt-1 flex items-center justify-between">
           <p className="text-[10px] text-slate-400">Носят информационный характер</p>
           {!hasFiles && (
-            <p className="text-[10px] text-slate-300">📎 до 3 файлов · PDF, DOCX, фото</p>
+            <p className="text-[10px] text-slate-300">
+              {canUploadFiles ? "📎 до 3 файлов · PDF, DOCX, фото" : "🔒 файлы — в платном тарифе"}
+            </p>
           )}
         </div>
       </div>

@@ -8,6 +8,8 @@ import os
 import base64
 import io
 import json
+import time
+import threading
 import boto3
 import psycopg2
 import PyPDF2
@@ -26,14 +28,28 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 МБ
 MAX_TEXT_PER_FILE = 8000           # символов для инжекции в AI
 MAX_FILES_FOR_AI = 3               # сколько файлов читаем для одного запроса
 
+# ── Синглтон S3-клиента: создаём один раз на весь контейнер ──────────────────
+_s3_client = None
+_s3_lock = threading.Lock()
 
 def _s3():
-    return boto3.client(
-        "s3",
-        endpoint_url="https://bucket.poehali.dev",
-        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-    )
+    global _s3_client
+    if _s3_client is None:
+        with _s3_lock:
+            if _s3_client is None:
+                _s3_client = boto3.client(
+                    "s3",
+                    endpoint_url="https://bucket.poehali.dev",
+                    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+                )
+    return _s3_client
+
+# ── Кэш содержимого legal_docs для AI: TTL 5 минут ───────────────────────────
+# Ключ: (category, max_files, max_chars) → (text, timestamp)
+_legal_cache: dict = {}
+_legal_cache_lock = threading.Lock()
+LEGAL_CACHE_TTL = 300  # 5 минут
 
 
 def _extract_text_from_pdf(data: bytes) -> str:
@@ -181,6 +197,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 ContentType=mime_type,
             )
 
+            invalidate_legal_cache()
             key_id = os.environ.get("AWS_ACCESS_KEY_ID", "")
             cdn_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
             return _ok({
@@ -212,6 +229,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 (doc_id,)
             )
             conn.commit()
+            invalidate_legal_cache()
             return _ok({"ok": True})
 
         return _err(400, f"Неизвестное действие: {action}")
@@ -231,11 +249,16 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
     """
     Читает последние N активных файлов из указанной категории,
     извлекает текст и возвращает блок для инжекции в AI-промпт.
-
-    AI получает инструкцию использовать материалы только если они
-    релевантны запросу — иначе игнорировать.
-    Безопасно: при любой ошибке возвращает пустую строку.
+    Результат кэшируется на 5 минут — S3 не читается на каждый запрос.
     """
+    cache_key = (category, max_files, max_chars)
+    now = time.time()
+
+    # Проверяем кэш (без блокировки — читать dict потокобезопасно в CPython)
+    cached = _legal_cache.get(cache_key)
+    if cached and (now - cached[1]) < LEGAL_CACHE_TTL:
+        return cached[0]
+
     try:
         conn = get_conn()
         cur = conn.cursor()
@@ -254,9 +277,11 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
             conn.close()
 
         if not rows:
+            with _legal_cache_lock:
+                _legal_cache[cache_key] = ("", now)
             return ""
 
-        # S3 инициализируем только если файлы есть в БД
+        # Синглтон S3-клиент (не создаём новый на каждый вызов)
         s3_client = _s3()
         parts = []
         for doc_id, title, filename, s3_key, mime_type in rows:
@@ -272,6 +297,8 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
                 continue
 
         if not parts:
+            with _legal_cache_lock:
+                _legal_cache[cache_key] = ("", now)
             return ""
 
         if category == "case_law":
@@ -289,11 +316,21 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
             )
 
         separator = "\n\n— — —\n\n"
-        return f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
+        result = f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
+
+        with _legal_cache_lock:
+            _legal_cache[cache_key] = (result, now)
+        return result
 
     except Exception as e:
         print(f"[LEGAL_DOCS] get_legal_context error: {e}")
         return ""
+
+
+def invalidate_legal_cache():
+    """Сбрасывает кэш при загрузке/удалении файла администратором."""
+    with _legal_cache_lock:
+        _legal_cache.clear()
 
 
 def is_case_law_in_db() -> bool:
