@@ -414,16 +414,8 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                     WHERE id = %s""",
                 (user["id"],)
             )
-        elif service_type == "plan_max":
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 300,
-                        paid_docs = paid_docs + 50
-                    WHERE id = %s""",
-                (user["id"],)
-            )
-        elif service_type == "plan_max_expert":
-            # Максимум + консультация юриста: 300 вопросов, 50 доков, paid_expert = TRUE
+        elif service_type in ("plan_max", "plan_max_expert"):
+            # Тариф Максимум: 300 вопросов, 50 документов, доступ к юристу
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 300,

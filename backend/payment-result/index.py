@@ -25,7 +25,8 @@ DESCRIPTIONS = {
     "plan_starter":          "Тариф Старт: +30 вопросов, +5 документов",
     "plan_starter_discount": "Тариф Старт со скидкой 50%: +30 вопросов, +5 документов",
     "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов",
-    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов",
+    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
+    "plan_max_expert":       "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
     "business_actions_30":   "+30 бизнес-действий",
@@ -110,9 +111,13 @@ def grant_service(conn, user_id: int, service_type: str):
                 f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20 WHERE id = %s",
                 (user_id,)
             )
-        elif service_type == "plan_max":
+        elif service_type in ("plan_max", "plan_max_expert"):
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50 WHERE id = %s",
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 300,
+                        paid_docs = paid_docs + 50,
+                        paid_expert = TRUE
+                    WHERE id = %s""",
                 (user_id,)
             )
         elif service_type == "business_subscription":

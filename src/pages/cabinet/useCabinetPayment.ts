@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
-import { getUser, type User, fetchSafe } from "@/lib/auth";
+import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
@@ -31,21 +31,22 @@ export function clearPendingAction() {
 
 export const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
   consultation:          "Консультация живого юриста активирована",
-  document:              "+1 документ",
-  expert:                "Экспертная проверка активирована",
+  document:              "+1 документ активирован",
+  expert:                "Консультация юриста активирована",
   business:              "Бизнес-пакет активирован",
   subscription_consult:  "Подписка на консультации активирована",
   subscription_docs:     "Подписка на документы активирована",
-  plan_starter:          "+30 вопросов и +5 документов",
-  plan_starter_discount: "+30 вопросов и +5 документов",
-  plan_pro:              "+100 вопросов и +20 документов",
-  plan_max:              "+300 вопросов и +50 документов",
-  business_subscription: "+150 бизнес-действий и подписка",
-  business_actions_10:   "+10 бизнес-действий",
-  business_actions_30:   "+30 бизнес-действий",
-  business_actions_50:   "+50 бизнес-действий",
-  business_actions_60:   "+60 бизнес-действий",
-  business_actions_150:  "+150 бизнес-действий",
+  plan_starter:          "Тариф «Старт» активирован — +30 вопросов и +5 документов",
+  plan_starter_discount: "Тариф «Старт» активирован — +30 вопросов и +5 документов",
+  plan_pro:              "Тариф «Профи» активирован — +100 вопросов, +20 документов, анализ файлов",
+  plan_max:              "Тариф «Максимум» активирован — +300 вопросов, +50 документов, юрист",
+  plan_max_expert:       "Тариф «Максимум» активирован — +300 вопросов, +50 документов, юрист",
+  business_subscription: "+150 бизнес-действий и подписка активированы",
+  business_actions_10:   "+10 бизнес-действий добавлено",
+  business_actions_30:   "+30 бизнес-действий добавлено",
+  business_actions_50:   "+50 бизнес-действий добавлено",
+  business_actions_60:   "+60 бизнес-действий добавлено",
+  business_actions_150:  "+150 бизнес-действий добавлено",
 };
 
 interface UseCabinetPaymentParams {
@@ -74,6 +75,7 @@ export function useCabinetPayment({
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
   const refreshUser = async () => {
+    invalidateUserCache();
     const u = await getUser();
     if (u) setUser(u);
   };
@@ -86,13 +88,14 @@ export function useCabinetPayment({
         const res = await fetchSafe(`${CHECK_URL}?inv_id=${invId}`, { method: "GET" }, 15_000, 0);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
+          // Инвалидируем кэш — получаем свежие данные с новым тарифом
           await refreshUser();
           chatRemoveUpsell();
           chatRevealFunnel();
           const label = data.service_type ? GRANT_LABELS[data.service_type as ServiceType] : null;
           if (label) {
             setSuccessToast(label);
-            setTimeout(() => setSuccessToast(null), 4500);
+            setTimeout(() => setSuccessToast(null), 5500);
           }
           if (action) {
             setTab(action.tab);
@@ -108,18 +111,20 @@ export function useCabinetPayment({
           return;
         }
       } catch { /* продолжаем */ }
-      if (attempts < 10) setTimeout(poll, 3000);
+      // 20 попыток × 3 сек = 60 сек (ЮКасса webhook может прийти позже)
+      if (attempts < 20) setTimeout(poll, 3000);
       else {
         await refreshUser();
-        setErrorToast("Оплата не прошла или была отменена");
-        setTimeout(() => setErrorToast(null), 5000);
+        setErrorToast("Оплата не прошла или была отменена. Обновите страницу.");
+        setTimeout(() => setErrorToast(null), 6000);
       }
     };
     setTimeout(poll, 2000);
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
-    await new Promise(r => setTimeout(r, 1500));
+    // Пауза чтобы бэкенд успел обработать — затем принудительно обновляем пользователя
+    await new Promise(r => setTimeout(r, 2000));
     await refreshUser();
     chatRemoveUpsell();
     chatRevealFunnel();
