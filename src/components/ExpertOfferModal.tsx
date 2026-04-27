@@ -8,19 +8,19 @@ interface ExpertOfferModalProps {
 }
 
 const MAX_EXPERT_FEATURES = [
-  { icon: "UserCheck", text: "Консультация юриста на сайте или по телефону" },
-  { icon: "FileCheck", text: "Подготовка 2 документов живым юристом" },
-  { icon: "MessageCircle", text: "до 300 вопросов AI-юристу" },
-  { icon: "FileText", text: "50 документов AI (исковые, претензии, жалобы)" },
-  { icon: "Search", text: "Анализ нескольких документов сразу (PDF, фото)" },
-  { icon: "Star", text: "Приоритетный доступ · Всё из тарифа «Максимум»" },
+  { text: "Консультация юриста на сайте или по телефону" },
+  { text: "Подготовка 2 документов живым юристом" },
+  { text: "до 300 вопросов AI-юристу" },
+  { text: "50 документов AI (исковые, претензии, жалобы)" },
+  { text: "Анализ нескольких документов сразу (PDF, фото)" },
+  { text: "Приоритетный доступ · Всё из тарифа «Максимум»" },
 ];
 
 const EXPERT_ONLY_FEATURES = [
-  { icon: "MessageCircle", text: "Личная переписка с юристом в чате" },
-  { icon: "FileSearch", text: "Анализ документов и ответов AI юристом" },
-  { icon: "FileCheck", text: "Письменное заключение по вашей ситуации" },
-  { icon: "Clock", text: "Ответ за 24 часа в рабочие дни" },
+  { text: "Личная переписка с юристом в чате" },
+  { text: "Анализ документов и ответов AI юристом" },
+  { text: "Письменное заключение по вашей ситуации" },
+  { text: "Ответ за 24 часа в рабочие дни" },
 ];
 
 export default function ExpertOfferModal({ onClose, onSelectOffer }: ExpertOfferModalProps) {
@@ -105,11 +105,11 @@ export default function ExpertOfferModal({ onClose, onSelectOffer }: ExpertOffer
 
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-white">6 990 <span className="text-sm font-normal text-white/50">₽</span></div>
-                  <div className="text-[11px] text-white/50 mt-0.5">Всё включено · Один выгодный пакет</div>
+                  <div className="text-2xl font-bold text-white">5 990 <span className="text-sm font-normal text-white/50">₽</span></div>
+                  <div className="text-[11px] text-white/50 mt-0.5">Всё включено · Юрист + AI в одном тарифе</div>
                 </div>
                 <button
-                  onClick={() => { onSelectOffer("plan_max_expert", "Максимум + Юрист"); handleClose(); }}
+                  onClick={() => { onSelectOffer("plan_max", "Тариф «Максимум»"); handleClose(); }}
                   className="px-5 py-3 rounded-xl bg-gold-500 text-navy-900 font-bold text-sm hover:bg-gold-400 active:scale-95 transition-all"
                 >
                   Выбрать
@@ -138,6 +138,7 @@ export default function ExpertOfferModal({ onClose, onSelectOffer }: ExpertOffer
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-amber-600 bg-amber-50 rounded-xl px-3 py-2 mb-3">AI-тариф не включён — только диалог с живым юристом</p>
 
             <div className="flex items-center justify-between">
               <div>
