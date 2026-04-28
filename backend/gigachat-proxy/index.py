@@ -1,5 +1,5 @@
 """
-Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v4 — prompts extracted.
+Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v4 — prompts extracted. v5 — email notify.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
@@ -606,9 +606,16 @@ def handler(event: dict, context) -> dict:
         return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
 
     def _test_email_action(b: dict):
+        import os as _os
         to = b.get("to", "")
+        smtp_from = _os.environ.get("SMTP_FROM_EMAIL", "")
+        smtp_pass = _os.environ.get("SMTP_PASSWORD", "")
         if not to:
             return {"status": 400, "error": "Укажите to"}
+        # диагностика: показываем есть ли секреты (без значений)
+        diag = {"smtp_from_set": bool(smtp_from), "smtp_pass_set": bool(smtp_pass)}
+        if not smtp_from or not smtp_pass:
+            return {"status": 200, "data": {"ok": False, "error": "SMTP не настроен", "diag": diag}}
         try:
             from auth_handler import _send_email as _se
             _se(
@@ -623,7 +630,7 @@ def handler(event: dict, context) -> dict:
             )
             return {"status": 200, "data": {"ok": True, "to": to}}
         except Exception as exc:
-            return {"status": 200, "data": {"ok": False, "error": str(exc)}}
+            return {"status": 200, "data": {"ok": False, "error": str(exc), "diag": diag}}
 
     def _push_subscribe_action():
         me = _get_me()
