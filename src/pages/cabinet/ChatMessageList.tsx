@@ -165,8 +165,8 @@ export default function ChatMessageList({
                         }
                       </button>
                     )}
-                    {/* Кнопка «Отправить юристу» — под каждым ответом AI */}
-                    {onSendToLawyer && !typing && !msg.isFile && !msg.isUpsell && msg.text.length > 30 && (
+                    {/* Кнопка «Отправить юристу» — только не под первым приветствием */}
+                    {onSendToLawyer && !typing && !msg.isFile && !msg.isUpsell && msg.text.length > 30 && i > 0 && (
                       <button
                         onClick={() => onSendToLawyer(msg.text, prevUserMsg?.text)}
                         className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98]"

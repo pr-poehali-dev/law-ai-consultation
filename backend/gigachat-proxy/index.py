@@ -605,33 +605,6 @@ def handler(event: dict, context) -> dict:
         if not uid: return {"status": 401, "error": "Не авторизован"}
         return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
 
-    def _test_email_action(b: dict):
-        import os as _os
-        to = b.get("to", "")
-        smtp_from = _os.environ.get("SMTP_FROM_EMAIL", "")
-        smtp_pass = _os.environ.get("SMTP_PASSWORD", "")
-        if not to:
-            return {"status": 400, "error": "Укажите to"}
-        # диагностика: показываем есть ли секреты (без значений)
-        diag = {"smtp_from_set": bool(smtp_from), "smtp_pass_set": bool(smtp_pass)}
-        if not smtp_from or not smtp_pass:
-            return {"status": 200, "data": {"ok": False, "error": "SMTP не настроен", "diag": diag}}
-        try:
-            from auth_handler import _send_email as _se
-            _se(
-                to_email=to,
-                subject="Test SMTP — ii-pravo.rf",
-                body_text=(
-                    "Это тестовое письмо с сайта ии-право.рф.\n\n"
-                    "Яндекс SMTP работает корректно.\n\n"
-                    "Письма об ответах юриста будут приходить на email пользователя.\n\n"
-                    "С уважением, команда ИИ-Право.рф"
-                ),
-            )
-            return {"status": 200, "data": {"ok": True, "to": to}}
-        except Exception as exc:
-            return {"status": 200, "data": {"ok": False, "error": str(exc), "diag": diag}}
-
     def _push_subscribe_action():
         me = _get_me()
         if "error" in me:
@@ -672,7 +645,6 @@ def handler(event: dict, context) -> dict:
         "push-subscribe": lambda: _push_subscribe_action(),
         "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
         "vapid-public-key": lambda: handle_get_vapid_public_key(),
-        "test-email": lambda: _test_email_action(body),
     }
     if action in auth_actions:
         result = auth_actions[action]()

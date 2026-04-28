@@ -61,8 +61,8 @@ export default function LandingChatMessages({
             </div>
           </div>
 
-          {/* Кнопки под ответом AI */}
-          {msg.role === "ai" && !msg.typing && msg.text.length > 30 && (
+          {/* Кнопки под ответом AI — только не под приветствием (i > 0) */}
+          {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
             <div className="ml-9 mt-2 flex flex-wrap gap-2">
               {msg.suggestDocType && (
                 <button
