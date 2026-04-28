@@ -22,6 +22,7 @@ interface ChatMessageListProps {
   onRevealAnswer?: (msgIndex: number) => void;
   onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
   creatingDocFromChat?: boolean;
+  onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
 }
 
 export default function ChatMessageList({
@@ -40,6 +41,7 @@ export default function ChatMessageList({
   onRevealAnswer,
   onCreateDocFromMsg,
   creatingDocFromChat,
+  onSendToLawyer,
 }: ChatMessageListProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -161,6 +163,17 @@ export default function ChatMessageList({
                             ? <><Icon name="FilePlus" size={12} />Составить: {msg.docHint.doc_label}</>
                             : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
                         }
+                      </button>
+                    )}
+                    {/* Кнопка «Отправить юристу» — под каждым ответом AI */}
+                    {onSendToLawyer && !typing && !msg.isFile && !msg.isUpsell && msg.text.length > 30 && (
+                      <button
+                        onClick={() => onSendToLawyer(msg.text, prevUserMsg?.text)}
+                        className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98]"
+                        style={{ background: "rgba(10,22,40,0.05)", border: "1px solid rgba(10,22,40,0.1)", color: "#4a5568" }}
+                      >
+                        <Icon name="UserCheck" size={13} color="#6b7280" />
+                        Отправить на проверку живому юристу
                       </button>
                     )}
                   </div>

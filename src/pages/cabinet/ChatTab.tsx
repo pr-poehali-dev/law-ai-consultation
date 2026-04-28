@@ -37,6 +37,7 @@ interface ChatTabProps {
   onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
   creatingDocFromChat?: boolean;
   onRevealAnswer?: (msgIndex: number) => void;
+  onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -82,7 +83,7 @@ export default function ChatTab({
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onAttachClick, onRemoveFile,
-  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, chatEndRef, fileInputRef,
+  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -171,6 +172,7 @@ export default function ChatTab({
         onRevealAnswer={onRevealAnswer}
         onCreateDocFromMsg={onCreateDocFromMsg}
         creatingDocFromChat={creatingDocFromChat}
+        onSendToLawyer={onSendToLawyer}
       />
 
       {/* Поле ввода + файл */}

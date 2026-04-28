@@ -5,7 +5,8 @@ import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
-import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
+import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSend } from "@/lib/auth";
+import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS,
@@ -41,6 +42,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showProOffer, setShowProOffer] = useState(false);
   const [paymentService, setPaymentService] = useState<{ type: ServiceType; name: string }>({ type: "plan_pro", name: "Тариф «Профи»" });
   const [pendingDocType, setPendingDocType] = useState<string | null>(null);
+  const [showExpertMaxOffer, setShowExpertMaxOffer] = useState(false);
+  const [pendingLawyerMsg, setPendingLawyerMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -151,6 +154,42 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowProOffer(true);
   };
 
+  const handleSendToLawyer = useCallback(async (msgText: string) => {
+    const user = await getUser();
+    if (!user || !user.paidExpert) {
+      setPendingLawyerMsg(msgText);
+      setShowExpertMaxOffer(true);
+      return;
+    }
+    const recentHistory = history.current.slice(-6);
+    const chatSummary = recentHistory.map(m => `${m.role === "user" ? "Вопрос" : "Ответ AI"}: ${m.content}`).join("\n\n");
+    await lawyerSend({
+      body: "Прошу проверить ответ AI на мой вопрос.",
+      attachment_type: "chat_answer",
+      attachment_name: msgText.slice(0, 80) + (msgText.length > 80 ? "…" : ""),
+      attachment_content: chatSummary || msgText,
+    });
+    // Перенаправляем в кабинет к разделу юрист
+    saveHistoryToStorage(history.current);
+    onOpenLogin({ freeTrial: false, pendingTab: "expert" });
+  }, [onOpenLogin]);
+
+  const handleExpertMaxSuccess = useCallback(async () => {
+    setShowExpertMaxOffer(false);
+    if (pendingLawyerMsg) {
+      const recentHistory = history.current.slice(-6);
+      const chatSummary = recentHistory.map(m => `${m.role === "user" ? "Вопрос" : "Ответ AI"}: ${m.content}`).join("\n\n");
+      await lawyerSend({
+        body: "Прошу проверить ответ AI на мой вопрос.",
+        attachment_type: "chat_answer",
+        attachment_name: pendingLawyerMsg.slice(0, 80) + (pendingLawyerMsg.length > 80 ? "…" : ""),
+        attachment_content: chatSummary || pendingLawyerMsg,
+      });
+      setPendingLawyerMsg(null);
+    }
+    onOpenLogin({ freeTrial: false, pendingTab: "expert" });
+  }, [pendingLawyerMsg, onOpenLogin]);
+
   const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
     setShowDocChoice({ docTypeId, docLabel: DOC_LABELS_MAP[docTypeId] || "документ" });
@@ -210,6 +249,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onBuyPlan={openPlanPayment}
           onBuyDoc={() => setShowDocChoice({ docTypeId: "claim", docLabel: "документ" })}
           onLogin={() => onOpenLogin({ freeTrial: false })}
+          onSendToLawyer={handleSendToLawyer}
         />
 
         {/* Инпут */}
@@ -303,6 +343,14 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             setShowPayment(true);
           }}
           onClose={() => setShowDocChoice(null)}
+        />
+      )}
+
+      {showExpertMaxOffer && (
+        <ExpertMaxOfferModal
+          context="chat"
+          onClose={() => { setShowExpertMaxOffer(false); setPendingLawyerMsg(null); }}
+          onSuccess={handleExpertMaxSuccess}
         />
       )}
     </div>

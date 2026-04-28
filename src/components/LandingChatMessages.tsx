@@ -11,6 +11,7 @@ interface LandingChatMessagesProps {
   onBuyPlan: () => void;
   onBuyDoc: () => void;
   onLogin: () => void;
+  onSendToLawyer?: (msgText: string) => void;
 }
 
 export default function LandingChatMessages({
@@ -22,6 +23,7 @@ export default function LandingChatMessages({
   onBuyPlan,
   onBuyDoc,
   onLogin,
+  onSendToLawyer,
 }: LandingChatMessagesProps) {
   return (
     <div
@@ -59,21 +61,37 @@ export default function LandingChatMessages({
             </div>
           </div>
 
-          {/* Кнопка создать документ под ответом AI */}
-          {msg.role === "ai" && !msg.typing && msg.suggestDocType && (
-            <div className="ml-9 mt-2">
-              <button
-                onClick={() => onCreateDoc(msg.suggestDocType!)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                style={{
-                  background: "linear-gradient(135deg, rgba(232,168,32,0.18), rgba(232,168,32,0.08))",
-                  border: "1px solid rgba(232,168,32,0.3)",
-                  color: "#f0c060",
-                }}
-              >
-                <Icon name="FileText" size={13} color="#f0c060" />
-                Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
-              </button>
+          {/* Кнопки под ответом AI */}
+          {msg.role === "ai" && !msg.typing && msg.text.length > 30 && (
+            <div className="ml-9 mt-2 flex flex-wrap gap-2">
+              {msg.suggestDocType && (
+                <button
+                  onClick={() => onCreateDoc(msg.suggestDocType!)}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(232,168,32,0.18), rgba(232,168,32,0.08))",
+                    border: "1px solid rgba(232,168,32,0.3)",
+                    color: "#f0c060",
+                  }}
+                >
+                  <Icon name="FileText" size={13} color="#f0c060" />
+                  Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
+                </button>
+              )}
+              {onSendToLawyer && (
+                <button
+                  onClick={() => onSendToLawyer(msg.text)}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={{
+                    background: "rgba(255,255,255,0.07)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    color: "rgba(255,255,255,0.65)",
+                  }}
+                >
+                  <Icon name="UserCheck" size={13} color="rgba(255,255,255,0.65)" />
+                  Отправить юристу
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { downloadDoc } from "@/lib/docUtils";
-import { logout } from "@/lib/auth";
+import { logout, lawyerSend } from "@/lib/auth";
 import type { User } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
+import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import ChatTab, { type DocHint } from "@/pages/cabinet/ChatTab";
 import DocsTab, { type GenDoc } from "@/pages/cabinet/DocsTab";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
@@ -48,7 +49,44 @@ export default function CabinetContent({
 }: CabinetContentProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
+  const [showExpertMaxOffer, setShowExpertMaxOffer] = useState(false);
+  const [pendingLawyerMsg, setPendingLawyerMsg] = useState<{ text: string; userText?: string } | null>(null);
   const isFlex = tab === "chat" || tab === "business";
+
+  const handleSendToLawyer = useCallback(async (msgText: string, prevUserText?: string) => {
+    if (!user.paidExpert && !user.isAdmin) {
+      setPendingLawyerMsg({ text: msgText, userText: prevUserText });
+      setShowExpertMaxOffer(true);
+      return;
+    }
+    const chatSummary = prevUserText
+      ? `Вопрос: ${prevUserText}\n\nОтвет AI: ${msgText}`
+      : msgText;
+    await lawyerSend({
+      body: "Прошу проверить ответ AI на мой вопрос.",
+      attachment_type: "chat_answer",
+      attachment_name: (prevUserText || msgText).slice(0, 80) + ((prevUserText || msgText).length > 80 ? "…" : ""),
+      attachment_content: chatSummary,
+    });
+    setTab("expert");
+  }, [user, setTab]);
+
+  const handleExpertMaxSuccess = useCallback(async () => {
+    setShowExpertMaxOffer(false);
+    if (pendingLawyerMsg) {
+      const chatSummary = pendingLawyerMsg.userText
+        ? `Вопрос: ${pendingLawyerMsg.userText}\n\nОтвет AI: ${pendingLawyerMsg.text}`
+        : pendingLawyerMsg.text;
+      await lawyerSend({
+        body: "Прошу проверить ответ AI на мой вопрос.",
+        attachment_type: "chat_answer",
+        attachment_name: (pendingLawyerMsg.userText || pendingLawyerMsg.text).slice(0, 80) + "…",
+        attachment_content: chatSummary,
+      });
+      setPendingLawyerMsg(null);
+    }
+    setTab("expert");
+  }, [pendingLawyerMsg, setTab]);
 
   return (
     <main className={
@@ -99,6 +137,7 @@ export default function CabinetContent({
             onCreateDocFromMsg={createDocFromChat}
             creatingDocFromChat={creatingDocFromChat}
             onRevealAnswer={chat.revealAnswer}
+            onSendToLawyer={handleSendToLawyer}
             chatEndRef={chat.chatEndRef}
             fileInputRef={chat.fileInputRef}
           />
@@ -163,6 +202,14 @@ export default function CabinetContent({
               setShowExpertOffer(false);
               setPayment({ type, name });
             }}
+          />
+        )}
+
+        {showExpertMaxOffer && (
+          <ExpertMaxOfferModal
+            context="chat"
+            onClose={() => { setShowExpertMaxOffer(false); setPendingLawyerMsg(null); }}
+            onSuccess={handleExpertMaxSuccess}
           />
         )}
 

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
-import { sendReport } from "@/lib/auth";
+import { sendReport, getUser, lawyerSend } from "@/lib/auth";
+import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 
 interface ViewDocModalProps {
   doc: GenDoc;
@@ -155,6 +156,9 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
   const [reportText, setReportText] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
   const [reportSent, setReportSent] = useState(false);
+  const [showExpertOffer, setShowExpertOffer] = useState(false);
+  const [sendingToLawyer, setSendingToLawyer] = useState(false);
+  const [sentToLawyer, setSentToLawyer] = useState(false);
 
   const handleSendReport = async () => {
     if (!reportText.trim()) return;
@@ -170,6 +174,29 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
     setReportSent(false);
     setReportText("");
   };
+
+  const handleSendToLawyer = async () => {
+    const user = await getUser();
+    if (!user || !user.paidExpert) {
+      setShowExpertOffer(true);
+      return;
+    }
+    setSendingToLawyer(true);
+    await lawyerSend({
+      body: `Прошу проверить документ: ${doc.name}`,
+      attachment_type: "document",
+      attachment_name: doc.name,
+      attachment_content: doc.content,
+    });
+    setSendingToLawyer(false);
+    setSentToLawyer(true);
+  };
+
+  const handleExpertOfferSuccess = async () => {
+    setShowExpertOffer(false);
+    await handleSendToLawyer();
+  };
+
   const blocks = parseDocBlocks(doc.content);
   const hasBlocks = blocks.some(b => b.type !== "ТЕЛО");
 
@@ -288,6 +315,26 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
 
         {/* Нижняя панель */}
         <div className="border-t border-slate-100 px-5 py-3 shrink-0 bg-slate-50/80 rounded-b-3xl">
+          {/* Кнопка отправки юристу */}
+          {sentToLawyer ? (
+            <div className="flex items-center gap-2 px-4 py-2.5 mb-2.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <Icon name="CheckCircle" size={15} className="text-emerald-600 shrink-0" />
+              <p className="text-xs font-medium text-emerald-700">Документ отправлен юристу — ответ появится в разделе «Юрист»</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleSendToLawyer}
+              disabled={sendingToLawyer}
+              className="w-full mb-2.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", color: "#f0c060" }}
+            >
+              {sendingToLawyer ? (
+                <><span className="w-3.5 h-3.5 border-2 border-gold-400/40 border-t-gold-400 rounded-full animate-spin" />Отправляю юристу...</>
+              ) : (
+                <><Icon name="UserCheck" size={14} color="#f0c060" />Отправить документ на проверку живому юристу</>
+              )}
+            </button>
+          )}
           <div className="flex items-center justify-between gap-3">
             <button
               onClick={() => setReportOpen(true)}
@@ -314,6 +361,15 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
           </div>
         </div>
       </div>
+
+      {/* Модалка: оффер Максимум */}
+      {showExpertOffer && (
+        <ExpertMaxOfferModal
+          context="doc"
+          onClose={() => setShowExpertOffer(false)}
+          onSuccess={handleExpertOfferSuccess}
+        />
+      )}
 
       {/* Модалка: Сообщить о проблеме */}
       {reportOpen && (
