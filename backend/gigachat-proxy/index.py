@@ -605,6 +605,26 @@ def handler(event: dict, context) -> dict:
         if not uid: return {"status": 401, "error": "Не авторизован"}
         return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
 
+    def _test_email_action(b: dict):
+        to = b.get("to", "")
+        if not to:
+            return {"status": 400, "error": "Укажите to"}
+        try:
+            from auth_handler import _send_email as _se
+            _se(
+                to_email=to,
+                subject="Test SMTP — ii-pravo.rf",
+                body_text=(
+                    "Это тестовое письмо с сайта ии-право.рф.\n\n"
+                    "Яндекс SMTP работает корректно.\n\n"
+                    "Письма об ответах юриста будут приходить на email пользователя.\n\n"
+                    "С уважением, команда ИИ-Право.рф"
+                ),
+            )
+            return {"status": 200, "data": {"ok": True, "to": to}}
+        except Exception as exc:
+            return {"status": 200, "data": {"ok": False, "error": str(exc)}}
+
     def _push_subscribe_action():
         me = _get_me()
         if "error" in me:
@@ -645,6 +665,7 @@ def handler(event: dict, context) -> dict:
         "push-subscribe": lambda: _push_subscribe_action(),
         "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
         "vapid-public-key": lambda: handle_get_vapid_public_key(),
+        "test-email": lambda: _test_email_action(body),
     }
     if action in auth_actions:
         result = auth_actions[action]()
