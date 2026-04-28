@@ -107,64 +107,59 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
         <div style={{ height: 3, background: "linear-gradient(90deg, transparent, #e8a820 20%, #f0c060 50%, #e8a820 80%, transparent)", flexShrink: 0 }} />
 
         {/* Шапка */}
-        <div className="px-5 pt-5 pb-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+        <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0"
                 style={{ background: "linear-gradient(135deg, #e8a820, #f0c060)" }}>
-                <Icon name="Crown" size={20} color="#0a1628" />
+                <Icon name="Crown" size={18} color="#0a1628" />
               </div>
               <div>
-                <p className="text-white font-bold text-base leading-tight">Тариф «Максимум»</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
+                <p className="text-white font-bold text-sm sm:text-base leading-tight">Тариф «Максимум»</p>
+                <p className="text-[10px] sm:text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
                   {context === "doc" ? "Отправьте документ живому юристу на проверку" : "Отправьте вопрос живому юристу на проверку"}
                 </p>
               </div>
             </div>
-            <button onClick={handleClose} className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
-              <Icon name="X" size={16} />
-            </button>
-          </div>
-
-          {/* Цена */}
-          <div className="mt-4 flex items-end gap-3">
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-white">5 990</span>
-              <span className="text-lg font-bold" style={{ color: "#e8a820" }}>₽</span>
-            </div>
-            <div className="mb-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
-              style={{ background: "rgba(232,168,32,0.15)", color: "#f0c060", border: "1px solid rgba(232,168,32,0.25)" }}>
-              Доступ на 1 месяц
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Цена в шапке */}
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-2xl sm:text-3xl font-black text-white">5 990</span>
+                <span className="text-sm font-bold" style={{ color: "#e8a820" }}>₽</span>
+              </div>
+              <button onClick={handleClose} className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                <Icon name="X" size={16} />
+              </button>
             </div>
           </div>
         </div>
 
         {/* Список возможностей — прокручивается, кнопка всегда видна */}
-        <div className="overflow-y-auto px-5 py-4 space-y-2" style={{ flex: "1 1 0", minHeight: 0 }}>
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+        <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-1.5 sm:space-y-2" style={{ flex: "1 1 0", minHeight: 0 }}>
+          <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
             Что входит в пакет
           </p>
           {FEATURES.map((f, i) => (
-            <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-2xl"
+            <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl sm:rounded-2xl"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
-                <Icon name={f.icon} size={13} color="#e8a820" />
+                <Icon name={f.icon} size={12} color="#e8a820" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-tight">{f.label}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{f.sub}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-white leading-tight">{f.label}</p>
+                <p className="text-[10px] sm:text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>{f.sub}</p>
               </div>
             </div>
           ))}
 
           {/* Баннер «что произойдёт» */}
-          <div className="px-3 py-2.5 rounded-2xl"
+          <div className="px-3 py-2.5 rounded-xl sm:rounded-2xl"
             style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.2)" }}>
-            <div className="flex items-start gap-2.5">
-              <Icon name="Info" size={13} color="#e8a820" className="shrink-0 mt-0.5" />
-              <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
+            <div className="flex items-start gap-2">
+              <Icon name="Info" size={12} color="#e8a820" className="shrink-0 mt-0.5" />
+              <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
                 После оплаты {context === "doc" ? "документ" : "ваш вопрос с ответом AI"} автоматически отправится юристу.
                 Ответ придёт в раздел «Юрист» вашего кабинета.
               </p>
@@ -173,7 +168,7 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
         </div>
 
         {/* Кнопка — всегда прикреплена к низу */}
-        <div className="px-5 pb-5 pt-3 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-3 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           <button
             onClick={handleBuy}
             className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98]"
