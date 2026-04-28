@@ -915,17 +915,38 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
             pass
 
     else:
-        # Админ ответил — push пользователю
+        # Админ ответил — email + push пользователю
         try:
-            short_msg = (msg_body or "Юрист ответил на ваш запрос")[:80]
-            _push_to_users(
-                [recipient_id],
-                title="⚖️ Ответ от юриста",
-                body=short_msg,
-                url="/cabinet",
-            )
-        except Exception:
-            pass
+            # Получаем email пользователя
+            conn2 = get_conn()
+            cur2 = conn2.cursor()
+            try:
+                cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (recipient_id,))
+                urow2 = cur2.fetchone()
+            finally:
+                cur2.close()
+                conn2.close()
+
+            if urow2:
+                recipient_name = urow2[0] or ""
+                recipient_email = urow2[1] or ""
+                greeting = f"Здравствуйте, {recipient_name.strip()}!" if recipient_name.strip() else "Здравствуйте!"
+                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+                _send_email(
+                    to_email=recipient_email,
+                    subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
+                    body_text=(
+                        f"{greeting}\n\n"
+                        f"Юрист ответил на ваш запрос:\n\n"
+                        f"{msg_body}{att_info}\n\n"
+                        f"{'─'*40}\n"
+                        f"Просмотреть переписку и продолжить диалог:\n"
+                        f"https://ии-право.рф/cabinet\n\n"
+                        f"С уважением, команда ИИ-Право.рф"
+                    ),
+                )
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Email не отправлен: {e}")
 
     return _ok({"id": row[0], "created_at": row[1].isoformat()})
 
