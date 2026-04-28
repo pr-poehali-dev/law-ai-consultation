@@ -1,4 +1,4 @@
-"""Авторизация: регистрация, вход, сессии, подписки, rate-limiting, отчёты об ошибках. v2."""
+"""Авторизация: регистрация, вход, сессии, подписки, rate-limiting, отчёты об ошибках. v3."""
 import os
 import re
 import secrets
@@ -469,7 +469,8 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     smtp_from = os.environ.get("SMTP_FROM_EMAIL", "").strip()
     smtp_pass = os.environ.get("SMTP_PASSWORD", "").strip()
     if not smtp_from or not smtp_pass:
-        raise RuntimeError("SMTP не настроен")
+        all_keys = [k for k in os.environ if "SMTP" in k or "smtp" in k]
+        raise RuntimeError(f"SMTP не настроен (найдены ключи: {all_keys})")
 
     msg = MIMEText(body_text, "plain", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
