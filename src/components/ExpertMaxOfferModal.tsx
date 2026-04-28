@@ -140,17 +140,17 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
           </div>
         </div>
 
-        {/* Список возможностей */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2.5">
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.35)" }}>
+        {/* Список возможностей — прокручивается, кнопка всегда видна */}
+        <div className="overflow-y-auto px-5 py-4 space-y-2" style={{ flex: "1 1 0", minHeight: 0 }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
             Что входит в пакет
           </p>
           {FEATURES.map((f, i) => (
-            <div key={i} className="flex items-start gap-3 px-3.5 py-3 rounded-2xl"
+            <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-2xl"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
-                <Icon name={f.icon} size={14} color="#e8a820" />
+                <Icon name={f.icon} size={13} color="#e8a820" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-white leading-tight">{f.label}</p>
@@ -160,10 +160,10 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
           ))}
 
           {/* Баннер «что произойдёт» */}
-          <div className="mt-3 px-3.5 py-3 rounded-2xl"
+          <div className="px-3 py-2.5 rounded-2xl"
             style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.2)" }}>
             <div className="flex items-start gap-2.5">
-              <Icon name="Info" size={14} color="#e8a820" className="shrink-0 mt-0.5" />
+              <Icon name="Info" size={13} color="#e8a820" className="shrink-0 mt-0.5" />
               <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
                 После оплаты {context === "doc" ? "документ" : "ваш вопрос с ответом AI"} автоматически отправится юристу.
                 Ответ придёт в раздел «Юрист» вашего кабинета.
@@ -172,7 +172,7 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
           </div>
         </div>
 
-        {/* Кнопки */}
+        {/* Кнопка — всегда прикреплена к низу */}
         <div className="px-5 pb-5 pt-3 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           <button
             onClick={handleBuy}
