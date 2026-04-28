@@ -28,6 +28,7 @@ from auth_handler import (
     handle_get_billing_log, handle_list_users,
     handle_get_all_billing_log, handle_get_new_users,
     handle_admin_grant,
+    handle_push_subscribe, handle_push_subscribe_anon, handle_get_vapid_public_key,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -604,6 +605,16 @@ def handler(event: dict, context) -> dict:
         if not uid: return {"status": 401, "error": "Не авторизован"}
         return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
 
+    def _push_subscribe_action():
+        me = _get_me()
+        if "error" in me:
+            return handle_push_subscribe_anon(body)
+        u = me.get("data", {}).get("user", me.get("data", {}))
+        uid = u.get("id")
+        if not uid:
+            return handle_push_subscribe_anon(body)
+        return handle_push_subscribe(body, uid)
+
     auth_actions = {
         "register": lambda: handle_register(body),
         "login": lambda: handle_login(body, ip),
@@ -631,6 +642,9 @@ def handler(event: dict, context) -> dict:
         "get-new-users": lambda: handle_get_new_users(token, body),
         "admin-grant": lambda: handle_admin_grant(token, body),
         "legal-docs": lambda: handle_legal_docs(token, body),
+        "push-subscribe": lambda: _push_subscribe_action(),
+        "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
+        "vapid-public-key": lambda: handle_get_vapid_public_key(),
     }
     if action in auth_actions:
         result = auth_actions[action]()

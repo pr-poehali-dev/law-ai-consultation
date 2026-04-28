@@ -125,6 +125,24 @@
       "expectedStatus": 401,
       "expectedBody": {"error": "Не авторизован"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "vapid-public-key — returns key or 503",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "vapid-public-key"},
+      "expectedStatus": 503,
+      "expectedBody": {"error": "Push уведомления не настроены"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "push-subscribe-anon — missing data",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "push-subscribe-anon", "endpoint": ""},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Неполные данные подписки"},
+      "bodyMatcher": "partial"
     }
   ]
 }

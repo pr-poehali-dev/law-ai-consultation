@@ -903,6 +903,30 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         except Exception:
             pass  # Email не критичен — сообщение уже сохранено
 
+        # Push-уведомление администратору
+        try:
+            short_msg = (msg_body or att_name or "Новый запрос")[:80]
+            _push_to_admin(
+                title=f"💬 Новый запрос от {sender_name or sender_email or 'клиента'}",
+                body=short_msg,
+                url="/cabinet",
+            )
+        except Exception:
+            pass
+
+    else:
+        # Админ ответил — push пользователю
+        try:
+            short_msg = (msg_body or "Юрист ответил на ваш запрос")[:80]
+            _push_to_users(
+                [recipient_id],
+                title="⚖️ Ответ от юриста",
+                body=short_msg,
+                url="/cabinet",
+            )
+        except Exception:
+            pass
+
     return _ok({"id": row[0], "created_at": row[1].isoformat()})
 
 
@@ -1305,3 +1329,154 @@ def handle_admin_grant(token: str, body: dict) -> dict:
     finally:
         cur.close()
         conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Web Push уведомления
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_vapid_claims():
+    return {"sub": f"mailto:{ADMIN_EMAIL}"}
+
+
+def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/cabinet") -> bool:
+    """Отправляет Web Push одной подписке. Возвращает True при успехе."""
+    try:
+        from pywebpush import webpush, WebPushException
+        import json as _json
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+        if not vapid_private:
+            return False
+        webpush(
+            subscription_info={
+                "endpoint": sub["endpoint"],
+                "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
+            },
+            data=_json.dumps({"title": title, "body": body, "url": url}),
+            vapid_private_key=vapid_private,
+            vapid_claims=_get_vapid_claims(),
+            timeout=8,
+        )
+        return True
+    except Exception as push_err:
+        print(f"[PUSH] Ошибка отправки: {push_err}")
+        return False
+
+
+def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet"):
+    """Отправляет push всем подпискам переданных user_id."""
+    if not user_ids:
+        return
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        placeholders = ",".join(["%s"] * len(user_ids))
+        cur.execute(
+            f"SELECT id, endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions WHERE user_id IN ({placeholders})",
+            user_ids,
+        )
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+
+    expired = []
+    for row in rows:
+        sub_id, endpoint, p256dh, auth = row
+        ok = _send_push_to_subscription({"endpoint": endpoint, "p256dh": p256dh, "auth": auth}, title, body, url)
+        if not ok:
+            expired.append(sub_id)
+
+    if expired:
+        try:
+            conn2 = get_conn()
+            cur2 = conn2.cursor()
+            placeholders2 = ",".join(["%s"] * len(expired))
+            cur2.execute(f"UPDATE {SCHEMA}.push_subscriptions SET auth = 'expired' WHERE id IN ({placeholders2})", expired)
+            conn2.commit()
+            cur2.close()
+            conn2.close()
+        except Exception:
+            pass
+
+
+def _push_to_admin(title: str, body: str, url: str = "/cabinet"):
+    """Отправляет push всем подпискам администраторов."""
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM {SCHEMA}.push_subscriptions ps "
+            f"JOIN {SCHEMA}.users u ON u.id = ps.user_id WHERE u.is_admin = TRUE AND ps.auth != 'expired'"
+        )
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+
+    for row in rows:
+        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url)
+
+
+def handle_push_subscribe(body: dict, user_id: int) -> dict:
+    """Сохраняет Web Push подписку пользователя."""
+    endpoint = sanitize_str(body.get("endpoint", ""), max_len=2048)
+    p256dh = sanitize_str(body.get("p256dh", ""), max_len=512)
+    auth_key = sanitize_str(body.get("auth", ""), max_len=256)
+
+    if not endpoint or not p256dh or not auth_key:
+        return _err(400, "Неполные данные подписки")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.push_subscriptions (user_id, endpoint, p256dh, auth)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth""",
+            (user_id, endpoint, p256dh, auth_key)
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_push_subscribe_anon(body: dict) -> dict:
+    """Сохраняет Web Push подписку анонимного пользователя (user_id=NULL)."""
+    endpoint = sanitize_str(body.get("endpoint", ""), max_len=2048)
+    p256dh = sanitize_str(body.get("p256dh", ""), max_len=512)
+    auth_key = sanitize_str(body.get("auth", ""), max_len=256)
+
+    if not endpoint or not p256dh or not auth_key:
+        return _err(400, "Неполные данные подписки")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.push_subscriptions (user_id, endpoint, p256dh, auth)
+                VALUES (NULL, %s, %s, %s)
+                ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth""",
+            (endpoint, p256dh, auth_key)
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_get_vapid_public_key() -> dict:
+    """Возвращает публичный VAPID ключ для подписки на push."""
+    key = os.environ.get("VAPID_PUBLIC_KEY", "")
+    if not key:
+        return _err(503, "Push уведомления не настроены")
+    return _ok({"publicKey": key})

@@ -78,3 +78,39 @@ self.addEventListener("fetch", (e) => {
   // Всё остальное — network-first без кэша
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+  let data = { title: "AI-Юрист", body: "У вас новое сообщение", url: "/cabinet" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/cabinet" },
+      vibrate: [150, 50, 150],
+      requireInteraction: false,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/cabinet";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});

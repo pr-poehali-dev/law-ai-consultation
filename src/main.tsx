@@ -17,6 +17,18 @@ window.addEventListener("beforeinstallprompt", (e) => {
   window.dispatchEvent(new Event("pwaPromptReady"));
 });
 
+// После успешной установки PWA — запрашиваем разрешение на push
+window.addEventListener("appinstalled", () => {
+  setTimeout(async () => {
+    try {
+      const { subscribeToPush } = await import("@/lib/pushNotifications");
+      await subscribeToPush(true);
+    } catch (_e) {
+      // не критично
+    }
+  }, 2000);
+});
+
 // Регистрируем Service Worker (обязательно для PWA на Android)
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
