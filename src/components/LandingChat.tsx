@@ -312,7 +312,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           <span className="text-[11px] font-medium">MAX</span>
         </a>
         <a
-          href="https://vc.ru"
+          href="https://vc.ru/id1663201/2892255-yuridicheskie-uslugi-ai-yurista-za-990-rubley"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200"
