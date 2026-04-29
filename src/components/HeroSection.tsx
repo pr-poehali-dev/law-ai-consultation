@@ -115,11 +115,11 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               Войти в личный кабинет
             </button>
             <button
-              onClick={scrollToPricing}
+              onClick={onDocument}
               className="btn-outline-white px-6 py-3.5 rounded-2xl text-sm font-medium flex items-center gap-2 w-full sm:w-auto justify-center"
             >
               <Icon name="FileText" size={16} />
-              Посмотреть тарифы
+              Подготовить документ
             </button>
           </div>
 
