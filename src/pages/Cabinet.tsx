@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getUserWithStatus, getUser, type User, getToken, startKeepAlive, invalidateUserCache, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
-import { refreshPushSubscription } from "@/lib/pushNotifications";
+
 import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -19,7 +19,6 @@ import CabinetContent from "@/pages/cabinet/CabinetContent";
 import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
 import DocSavedToast from "@/components/DocSavedToast";
 import DocChoiceModal from "@/components/DocChoiceModal";
-import PushPromptBanner from "@/components/PushPromptBanner";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
 
@@ -134,9 +133,6 @@ export default function Cabinet() {
         return;
       }
       setUser(u);
-
-      // Привязываем push-подписку к авторизованному пользователю
-      refreshPushSubscription().catch(() => {});
 
       // Подхватываем контекст диалога с лендинга для генерации документа
       const pendingDocType = localStorage.getItem("landing_pending_doc");
@@ -421,7 +417,6 @@ export default function Cabinet() {
         />
       )}
 
-      <PushPromptBanner />
     </div>
   );
 }
