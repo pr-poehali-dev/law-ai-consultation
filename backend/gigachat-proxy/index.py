@@ -740,9 +740,9 @@ def handler(event: dict, context) -> dict:
             _case_law_result: list = []
             def _fetch_duty_db():
                 if doc_type in DUTY_DOC_TYPES:
-                    _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000))
+                    _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000, query=details))
             def _fetch_case_law():
-                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=4000))
+                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=4000, query=details))
             _t_duty = threading.Thread(target=_fetch_duty_db, daemon=True)
             _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
             _t_duty.start(); _t_case.start()
@@ -1188,7 +1188,18 @@ def handler(event: dict, context) -> dict:
                 answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
 
             elif _is_case_law:
-                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
+                # Ищем релевантную практику из БД по тексту вопроса
+                _last_user_q = next((m.get("content","") for m in reversed(clean_messages) if m.get("role") == "user"), "")
+                case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)
+                if case_law_db_ctx:
+                    _case_law_msgs = list(clean_messages)
+                    _lu_idx = next((i for i in range(len(_case_law_msgs)-1, -1, -1) if _case_law_msgs[i].get("role") == "user"), None)
+                    if _lu_idx is not None:
+                        _case_law_msgs[_lu_idx] = {**_case_law_msgs[_lu_idx], "content": _case_law_msgs[_lu_idx].get("content","") + case_law_db_ctx}
+                    answer = call_yandex(SYSTEM_CASE_LAW, _case_law_msgs, max_tokens=1400, fast=True, temperature=0.3)
+                    print(f"[ROUTER] Судебная практика из БД инжектирована по запросу")
+                else:
+                    answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
                 if is_case_law_not_found(answer):
                     needs_expert = True
                     answer = answer.rstrip()
@@ -1197,8 +1208,8 @@ def handler(event: dict, context) -> dict:
             elif _is_duty:
                 # Вопрос о госпошлине — инжектируем справочник ставок + файлы из БД
                 duty_ctx = get_duty_context_for_chat()
-                # Дополнительно читаем файлы госпошлины загруженные админом
-                duty_db_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=5000)
+                _last_user_q_duty = next((m.get("content","") for m in reversed(clean_messages) if m.get("role") == "user"), "")
+                duty_db_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=5000, query=_last_user_q_duty)
                 duty_messages = list(clean_messages)
                 last_user_idx = next((i for i in range(len(duty_messages)-1, -1, -1)
                                       if duty_messages[i].get("role") == "user"), None)

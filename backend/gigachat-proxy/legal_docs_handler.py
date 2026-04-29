@@ -1,13 +1,13 @@
 """
 Управление правовой базой знаний: судебная практика и госпошлины.
-Файлы хранятся в S3 (legal-docs/case_law/, legal-docs/state_duty/).
-Метаданные — в таблице legal_docs.
-Только администратор (is_admin=True) может загружать и удалять файлы.
+Файлы хранятся в S3, метаданные — в legal_docs, индексированные чанки — в legal_doc_chunks.
+При загрузке файл нарезается на куски ~500 слов и индексируется через PostgreSQL tsvector.
+При AI-запросе — мгновенный поиск релевантных кусков по ключевым словам запроса пользователя.
 """
 import os
+import re
 import base64
 import io
-import json
 import time
 import threading
 import boto3
@@ -26,11 +26,13 @@ ALLOWED_MIME = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 ALLOWED_YEARS = {2024, 2025, 2026, 2027}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 МБ
-MAX_TEXT_PER_FILE = 8000           # символов для инжекции в AI
-MAX_FILES_FOR_AI = 3               # сколько файлов читаем для одного запроса
+MAX_FILE_SIZE = 10 * 1024 * 1024   # 10 МБ
+CHUNK_SIZE = 500                    # слов в одном чанке
+CHUNK_OVERLAP = 50                  # слов перекрытия между чанками
+MAX_CHUNKS_FOR_AI = 4               # чанков в ответ AI
+MAX_CHUNK_CHARS = 1800              # символов одного чанка для AI
 
-# ── Синглтон S3-клиента: создаём один раз на весь контейнер ──────────────────
+# ── S3 синглтон ──────────────────────────────────────────────────────────────
 _s3_client = None
 _s3_lock = threading.Lock()
 
@@ -47,18 +49,15 @@ def _s3():
                 )
     return _s3_client
 
-# ── Кэш содержимого legal_docs для AI: TTL 5 минут ───────────────────────────
-_legal_cache: dict = {}
-_legal_cache_lock = threading.Lock()
-LEGAL_CACHE_TTL = 300  # 5 минут
 
+# ── Извлечение текста ────────────────────────────────────────────────────────
 
 def _extract_text_from_pdf(data: bytes) -> str:
-    """Извлекает текст из PDF."""
+    """Извлекает текст из PDF (до 50 страниц)."""
     try:
         reader = PyPDF2.PdfReader(io.BytesIO(data))
         parts = []
-        for page in reader.pages[:20]:
+        for page in reader.pages[:50]:
             t = page.extract_text() or ""
             if t.strip():
                 parts.append(t.strip())
@@ -78,7 +77,6 @@ def _extract_text_from_docx(data: bytes) -> str:
 
 
 def _extract_text(data: bytes, ext: str) -> str:
-    """Универсальный экстрактор текста по расширению."""
     ext = ext.lower()
     if ext == "pdf":
         return _extract_text_from_pdf(data)
@@ -86,6 +84,55 @@ def _extract_text(data: bytes, ext: str) -> str:
         return _extract_text_from_docx(data)
     return ""
 
+
+# ── Нарезка текста на чанки ──────────────────────────────────────────────────
+
+def _split_into_chunks(text: str, chunk_words: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list:
+    """
+    Нарезает текст на перекрывающиеся куски по ~chunk_words слов.
+    Старается разрезать по границе предложения.
+    """
+    words = text.split()
+    if not words:
+        return []
+    chunks = []
+    start = 0
+    while start < len(words):
+        end = min(start + chunk_words, len(words))
+        chunk_text = " ".join(words[start:end])
+        if end < len(words):
+            tail = " ".join(words[max(start, end - 80):end])
+            last_dot = max(tail.rfind(". "), tail.rfind(".\n"), tail.rfind("! "), tail.rfind("? "))
+            if last_dot > 0:
+                sentence_end = len(" ".join(words[start:max(start, end - 80)])) + last_dot + 2
+                chunk_text = chunk_text[:sentence_end].strip()
+        if chunk_text.strip():
+            chunks.append(chunk_text.strip())
+        start += chunk_words - overlap
+    return chunks
+
+
+def _save_chunks(conn, doc_id: int, text: str) -> int:
+    """Нарезает текст и сохраняет чанки в БД с tsvector-индексом."""
+    cur = conn.cursor()
+    # Обнуляем старые чанки через UPDATE (не DELETE — политика БД)
+    cur.execute(
+        f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
+        (doc_id,)
+    )
+    chunks = _split_into_chunks(text)
+    for idx, chunk in enumerate(chunks):
+        cur.execute(
+            f"""INSERT INTO {SCHEMA}.legal_doc_chunks
+                (doc_id, chunk_index, content, content_tsv)
+                VALUES (%s, %s, %s, to_tsvector('russian', %s))""",
+            (doc_id, idx, chunk, chunk)
+        )
+    cur.close()
+    return len(chunks)
+
+
+# ── API-обработчик ───────────────────────────────────────────────────────────
 
 def handle_legal_docs(token: str, body: dict) -> dict:
     """Обработчик API для управления правовой базой знаний."""
@@ -111,7 +158,6 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             where_clauses = ["is_active = TRUE"]
             params = []
-
             if category:
                 where_clauses.append("category = %s")
                 params.append(category)
@@ -138,6 +184,11 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 doc_id, cat, title, filename, fsize, mime, created_at, is_active, desc, yr, subcat = row
                 s3_key = f"legal-docs/{cat}/{doc_id}_{filename}"
                 cdn_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
+                cur.execute(
+                    f"SELECT COUNT(*) FROM {SCHEMA}.legal_doc_chunks WHERE doc_id = %s AND content != ''",
+                    (doc_id,)
+                )
+                chunks_count = cur.fetchone()[0]
                 docs.append({
                     "id": doc_id,
                     "category": cat,
@@ -150,6 +201,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     "created_at": created_at.isoformat() if created_at else "",
                     "description": desc,
                     "download_url": cdn_url,
+                    "chunks_count": chunks_count,
                 })
             return _ok({"docs": docs})
 
@@ -204,15 +256,16 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 f"UPDATE {SCHEMA}.legal_docs SET s3_key = %s WHERE id = %s",
                 (s3_key, doc_id)
             )
+
+            # Извлекаем текст и нарезаем на чанки
+            text = _extract_text(file_data, ext)
+            chunks_count = 0
+            if text.strip():
+                chunks_count = _save_chunks(conn, doc_id, text)
+
             conn.commit()
 
-            s3_client = _s3()
-            s3_client.put_object(
-                Bucket="files",
-                Key=s3_key,
-                Body=file_data,
-                ContentType=mime_type,
-            )
+            _s3().put_object(Bucket="files", Key=s3_key, Body=file_data, ContentType=mime_type)
 
             invalidate_legal_cache()
             key_id = os.environ.get("AWS_ACCESS_KEY_ID", "")
@@ -220,6 +273,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             return _ok({
                 "ok": True,
                 "id": doc_id,
+                "chunks_count": chunks_count,
                 "download_url": cdn_url,
             })
 
@@ -236,12 +290,15 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 return _err(404, "Документ не найден")
             s3_key = row[0]
             try:
-                s3_client = _s3()
-                s3_client.delete_object(Bucket="files", Key=s3_key)
+                _s3().delete_object(Bucket="files", Key=s3_key)
             except Exception as e:
                 print(f"[LEGAL_DOCS] S3 delete error: {e}")
             cur.execute(
                 f"UPDATE {SCHEMA}.legal_docs SET is_active = FALSE WHERE id = %s",
+                (doc_id,)
+            )
+            cur.execute(
+                f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
                 (doc_id,)
             )
             conn.commit()
@@ -258,18 +315,119 @@ def handle_legal_docs(token: str, body: dict) -> dict:
         conn.close()
 
 
-# ── AI-интеграция: получение текстов файлов для инжекции в промпт ──────────
+# ── Кэш fallback-контекста ───────────────────────────────────────────────────
+_legal_cache: dict = {}
+_legal_cache_lock = threading.Lock()
+LEGAL_CACHE_TTL = 300
 
-def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
-                              max_chars: int = MAX_TEXT_PER_FILE) -> str:
+
+def invalidate_legal_cache():
+    """Сбрасывает кэш при загрузке/удалении файла."""
+    with _legal_cache_lock:
+        _legal_cache.clear()
+
+
+# ── Извлечение ключевых слов из запроса ──────────────────────────────────────
+
+def _extract_query_terms(query: str) -> str:
     """
-    Читает последние N активных файлов из указанной категории,
-    извлекает текст и возвращает блок для инжекции в AI-промпт.
-    Результат кэшируется на 5 минут.
+    Превращает запрос в tsquery для PostgreSQL (с префиксным поиском).
     """
-    cache_key = (category, max_files, max_chars)
+    clean = re.sub(r"[^\w\s]", " ", query.lower())
+    words = clean.split()
+    stop = {
+        "и","в","на","с","по","для","что","как","это","все","или","но","а","у",
+        "из","за","от","до","при","если","то","не","к","о","об","во","со","же",
+        "бы","ли","уже","еще","ещё","мне","мы","вы","он","она","они","был",
+        "быть","есть","так","там","тут","вот","да","нет","меня","тебя","его","её",
+        "их","мой","твой","наш","ваш","свой","я","ты","под","над","без","между",
+    }
+    terms = [w for w in words if len(w) > 2 and w not in stop]
+    if not terms:
+        return ""
+    return " | ".join(f"{t}:*" for t in terms[:12])
+
+
+# ── Умный поиск по чанкам ────────────────────────────────────────────────────
+
+def search_legal_chunks(query: str, category: str = "case_law",
+                        max_chunks: int = MAX_CHUNKS_FOR_AI,
+                        max_chars: int = MAX_CHUNK_CHARS) -> str:
+    """
+    Мгновенный полнотекстовый поиск по индексированным чанкам.
+    Возвращает только релевантные абзацы — экономит токены AI.
+    """
+    if not query or not query.strip():
+        return get_legal_context_fallback(category, max_chunks, max_chars)
+
+    tsquery = _extract_query_terms(query)
+    if not tsquery:
+        return get_legal_context_fallback(category, max_chunks, max_chars)
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                f"""SELECT
+                        c.content,
+                        d.title,
+                        d.doc_year,
+                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank
+                    FROM {SCHEMA}.legal_doc_chunks c
+                    JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
+                    WHERE
+                        d.category = %s
+                        AND d.is_active = TRUE
+                        AND c.content != ''
+                        AND c.content_tsv @@ to_tsquery('russian', %s)
+                    ORDER BY
+                        rank DESC,
+                        COALESCE(d.doc_year, 2020) DESC
+                    LIMIT %s""",
+                (tsquery, category, tsquery, max_chunks)
+            )
+            rows = cur.fetchall()
+        finally:
+            cur.close()
+            conn.close()
+
+        if not rows:
+            return get_legal_context_fallback(category, max_chunks, max_chars)
+
+        parts = []
+        seen = set()
+        for content, title, doc_year, rank in rows:
+            year_label = f" ({doc_year} г.)" if doc_year else ""
+            key = f"{title}{year_label}"
+            header = f"Из документа «{key}»:" if key not in seen else f"(продолжение «{title}»):"
+            seen.add(key)
+            parts.append(f"{header}\n{content[:max_chars]}")
+
+        if category == "case_law":
+            instruction = (
+                "РЕЛЕВАНТНАЯ СУДЕБНАЯ ПРАКТИКА (подобрана автоматически по теме запроса):\n"
+                "Используй для обоснования ответа. Ссылайся на документ по названию."
+            )
+        else:
+            instruction = (
+                "АКТУАЛЬНЫЕ СТАВКИ ГОСПОШЛИНЫ (подобраны по теме запроса):\n"
+                "Используй для точного расчёта пошлины."
+            )
+
+        separator = "\n\n— — —\n\n"
+        return f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
+
+    except Exception as e:
+        print(f"[LEGAL_DOCS] search_legal_chunks error: {e}")
+        return get_legal_context_fallback(category, max_chunks, max_chars)
+
+
+def get_legal_context_fallback(category: str, max_chunks: int = MAX_CHUNKS_FOR_AI,
+                                max_chars: int = MAX_CHUNK_CHARS) -> str:
+    """Fallback: последние N чанков без учёта запроса (кэш 5 мин)."""
+    cache_key = (category, max_chunks, max_chars)
     now = time.time()
-
     cached = _legal_cache.get(cache_key)
     if cached and (now - cached[1]) < LEGAL_CACHE_TTL:
         return cached[0]
@@ -279,12 +437,13 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""SELECT id, title, filename, s3_key, mime_type, doc_year, subcategory
-                    FROM {SCHEMA}.legal_docs
-                    WHERE category = %s AND is_active = TRUE
-                    ORDER BY doc_year DESC NULLS LAST, created_at DESC
+                f"""SELECT c.content, d.title, d.doc_year
+                    FROM {SCHEMA}.legal_doc_chunks c
+                    JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
+                    WHERE d.category = %s AND d.is_active = TRUE AND c.content != ''
+                    ORDER BY COALESCE(d.doc_year, 2020) DESC, d.created_at DESC, c.chunk_index ASC
                     LIMIT %s""",
-                (category, max_files)
+                (category, max_chunks)
             )
             rows = cur.fetchall()
         finally:
@@ -296,60 +455,48 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
                 _legal_cache[cache_key] = ("", now)
             return ""
 
-        s3_client = _s3()
         parts = []
-        for doc_id, title, filename, s3_key, mime_type, doc_year, subcategory in rows:
-            try:
-                obj = s3_client.get_object(Bucket="files", Key=s3_key)
-                data = obj["Body"].read()
-                ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-                text = _extract_text(data, ext)
-                if text.strip():
-                    year_label = f" ({doc_year} год)" if doc_year else ""
-                    parts.append(f"Документ: «{title}»{year_label}\n{text[:max_chars]}")
-            except Exception as e:
-                print(f"[LEGAL_DOCS] Не удалось прочитать {s3_key}: {e}")
-                continue
-
-        if not parts:
-            with _legal_cache_lock:
-                _legal_cache[cache_key] = ("", now)
-            return ""
+        for content, title, doc_year in rows:
+            year_label = f" ({doc_year} г.)" if doc_year else ""
+            parts.append(f"Из документа «{title}{year_label}»:\n{content[:max_chars]}")
 
         if category == "case_law":
             instruction = (
-                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика (загружена администратором).\n"
-                "Используй эти материалы ТОЛЬКО если они релевантны запросу пользователя: "
-                "цитируй конкретные выводы судов, ссылайся на документ по названию. "
-                "Если материалы не относятся к данному вопросу — игнорируй их."
+                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика:\n"
+                "Используй если релевантны запросу пользователя."
             )
         else:
             instruction = (
-                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — актуальные ставки госпошлины (загружены администратором).\n"
-                "Используй эти данные для точного расчёта пошлины если они применимы. "
-                "Если данные не относятся к вопросу — игнорируй их."
+                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — ставки госпошлины:\n"
+                "Используй для расчёта пошлины."
             )
 
         separator = "\n\n— — —\n\n"
         result = f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
-
         with _legal_cache_lock:
             _legal_cache[cache_key] = (result, now)
         return result
 
     except Exception as e:
-        print(f"[LEGAL_DOCS] get_legal_context error: {e}")
+        print(f"[LEGAL_DOCS] fallback error: {e}")
         return ""
 
 
-def invalidate_legal_cache():
-    """Сбрасывает кэш при загрузке/удалении файла администратором."""
-    with _legal_cache_lock:
-        _legal_cache.clear()
+# ── Обратная совместимость ────────────────────────────────────────────────────
+
+def get_legal_context_for_ai(category: str, max_files: int = 3,
+                              max_chars: int = MAX_CHUNK_CHARS,
+                              query: str = "") -> str:
+    """
+    Универсальная точка входа для index.py.
+    Если передан query — умный поиск. Иначе — fallback (последние чанки).
+    """
+    if query and query.strip():
+        return search_legal_chunks(query, category, MAX_CHUNKS_FOR_AI, max_chars)
+    return get_legal_context_fallback(category, MAX_CHUNKS_FOR_AI, max_chars)
 
 
 def is_case_law_in_db() -> bool:
-    """Проверяет, есть ли файлы судебной практики в базе."""
     try:
         conn = get_conn()
         cur = conn.cursor()
@@ -366,7 +513,6 @@ def is_case_law_in_db() -> bool:
 
 
 def is_state_duty_in_db() -> bool:
-    """Проверяет, есть ли файлы госпошлины в базе."""
     try:
         conn = get_conn()
         cur = conn.cursor()
