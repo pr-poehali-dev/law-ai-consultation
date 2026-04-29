@@ -97,6 +97,17 @@ async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   }
 }
 
+export async function forgotPassword(email: string): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    const res = await apiCall({ action: "forgot-password", email });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Ошибка. Попробуйте ещё раз." };
+    return { ok: true };
+  } catch {
+    return { error: "Нет соединения. Проверьте интернет." };
+  }
+}
+
 export async function register(params: {
   name: string;
   email: string;

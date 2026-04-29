@@ -501,6 +501,54 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     raise RuntimeError(f"Не удалось отправить письмо: {last_err}")
 
 
+def handle_forgot_password(body: dict) -> dict:
+    """Восстановление пароля: генерирует новый пароль и отправляет на email."""
+    email = sanitize_str(body.get("email") or "").lower()
+    if not email or "@" not in email:
+        return _err(400, "Введите корректный email")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"SELECT id, name FROM {SCHEMA}.users WHERE email = %s", (email,))
+        row = cur.fetchone()
+        if not row:
+            # Не раскрываем что пользователя нет — одинаковый ответ
+            return _ok({"ok": True, "hint": "Если такой email зарегистрирован, на него отправлен новый пароль"})
+
+        user_id, name = row
+        # Генерируем новый пароль: 3 слога + 2 цифры, читаемый
+        adjectives = ["Синий", "Красный", "Быстрый", "Умный", "Чёткий", "Новый"]
+        nouns = ["Юрист", "Договор", "Закон", "Суд", "Право", "Иск"]
+        import random
+        new_password = f"{random.choice(adjectives)}{random.choice(nouns)}{random.randint(10, 99)}"
+        pw_hash = hash_password(new_password)
+
+        cur.execute(f"UPDATE {SCHEMA}.users SET password_hash = %s WHERE id = %s", (pw_hash, user_id))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    greeting = f"Здравствуйте{', ' + name if name and name != 'Пользователь' else ''}!"
+    try:
+        _send_email(
+            to_email=email,
+            subject="Юрист AI — восстановление пароля",
+            body_text=(
+                f"{greeting}\n\n"
+                f"Ваш новый пароль для входа на сайт Юрист AI:\n\n"
+                f"  {new_password}\n\n"
+                f"После входа рекомендуем сменить пароль в личном кабинете.\n\n"
+                f"Если вы не запрашивали восстановление пароля — немедленно войдите и смените пароль."
+            )
+        )
+    except Exception as e:
+        return _err(500, f"Ошибка отправки письма: {str(e)}")
+
+    return _ok({"ok": True, "hint": "Если такой email зарегистрирован, на него отправлен новый пароль"})
+
+
 def handle_send_otp(body: dict) -> dict:
     """Генерирует 6-значный OTP и отправляет на email."""
     email = sanitize_str(body.get("email") or "").lower()

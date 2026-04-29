@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { login, register } from "@/lib/auth";
+import { login, register, forgotPassword } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 
 interface LoginModalProps {
@@ -10,7 +10,7 @@ interface LoginModalProps {
   showRegisterAfterPay?: boolean;
 }
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 export default function LoginModal({ onClose, onSuccess, freeTrial = false, showRegisterAfterPay = false }: LoginModalProps) {
   const [mode, setMode] = useState<Mode>((freeTrial || showRegisterAfterPay) ? "register" : "login");
@@ -29,13 +29,27 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
   const [showRegPass, setShowRegPass] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
+  // Forgot password
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [loadingSlow, setLoadingSlow] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [trialGranted, setTrialGranted] = useState(false);
 
-  const switchMode = (m: Mode) => { setMode(m); setError(""); };
+  const switchMode = (m: Mode) => { setMode(m); setError(""); setForgotSent(false); };
+
+  // ── Забыл пароль ──
+  const handleForgot = async () => {
+    if (!forgotEmail || !forgotEmail.includes("@")) { setError("Введите корректный email"); return; }
+    setLoading(true); setError("");
+    const res = await forgotPassword(forgotEmail);
+    setLoading(false);
+    if (res.error) { setError(res.error); return; }
+    setForgotSent(true);
+  };
 
   // ── Вход ──
   const handleLogin = async () => {
@@ -192,6 +206,74 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, show
                     <p className="text-xs text-center text-muted-foreground animate-fade-in">
                       Сервер просыпается, подождите несколько секунд...
                     </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("forgot")}
+                    className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center mt-1"
+                  >
+                    Забыли пароль?
+                  </button>
+                </div>
+              )}
+
+              {/* ── ЗАБЫЛ ПАРОЛЬ ── */}
+              {mode === "forgot" && (
+                <div className="space-y-4 animate-modal-section">
+                  {forgotSent ? (
+                    <div className="text-center py-4 animate-fade-in">
+                      <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                        <Icon name="Mail" size={28} className="text-blue-500" />
+                      </div>
+                      <h4 className="font-semibold text-navy-800 mb-2">Письмо отправлено</h4>
+                      <p className="text-sm text-muted-foreground mb-5">Проверьте почту {forgotEmail} — там новый пароль для входа.</p>
+                      <button
+                        onClick={() => { switchMode("login"); setLoginEmail(forgotEmail); }}
+                        className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm"
+                      >
+                        Войти с новым паролем
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Введите email, указанный при регистрации — мы отправим новый пароль.
+                      </p>
+                      <div>
+                        <label className="text-xs font-semibold text-navy-700 mb-1.5 block">Email <span className="text-red-400">*</span></label>
+                        <input
+                          type="email"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                          placeholder="ivan@example.ru"
+                          className={inputCls}
+                          autoFocus
+                          onKeyDown={(e) => e.key === "Enter" && handleForgot()}
+                        />
+                      </div>
+                      {error && (
+                        <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+                          <Icon name="AlertCircle" size={13} />{error}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleForgot}
+                        disabled={loading}
+                        className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {loading
+                          ? <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+                          : <><Icon name="Send" size={16} />Отправить новый пароль</>
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchMode("login")}
+                        className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center"
+                      >
+                        Вернуться ко входу
+                      </button>
+                    </>
                   )}
                 </div>
               )}
