@@ -211,6 +211,8 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             doc_year = body.get("doc_year", None)
             title = (body.get("title") or "").strip()
             description = (body.get("description") or "").strip()
+            court_name = (body.get("court_name") or "").strip()
+            case_number = (body.get("case_number") or "").strip()
             file_b64 = body.get("file", "")
             filename = (body.get("filename") or "").strip()
 
@@ -244,11 +246,12 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.legal_docs
                     (category, subcategory, doc_year, title, filename, s3_key,
-                     file_size, mime_type, uploaded_by, description)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     file_size, mime_type, uploaded_by, description, court_name, case_number)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id""",
                 (category, subcategory or "", doc_year, title, filename, "",
-                 len(file_data), mime_type, user.get("id"), description)
+                 len(file_data), mime_type, user.get("id"), description,
+                 court_name, case_number)
             )
             doc_id = cur.fetchone()[0]
             s3_key = f"legal-docs/{category}/{doc_id}_{filename}"
@@ -373,7 +376,9 @@ def search_legal_chunks(query: str, category: str = "case_law",
                         c.content,
                         d.title,
                         d.doc_year,
-                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank
+                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank,
+                        d.court_name,
+                        d.case_number
                     FROM {SCHEMA}.legal_doc_chunks c
                     JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
                     WHERE
@@ -397,10 +402,21 @@ def search_legal_chunks(query: str, category: str = "case_law",
 
         parts = []
         seen = set()
-        for content, title, doc_year, rank in rows:
+        for content, title, doc_year, rank, court_name, case_number in rows:
             year_label = f" ({doc_year} г.)" if doc_year else ""
             key = f"{title}{year_label}"
-            header = f"Из документа «{key}»:" if key not in seen else f"(продолжение «{title}»):"
+            meta_parts = []
+            if court_name:
+                meta_parts.append(f"Суд: {court_name}")
+            if case_number:
+                meta_parts.append(f"Дело № {case_number}")
+            meta = " | ".join(meta_parts)
+            if key not in seen:
+                header = f"Из документа «{key}»:"
+                if meta:
+                    header += f"\n{meta}"
+            else:
+                header = f"(продолжение «{title}»):"
             seen.add(key)
             parts.append(f"{header}\n{content[:max_chars]}")
 
@@ -437,7 +453,7 @@ def get_legal_context_fallback(category: str, max_chunks: int = MAX_CHUNKS_FOR_A
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""SELECT c.content, d.title, d.doc_year
+                f"""SELECT c.content, d.title, d.doc_year, d.court_name, d.case_number
                     FROM {SCHEMA}.legal_doc_chunks c
                     JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
                     WHERE d.category = %s AND d.is_active = TRUE AND c.content != ''
@@ -456,9 +472,18 @@ def get_legal_context_fallback(category: str, max_chunks: int = MAX_CHUNKS_FOR_A
             return ""
 
         parts = []
-        for content, title, doc_year in rows:
+        for content, title, doc_year, court_name, case_number in rows:
             year_label = f" ({doc_year} г.)" if doc_year else ""
-            parts.append(f"Из документа «{title}{year_label}»:\n{content[:max_chars]}")
+            meta_parts = []
+            if court_name:
+                meta_parts.append(f"Суд: {court_name}")
+            if case_number:
+                meta_parts.append(f"Дело № {case_number}")
+            meta = " | ".join(meta_parts)
+            header = f"Из документа «{title}{year_label}»:"
+            if meta:
+                header += f"\n{meta}"
+            parts.append(f"{header}\n{content[:max_chars]}")
 
         if category == "case_law":
             instruction = (

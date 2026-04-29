@@ -420,6 +420,8 @@ export interface LegalDoc {
   created_at: string;
   description: string;
   download_url: string;
+  court_name: string;
+  case_number: string;
 }
 
 export async function getLegalDocs(category?: string): Promise<LegalDoc[]> {
@@ -436,6 +438,8 @@ export async function uploadLegalDoc(params: {
   description: string;
   file: string;
   filename: string;
+  court_name?: string;
+  case_number?: string;
 }): Promise<{ ok?: boolean; id?: number; error?: string }> {
   const res = await apiCall({ action: "legal-docs", action_sub: "upload", ...params });
   const data = await res.json();
