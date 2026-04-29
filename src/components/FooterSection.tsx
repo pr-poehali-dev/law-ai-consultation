@@ -34,36 +34,7 @@ export default function FooterSection({ onNavigate }: FooterSectionProps) {
             <p className="text-white/50 text-sm leading-relaxed mb-5">
               AI-платформа юридической помощи, обученная на реальной судебной практике.
             </p>
-            <div className="mt-4 pt-4 border-t border-white/8">
-              <p className="text-[10px] text-white/30 uppercase tracking-[0.15em] mb-2.5 font-medium">В социальных сетях</p>
-              <div className="flex gap-2">
-                <a
-                  href="https://vk.ru/ai_pravorf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:border-[#0077FF]/50 hover:bg-[#0077FF]/12 transition-all duration-250"
-                  title="ВКонтакте"
-                >
-                  <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-white/15 group-hover:ring-[#0077FF]/60 transition-all duration-250 group-hover:scale-110">
-                    <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/f966fdfe-7ab1-464e-bb46-e70bf162004e.jpg" alt="VK" className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-[11px] font-medium text-white/55 group-hover:text-white/90 transition-colors duration-200 leading-none">ВКонтакте</span>
-                </a>
 
-                <a
-                  href="https://vk.com/away.php?to=https%3A%2F%2Fmax.ru%2Fjoin%2FzoHlcjX6QssCLMfhkcWj08KtE0Q_C4HQJhp6WdHNhbY&utf=1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:border-[#7B2FF7]/50 hover:bg-[#7B2FF7]/12 transition-all duration-250"
-                  title="MAX"
-                >
-                  <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-white/15 group-hover:ring-[#7B2FF7]/60 transition-all duration-250 group-hover:scale-110">
-                    <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/4b6ec240-afc6-41c9-befd-87022247d412.jpg" alt="MAX" className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-[11px] font-medium text-white/55 group-hover:text-white/90 transition-colors duration-200 leading-none">MAX</span>
-                </a>
-              </div>
-            </div>
           </div>
 
           {/* Navigation */}
