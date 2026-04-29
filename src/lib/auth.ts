@@ -411,6 +411,8 @@ export async function closeReport(reportId: number): Promise<void> {
 export interface LegalDoc {
   id: number;
   category: "case_law" | "state_duty";
+  subcategory: string;
+  doc_year: number | null;
   title: string;
   filename: string;
   file_size: number;
@@ -428,9 +430,11 @@ export async function getLegalDocs(category?: string): Promise<LegalDoc[]> {
 
 export async function uploadLegalDoc(params: {
   category: "case_law" | "state_duty";
+  subcategory?: string;
+  doc_year?: number | null;
   title: string;
   description: string;
-  file: string; // base64
+  file: string;
   filename: string;
 }): Promise<{ ok?: boolean; id?: number; error?: string }> {
   const res = await apiCall({ action: "legal-docs", action_sub: "upload", ...params });

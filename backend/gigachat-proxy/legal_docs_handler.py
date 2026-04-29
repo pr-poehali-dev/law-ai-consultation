@@ -19,11 +19,13 @@ from auth_handler import get_conn, get_user_by_token, _ok, _err
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
 ALLOWED_CATEGORIES = {"case_law", "state_duty"}
+ALLOWED_SUBCATEGORIES = {"civil", "criminal", "administrative", ""}
 ALLOWED_MIME = {
     "pdf": "application/pdf",
     "doc": "application/msword",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
+ALLOWED_YEARS = {2024, 2025, 2026, 2027}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 МБ
 MAX_TEXT_PER_FILE = 8000           # символов для инжекции в AI
 MAX_FILES_FOR_AI = 3               # сколько файлов читаем для одного запроса
@@ -46,7 +48,6 @@ def _s3():
     return _s3_client
 
 # ── Кэш содержимого legal_docs для AI: TTL 5 минут ───────────────────────────
-# Ключ: (category, max_files, max_chars) → (text, timestamp)
 _legal_cache: dict = {}
 _legal_cache_lock = threading.Lock()
 LEGAL_CACHE_TTL = 300  # 5 минут
@@ -57,7 +58,7 @@ def _extract_text_from_pdf(data: bytes) -> str:
     try:
         reader = PyPDF2.PdfReader(io.BytesIO(data))
         parts = []
-        for page in reader.pages[:20]:  # не более 20 страниц
+        for page in reader.pages[:20]:
             t = page.extract_text() or ""
             if t.strip():
                 parts.append(t.strip())
@@ -94,7 +95,6 @@ def handle_legal_docs(token: str, body: dict) -> dict:
     if not user:
         return _err(401, "Не авторизован")
 
-    # Загрузка и удаление — только для админа
     if action in ("upload", "delete") and not user.get("isAdmin", False):
         return _err(403, "Только для администратора")
 
@@ -103,36 +103,46 @@ def handle_legal_docs(token: str, body: dict) -> dict:
     try:
         if action == "list":
             category = body.get("category", "")
+            subcategory = body.get("subcategory", "")
+            doc_year = body.get("doc_year", None)
+
             if category and category not in ALLOWED_CATEGORIES:
                 return _err(400, "Неверная категория")
+
+            where_clauses = ["is_active = TRUE"]
+            params = []
+
             if category:
-                cur.execute(
-                    f"""SELECT id, category, title, filename, file_size, mime_type,
-                               created_at, is_active, description
-                        FROM {SCHEMA}.legal_docs
-                        WHERE category = %s AND is_active = TRUE
-                        ORDER BY created_at DESC""",
-                    (category,)
-                )
-            else:
-                cur.execute(
-                    f"""SELECT id, category, title, filename, file_size, mime_type,
-                               created_at, is_active, description
-                        FROM {SCHEMA}.legal_docs
-                        WHERE is_active = TRUE
-                        ORDER BY category, created_at DESC"""
-                )
+                where_clauses.append("category = %s")
+                params.append(category)
+            if subcategory:
+                where_clauses.append("subcategory = %s")
+                params.append(subcategory)
+            if doc_year:
+                where_clauses.append("doc_year = %s")
+                params.append(int(doc_year))
+
+            where_sql = " AND ".join(where_clauses)
+            cur.execute(
+                f"""SELECT id, category, title, filename, file_size, mime_type,
+                           created_at, is_active, description, doc_year, subcategory
+                    FROM {SCHEMA}.legal_docs
+                    WHERE {where_sql}
+                    ORDER BY category, doc_year DESC NULLS LAST, created_at DESC""",
+                params
+            )
             rows = cur.fetchall()
             docs = []
-            s3_client = _s3()
             key_id = os.environ.get("AWS_ACCESS_KEY_ID", "")
             for row in rows:
-                doc_id, cat, title, filename, fsize, mime, created_at, is_active, desc = row
+                doc_id, cat, title, filename, fsize, mime, created_at, is_active, desc, yr, subcat = row
                 s3_key = f"legal-docs/{cat}/{doc_id}_{filename}"
                 cdn_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
                 docs.append({
                     "id": doc_id,
                     "category": cat,
+                    "subcategory": subcat or "",
+                    "doc_year": yr,
                     "title": title,
                     "filename": filename,
                     "file_size": fsize,
@@ -145,6 +155,8 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
         elif action == "upload":
             category = body.get("category", "")
+            subcategory = (body.get("subcategory") or "").strip()
+            doc_year = body.get("doc_year", None)
             title = (body.get("title") or "").strip()
             description = (body.get("description") or "").strip()
             file_b64 = body.get("file", "")
@@ -152,10 +164,16 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             if category not in ALLOWED_CATEGORIES:
                 return _err(400, "Категория: case_law или state_duty")
+            if category == "case_law" and subcategory and subcategory not in ALLOWED_SUBCATEGORIES:
+                return _err(400, "Подкатегория: civil, criminal или administrative")
             if not title:
                 return _err(400, "Укажите название документа")
             if not file_b64 or not filename:
                 return _err(400, "Файл обязателен")
+            if doc_year is not None:
+                doc_year = int(doc_year)
+                if doc_year not in ALLOWED_YEARS:
+                    return _err(400, "Год: 2024, 2025, 2026 или 2027")
 
             ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             if ext not in ALLOWED_MIME:
@@ -171,14 +189,14 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             mime_type = ALLOWED_MIME[ext]
 
-            # Сохраняем метаданные в БД
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.legal_docs
-                    (category, title, filename, s3_key, file_size, mime_type, uploaded_by, description)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    (category, subcategory, doc_year, title, filename, s3_key,
+                     file_size, mime_type, uploaded_by, description)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id""",
-                (category, title, filename, "", len(file_data), mime_type,
-                 user.get("id"), description)
+                (category, subcategory or "", doc_year, title, filename, "",
+                 len(file_data), mime_type, user.get("id"), description)
             )
             doc_id = cur.fetchone()[0]
             s3_key = f"legal-docs/{category}/{doc_id}_{filename}"
@@ -188,7 +206,6 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             )
             conn.commit()
 
-            # Загружаем в S3
             s3_client = _s3()
             s3_client.put_object(
                 Bucket="files",
@@ -218,7 +235,6 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             if not row:
                 return _err(404, "Документ не найден")
             s3_key = row[0]
-            # Удаляем из S3
             try:
                 s3_client = _s3()
                 s3_client.delete_object(Bucket="files", Key=s3_key)
@@ -249,12 +265,11 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
     """
     Читает последние N активных файлов из указанной категории,
     извлекает текст и возвращает блок для инжекции в AI-промпт.
-    Результат кэшируется на 5 минут — S3 не читается на каждый запрос.
+    Результат кэшируется на 5 минут.
     """
     cache_key = (category, max_files, max_chars)
     now = time.time()
 
-    # Проверяем кэш (без блокировки — читать dict потокобезопасно в CPython)
     cached = _legal_cache.get(cache_key)
     if cached and (now - cached[1]) < LEGAL_CACHE_TTL:
         return cached[0]
@@ -264,10 +279,10 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""SELECT id, title, filename, s3_key, mime_type
+                f"""SELECT id, title, filename, s3_key, mime_type, doc_year, subcategory
                     FROM {SCHEMA}.legal_docs
                     WHERE category = %s AND is_active = TRUE
-                    ORDER BY created_at DESC
+                    ORDER BY doc_year DESC NULLS LAST, created_at DESC
                     LIMIT %s""",
                 (category, max_files)
             )
@@ -281,17 +296,17 @@ def get_legal_context_for_ai(category: str, max_files: int = MAX_FILES_FOR_AI,
                 _legal_cache[cache_key] = ("", now)
             return ""
 
-        # Синглтон S3-клиент (не создаём новый на каждый вызов)
         s3_client = _s3()
         parts = []
-        for doc_id, title, filename, s3_key, mime_type in rows:
+        for doc_id, title, filename, s3_key, mime_type, doc_year, subcategory in rows:
             try:
                 obj = s3_client.get_object(Bucket="files", Key=s3_key)
                 data = obj["Body"].read()
                 ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
                 text = _extract_text(data, ext)
                 if text.strip():
-                    parts.append(f"Документ: «{title}»\n{text[:max_chars]}")
+                    year_label = f" ({doc_year} год)" if doc_year else ""
+                    parts.append(f"Документ: «{title}»{year_label}\n{text[:max_chars]}")
             except Exception as e:
                 print(f"[LEGAL_DOCS] Не удалось прочитать {s3_key}: {e}")
                 continue
