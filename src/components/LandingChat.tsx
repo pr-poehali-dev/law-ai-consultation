@@ -28,7 +28,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "ai",
-      text: "Добрый день! Я AI-юрист. Задайте свой вопрос — я отвечу мгновенно и со ссылками на законодательство РФ.\n\n**3 вопроса в день — бесплатно** для всех.",
+      text: "Напишите, какой документ нужен (иск, претензия, договор), и я подготовлю его за 5 минут.\n\n**3 вопроса в день — бесплатно** для всех.",
     },
   ]);
   const [input, setInput] = useState("");

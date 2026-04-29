@@ -239,7 +239,7 @@ export default function Index() {
           onConsult={() => isLoggedIn ? handleNavigate("cabinet") : setShowLogin(true)}
           onDocument={() => {
             if (isLoggedIn) navigate("/cabinet?tab=docs");
-            else { setPendingTab("docs"); setFreeTrial(true); setShowLogin(true); }
+            else { setPendingTab("docs"); setFreeTrial(false); setShowLogin(true); }
           }}
           onRegister={handleTryClick}
           onOpenLogin={handleOpenLogin}
