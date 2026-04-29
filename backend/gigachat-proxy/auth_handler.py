@@ -501,6 +501,45 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     raise RuntimeError(f"Не удалось отправить письмо: {last_err}")
 
 
+def handle_change_password(token: str, body: dict) -> dict:
+    """Смена пароля из личного кабинета: проверяет текущий пароль, устанавливает новый."""
+    user = get_user_by_token(token)
+    if not user:
+        return _err(401, "Не авторизован")
+
+    current_password = body.get("current_password") or ""
+    new_password = body.get("new_password") or ""
+
+    if not current_password or not new_password:
+        return _err(400, "Заполните все поля")
+    if len(new_password) < 6:
+        return _err(400, "Новый пароль — не менее 6 символов")
+    if len(new_password) > 128:
+        return _err(400, "Слишком длинный пароль")
+
+    current_hash = hash_password(current_password)
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT id FROM {SCHEMA}.users WHERE id = %s AND password_hash = %s",
+            (user["id"], current_hash)
+        )
+        if not cur.fetchone():
+            return _err(400, "Текущий пароль неверный")
+
+        new_hash = hash_password(new_password)
+        cur.execute(
+            f"UPDATE {SCHEMA}.users SET password_hash = %s WHERE id = %s",
+            (new_hash, user["id"])
+        )
+        conn.commit()
+        return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()
+
+
 def handle_forgot_password(body: dict) -> dict:
     """Восстановление пароля: генерирует новый пароль и отправляет на email."""
     email = sanitize_str(body.get("email") or "").lower()
