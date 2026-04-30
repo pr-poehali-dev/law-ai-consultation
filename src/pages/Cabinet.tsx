@@ -137,21 +137,32 @@ export default function Cabinet() {
       // Подхватываем контекст диалога с лендинга для генерации документа
       const pendingDocType = localStorage.getItem("landing_pending_doc");
       const rawHist = localStorage.getItem("landing_chat_history");
-      if (pendingDocType && rawHist) {
+      if (pendingDocType || rawHist) {
         localStorage.removeItem("landing_pending_doc");
         localStorage.removeItem("landing_chat_history");
         try {
-          const hist: { role: string; content: string }[] = JSON.parse(rawHist);
-          const dt = DOC_TYPES.find(d => d.id === pendingDocType);
-          if (dt) {
-            // Строим детали из последних сообщений пользователя
-            const userMsgs = hist.filter(m => m.role === "user").map(m => m.content).join("\n");
-            const details = userMsgs.slice(0, 2000);
+          const hist: { role: string; content: string }[] = rawHist ? JSON.parse(rawHist) : [];
+          const userMsgs = hist.filter(m => m.role === "user").map(m => m.content).join("\n");
+          const details = userMsgs.slice(0, 2000);
+
+          if (pendingDocType) {
+            // Есть конкретный тип документа — сразу генерируем
+            const dt = DOC_TYPES.find(d => d.id === pendingDocType);
+            if (dt) {
+              setTab("docs");
+              setTimeout(() => {
+                savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
+                docsGenerateRef.current?.(dt, details);
+              }, 800);
+            }
+          } else if (details.trim()) {
+            // Есть история, но без конкретного документа (купил план) —
+            // открываем вкладку документов с предзаполненным описанием ситуации
             setTab("docs");
             setTimeout(() => {
-              savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
-              docsGenerateRef.current?.(dt, details);
-            }, 800);
+              docs.setDocDetails(details);
+              docs.setDocPhase("form");
+            }, 600);
           }
         } catch { /* ignore */ }
       }

@@ -207,7 +207,14 @@ export default function Index() {
       return;
     }
     setShowPayment(false);
-    navigate("/cabinet");
+    // Если есть ожидающая история с лендинга — открываем нужный таб
+    const pendingDoc = localStorage.getItem("landing_pending_doc");
+    const pendingHist = localStorage.getItem("landing_chat_history");
+    if (pendingDoc || pendingHist) {
+      navigate("/cabinet?tab=docs");
+    } else {
+      navigate("/cabinet");
+    }
   }, [isLoggedIn, navigate]);
 
   // Пока проверяем токен — показываем тёмный экран в цвет hero, без белой вспышки
