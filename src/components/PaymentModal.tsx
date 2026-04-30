@@ -87,7 +87,7 @@ const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   subscription_docs: "Выгодно",
 };
 
-type Step = "form" | "redirected" | "polling" | "success" | "error";
+type Step = "auth" | "form" | "redirected" | "polling" | "success" | "error";
 
 export default function PaymentModal({
   serviceType,
@@ -112,9 +112,13 @@ export default function PaymentModal({
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // Загружаем email из профиля если пользователь авторизован
+  // Если есть onRegisterAfterPay — проверяем авторизацию. Не залогинен → показываем шаг auth
   useEffect(() => {
-    getUser().then((u) => { if (u?.email) setEmail(u.email); });
+    if (!onRegisterAfterPay) return;
+    getUser().then((u) => {
+      if (!u) setStep("auth");
+      else if (u.email) setEmail(u.email);
+    });
   }, []);
 
   const handlePay = async () => {
@@ -211,6 +215,7 @@ export default function PaymentModal({
   };
 
   const canClose = step !== "polling" && step !== "redirected";
+  const isAuthStep = step === "auth";
 
   return (
     <div
@@ -238,6 +243,36 @@ export default function PaymentModal({
           >
             <Icon name="X" size={15} className="text-navy-600" />
           </button>
+        )}
+
+        {/* === ШАГ АВТОРИЗАЦИИ (незалогиненный пользователь) === */}
+        {step === "auth" && (
+          <div className="px-5 py-6 sm:p-8 text-center">
+            <div className="w-20 h-20 bg-navy-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
+              <Icon name="LogIn" size={36} className="text-navy-500" />
+            </div>
+            <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Войдите перед оплатой</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Нужен аккаунт, чтобы доступ автоматически появился после оплаты и сохранился в личном кабинете.
+            </p>
+            <div className="bg-navy-50 rounded-2xl p-4 mb-6 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
+                <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{SERVICE_DETAILS[serviceType]}</p>
+            </div>
+            <button
+              onClick={onRegisterAfterPay}
+              className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              <Icon name="LogIn" size={16} />
+              Войти или зарегистрироваться
+            </button>
+            <p className="text-xs text-muted-foreground mt-3">
+              Регистрация бесплатная и займёт 30 секунд
+            </p>
+          </div>
         )}
 
         {/* === ФОРМА ВВОДА EMAIL === */}

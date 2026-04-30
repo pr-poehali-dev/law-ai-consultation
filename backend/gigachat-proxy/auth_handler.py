@@ -105,6 +105,91 @@ def _normalize_phone(phone: str) -> str:
     return digits
 
 
+GRANT_SERVICE_MAP = {
+    "consultation":          ("paid_expert", None, None),
+    "document":              (None, "paid_docs", 1),
+    "expert":                ("paid_expert", None, None),
+    "plan_starter":          (None, None, None),
+    "plan_starter_discount": (None, None, None),
+    "plan_pro":              (None, None, None),
+    "plan_max":              ("paid_expert", None, None),
+    "plan_max_expert":       ("paid_expert", None, None),
+}
+
+
+def _credit_pending_orders(conn, user_id: int, email: str) -> int:
+    """Зачисляет незакрытые оплаченные ордера по email. Возвращает кол-во зачисленных."""
+    cur = conn.cursor()
+    credited = 0
+    try:
+        cur.execute(
+            f"""SELECT id, service_type, amount FROM {SCHEMA}.orders
+                WHERE LOWER(user_email) = %s AND status = 'paid' AND service_credited = FALSE""",
+            (email.lower(),)
+        )
+        rows = cur.fetchall()
+        for order_id, service_type, amount in rows:
+            try:
+                _apply_service_grant(conn, user_id, service_type)
+                cur2 = conn.cursor()
+                cur2.execute(
+                    f"""UPDATE {SCHEMA}.orders SET service_credited = TRUE, user_id = %s WHERE id = %s""",
+                    (user_id, order_id)
+                )
+                cur2.execute(
+                    f"""INSERT INTO {SCHEMA}.billing_log
+                        (user_id, user_email, service_type, amount, description, source)
+                        VALUES (%s, %s, %s, %s, %s, 'auto_credit_on_login')""",
+                    (user_id, email, service_type, amount, f"Автозачисление при входе: {service_type}")
+                )
+                conn.commit()
+                cur2.close()
+                credited += 1
+                print(f"[AUTH] Автозачислен ордер id={order_id} service={service_type} → user_id={user_id}")
+            except Exception as e:
+                conn.rollback()
+                print(f"[AUTH] Ошибка зачисления ордера id={order_id}: {e}")
+    finally:
+        cur.close()
+    return credited
+
+
+def _apply_service_grant(conn, user_id: int, service_type: str):
+    cur = conn.cursor()
+    try:
+        if service_type == "consultation":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user_id,))
+        elif service_type == "document":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user_id,))
+        elif service_type == "expert":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user_id,))
+        elif service_type in ("plan_starter", "plan_starter_discount"):
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 30, paid_docs = paid_docs + 5 WHERE id = %s", (user_id,))
+        elif service_type == "plan_pro":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20 WHERE id = %s", (user_id,))
+        elif service_type in ("plan_max", "plan_max_expert"):
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE WHERE id = %s", (user_id,))
+        elif service_type == "subscription_consult":
+            cur.execute(f"UPDATE {SCHEMA}.users SET subscription_consult_until = GREATEST(NOW(), COALESCE(subscription_consult_until, NOW())) + INTERVAL '31 days' WHERE id = %s", (user_id,))
+        elif service_type == "subscription_docs":
+            cur.execute(f"UPDATE {SCHEMA}.users SET subscription_docs_until = GREATEST(NOW(), COALESCE(subscription_docs_until, NOW())) + INTERVAL '31 days' WHERE id = %s", (user_id,))
+        elif service_type == "business_subscription":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_subscription_until = GREATEST(NOW(), COALESCE(business_subscription_until, NOW())) + INTERVAL '31 days', business_actions_left = business_actions_left + 150 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_10":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 10 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_30":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 30 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_50":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 50 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_60":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 60 WHERE id = %s", (user_id,))
+        elif service_type == "business_actions_150":
+            cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 150 WHERE id = %s", (user_id,))
+        conn.commit()
+    finally:
+        cur.close()
+
+
 def handle_register(body: dict) -> dict:
     name = sanitize_str(body.get("name") or "")
     email = sanitize_str(body.get("email") or "").lower()
@@ -184,6 +269,12 @@ def handle_register(body: dict) -> dict:
             except Exception:
                 pass
 
+        # Страховка: зачисляем незакрытые оплаченные ордера по email (если платил до регистрации)
+        try:
+            _credit_pending_orders(conn, user_id, email)
+        except Exception:
+            pass
+
         cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
         result = _ok({"token": token, "user": _format_user(u)})
@@ -239,6 +330,12 @@ def handle_login(body: dict, ip: str = "") -> dict:
             (user_id, token)
         )
         conn.commit()
+
+        # Страховка: зачисляем незакрытые оплаченные ордера по email (если платил до входа)
+        try:
+            _credit_pending_orders(conn, user_id, email)
+        except Exception:
+            pass
 
         cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
         u = cur.fetchone()
