@@ -176,6 +176,7 @@ export default function Index() {
     setShowLogin(false);
     setFreeTrial(false);
     setShowRegisterAfterPay(false);
+    setIsLoggedIn(true);
     const pendingInvId = localStorage.getItem("pending_inv_id");
     // Восстанавливаем намерение купить (если пользователь нажал "войти" в модалке оплаты)
     const pendingIntentRaw = localStorage.getItem("pending_payment_intent");
