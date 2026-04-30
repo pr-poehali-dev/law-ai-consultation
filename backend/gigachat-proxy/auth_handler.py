@@ -3,6 +3,7 @@ import os
 import re
 import secrets
 import hashlib
+import random
 import smtplib
 import psycopg2
 from datetime import datetime, timedelta
@@ -53,14 +54,14 @@ def sanitize_str(s: str, max_len: int = 255) -> str:
 
 
 def run_cleanup(conn):
-    """Очищает старые сессии, устаревшие профили и пр. Запускается при каждом auth-запросе."""
+    """Очищает старые сессии и устаревшие профили. Запускается вероятностно (1 из 20 запросов)."""
+    if random.randint(1, 20) != 1:
+        return
     cur = conn.cursor()
     try:
-        # Удаляем истёкшие сессии старше 7 дней
         cur.execute(
             f"DELETE FROM {SCHEMA}.sessions WHERE expires_at < NOW() - INTERVAL '7 days'"
         )
-        # Удаляем пользователей, которые не заходили более года (и не являются админами)
         inactive_threshold = datetime.utcnow() - timedelta(days=INACTIVE_PROFILE_DAYS)
         cur.execute(
             f"""DELETE FROM {SCHEMA}.users

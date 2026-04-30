@@ -13,8 +13,6 @@ import time
 import threading
 
 import requests
-import PyPDF2
-from docx import Document as DocxDocument
 
 from auth_handler import (
     handle_register, handle_login, handle_me,
@@ -126,6 +124,7 @@ def cleanup_temp_files(s3) -> list:
 
 def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
     """Извлекает текст из PDF. Для сканов (нет текстового слоя) — OCR через Vision API."""
+    import PyPDF2
     reader = PyPDF2.PdfReader(io.BytesIO(data))
     parts = []
     total = 0
@@ -174,6 +173,7 @@ def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
 
 
 def extract_docx_text(data: bytes, char_limit: int = 12000) -> str:
+    from docx import Document as DocxDocument
     doc = DocxDocument(io.BytesIO(data))
     parts = []
     total = 0

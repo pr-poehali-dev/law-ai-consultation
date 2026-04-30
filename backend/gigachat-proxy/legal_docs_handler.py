@@ -12,8 +12,6 @@ import time
 import threading
 import boto3
 import psycopg2
-import PyPDF2
-from docx import Document as DocxDocument
 from auth_handler import get_conn, get_user_by_token, _ok, _err
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
@@ -55,6 +53,7 @@ def _s3():
 def _extract_text_from_pdf(data: bytes) -> str:
     """Извлекает текст из PDF (до 50 страниц)."""
     try:
+        import PyPDF2
         reader = PyPDF2.PdfReader(io.BytesIO(data))
         parts = []
         for page in reader.pages[:50]:
@@ -69,6 +68,7 @@ def _extract_text_from_pdf(data: bytes) -> str:
 def _extract_text_from_docx(data: bytes) -> str:
     """Извлекает текст из DOCX."""
     try:
+        from docx import Document as DocxDocument
         doc = DocxDocument(io.BytesIO(data))
         paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
         return "\n".join(paragraphs)
