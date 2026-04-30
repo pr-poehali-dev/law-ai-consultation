@@ -17,16 +17,40 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_messages");
-      if (!saved) return [{ role: "ai", text: WELCOME }];
-      // Убираем сохранённый upsell — он будет пересчитан после проверки баланса
-      const parsed: ChatMsg[] = JSON.parse(saved);
-      return parsed.filter(m => !m.isUpsell);
+      if (saved) {
+        const parsed: ChatMsg[] = JSON.parse(saved);
+        return parsed.filter(m => !m.isUpsell);
+      }
+      // Нет сохранённых сообщений — пробуем перенести историю с лендинга
+      const landingRaw = localStorage.getItem("landing_chat_history");
+      if (landingRaw) {
+        const landingHist: { role: string; content: string }[] = JSON.parse(landingRaw);
+        if (landingHist.length > 0) {
+          const msgs: ChatMsg[] = [{ role: "ai", text: WELCOME }];
+          for (const m of landingHist) {
+            if (m.role === "user") msgs.push({ role: "user", text: m.content });
+            else if (m.role === "assistant") msgs.push({ role: "ai", text: m.content });
+          }
+          return msgs;
+        }
+      }
+      return [{ role: "ai", text: WELCOME }];
     } catch { return [{ role: "ai", text: WELCOME }]; }
   });
   const [history, setHistory] = useState<{ role: string; content: string }[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_history");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
+      // Нет истории кабинета — берём с лендинга
+      const landingRaw = localStorage.getItem("landing_chat_history");
+      if (landingRaw) {
+        const landingHist: { role: string; content: string }[] = JSON.parse(landingRaw);
+        return landingHist.map(m => ({
+          role: m.role === "assistant" ? "assistant" : m.role,
+          content: m.content,
+        }));
+      }
+      return [];
     } catch { return []; }
   });
   // ref всегда хранит актуальное значение истории — нужен для async функций
