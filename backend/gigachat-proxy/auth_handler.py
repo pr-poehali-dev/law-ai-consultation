@@ -118,24 +118,26 @@ GRANT_SERVICE_MAP = {
 
 
 def _credit_pending_orders(conn, user_id: int, email: str) -> int:
-    """Зачисляет незакрытые оплаченные ордера по email. Возвращает кол-во зачисленных."""
-    cur = conn.cursor()
+    """Зачисляет незакрытые оплаченные ордера по email. Возвращает кол-во зачисленных.
+    Атомарное обновление через RETURNING защищает от двойного зачисления при параллельных запросах."""
     credited = 0
+    cur = conn.cursor()
     try:
+        # Атомарно помечаем ордера как зачисленные — только те которые ещё не зачислены
         cur.execute(
-            f"""SELECT id, service_type, amount FROM {SCHEMA}.orders
-                WHERE LOWER(user_email) = %s AND status = 'paid' AND service_credited = FALSE""",
-            (email.lower(),)
+            f"""UPDATE {SCHEMA}.orders
+                SET service_credited = TRUE, user_id = %s
+                WHERE LOWER(user_email) = %s AND status = 'paid' AND service_credited = FALSE
+                RETURNING id, service_type, amount""",
+            (user_id, email.lower())
         )
         rows = cur.fetchall()
+        conn.commit()
+
         for order_id, service_type, amount in rows:
             try:
                 _apply_service_grant(conn, user_id, service_type)
                 cur2 = conn.cursor()
-                cur2.execute(
-                    f"""UPDATE {SCHEMA}.orders SET service_credited = TRUE, user_id = %s WHERE id = %s""",
-                    (user_id, order_id)
-                )
                 cur2.execute(
                     f"""INSERT INTO {SCHEMA}.billing_log
                         (user_id, user_email, service_type, amount, description, source)
