@@ -177,6 +177,17 @@ export default function Index() {
     setFreeTrial(false);
     setShowRegisterAfterPay(false);
     const pendingInvId = localStorage.getItem("pending_inv_id");
+    // Восстанавливаем намерение купить (если пользователь нажал "войти" в модалке оплаты)
+    const pendingIntentRaw = localStorage.getItem("pending_payment_intent");
+    if (pendingIntentRaw) {
+      localStorage.removeItem("pending_payment_intent");
+      try {
+        const intent = JSON.parse(pendingIntentRaw) as { type: ServiceType; name: string };
+        setSelectedService(intent);
+        setShowPayment(true);
+        return;
+      } catch { /* ignore */ }
+    }
     if (pendingInvId) {
       localStorage.removeItem("pending_inv_id");
       navigate(`/cabinet?payment=success&inv_id=${pendingInvId}`);
@@ -285,6 +296,8 @@ export default function Index() {
           onSuccess={handlePaymentSuccess}
           showRegisterPrompt={showRegisterAfterPay}
           onRegisterAfterPay={() => {
+            // Сохраняем намерение купить — восстановим после логина
+            localStorage.setItem("pending_payment_intent", JSON.stringify(selectedService));
             setShowPayment(false);
             setShowRegisterAfterPay(false);
             setShowLogin(true);

@@ -247,15 +247,16 @@ export default function PaymentModal({
 
         {/* === ШАГ АВТОРИЗАЦИИ (незалогиненный пользователь) === */}
         {step === "auth" && (
-          <div className="px-5 py-6 sm:p-8 text-center">
-            <div className="w-20 h-20 bg-navy-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
-              <Icon name="LogIn" size={36} className="text-navy-500" />
+          <div className="px-5 py-5 sm:p-8 text-center">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-navy-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <Icon name="LogIn" size={28} className="text-navy-500 sm:hidden" />
+              <Icon name="LogIn" size={36} className="text-navy-500 hidden sm:block" />
             </div>
-            <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Войдите перед оплатой</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Нужен аккаунт, чтобы доступ автоматически появился после оплаты и сохранился в личном кабинете.
+            <h3 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-2">Войдите перед оплатой</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Нужен аккаунт — тогда доступ появится автоматически сразу после оплаты.
             </p>
-            <div className="bg-navy-50 rounded-2xl p-4 mb-6 text-left">
+            <div className="bg-navy-50 rounded-2xl p-3 sm:p-4 mb-5 text-left">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
                 <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
