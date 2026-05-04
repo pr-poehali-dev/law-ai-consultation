@@ -53,7 +53,7 @@ export function UpsellBlock({
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
-                  <p className="text-[10px]" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · анализ PDF</p>
+                  <p className="text-[10px]" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-0.5">

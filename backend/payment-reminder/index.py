@@ -103,17 +103,23 @@ def build_email_body(service_type: str, amount: float) -> str:
 def get_orders_needing_reminder(conn) -> list:
     cur = conn.cursor()
     try:
+        # Ищем ордера где оплатили, не зачислено, прошло 10+ минут,
+        # и пользователь НЕ зарегистрирован (нет в таблице users по email)
         cur.execute(
-            f"""SELECT inv_id, user_email, service_type, amount
-                FROM {SCHEMA}.orders
-                WHERE status = 'paid'
-                  AND service_credited = FALSE
-                  AND created_at < NOW() - INTERVAL '10 minutes'
-                  AND created_at > NOW() - INTERVAL '24 hours'
-                  AND reminder_sent_at IS NULL
-                  AND user_email IS NOT NULL
-                  AND user_email != ''
-                ORDER BY created_at ASC
+            f"""SELECT o.inv_id, o.user_email, o.service_type, o.amount
+                FROM {SCHEMA}.orders o
+                WHERE o.status = 'paid'
+                  AND o.service_credited = FALSE
+                  AND o.created_at < NOW() - INTERVAL '10 minutes'
+                  AND o.created_at > NOW() - INTERVAL '24 hours'
+                  AND o.reminder_sent_at IS NULL
+                  AND o.user_email IS NOT NULL
+                  AND o.user_email != ''
+                  AND NOT EXISTS (
+                      SELECT 1 FROM {SCHEMA}.users u
+                      WHERE LOWER(u.email) = LOWER(o.user_email)
+                  )
+                ORDER BY o.created_at ASC
                 LIMIT 50"""
         )
         rows = cur.fetchall()

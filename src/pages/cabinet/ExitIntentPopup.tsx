@@ -156,7 +156,7 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
                   <span className="text-xs" style={{ color: "#a0b4cc" }}>5 документов</span>
                 </div>
                 <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>·</span>
-                <span className="text-xs" style={{ color: "#a0b4cc" }}>Анализ PDF</span>
+                <span className="text-xs" style={{ color: "#a0b4cc" }}>Скачивание .doc</span>
               </div>
 
               {/* Цена */}
@@ -171,7 +171,7 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
               {[
                 "Ответы со ссылками на статьи закона РФ",
                 "Иски, претензии, договоры за 3 минуты",
-                "Анализ прикреплённых документов",
+                "Генерация документов по вашей ситуации",
               ].map((f) => (
                 <div key={f} className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"

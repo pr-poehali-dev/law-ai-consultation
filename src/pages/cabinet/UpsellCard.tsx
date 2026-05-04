@@ -69,7 +69,7 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
                     </div>
                     <div className="text-left">
                       <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
-                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · анализ PDF</p>
+                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-0.5">
