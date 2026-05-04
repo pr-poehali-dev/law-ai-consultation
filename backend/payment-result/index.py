@@ -181,20 +181,22 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT id, user_id, user_email, service_type, amount, status FROM {SCHEMA}.orders WHERE inv_id = %s",
+            f"SELECT id, user_id, user_email, service_type, amount, status, service_credited FROM {SCHEMA}.orders WHERE inv_id = %s",
             (inv_id,)
         )
         row = cur.fetchone()
         if not row:
             return {"statusCode": 404, "headers": CORS, "body": f"Order not found: {inv_id}"}
 
-        order_id, db_user_id, db_user_email, db_service_type, db_amount, db_status = row
+        order_id, db_user_id, db_user_email, db_service_type, db_amount, db_status, db_service_credited = row
 
-        if db_status == "paid":
+        if db_status == "paid" and db_service_credited:
+            # Уже оплачено И зачислено — идемпотентный ответ
             return {"statusCode": 200, "headers": CORS, "body": "ok"}
 
+        # Помечаем как оплачен, но service_credited пока FALSE — выставим после начисления
         cur.execute(
-            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW(), payment_id = %s, service_credited = TRUE WHERE id = %s",
+            f"UPDATE {SCHEMA}.orders SET status = 'paid', paid_at = NOW(), payment_id = %s WHERE id = %s",
             (payment_id, order_id)
         )
         conn.commit()
@@ -210,7 +212,7 @@ def handler(event: dict, context) -> dict:
         effective_amount = float(db_amount) if db_amount else amount_val
         effective_email = (db_user_email or "").strip().lower()
 
-        # Fallback: если user_id не привязан, ищем пользователя по email (без учёта регистра)
+        # Fallback: если user_id не привязан, ищем пользователя по email
         if not effective_user_id and effective_email:
             cur2 = conn.cursor()
             try:
@@ -221,7 +223,6 @@ def handler(event: dict, context) -> dict:
                 uid_row = cur2.fetchone()
                 if uid_row:
                     effective_user_id = uid_row[0]
-                    # Обновляем ордер — привязываем найденного пользователя
                     cur2.execute(
                         f"UPDATE {SCHEMA}.orders SET user_id = %s WHERE id = %s",
                         (effective_user_id, order_id)
@@ -234,8 +235,17 @@ def handler(event: dict, context) -> dict:
         if effective_user_id and effective_service:
             grant_service(conn, effective_user_id, effective_service)
             write_billing_log(conn, effective_user_id, effective_email, effective_service, effective_amount, payment_id)
+            # Помечаем service_credited=TRUE только после успешного начисления
+            cur.execute(
+                f"UPDATE {SCHEMA}.orders SET service_credited = TRUE WHERE id = %s",
+                (order_id,)
+            )
+            conn.commit()
+            print(f"[PAYMENT] Зачислено: user_id={effective_user_id} service={effective_service}")
         else:
-            print(f"[PAYMENT] WARN: не смогли зачислить — user_id={effective_user_id}, email={effective_email}, service={effective_service}")
+            # Пользователь ещё не зарегистрирован — НЕ ставим service_credited,
+            # чтобы _credit_pending_orders при регистрации мог подхватить ордер
+            print(f"[PAYMENT] WARN: пользователь не найден — user_id={effective_user_id}, email={effective_email}, service={effective_service}. Ждём регистрации.")
 
     finally:
         cur.close()
