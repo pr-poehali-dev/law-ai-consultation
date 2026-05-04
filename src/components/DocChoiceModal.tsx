@@ -72,8 +72,8 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               {[
                 { icon: "MessageCircle", text: "30 вопросов AI-юристу" },
                 { icon: "FileText", text: "5 документов (включая этот)" },
-                { icon: "Search", text: "Анализ PDF и фото документов" },
                 { icon: "Download", text: "Скачивание в .doc формате" },
+                { icon: "Clock", text: "Доступ на 90 дней" },
               ].map(({ icon, text }) => (
                 <div key={text} className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
