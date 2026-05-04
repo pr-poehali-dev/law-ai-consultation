@@ -132,7 +132,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
                   {mode === "login" ? "Вход в кабинет" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : showRegisterAfterPay ? "Оплата прошла! Зарегистрируйтесь, чтобы получить доступ к услуге" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — 1 вопрос бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — 1 вопрос бесплатно"}
                 </p>
               </div>
 
