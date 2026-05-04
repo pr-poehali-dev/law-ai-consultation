@@ -498,7 +498,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
         # ── Новые пользовательские тарифы ──
-        elif service_type == "plan_starter":
+        elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 30,
