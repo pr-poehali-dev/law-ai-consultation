@@ -56,6 +56,7 @@ export default function Index() {
   const [activeSection, setActiveSection] = useState("home");
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
 
   const [freeTrial, setFreeTrial] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
@@ -135,6 +136,7 @@ export default function Index() {
   const handleTryClick = useCallback(() => {
     if (isLoggedIn) { navigate("/cabinet"); return; }
     setFreeTrial(true);
+    setLoginMode("register");
     setShowLogin(true);
   }, [isLoggedIn, navigate]);
 
@@ -280,9 +282,10 @@ export default function Index() {
 
       {showLogin && (
         <LoginModal
-          onClose={() => { setShowLogin(false); setFreeTrial(false); setPendingTab(null); }}
+          onClose={() => { setShowLogin(false); setFreeTrial(false); setLoginMode("login"); setPendingTab(null); }}
           onSuccess={handleLoginSuccess}
           freeTrial={freeTrial}
+          initialMode={loginMode}
         />
       )}
 

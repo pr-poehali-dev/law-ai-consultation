@@ -7,12 +7,13 @@ interface LoginModalProps {
   onClose: () => void;
   onSuccess: () => void;
   freeTrial?: boolean;
+  initialMode?: "login" | "register";
 }
 
 type Mode = "login" | "register" | "forgot";
 
-export default function LoginModal({ onClose, onSuccess, freeTrial = false }: LoginModalProps) {
-  const [mode, setMode] = useState<Mode>(freeTrial ? "register" : "login");
+export default function LoginModal({ onClose, onSuccess, freeTrial = false, initialMode }: LoginModalProps) {
+  const [mode, setMode] = useState<Mode>(initialMode ?? (freeTrial ? "register" : "login"));
 
   // Login
   const [loginEmail, setLoginEmail] = useState("");
