@@ -24,6 +24,10 @@ _SELECT_COLS = (
 MAX_LOGIN_ATTEMPTS = 10
 LOGIN_WINDOW_MINUTES = 15
 
+# Для входа администратора — жёсткий лимит 3 попытки за 30 минут
+ADMIN_MAX_LOGIN_ATTEMPTS = 3
+ADMIN_LOGIN_WINDOW_MINUTES = 30
+
 # История хранится 3 месяца, профиль удаляется после 1 года неактивности
 HISTORY_TTL_DAYS = 92
 INACTIVE_PROFILE_DAYS = 365
@@ -302,17 +306,44 @@ def handle_login(body: dict, ip: str = "") -> dict:
     if len(password) > 128:
         return _err(400, "Некорректный пароль")
 
+    is_admin_email = (email == ADMIN_EMAIL.lower())
+
     pw_hash = hash_password(password)
     conn = get_conn()
     cur = conn.cursor()
     try:
         run_cleanup(conn)
+
+        # Для администратора — жёсткий rate-limit по IP и email
+        if is_admin_email and ip:
+            window = ADMIN_LOGIN_WINDOW_MINUTES
+            max_att = ADMIN_MAX_LOGIN_ATTEMPTS
+            cur.execute(
+                f"""SELECT COUNT(*) FROM {SCHEMA}.login_attempts
+                    WHERE (ip = %s OR email = %s)
+                      AND success = FALSE
+                      AND attempted_at > NOW() - INTERVAL '{window} minutes'""",
+                (ip, email)
+            )
+            fail_count = cur.fetchone()[0]
+            if fail_count >= max_att:
+                return _err(429, f"Слишком много неудачных попыток входа для администратора. Подождите {window} минут.")
+
         cur.execute(
             f"SELECT id FROM {SCHEMA}.users WHERE email = %s AND password_hash = %s",
             (email, pw_hash)
         )
         row = cur.fetchone()
         if not row:
+            # Логируем неудачную попытку
+            try:
+                cur.execute(
+                    f"INSERT INTO {SCHEMA}.login_attempts (ip, email, success) VALUES (%s, %s, FALSE)",
+                    (ip or "unknown", email)
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
             return _err(401, "Неверный email или пароль")
 
         user_id = row[0]
@@ -333,6 +364,16 @@ def handle_login(body: dict, ip: str = "") -> dict:
             (user_id, token)
         )
         conn.commit()
+
+        # Логируем успешный вход
+        try:
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.login_attempts (ip, email, success) VALUES (%s, %s, TRUE)",
+                (ip or "unknown", email)
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
         # Страховка: зачисляем незакрытые оплаченные ордера по email (если платил до входа)
         try:
@@ -1477,60 +1518,215 @@ def handle_get_new_users(token: str, body: dict) -> dict:
         conn.close()
 
 
+def handle_admin_search_user(token: str, body: dict) -> dict:
+    """Поиск пользователя по email + полная информация (пакет, оплаты). Только для админа."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("isAdmin", False):
+        return _err(403, "Доступ запрещён")
+    email_q = sanitize_str(body.get("email", ""), max_len=254).lower().strip()
+    if not email_q or len(email_q) < 2:
+        return _err(400, "Введите email для поиска")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""SELECT id, email, name, phone, paid_questions, paid_docs, paid_expert,
+                       paid_business, is_admin, created_at, last_login_at,
+                       subscription_consult_until, subscription_docs_until,
+                       business_subscription_until, business_actions_left
+                FROM {SCHEMA}.users
+                WHERE LOWER(email) LIKE %s
+                ORDER BY created_at DESC LIMIT 10""",
+            (f"%{email_q}%",)
+        )
+        rows = cur.fetchall()
+        if not rows:
+            return _ok({"users": []})
+        users = []
+        for r in rows:
+            uid = r[0]
+            # Оплаты пользователя
+            cur.execute(
+                f"""SELECT inv_id, service_type, amount, status, service_credited, created_at
+                    FROM {SCHEMA}.orders WHERE user_id = %s OR LOWER(user_email) = LOWER(%s)
+                    ORDER BY created_at DESC LIMIT 20""",
+                (uid, r[1])
+            )
+            orders = [
+                {"inv_id": o[0], "service_type": o[1], "amount": float(o[2] or 0),
+                 "status": o[3], "credited": o[4],
+                 "created_at": o[5].isoformat() if o[5] else None}
+                for o in cur.fetchall()
+            ]
+            # Биллинг
+            cur.execute(
+                f"""SELECT service_type, amount, description, source, created_at
+                    FROM {SCHEMA}.billing_log WHERE user_id = %s
+                    ORDER BY created_at DESC LIMIT 20""",
+                (uid,)
+            )
+            billing = [
+                {"service_type": b[0], "amount": float(b[1] or 0),
+                 "description": b[2], "source": b[3],
+                 "created_at": b[4].isoformat() if b[4] else None}
+                for b in cur.fetchall()
+            ]
+            users.append({
+                "id": uid, "email": r[1], "name": r[2] or "", "phone": r[3] or "",
+                "paid_questions": r[4] or 0, "paid_docs": r[5] or 0,
+                "paid_expert": bool(r[6]), "paid_business": r[7] or 0,
+                "is_admin": bool(r[8]),
+                "created_at": r[9].isoformat() if r[9] else None,
+                "last_login_at": r[10].isoformat() if r[10] else None,
+                "subscription_consult_until": r[11].isoformat() if r[11] else None,
+                "subscription_docs_until": r[12].isoformat() if r[12] else None,
+                "business_subscription_until": r[13].isoformat() if r[13] else None,
+                "business_actions_left": r[14] or 0,
+                "orders": orders,
+                "billing": billing,
+            })
+        return _ok({"users": users})
+    finally:
+        cur.close()
+        conn.close()
+
+
 def handle_admin_grant(token: str, body: dict) -> dict:
-    """Ручное начисление вопросов/документов пользователю — только для админа."""
+    """Начисление/списание вопросов, документов, тарифа пользователю — только для админа."""
     admin = get_user_by_token(token)
     if not admin or not admin.get("isAdmin", False):
         return _err(403, "Доступ запрещён")
 
-    target_user_id = int(body.get("target_user_id", 0))
-    questions = int(body.get("questions", 0))
-    docs = int(body.get("docs", 0))
-    comment = sanitize_str(body.get("comment", "Ручное начисление от администратора"), max_len=200)
-
+    target_user_id = body.get("target_user_id")
     if not target_user_id:
         return _err(400, "Укажите target_user_id")
-    if questions < 0 or docs < 0:
-        return _err(400, "Значения не могут быть отрицательными")
-    if questions == 0 and docs == 0:
-        return _err(400, "Укажите количество вопросов или документов")
+    target_user_id = int(target_user_id)
+
+    # Поддерживаем дельту (положительную и отрицательную) и прямую установку
+    questions_delta = int(body.get("questions", 0))   # +/- к текущему
+    docs_delta = int(body.get("docs", 0))             # +/- к текущему
+    set_questions = body.get("set_questions")          # установить точное значение
+    set_docs = body.get("set_docs")                    # установить точное значение
+    grant_service = sanitize_str(body.get("grant_service", ""), max_len=50)  # начислить тариф
+    comment = sanitize_str(body.get("comment", "Ручное действие администратора"), max_len=200)
+
+    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and not grant_service:
+        return _err(400, "Укажите изменение: вопросы, документы или тариф")
 
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT id, email, name FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT id, email, name, paid_questions, paid_docs FROM {SCHEMA}.users WHERE id = %s",
             (target_user_id,)
         )
         row = cur.fetchone()
         if not row:
             return _err(404, "Пользователь не найден")
         target_email = row[1]
+        cur_q = row[3] or 0
+        cur_d = row[4] or 0
 
-        if questions > 0:
+        changes = []
+
+        # Дельта вопросов
+        if questions_delta != 0:
+            new_q = max(0, cur_q + questions_delta)
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + %s WHERE id = %s",
-                (questions, target_user_id)
+                f"UPDATE {SCHEMA}.users SET paid_questions = %s WHERE id = %s",
+                (new_q, target_user_id)
             )
+            sign = "+" if questions_delta > 0 else ""
+            changes.append(f"{sign}{questions_delta} вопр. (итого {new_q})")
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'consultation', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"+{questions} вопр. · {comment}")
+                (target_user_id, target_email, f"{sign}{questions_delta} вопр. · {comment}")
             )
 
-        if docs > 0:
+        # Прямая установка вопросов
+        if set_questions is not None:
+            sq = max(0, int(set_questions))
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + %s WHERE id = %s",
-                (docs, target_user_id)
+                f"UPDATE {SCHEMA}.users SET paid_questions = %s WHERE id = %s",
+                (sq, target_user_id)
             )
+            changes.append(f"вопросов установлено: {sq}")
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'consultation', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"Установлено {sq} вопр. · {comment}")
+            )
+
+        # Дельта документов
+        if docs_delta != 0:
+            new_d = max(0, cur_d + docs_delta)
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_docs = %s WHERE id = %s",
+                (new_d, target_user_id)
+            )
+            sign = "+" if docs_delta > 0 else ""
+            changes.append(f"{sign}{docs_delta} докум. (итого {new_d})")
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"+{docs} докум. · {comment}")
+                (target_user_id, target_email, f"{sign}{docs_delta} докум. · {comment}")
+            )
+
+        # Прямая установка документов
+        if set_docs is not None:
+            sd = max(0, int(set_docs))
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_docs = %s WHERE id = %s",
+                (sd, target_user_id)
+            )
+            changes.append(f"документов установлено: {sd}")
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"Установлено {sd} докум. · {comment}")
+            )
+
+        # Начисление тарифа
+        SERVICE_GRANTS = {
+            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5", "Пакет Старт: +30 вопр +5 докум"),
+            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5", "Пакет Старт (скидка): +30 вопр +5 докум"),
+            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20", "Тариф Профи: +100 вопр +20 докум"),
+            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE", "Тариф Максимум: +300 вопр +50 докум +юрист"),
+            "document":              ("paid_docs = paid_docs + 1", "+1 документ"),
+            "consultation":          ("paid_questions = paid_questions + 3", "+3 вопроса (консультация)"),
+            "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
+        }
+        if grant_service:
+            if grant_service not in SERVICE_GRANTS:
+                return _err(400, f"Неизвестный тариф: {grant_service}")
+            sql_set, desc = SERVICE_GRANTS[grant_service]
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET {sql_set} WHERE id = %s",
+                (target_user_id,)
+            )
+            changes.append(desc)
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, %s, 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, grant_service, f"{desc} · {comment}")
             )
 
         conn.commit()
-        return _ok({"ok": True, "questions_added": questions, "docs_added": docs})
+
+        # Возвращаем обновлённые данные пользователя
+        cur.execute(
+            f"SELECT paid_questions, paid_docs, paid_expert FROM {SCHEMA}.users WHERE id = %s",
+            (target_user_id,)
+        )
+        upd = cur.fetchone()
+        return _ok({
+            "ok": True,
+            "changes": changes,
+            "paid_questions": upd[0] if upd else 0,
+            "paid_docs": upd[1] if upd else 0,
+            "paid_expert": bool(upd[2]) if upd else False,
+        })
     except Exception as e:
         conn.rollback()
         return _err(500, str(e))

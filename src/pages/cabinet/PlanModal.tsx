@@ -206,6 +206,9 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground">
             Без подписки · Начисляется сразу после оплаты · Без автосписаний
           </p>
+          <p className="text-[10px] text-center text-muted-foreground mt-1">
+            * Подгрузка документов в чат доступна начиная с тарифа «Профи» и выше
+          </p>
         </div>
       </div>
     </div>

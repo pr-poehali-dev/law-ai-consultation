@@ -127,8 +127,11 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </button>
           </div>
 
-          <p className="text-center text-[10px] mt-4" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <p className="text-center text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.25)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
+          </p>
+          <p className="text-center text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.18)" }}>
+            * Подгрузка документов в чат доступна начиная с тарифа «Профи» и выше
           </p>
         </div>
       </div>

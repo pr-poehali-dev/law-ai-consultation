@@ -578,12 +578,48 @@ export async function adminGrant(params: {
   target_user_id: number;
   questions?: number;
   docs?: number;
+  set_questions?: number;
+  set_docs?: number;
+  grant_service?: string;
   comment?: string;
-}): Promise<{ ok?: boolean; questions_added?: number; docs_added?: number; error?: string }> {
+}): Promise<{ ok?: boolean; changes?: string[]; paid_questions?: number; paid_docs?: number; paid_expert?: boolean; error?: string }> {
   const res = await apiCall({ action: "admin-grant", ...params });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка начисления" };
   return data;
+}
+
+export interface AdminUserFull {
+  id: number;
+  email: string;
+  name: string;
+  phone: string;
+  paid_questions: number;
+  paid_docs: number;
+  paid_expert: boolean;
+  paid_business: number;
+  is_admin: boolean;
+  created_at: string | null;
+  last_login_at: string | null;
+  subscription_consult_until: string | null;
+  subscription_docs_until: string | null;
+  business_subscription_until: string | null;
+  business_actions_left: number;
+  orders: Array<{
+    inv_id: number; service_type: string; amount: number;
+    status: string; credited: boolean; created_at: string | null;
+  }>;
+  billing: Array<{
+    service_type: string; amount: number; description: string;
+    source: string; created_at: string | null;
+  }>;
+}
+
+export async function adminSearchUser(email: string): Promise<{ users: AdminUserFull[]; error?: string }> {
+  const res = await apiCall({ action: "admin-search-user", email });
+  const data = await res.json();
+  if (!res.ok) return { users: [], error: data.error || "Ошибка поиска" };
+  return { users: data.users || [] };
 }
 
 export async function businessConsumeAction(): Promise<{ ok?: boolean; error?: string }> {

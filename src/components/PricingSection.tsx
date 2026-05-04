@@ -245,6 +245,9 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
             </div>
           </div>
         </div>
+        <p className="text-xs text-center text-muted-foreground mt-4 opacity-70">
+          * Подгрузка документов в чат доступна начиная с тарифа «Профи» и выше
+        </p>
       </div>
     </section>
   );
