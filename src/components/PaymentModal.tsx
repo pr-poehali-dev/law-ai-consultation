@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
-import { getUser, addPaidService, fetchSafe } from "@/lib/auth";
+import { getUser, addPaidService, fetchSafe, register } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 
 const CREATE_URL = (func2url as Record<string, string>)["payment-create"];
@@ -31,7 +31,6 @@ interface PaymentModalProps {
   serviceName: string;
   onClose: () => void;
   onSuccess: (serviceType: ServiceType) => void;
-  showRegisterPrompt?: boolean;
   onRegisterAfterPay?: () => void;
 }
 
@@ -87,14 +86,13 @@ const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {
   subscription_docs: "Выгодно",
 };
 
-type Step = "auth" | "form" | "redirected" | "polling" | "success" | "error";
+type Step = "form" | "redirected" | "polling" | "success" | "register" | "error";
 
 export default function PaymentModal({
   serviceType,
   serviceName,
   onClose,
   onSuccess,
-  showRegisterPrompt,
   onRegisterAfterPay,
 }: PaymentModalProps) {
   const [step, setStep] = useState<Step>("form");
@@ -104,6 +102,13 @@ export default function PaymentModal({
   const [invId, setInvId] = useState<number | null>(null);
   const [payUrl, setPayUrl] = useState<string>("");
 
+  // Регистрация после оплаты
+  const [regName, setRegName] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState("");
+
   const price = SERVICE_PRICES[serviceType];
 
   // Блокируем скролл страницы пока модал открыт
@@ -112,12 +117,10 @@ export default function PaymentModal({
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // Если есть onRegisterAfterPay — проверяем авторизацию. Не залогинен → показываем шаг auth
+  // Если пользователь уже залогинен — подставляем email
   useEffect(() => {
-    if (!onRegisterAfterPay) return;
     getUser().then((u) => {
-      if (!u) setStep("auth");
-      else if (u.email) setEmail(u.email);
+      if (u?.email) setEmail(u.email);
     });
   }, []);
 
@@ -183,7 +186,7 @@ export default function PaymentModal({
   const startPolling = (id: number) => {
     setStep("polling");
     let attempts = 0;
-    const maxAttempts = 36; // 3 минуты (каждые 5 сек)
+    const maxAttempts = 36;
 
     const poll = async () => {
       attempts++;
@@ -191,13 +194,17 @@ export default function PaymentModal({
         const res = await fetchSafe(`${CHECK_URL}?inv_id=${id}`, { method: "GET" }, 15_000, 0);
         const data = await res.json();
         if (data.paid || data.status === "paid") {
-          // Начисляем услугу (fallback на случай если webhook не успел) — передаём inv_id для защиты от дублирования
           await addPaidService(serviceType, id);
-          // Очищаем pending после успешного начисления
           localStorage.removeItem("pending_payment");
-          setStep("success");
           ymGoal("payment_success", { service: serviceType });
-          setTimeout(() => onSuccess(serviceType), 2000);
+          const user = await getUser();
+          if (!user) {
+            // Незарегистрированный — показываем форму регистрации
+            setStep("register");
+          } else {
+            setStep("success");
+            setTimeout(() => onSuccess(serviceType), 2000);
+          }
           return;
         }
       } catch {
@@ -214,8 +221,31 @@ export default function PaymentModal({
     setTimeout(poll, 5000);
   };
 
+  const handleRegisterAfterPay = useCallback(async () => {
+    if (!regPassword || regPassword.length < 6) { setRegError("Пароль — минимум 6 символов"); return; }
+    if (regPassword !== regPasswordConfirm) { setRegError("Пароли не совпадают"); return; }
+    setRegLoading(true);
+    setRegError("");
+    const res = await register({
+      name: regName.trim() || "Пользователь",
+      email,
+      phone: "",
+      password: regPassword,
+      agreed_to_terms: true,
+    });
+    setRegLoading(false);
+    if (res.error) { setRegError(res.error); return; }
+    ymGoal("register");
+    // Начисляем услугу теперь, когда пользователь зарегистрирован (есть токен)
+    if (invId) {
+      await addPaidService(serviceType, invId);
+      localStorage.removeItem("pending_inv_id");
+    }
+    setStep("success");
+    setTimeout(() => onSuccess(serviceType), 1500);
+  }, [regName, email, regPassword, regPasswordConfirm, serviceType, invId, onSuccess]);
+
   const canClose = step !== "polling" && step !== "redirected";
-  const isAuthStep = step === "auth";
 
   return (
     <div
@@ -243,37 +273,6 @@ export default function PaymentModal({
           >
             <Icon name="X" size={15} className="text-navy-600" />
           </button>
-        )}
-
-        {/* === ШАГ АВТОРИЗАЦИИ (незалогиненный пользователь) === */}
-        {step === "auth" && (
-          <div className="px-5 py-5 sm:p-8 text-center">
-            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-navy-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
-              <Icon name="LogIn" size={28} className="text-navy-500 sm:hidden" />
-              <Icon name="LogIn" size={36} className="text-navy-500 hidden sm:block" />
-            </div>
-            <h3 className="font-cormorant font-bold text-xl sm:text-2xl text-navy-800 mb-2">Войдите перед оплатой</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Нужен аккаунт — тогда доступ появится автоматически сразу после оплаты.
-            </p>
-            <div className="bg-navy-50 rounded-2xl p-3 sm:p-4 mb-5 text-left">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-navy-700 font-medium">{serviceName}</span>
-                <span className="font-cormorant font-bold text-xl text-navy-800">{price} ₽</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{SERVICE_DETAILS[serviceType]}</p>
-            </div>
-            <button
-              onClick={onRegisterAfterPay}
-              className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2"
-            >
-              <Icon name="LogIn" size={16} />
-              Войти или зарегистрироваться
-            </button>
-            <p className="text-xs text-muted-foreground mt-3">
-              Регистрация бесплатная и займёт 30 секунд
-            </p>
-          </div>
         )}
 
         {/* === ФОРМА ВВОДА EMAIL === */}
@@ -402,6 +401,89 @@ export default function PaymentModal({
           </div>
         )}
 
+        {/* === РЕГИСТРАЦИЯ ПОСЛЕ ОПЛАТЫ === */}
+        {step === "register" && (
+          <div className="px-5 py-5 sm:p-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Icon name="CheckCircle" size={24} className="text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-cormorant font-bold text-xl text-navy-800 leading-tight">Оплата прошла!</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Создайте аккаунт, чтобы войти в кабинет</p>
+              </div>
+            </div>
+
+            <div className="bg-navy-50 rounded-2xl p-3 mb-5">
+              <p className="text-xs text-navy-600 font-medium">Куплено: <span className="text-navy-800">{serviceName}</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">После регистрации услуга сразу появится в кабинете</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-navy-700 mb-1 block">Имя (необязательно)</label>
+                <input
+                  type="text"
+                  value={regName}
+                  onChange={e => setRegName(e.target.value)}
+                  placeholder="Иван"
+                  className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy-100 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-navy-700 mb-1 block">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  readOnly
+                  className="w-full bg-slate-100 border border-border rounded-xl px-4 py-3 text-sm text-navy-600 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-navy-700 mb-1 block">Пароль <span className="text-red-400">*</span></label>
+                <input
+                  type="password"
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  placeholder="Минимум 6 символов"
+                  className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy-100 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-navy-700 mb-1 block">Повторите пароль <span className="text-red-400">*</span></label>
+                <input
+                  type="password"
+                  value={regPasswordConfirm}
+                  onChange={e => setRegPasswordConfirm(e.target.value)}
+                  placeholder="Повторите пароль"
+                  className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy-100 transition-all"
+                  onKeyDown={e => e.key === "Enter" && handleRegisterAfterPay()}
+                />
+              </div>
+            </div>
+
+            {regError && (
+              <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2 mt-3">
+                <Icon name="AlertCircle" size={13} />{regError}
+              </div>
+            )}
+
+            <button
+              onClick={handleRegisterAfterPay}
+              disabled={regLoading}
+              className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm mt-4 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {regLoading
+                ? <><Icon name="Loader" size={16} className="animate-spin" />Создаём аккаунт...</>
+                : <><Icon name="UserPlus" size={16} />Зарегистрироваться и войти в кабинет</>
+              }
+            </button>
+            <p className="text-[10px] text-muted-foreground text-center mt-2">
+              Регистрируясь, вы соглашаетесь с <a href="/offer" target="_blank" className="underline">офертой</a>
+            </p>
+          </div>
+        )}
+
         {/* === УСПЕХ === */}
         {step === "success" && (
           <div className="px-5 py-6 sm:p-8 text-center">
@@ -410,20 +492,12 @@ export default function PaymentModal({
             </div>
             <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Оплата прошла!</h3>
             <p className="text-sm text-muted-foreground mb-1">Услуга активирована.</p>
-            <p className="text-xs text-muted-foreground">Чек придёт на email от ЮКасса</p>
-
-            {showRegisterPrompt && (
-              <div className="mt-5 p-4 bg-navy-50 rounded-2xl text-left">
-                <p className="text-sm font-semibold text-navy-800 mb-1">Зарегистрируйтесь, чтобы сохранить доступ</p>
-                <p className="text-xs text-muted-foreground mb-3">История консультаций и документов останется в личном кабинете</p>
-                <button
-                  onClick={onRegisterAfterPay}
-                  className="w-full btn-gold py-2.5 rounded-xl text-sm font-semibold"
-                >
-                  Создать аккаунт
-                </button>
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground">Переходим в кабинет...</p>
+            <div className="flex items-center justify-center gap-1.5 mt-4">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
           </div>
         )}
 

@@ -56,7 +56,7 @@ export default function Index() {
   const [activeSection, setActiveSection] = useState("home");
   const [showPayment, setShowPayment] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [showRegisterAfterPay, setShowRegisterAfterPay] = useState(false);
+
   const [freeTrial, setFreeTrial] = useState(false);
   const [selectedService, setSelectedService] = useState<{ type: ServiceType; name: string }>({
     type: "plan_starter",
@@ -93,15 +93,13 @@ export default function Index() {
       }
 
       if (paymentSuccess && !u) {
-        // inv_id может прийти через URL-параметр или уже сохранён в pending_payment
+        // Сохраняем inv_id — начисление произойдёт в кабинете после регистрации
         let invId = params.get("inv_id");
         if (!invId) {
-          // Пробуем восстановить из pending_payment (если ЮКасса вернула без параметра)
           try {
             const pp = localStorage.getItem("pending_payment");
             if (pp) {
               const parsed = JSON.parse(pp);
-              // Не старше 2 часов
               if (Date.now() - (parsed.created_at || 0) < 2 * 60 * 60 * 1000) {
                 invId = String(parsed.inv_id);
               }
@@ -110,26 +108,6 @@ export default function Index() {
         }
         if (invId) localStorage.setItem("pending_inv_id", invId);
         window.history.replaceState({}, "", "/");
-        setShowRegisterAfterPay(true);
-        setShowLogin(true);
-      }
-
-      // Восстановление: если пользователь не залогинен, но в localStorage есть pending_payment
-      // (оплатил, закрыл вкладку, вернулся позже)
-      if (!u && !paymentSuccess) {
-        try {
-          const pp = localStorage.getItem("pending_payment");
-          if (pp) {
-            const parsed = JSON.parse(pp);
-            if (Date.now() - (parsed.created_at || 0) < 2 * 60 * 60 * 1000) {
-              localStorage.setItem("pending_inv_id", String(parsed.inv_id));
-              setShowRegisterAfterPay(true);
-              setShowLogin(true);
-            } else {
-              localStorage.removeItem("pending_payment");
-            }
-          }
-        } catch { /* ignore */ }
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,7 +153,6 @@ export default function Index() {
   const handleLoginSuccess = useCallback(() => {
     setShowLogin(false);
     setFreeTrial(false);
-    setShowRegisterAfterPay(false);
     setIsLoggedIn(true);
     const pendingInvId = localStorage.getItem("pending_inv_id");
     // Восстанавливаем намерение купить (если пользователь нажал "войти" в модалке оплаты)
@@ -202,12 +179,8 @@ export default function Index() {
   }, [navigate, pendingTab]);
 
   const handlePaymentSuccess = useCallback(async (_svcType: ServiceType) => {
-    if (!isLoggedIn) {
-      setShowRegisterAfterPay(true);
-      return;
-    }
     setShowPayment(false);
-    // Если есть ожидающая история с лендинга — открываем нужный таб
+    // Если пришли с документа на лендинге — идём в docs, иначе в кабинет
     const pendingDoc = localStorage.getItem("landing_pending_doc");
     const pendingHist = localStorage.getItem("landing_chat_history");
     if (pendingDoc || pendingHist) {
@@ -215,7 +188,7 @@ export default function Index() {
     } else {
       navigate("/cabinet");
     }
-  }, [isLoggedIn, navigate]);
+  }, [navigate]);
 
   // Пока проверяем токен — показываем тёмный экран в цвет hero, без белой вспышки
   if (checking) {
@@ -300,25 +273,16 @@ export default function Index() {
         <PaymentModal
           serviceType={selectedService.type}
           serviceName={selectedService.name}
-          onClose={() => { setShowPayment(false); setShowRegisterAfterPay(false); }}
+          onClose={() => setShowPayment(false)}
           onSuccess={handlePaymentSuccess}
-          showRegisterPrompt={showRegisterAfterPay}
-          onRegisterAfterPay={() => {
-            // Сохраняем намерение купить — восстановим после логина
-            localStorage.setItem("pending_payment_intent", JSON.stringify(selectedService));
-            setShowPayment(false);
-            setShowRegisterAfterPay(false);
-            setShowLogin(true);
-          }}
         />
       )}
 
       {showLogin && (
         <LoginModal
-          onClose={() => { setShowLogin(false); setFreeTrial(false); setShowRegisterAfterPay(false); setPendingTab(null); }}
+          onClose={() => { setShowLogin(false); setFreeTrial(false); setPendingTab(null); }}
           onSuccess={handleLoginSuccess}
           freeTrial={freeTrial}
-          showRegisterAfterPay={showRegisterAfterPay}
         />
       )}
 

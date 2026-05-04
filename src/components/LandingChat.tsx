@@ -197,12 +197,10 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   const handlePaymentSuccess = () => {
     setShowPayment(false);
-    // Сохраняем намерение купить — восстановим после логина
-    localStorage.setItem("pending_payment_intent", JSON.stringify(paymentService));
-    onOpenLogin({
-      freeTrial: false,
-      pendingTab: localStorage.getItem(PENDING_SERVICE_KEY) === "doc" ? "docs" : "chat",
-    });
+    // pending_doc и история уже сохранены в openDocPayment/openPlanPayment
+    // После оплаты + регистрации (которая произошла внутри PaymentModal) — идём в кабинет
+    const pendingService = localStorage.getItem(PENDING_SERVICE_KEY);
+    navigate("/cabinet?from=payment&tab=" + (pendingService === "doc" ? "docs" : "docs"));
   };
 
   return (
@@ -358,8 +356,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           serviceName={paymentService.name}
           onClose={() => { setShowPayment(false); setPendingDocType(null); }}
           onSuccess={handlePaymentSuccess}
-          showRegisterPrompt={true}
-          onRegisterAfterPay={handlePaymentSuccess}
         />
       )}
 

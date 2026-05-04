@@ -69,8 +69,6 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
         serviceName="Тариф «Максимум»"
         onClose={() => setShowPayment(false)}
         onSuccess={() => { setShowPayment(false); onSuccess?.(); handleClose(); }}
-        showRegisterPrompt={true}
-        onRegisterAfterPay={() => { setShowPayment(false); onSuccess?.(); handleClose(); }}
       />
     );
   }
