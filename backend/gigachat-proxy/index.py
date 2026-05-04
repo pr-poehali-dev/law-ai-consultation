@@ -31,7 +31,7 @@ from auth_handler import (
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
     SYSTEM_FILE_QA_PROMPT,
-    SYSTEM_DOC_BY_TYPE, DOC_STARTERS, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
+    SYSTEM_DOC_BY_TYPE, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
     SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
@@ -44,8 +44,6 @@ from state_duty import (
 from legal_docs_handler import (
     handle_legal_docs,
     get_legal_context_for_ai,
-    is_case_law_in_db,
-    is_state_duty_in_db,
 )
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
