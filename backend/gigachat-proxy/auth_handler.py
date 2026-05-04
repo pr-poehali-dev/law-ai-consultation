@@ -58,7 +58,7 @@ def sanitize_str(s: str, max_len: int = 255) -> str:
 
 
 def run_cleanup(conn):
-    """Очищает старые сессии и устаревшие профили. Запускается вероятностно (1 из 20 запросов)."""
+    """Очищает старые сессии, устаревшие профили и закрытые жалобы. Запускается вероятностно (1 из 20 запросов)."""
     if random.randint(1, 20) != 1:
         return
     cur = conn.cursor()
@@ -71,6 +71,16 @@ def run_cleanup(conn):
             f"""DELETE FROM {SCHEMA}.users
                 WHERE last_login_at < %s AND is_admin = FALSE""",
             (inactive_threshold,)
+        )
+        # Удаляем закрытые жалобы старше 24 часов
+        cur.execute(
+            f"""DELETE FROM {SCHEMA}.reports
+                WHERE status = 'closed'
+                  AND COALESCE(replied_at, created_at) < NOW() - INTERVAL '24 hours'"""
+        )
+        # Также удаляем устаревшие попытки входа (старше 7 дней — чтобы таблица не росла)
+        cur.execute(
+            f"DELETE FROM {SCHEMA}.login_attempts WHERE attempted_at < NOW() - INTERVAL '7 days'"
         )
         conn.commit()
     except Exception:
