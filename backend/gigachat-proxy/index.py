@@ -27,6 +27,7 @@ from auth_handler import (
     handle_get_all_billing_log, handle_get_new_users,
     handle_admin_grant, handle_admin_search_user,
     handle_push_subscribe, handle_push_subscribe_anon, handle_get_vapid_public_key,
+    handle_get_compute_stats, log_compute,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -646,6 +647,7 @@ def handler(event: dict, context) -> dict:
         "push-subscribe": lambda: _push_subscribe_action(),
         "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
         "vapid-public-key": lambda: handle_get_vapid_public_key(),
+        "get-compute-stats": lambda: handle_get_compute_stats(token),
     }
     if action in auth_actions:
         result = auth_actions[action]()
@@ -662,6 +664,7 @@ def handler(event: dict, context) -> dict:
 
         # ── Генерация документа из описания пользователя ──
         if mode == "doc_generate":
+            _mode_start = time.time()
             # Серверная проверка авторизации — токен обязателен для генерации документа
             if not token:
                 return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
@@ -800,6 +803,7 @@ def handler(event: dict, context) -> dict:
             else:
                 truncated = not bool(_RE_DOC_END_OTHER.search(answer[-300:]))
             placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(answer)))
+            threading.Thread(target=log_compute, args=("doc_generate", int((time.time() - _mode_start) * 1000), 3500), daemon=True).start()
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
 
@@ -1154,6 +1158,7 @@ def handler(event: dict, context) -> dict:
 
         # ── Обычный чат-консультация ──
         else:
+            _chat_start = time.time()
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
@@ -1278,6 +1283,7 @@ def handler(event: dict, context) -> dict:
                 print(f"[ROUTER] YandexGPT ответил штатно, симв={len(answer)}")
 
             truncated = len(answer) > 200 and not bool(_RE_TRUNCATED.search(answer.rstrip()))
+            threading.Thread(target=log_compute, args=("chat", int((time.time() - _chat_start) * 1000), 2500), daemon=True).start()
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert, "personal_data_refused": personal_data_refused}, ensure_ascii=False)}
 

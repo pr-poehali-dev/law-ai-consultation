@@ -635,6 +635,23 @@ export async function businessMessagesGet(): Promise<{ id: number; role: string;
   return data.messages || [];
 }
 
+export interface ComputeStats {
+  last_hour_sec: number;
+  today_sec: number;
+  week_sec: number;
+  today_requests: number;
+  today_docs: number;
+  today_chats: number;
+  days: { day: string; total_sec: number; requests: number; docs: number; chats: number }[];
+  by_mode: { mode: string; count: number; avg_sec: number }[];
+}
+
+export async function getComputeStats(): Promise<ComputeStats | null> {
+  const res = await apiCall({ action: "get-compute-stats" });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
 export async function businessMessageSave(role: "user" | "ai", body: string): Promise<void> {
   await apiCall({ action: "business-messages-save", role, body });
 }

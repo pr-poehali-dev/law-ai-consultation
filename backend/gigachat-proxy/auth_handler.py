@@ -1894,3 +1894,80 @@ def handle_get_vapid_public_key() -> dict:
     if not key:
         return _err(503, "Push уведомления не настроены")
     return _ok({"publicKey": key})
+
+
+def log_compute(mode: str, duration_ms: int, tokens_requested: int = None):
+    """Записывает расход вычислительного времени в БД. Не бросает исключений."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.compute_log (mode, duration_ms, tokens_requested) VALUES (%s, %s, %s)",
+            (mode, duration_ms, tokens_requested)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+
+
+def handle_get_compute_stats(token: str) -> dict:
+    """Возвращает статистику вычислительного времени для админа."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("is_admin"):
+        return _err(403, "Доступ запрещён")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"""
+            SELECT
+                SUM(CASE WHEN created_at >= NOW() - INTERVAL '1 hour' THEN duration_ms ELSE 0 END) AS last_hour_ms,
+                SUM(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN duration_ms ELSE 0 END) AS today_ms,
+                SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN duration_ms ELSE 0 END) AS week_ms,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN 1 END) AS today_requests,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 day' AND mode = 'doc_generate' THEN 1 END) AS today_docs,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 day' AND mode = 'chat' THEN 1 END) AS today_chats
+            FROM {SCHEMA}.compute_log
+        """)
+        row = cur.fetchone()
+        last_hour_ms, today_ms, week_ms, today_requests, today_docs, today_chats = row
+
+        cur.execute(f"""
+            SELECT
+                date_trunc('day', created_at)::date AS day,
+                SUM(duration_ms) AS total_ms,
+                COUNT(*) AS requests,
+                COUNT(CASE WHEN mode = 'doc_generate' THEN 1 END) AS docs,
+                COUNT(CASE WHEN mode = 'chat' THEN 1 END) AS chats
+            FROM {SCHEMA}.compute_log
+            WHERE created_at >= NOW() - INTERVAL '14 days'
+            GROUP BY 1
+            ORDER BY 1 DESC
+        """)
+        days = [
+            {"day": str(r[0]), "total_sec": round((r[1] or 0) / 1000, 1), "requests": r[2], "docs": r[3], "chats": r[4]}
+            for r in cur.fetchall()
+        ]
+
+        cur.execute(f"""
+            SELECT mode, COUNT(*) as cnt, ROUND(AVG(duration_ms)) as avg_ms
+            FROM {SCHEMA}.compute_log
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+            GROUP BY mode ORDER BY cnt DESC
+        """)
+        by_mode = [{"mode": r[0], "count": r[1], "avg_sec": round((r[2] or 0) / 1000, 1)} for r in cur.fetchall()]
+
+        return _ok({
+            "last_hour_sec": round((last_hour_ms or 0) / 1000, 1),
+            "today_sec": round((today_ms or 0) / 1000, 1),
+            "week_sec": round((week_ms or 0) / 1000, 1),
+            "today_requests": today_requests or 0,
+            "today_docs": today_docs or 0,
+            "today_chats": today_chats or 0,
+            "days": days,
+            "by_mode": by_mode,
+        })
+    finally:
+        cur.close()
+        conn.close()
