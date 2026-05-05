@@ -7,7 +7,7 @@ const TOKEN_KEY = "yurist_ai_token";
 // Запускается из Cabinet.tsx при монтировании компонента
 export function startKeepAlive(): () => void {
   const ping = () => fetch(API_URL, { method: "GET" }).catch(() => {});
-  const id = setInterval(ping, 4 * 60 * 1000);
+  const id = setInterval(ping, 9 * 60 * 1000);
   return () => clearInterval(id);
 }
 

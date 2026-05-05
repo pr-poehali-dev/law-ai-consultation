@@ -1011,11 +1011,12 @@ def handler(event: dict, context) -> dict:
                 except Exception:
                     pass
 
+            _analyze_start = time.time()
             t_analysis = threading.Thread(target=_do_analysis, daemon=True)
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start()
             t_hint.start()
-            t_analysis.join(timeout=65)  # DeepSeek timeout=60с + 5с overhead
+            t_analysis.join(timeout=50)  # DeepSeek timeout=45с + 5с overhead
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
@@ -1023,6 +1024,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": err_msg}, ensure_ascii=False)}
 
+            threading.Thread(target=log_compute, args=("file_analyze", int((time.time() - _analyze_start) * 1000), 1200), daemon=True).start()
             response_data = {
                 "answer": analysis_result[0],
                 "filename": combined_filename,
