@@ -644,6 +644,8 @@ export interface ComputeStats {
   today_chats: number;
   days: { day: string; total_sec: number; requests: number; docs: number; chats: number }[];
   by_mode: { mode: string; count: number; avg_sec: number }[];
+  online_users: { email: string; user_id: number | null; last_active: string; today_sec: number; today_requests: number; online_requests: number }[];
+  top_users: { email: string; user_id: number | null; today_sec: number; requests: number; chats: number; docs: number; files: number }[];
 }
 
 export async function getComputeStats(): Promise<ComputeStats | null> {

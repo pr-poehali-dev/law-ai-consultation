@@ -1896,14 +1896,14 @@ def handle_get_vapid_public_key() -> dict:
     return _ok({"publicKey": key})
 
 
-def log_compute(mode: str, duration_ms: int, tokens_requested: int = None):
+def log_compute(mode: str, duration_ms: int, tokens_requested: int = None, user_id: int = None, user_email: str = None):
     """Записывает расход вычислительного времени в БД. Не бросает исключений."""
     try:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"INSERT INTO {SCHEMA}.compute_log (mode, duration_ms, tokens_requested) VALUES (%s, %s, %s)",
-            (mode, duration_ms, tokens_requested)
+            f"INSERT INTO {SCHEMA}.compute_log (mode, duration_ms, tokens_requested, user_id, user_email) VALUES (%s, %s, %s, %s, %s)",
+            (mode, duration_ms, tokens_requested, user_id, user_email)
         )
         conn.commit()
         cur.close()
@@ -1958,6 +1958,61 @@ def handle_get_compute_stats(token: str) -> dict:
         """)
         by_mode = [{"mode": r[0], "count": int(r[1]), "avg_sec": round(float(r[2] or 0) / 1000, 1)} for r in cur.fetchall()]
 
+        # Онлайн: пользователи с AI-активностью за последние 15 минут
+        cur.execute(f"""
+            SELECT
+                COALESCE(cl.user_email, 'Аноним') AS email,
+                cl.user_id,
+                MAX(cl.created_at) AS last_active,
+                SUM(CASE WHEN cl.created_at >= NOW() - INTERVAL '1 day' THEN cl.duration_ms ELSE 0 END) AS today_ms,
+                COUNT(CASE WHEN cl.created_at >= NOW() - INTERVAL '1 day' THEN 1 END) AS today_requests,
+                COUNT(CASE WHEN cl.created_at >= NOW() - INTERVAL '15 minutes' THEN 1 END) AS online_requests
+            FROM {SCHEMA}.compute_log cl
+            WHERE cl.created_at >= NOW() - INTERVAL '15 minutes'
+            GROUP BY cl.user_email, cl.user_id
+            ORDER BY last_active DESC
+        """)
+        online_users = [
+            {
+                "email": r[0],
+                "user_id": r[1],
+                "last_active": r[2].strftime("%H:%M:%S") if r[2] else None,
+                "today_sec": round(float(r[3] or 0) / 1000, 1),
+                "today_requests": int(r[4] or 0),
+                "online_requests": int(r[5] or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # Топ пользователей по расходу за сутки
+        cur.execute(f"""
+            SELECT
+                COALESCE(user_email, 'Аноним') AS email,
+                user_id,
+                SUM(duration_ms) AS today_ms,
+                COUNT(*) AS requests,
+                COUNT(CASE WHEN mode = 'chat' THEN 1 END) AS chats,
+                COUNT(CASE WHEN mode = 'doc_generate' THEN 1 END) AS docs,
+                COUNT(CASE WHEN mode = 'file_analyze' THEN 1 END) AS files
+            FROM {SCHEMA}.compute_log
+            WHERE created_at >= NOW() - INTERVAL '1 day'
+            GROUP BY user_email, user_id
+            ORDER BY today_ms DESC
+            LIMIT 10
+        """)
+        top_users = [
+            {
+                "email": r[0],
+                "user_id": r[1],
+                "today_sec": round(float(r[2] or 0) / 1000, 1),
+                "requests": int(r[3] or 0),
+                "chats": int(r[4] or 0),
+                "docs": int(r[5] or 0),
+                "files": int(r[6] or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
         return _ok({
             "last_hour_sec": round(float(last_hour_ms or 0) / 1000, 1),
             "today_sec": round(float(today_ms or 0) / 1000, 1),
@@ -1967,6 +2022,8 @@ def handle_get_compute_stats(token: str) -> dict:
             "today_chats": int(today_chats or 0),
             "days": days,
             "by_mode": by_mode,
+            "online_users": online_users,
+            "top_users": top_users,
         })
     finally:
         cur.close()

@@ -25,6 +25,13 @@ function fmtSec(sec: number): string {
   return `${(sec / 3600).toFixed(1)} ч`;
 }
 
+function shortEmail(email: string): string {
+  if (email === "Аноним") return "Аноним";
+  const [name, domain] = email.split("@");
+  if (!domain) return email;
+  return `${name.slice(0, 3)}***@${domain}`;
+}
+
 export default function ComputeStatsBlock() {
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<ComputeStats | null>(null);
@@ -64,6 +71,7 @@ export default function ComputeStatsBlock() {
 
   const todaySec = stats?.today_sec ?? 0;
   const lastHourSec = stats?.last_hour_sec ?? 0;
+  const onlineCount = stats?.online_users?.length ?? 0;
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
@@ -76,6 +84,12 @@ export default function ComputeStatsBlock() {
           <p className="text-[11px] text-muted-foreground">
             Сегодня: <span className="font-semibold text-navy-700">{fmtSec(todaySec)}</span>
             {" · "}за час: <span className="font-semibold text-navy-700">{fmtSec(lastHourSec)}</span>
+            {onlineCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                <span className="text-emerald-600 font-semibold">{onlineCount} онлайн</span>
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -104,6 +118,33 @@ export default function ComputeStatsBlock() {
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
 
+          {/* Онлайн сейчас */}
+          {stats?.online_users && stats.online_users.length > 0 && (
+            <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[11px] font-semibold text-emerald-800">
+                  Онлайн сейчас — {stats.online_users.length} польз.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {stats.online_users.map((u, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon name="User" size={11} className="text-emerald-600 shrink-0" />
+                      <span className="text-[11px] text-emerald-900 truncate">{shortEmail(u.email)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-emerald-600">{u.online_requests} зап. за 15 мин</span>
+                      <span className="text-[11px] font-semibold text-emerald-800">{fmtSec(u.today_sec)} сег.</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ключевые цифры */}
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-slate-50 rounded-xl p-3">
               <p className="text-[10px] text-muted-foreground mb-0.5">За последний час</p>
@@ -128,6 +169,30 @@ export default function ComputeStatsBlock() {
             </div>
           </div>
 
+          {/* Топ пользователей за сутки */}
+          {stats?.top_users && stats.top_users.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-3">
+              <p className="text-[11px] font-semibold text-navy-700 mb-2">Топ пользователей за сутки</p>
+              <div className="space-y-1.5">
+                {stats.top_users.map((u, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] text-slate-400 w-4 shrink-0">{i + 1}.</span>
+                      <span className="text-[11px] text-slate-700 truncate">{shortEmail(u.email)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-slate-400">
+                        {u.chats > 0 && `${u.chats}ч`}{u.docs > 0 && ` ${u.docs}д`}{u.files > 0 && ` ${u.files}ф`}
+                      </span>
+                      <span className="text-[11px] font-semibold text-navy-700">{fmtSec(u.today_sec)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* По типам за 7 дней */}
           {stats?.by_mode && stats.by_mode.length > 0 && (
             <div className="bg-slate-50 rounded-xl p-3">
               <p className="text-[11px] font-semibold text-navy-700 mb-2">За 7 дней по типам</p>
@@ -145,6 +210,7 @@ export default function ComputeStatsBlock() {
             </div>
           )}
 
+          {/* График по дням */}
           {stats?.days && stats.days.length > 0 && (
             <div className="bg-slate-50 rounded-xl p-3">
               <p className="text-[11px] font-semibold text-navy-700 mb-2">По дням</p>
@@ -166,12 +232,6 @@ export default function ComputeStatsBlock() {
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {!stats?.days?.length && !loading && (
-            <div className="text-center py-3">
-              <p className="text-[11px] text-muted-foreground">Данные появятся после первых AI-запросов</p>
             </div>
           )}
 

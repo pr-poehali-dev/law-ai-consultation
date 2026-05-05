@@ -27,7 +27,7 @@ from auth_handler import (
     handle_get_all_billing_log, handle_get_new_users,
     handle_admin_grant, handle_admin_search_user,
     handle_push_subscribe, handle_push_subscribe_anon, handle_get_vapid_public_key,
-    handle_get_compute_stats, log_compute,
+    handle_get_compute_stats, log_compute, get_user_by_token,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -563,6 +563,17 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
     return _call_openai_compat(openai_messages, max_tokens, temperature=temperature)
 
 
+def _log_compute_with_user(mode: str, duration_ms: int, tokens: int, token: str):
+    """Логирует расход с привязкой к пользователю по токену."""
+    user_id, user_email = None, None
+    if token:
+        user = get_user_by_token(token)
+        if user:
+            user_id = user.get("id")
+            user_email = user.get("email")
+    log_compute(mode, duration_ms, tokens, user_id=user_id, user_email=user_email)
+
+
 def handler(event: dict, context) -> dict:
     """AI-юрист (DeepSeek V3) + авторизация. Режимы: chat, doc_chat, doc_generate."""
     if event.get("httpMethod") == "OPTIONS":
@@ -807,7 +818,7 @@ def handler(event: dict, context) -> dict:
             else:
                 truncated = not bool(_RE_DOC_END_OTHER.search(answer[-300:]))
             placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(answer)))
-            threading.Thread(target=log_compute, args=("doc_generate", int((time.time() - _mode_start) * 1000), 3500), daemon=True).start()
+            threading.Thread(target=_log_compute_with_user, args=("doc_generate", int((time.time() - _mode_start) * 1000), 3500, token), daemon=True).start()
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
 
@@ -1028,7 +1039,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": err_msg}, ensure_ascii=False)}
 
-            threading.Thread(target=log_compute, args=("file_analyze", int((time.time() - _analyze_start) * 1000), 1200), daemon=True).start()
+            threading.Thread(target=_log_compute_with_user, args=("file_analyze", int((time.time() - _analyze_start) * 1000), 1200, token), daemon=True).start()
             response_data = {
                 "answer": analysis_result[0],
                 "filename": combined_filename,
@@ -1265,7 +1276,7 @@ def handler(event: dict, context) -> dict:
                 print(f"[ROUTER] YandexGPT ответил штатно, симв={len(answer)}")
 
             truncated = len(answer) > 200 and not bool(_RE_TRUNCATED.search(answer.rstrip()))
-            threading.Thread(target=log_compute, args=("chat", int((time.time() - _chat_start) * 1000), 2500), daemon=True).start()
+            threading.Thread(target=_log_compute_with_user, args=("chat", int((time.time() - _chat_start) * 1000), 2500, token), daemon=True).start()
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "truncated": truncated, "needs_expert": needs_expert, "personal_data_refused": personal_data_refused}, ensure_ascii=False)}
 
