@@ -12,6 +12,7 @@ import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
 import CookieBanner from "@/components/CookieBanner";
+import PaymentSuccessScreen from "@/components/PaymentSuccessScreen";
 
 const SERVICE_TAB_MAP: Record<string, "docs" | "chat" | "expert" | "business"> = {
   "Готовые документы": "docs",
@@ -68,6 +69,8 @@ export default function Index() {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   // Если токен есть — сразу редиректим в кабинет, не показываем главную
   const [checking, setChecking] = useState(!!localStorage.getItem("yurist_ai_token"));
+  // Экран после возврата с ЮКассы (для незалогиненных)
+  const [paymentSuccessInvId, setPaymentSuccessInvId] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -94,7 +97,7 @@ export default function Index() {
       }
 
       if (paymentSuccess && !u) {
-        // Сохраняем inv_id — начисление произойдёт в кабинете после регистрации
+        // Показываем экран «Оплата успешна — зарегистрируйтесь»
         let invId = params.get("inv_id");
         if (!invId) {
           try {
@@ -107,8 +110,8 @@ export default function Index() {
             }
           } catch { /* ignore */ }
         }
-        if (invId) localStorage.setItem("pending_inv_id", invId);
         window.history.replaceState({}, "", "/");
+        setPaymentSuccessInvId(invId || "unknown");
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,6 +194,16 @@ export default function Index() {
       navigate("/cabinet");
     }
   }, [navigate]);
+
+  // Экран после оплаты — для незалогиненных пользователей
+  if (paymentSuccessInvId) {
+    return (
+      <PaymentSuccessScreen
+        invId={paymentSuccessInvId}
+        onSuccess={handleLoginSuccess}
+      />
+    );
+  }
 
   // Пока проверяем токен — показываем тёмный экран в цвет hero, без белой вспышки
   if (checking) {
