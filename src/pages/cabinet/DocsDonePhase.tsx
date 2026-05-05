@@ -100,7 +100,7 @@ export default function DocsDonePhase({
         <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
           <div className="flex items-center gap-1.5 mb-3 text-[11px] text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-            Документы хранятся 7 дней — скачайте, чтобы не потерять
+            Документы хранятся в вашем браузере — скачайте, чтобы не потерять при очистке
           </div>
           <h3 className="font-semibold text-navy-800 text-sm mb-3">Все документы</h3>
           <div className="space-y-2">
