@@ -31,6 +31,14 @@ export default function PaymentSuccessScreen({ invId, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
 
+  // Предзаполняем email из формы оплаты
+  useEffect(() => {
+    try {
+      const pending = JSON.parse(localStorage.getItem("pending_payment") || "{}");
+      if (pending.email) setRegEmail(pending.email);
+    } catch { /* ignore */ }
+  }, []);
+
   // Dots animation for success step
   const [dots, setDots] = useState(0);
   useEffect(() => {
