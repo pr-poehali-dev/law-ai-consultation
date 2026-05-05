@@ -342,8 +342,11 @@ def _sanitize_doc_text(text: str) -> str:
     return result
 
 
-def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
-    TEXT_LIMIT = 2500
+def analyze_file_with_yandex(text: str, comment: str, iam_token: str, n_docs: int = 1) -> str:
+    # Лимит текста и токенов масштабируется под количество документов
+    TEXT_LIMIT = min(2500 + (n_docs - 1) * 800, 4500)
+    MAX_TOKENS = min(1200 + (n_docs - 1) * 400, 2000)
+
     clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
 
     if comment:
@@ -351,23 +354,23 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
         user_content = f"Документ для анализа:\n\n{clean_text}"
-        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+        if n_docs > 1:
+            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + f"\n\nВАЖНО: загружено {n_docs} документа(ов). Анализируй каждый отдельно — кратко (3–5 пунктов на документ), уложись в ответ целиком."
+        else:
+            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
 
     messages_for_ds = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
 
-    # DeepSeek через Яндекс Cloud — единственная модель для анализа документов.
-    # timeout=60с: такой же как для генерации документов, где DeepSeek работает отлично.
-    # Большой входной контекст = DeepSeek долго "читает" перед ответом — это нормально.
     resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {iam_token}"},
         json={
             "model": YANDEX_MODEL,  # deepseek-v32
             "messages": messages_for_ds,
-            "max_tokens": 1200,
+            "max_tokens": MAX_TOKENS,
             "temperature": 0.2,
             "stream": False,
         },
@@ -375,7 +378,8 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
     )
     resp.raise_for_status()
     result = resp.json()["choices"][0]["message"]["content"].strip()
-    print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв")
+    finish_reason = resp.json()["choices"][0].get("finish_reason", "")
+    print(f"[FILE_ANALYZE] DeepSeek OK: {len(result)} симв, токены={MAX_TOKENS}, docs={n_docs}, finish={finish_reason}")
     return result
 
 
@@ -969,7 +973,7 @@ def handler(event: dict, context) -> dict:
 
             def _do_analysis():
                 try:
-                    analysis_result[0] = analyze_file_with_yandex(combined_text, comment, iam_token)
+                    analysis_result[0] = analyze_file_with_yandex(combined_text, comment, iam_token, n_docs=n_files)
                 except Exception as _ae:
                     analysis_error[0] = str(_ae)
                     print(f"[FILE_ANALYZE] Поток упал: {_ae}")
