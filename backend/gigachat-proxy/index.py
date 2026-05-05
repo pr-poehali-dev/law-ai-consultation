@@ -1,5 +1,5 @@
 """
-Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v4 — prompts extracted. v5 — email notify.
+Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v4 — prompts extracted. v5 — email notify. v6 — relay removed.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
 """
@@ -35,7 +35,7 @@ from prompts import (
     SYSTEM_DOC_BY_TYPE, REFUSAL_MARKERS, SIMPLE_QUERY_MARKERS,
     SYSTEM_BUSINESS_CHAT, SYSTEM_BUSINESS_CONTRACT,
     SYSTEM_COUNTERPARTY_CHECK, SYSTEM_TAX_ANALYSIS,
-    SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_DEEPSEEK_SUMMARY_RELAY,
+    SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK,
     LEGAL_QUALITY_ADDON,
 )
 from state_duty import (
