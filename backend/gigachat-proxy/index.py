@@ -1253,30 +1253,6 @@ def handler(event: dict, context) -> dict:
                 if ds_cut:
                     truncated = True
 
-                # Яндекс-relay: только если DeepSeek дал короткий ответ И есть резюме без ПД
-                word_count = len(answer.split())
-                if ds_summary and word_count < 350 and not ds_cut:
-                    relay_messages = [
-                        *clean_messages[:-1],
-                        {"role": "user", "content":
-                            f"Краткое резюме ситуации: {ds_summary}\n\n"
-                            f"Добавь ссылки на конкретные нормы РФ и алгоритм действий (2-3 шага)."}
-                    ]
-                    try:
-                        yandex_relay = call_yandex(
-                            SYSTEM_DEEPSEEK_SUMMARY_RELAY,
-                            relay_messages,
-                            max_tokens=500,
-                            fast=True,
-                            temperature=0.3,
-                        )
-                        answer = answer + "\n\n" + yandex_relay
-                        print(f"[ROUTER] Яндекс добавил нормы, итого={len(answer)} симв")
-                    except Exception as relay_err:
-                        print(f"[ROUTER] Яндекс-relay не смог: {relay_err}")
-                else:
-                    print(f"[ROUTER] Яндекс-relay пропущен (слов={word_count}, обрезан={ds_cut})")
-
                 used_deepseek = True
                 personal_data_refused = False
             else:
