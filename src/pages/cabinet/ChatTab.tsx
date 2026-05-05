@@ -155,6 +155,14 @@ export default function ChatTab({
       {/* Баннер тарифа */}
       <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
 
+      {/* Хранение переписки */}
+      <div className="flex items-center gap-2 px-1 mb-1">
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+          Переписка хранится 24 часа и очищается автоматически
+        </div>
+      </div>
+
       {/* Лента сообщений */}
       <ChatMessageList
         user={user}
