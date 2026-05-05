@@ -763,7 +763,7 @@ def handler(event: dict, context) -> dict:
             _t_duty = threading.Thread(target=_fetch_duty_db, daemon=True)
             _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
             _t_duty.start(); _t_case.start()
-            _t_duty.join(); _t_case.join()
+            _t_duty.join(timeout=8); _t_case.join(timeout=8)
             duty_block = (get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else "") + (_duty_db_result[0] if _duty_db_result else "")
             case_law_block = _case_law_result[0] if _case_law_result else ""
 
@@ -1198,7 +1198,7 @@ def handler(event: dict, context) -> dict:
             _is_simple = (not _is_case_law) and (not _is_duty) and is_simple_query(messages)
 
             # Ждём summarize (обычно уже готово, т.к. шло параллельно)
-            _t_summary.join()
+            _t_summary.join(timeout=12)
             summarized = _summary_result[0] if _summary_result else messages
 
             # Очищаем персональные данные до отправки в Яндекс
