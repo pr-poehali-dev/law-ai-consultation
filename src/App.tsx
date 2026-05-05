@@ -4,15 +4,21 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Component, ReactNode } from "react";
+import { Component, ReactNode, lazy, Suspense } from "react";
 import Index from "./pages/Index";
-import Cabinet from "./pages/Cabinet";
-import Offer from "./pages/Offer";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Тяжёлые страницы грузим лениво — не нужны при первом рендере лендинга
+const Cabinet  = lazy(() => import("./pages/Cabinet"));
+const Offer    = lazy(() => import("./pages/Offer"));
+const Privacy  = lazy(() => import("./pages/Privacy"));
+const Terms    = lazy(() => import("./pages/Terms"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -34,6 +40,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
+// Минимальный fallback без белой вспышки
+const PageFallback = () => (
+  <div
+    className="fixed inset-0 flex items-center justify-center"
+    style={{ background: "linear-gradient(135deg, #060d18 0%, #0a1628 50%, #0d1e38 100%)" }}
+  >
+    <div className="flex gap-1.5">
+      {[0, 150, 300].map(d => (
+        <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
+          style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
+      ))}
+    </div>
+  </div>
+);
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -41,15 +62,17 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/cabinet" element={<Cabinet />} />
-            <Route path="/offer" element={<Offer />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/cabinet" element={<Cabinet />} />
+              <Route path="/offer" element={<Offer />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

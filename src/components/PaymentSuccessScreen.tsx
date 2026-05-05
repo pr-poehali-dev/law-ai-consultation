@@ -39,13 +39,7 @@ export default function PaymentSuccessScreen({ invId, onSuccess }: Props) {
     } catch { /* ignore */ }
   }, []);
 
-  // Dots animation for success step
-  const [dots, setDots] = useState(0);
-  useEffect(() => {
-    if (step !== "done") return;
-    const t = setInterval(() => setDots(d => (d + 1) % 4), 400);
-    return () => clearInterval(t);
-  }, [step]);
+  // dots убраны — используем CSS animate-bounce вместо JS setInterval
 
   const handleRegister = async () => {
     setError("");
@@ -69,7 +63,8 @@ export default function PaymentSuccessScreen({ invId, onSuccess }: Props) {
     ymGoal("register_after_payment");
     localStorage.setItem("pending_inv_id", invId);
     setStep("done");
-    setTimeout(onSuccess, 1800);
+    // Показываем галочку одну анимацию (600ms), затем сразу редиректим
+    setTimeout(onSuccess, 600);
   };
 
   const handleLogin = async () => {
@@ -82,7 +77,7 @@ export default function PaymentSuccessScreen({ invId, onSuccess }: Props) {
     ymGoal("login_after_payment");
     localStorage.setItem("pending_inv_id", invId);
     setStep("done");
-    setTimeout(onSuccess, 1800);
+    setTimeout(onSuccess, 600);
   };
 
   if (step === "done") {
@@ -101,9 +96,12 @@ export default function PaymentSuccessScreen({ invId, onSuccess }: Props) {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Входим в кабинет</h2>
-            <p className="text-slate-400 text-sm">
-              {"Загружаем ваши данные" + ".".repeat(dots)}
-            </p>
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              {[0, 150, 300].map(d => (
+                <span key={d} className="w-2 h-2 rounded-full animate-bounce"
+                  style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
+              ))}
+            </div>
           </div>
         </div>
       </div>

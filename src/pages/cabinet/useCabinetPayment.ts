@@ -119,12 +119,12 @@ export function useCabinetPayment({
         setTimeout(() => setErrorToast(null), 6000);
       }
     };
-    setTimeout(poll, 2000);
+    setTimeout(poll, 800);
   };
 
   const handlePaySuccess = async (svcType: ServiceType) => {
-    // Пауза чтобы бэкенд успел обработать — затем принудительно обновляем пользователя
-    await new Promise(r => setTimeout(r, 2000));
+    // Пауза сокращена: вебхук ЮКассы обычно приходит быстро
+    await new Promise(r => setTimeout(r, 800));
     await refreshUser();
     chatRemoveUpsell();
     chatRevealFunnel();

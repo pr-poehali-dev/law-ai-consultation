@@ -123,8 +123,11 @@ export default function PaymentModal({
       // Открываем страницу оплаты ЮКасса
       window.open(data.pay_url, "_blank");
 
-      // Начинаем поллинг после небольшой паузы
-      setTimeout(() => startPolling(data.inv_id), 6000);
+      // Поллинг только для незалогиненных: залогиненных после редиректа
+      // обработает useCabinetPayment.pollPaymentStatus в Cabinet — двойной поллинг не нужен
+      if (!user) {
+        setTimeout(() => startPolling(data.inv_id), 6000);
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Ошибка создания платежа");
       setStep("error");
