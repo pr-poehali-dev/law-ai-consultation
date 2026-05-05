@@ -1956,15 +1956,15 @@ def handle_get_compute_stats(token: str) -> dict:
             WHERE created_at >= NOW() - INTERVAL '7 days'
             GROUP BY mode ORDER BY cnt DESC
         """)
-        by_mode = [{"mode": r[0], "count": r[1], "avg_sec": round((r[2] or 0) / 1000, 1)} for r in cur.fetchall()]
+        by_mode = [{"mode": r[0], "count": int(r[1]), "avg_sec": round(float(r[2] or 0) / 1000, 1)} for r in cur.fetchall()]
 
         return _ok({
-            "last_hour_sec": round((last_hour_ms or 0) / 1000, 1),
-            "today_sec": round((today_ms or 0) / 1000, 1),
-            "week_sec": round((week_ms or 0) / 1000, 1),
-            "today_requests": today_requests or 0,
-            "today_docs": today_docs or 0,
-            "today_chats": today_chats or 0,
+            "last_hour_sec": round(float(last_hour_ms or 0) / 1000, 1),
+            "today_sec": round(float(today_ms or 0) / 1000, 1),
+            "week_sec": round(float(week_ms or 0) / 1000, 1),
+            "today_requests": int(today_requests or 0),
+            "today_docs": int(today_docs or 0),
+            "today_chats": int(today_chats or 0),
             "days": days,
             "by_mode": by_mode,
         })
