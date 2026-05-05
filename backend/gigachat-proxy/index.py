@@ -776,7 +776,7 @@ def handler(event: dict, context) -> dict:
             answer = ""
             _yandex_refused = False
             try:
-                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2800, temperature=0.15)
+                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
                 if is_refusal(answer):
                     _yandex_refused = True
             except Exception as e:
@@ -786,7 +786,7 @@ def handler(event: dict, context) -> dict:
             if _yandex_refused:
                 print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
                 try:
-                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=2800, temperature=0.15, timeout=120)
+                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=120)
                     answer = ds_answer or answer
                     print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
                 except Exception as e:
