@@ -267,7 +267,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 
-def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3, timeout: int = 180) -> str:
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3, timeout: int = 120) -> str:
     resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
@@ -284,9 +284,9 @@ def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.
     return resp.json()["choices"][0]["message"]["content"]
 
 
-def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 50) -> tuple[str, bool]:
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 45) -> tuple[str, bool]:
     """DeepSeek V3 через Яндекс Cloud. Возвращает (текст, был_ли_обрезан).
-    timeout=50 для чата, 180 для генерации документов."""
+    timeout=45 для чата, 120 для генерации документов."""
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
@@ -366,11 +366,11 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str) -> str:
         json={
             "model": YANDEX_MODEL,  # deepseek-v32
             "messages": messages_for_ds,
-            "max_tokens": 1500,
+            "max_tokens": 1200,
             "temperature": 0.2,
             "stream": False,
         },
-        timeout=60,
+        timeout=45,
     )
     resp.raise_for_status()
     result = resp.json()["choices"][0]["message"]["content"].strip()
@@ -551,7 +551,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
             "https://llm.api.cloud.yandex.net/v1/chat/completions",
             headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
             json={"model": YANDEX_MODEL_FAST, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-            timeout=60,
+            timeout=45,
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
@@ -774,15 +774,19 @@ def handler(event: dict, context) -> dict:
                 + f"\n\nСоставь {label}. Используй актуальные нормы РФ на {TODAY}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
             answer = ""
+            _yandex_refused = False
             try:
-                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
+                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=2800, temperature=0.15)
+                if is_refusal(answer):
+                    _yandex_refused = True
             except Exception as e:
                 print(f"[DOC_GEN] YandexGPT упал: {e} → fallback DeepSeek V3")
-            # Если Яндекс отказал или упал — пробуем DeepSeek V3
-            if not answer or is_refusal(answer):
-                print(f"[DOC_GEN] YandexGPT отказал/пуст → fallback DeepSeek V3")
+                _yandex_refused = True
+            # Fallback DeepSeek только при явном отказе или падении Яндекса
+            if _yandex_refused:
+                print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
                 try:
-                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=180)
+                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=2800, temperature=0.15, timeout=120)
                     answer = ds_answer or answer
                     print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
                 except Exception as e:
