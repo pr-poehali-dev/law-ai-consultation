@@ -1915,7 +1915,7 @@ def log_compute(mode: str, duration_ms: int, tokens_requested: int = None):
 def handle_get_compute_stats(token: str) -> dict:
     """Возвращает статистику вычислительного времени для админа."""
     admin = get_user_by_token(token)
-    if not admin or not admin.get("is_admin"):
+    if not admin or not admin.get("isAdmin"):
         return _err(403, "Доступ запрещён")
     conn = get_conn()
     cur = conn.cursor()
