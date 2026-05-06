@@ -52,36 +52,6 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "YandexGPT - chat",
-      "method": "POST",
-      "path": "/",
-      "body": {
-        "mode": "chat",
-        "engine": "yandex",
-        "messages": [{"role": "user", "content": "Что такое исковая давность в РФ?"}]
-      },
-      "expectedStatus": 200,
-      "expectedBody": {"answer": "string"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "file_analyze — missing file",
-      "method": "POST",
-      "path": "/",
-      "body": {"mode": "file_analyze", "filename": "test.pdf"},
-      "expectedStatus": 400,
-      "expectedBody": {"error": "file required"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "file_analyze — unsupported format",
-      "method": "POST",
-      "path": "/",
-      "body": {"mode": "file_analyze", "file": "dGVzdA==", "filename": "test.txt"},
-      "expectedStatus": 400,
-      "bodyMatcher": "partial"
-    },
-    {
       "name": "report — unauthorized",
       "method": "POST",
       "path": "/",
@@ -109,15 +79,6 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "doc_generate — unauthorized (no token)",
-      "method": "POST",
-      "path": "/",
-      "body": {"mode": "doc_generate", "doc_type": "claim", "details": "Иванов не вернул долг"},
-      "expectedStatus": 401,
-      "expectedBody": {"error": "Требуется авторизация"},
-      "bodyMatcher": "partial"
-    },
-    {
       "name": "refund-doc — unauthorized",
       "method": "POST",
       "path": "/",
@@ -142,6 +103,30 @@
       "body": {"action": "push-subscribe-anon", "endpoint": ""},
       "expectedStatus": 400,
       "expectedBody": {"error": "Неполные данные подписки"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "unknown action — 400",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "nonexistent-action"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "mode chat — 410 moved",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "chat", "messages": [{"role": "user", "content": "test"}]},
+      "expectedStatus": 410,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "mode doc_generate — 410 moved",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_generate", "doc_type": "claim", "details": "test"},
+      "expectedStatus": 410,
       "bodyMatcher": "partial"
     }
   ]

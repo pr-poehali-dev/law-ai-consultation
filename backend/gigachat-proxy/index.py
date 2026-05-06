@@ -595,7 +595,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
 
 
 def handler(event: dict, context) -> dict:
-    """AI-юрист (DeepSeek V3) + авторизация. Режимы: chat, doc_chat, doc_generate."""
+    """Auth-handler: регистрация, авторизация, профиль, юрист, правовая база, платежи, push. AI-режимы перенесены в ai-chat и ai-docs."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -707,7 +707,20 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps(result.get("data", {}), ensure_ascii=False)}
 
-    # --- AI ---
+    # --- Неизвестный запрос ---
+    # Все AI-режимы (chat, doc_generate, file_analyze) перенесены в отдельные функции:
+    # ai-chat → mode=chat, chat_continue
+    # ai-docs → mode=doc_generate, doc_continue, file_analyze
+    # Этот endpoint обрабатывает только auth-actions выше.
+    mode = body.get("mode", "")
+    if mode:
+        return {"statusCode": 410, "headers": {**CORS, "Content-Type": "application/json"},
+                "body": json.dumps({"error": f"Режим '{mode}' перенесён. Используйте ai-chat или ai-docs функцию."}, ensure_ascii=False)}
+
+    return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps({"error": "Неизвестное действие"}, ensure_ascii=False)}
+
+    # LEGACY AI CODE BELOW — kept for reference only, never reached
     try:
         mode = body.get("mode", "chat")
 

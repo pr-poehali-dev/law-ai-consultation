@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe } from "@/lib/auth";
+import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe, refundDoc } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
 import { ymGoal } from "@/lib/metrika";
 
-const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"] || func2url["gigachat-proxy"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"];
 const DOC_TIMEOUT_MS = 120_000;
 
 interface UseDocsLogicProps {
@@ -132,16 +132,8 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
     } catch (e) {
       // Генерация упала — возвращаем слот (best-effort, без таймаута не блокируем UI)
-      fetchSafe(
-        GIGACHAT_URL,
-        {
-          method: "POST",
-          headers: authHeaders(getToken()),
-          body: JSON.stringify({ action: "refund-doc" }),
-        },
-        15_000,
-        0
-      ).catch(() => {});
+      // refund-doc — auth action, идёт через auth-handler
+      refundDoc().catch(() => {});
 
       const errMsg = e instanceof Error ? e.message : "Ошибка генерации. Попробуйте ещё раз.";
       setDocErr(errMsg);

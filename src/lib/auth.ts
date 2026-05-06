@@ -1,17 +1,21 @@
 import func2url from "../../backend/func2url.json";
 
-const API_URL = func2url["gigachat-proxy"];
-const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"] || func2url["gigachat-proxy"];
-const AUTH_URL = (func2url as Record<string, string>)["auth-handler"] || func2url["gigachat-proxy"];
+const _f = func2url as Record<string, string>;
+
+// Маршруты к функциям — gigachat-proxy больше НЕ является дефолтом
+const AUTH_URL = _f["auth-handler"];
+const AI_CHAT_URL = _f["ai-chat"];
+const AI_DOCS_URL = _f["ai-docs"];
 const TOKEN_KEY = "yurist_ai_token";
 
-// Keep-alive: греем все AI-функции пока пользователь активен в кабинете
+// Keep-alive: греем только ai-chat и ai-docs — они "холодные" и нужны пользователю
 export function startKeepAlive(): () => void {
   const ping = () => {
-    fetch(API_URL, { method: "GET" }).catch(() => {});
     fetch(AI_CHAT_URL, { method: "GET" }).catch(() => {});
+    fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
   };
   const id = setInterval(ping, 9 * 60 * 1000);
+  ping(); // сразу при входе в кабинет
   return () => clearInterval(id);
 }
 
@@ -81,7 +85,7 @@ export async function fetchSafe(
   throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
 }
 
-// Auth-actions идут через auth-handler (таймаут 12с), AI-режимы — через gigachat-proxy (таймаут 30с)
+// Все actions идут через auth-handler
 const AUTH_ACTIONS = new Set([
   "register", "login", "me", "logout", "update-profile",
   "consume-question", "consume-doc", "refund-doc", "add-paid-service",
@@ -100,10 +104,10 @@ const AUTH_ACTIONS = new Set([
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();
-  // Auth-запросы используют AUTH_URL с меньшим таймаутом
   const action = (body as Record<string, unknown>).action as string | undefined;
-  const url = action && AUTH_ACTIONS.has(action) ? AUTH_URL : API_URL;
-  const effectiveTimeout = action && AUTH_ACTIONS.has(action) ? Math.min(timeoutMs, 12000) : timeoutMs;
+  // Все action-запросы → auth-handler, остальное не должно вызываться через apiCall
+  const url = AUTH_URL;
+  const effectiveTimeout = AUTH_ACTIONS.has(action ?? "") ? Math.min(timeoutMs, 12000) : timeoutMs;
   const tid = setTimeout(() => controller.abort(), effectiveTimeout);
   try {
     const res = await fetch(url, {
@@ -300,6 +304,11 @@ export async function consumeQuestion(): Promise<{ ok: boolean; isLastQuestion: 
 
 export async function consumeDoc(): Promise<boolean> {
   const res = await apiCall({ action: "consume-doc" });
+  return res.ok;
+}
+
+export async function refundDoc(): Promise<boolean> {
+  const res = await apiCall({ action: "refund-doc" });
   return res.ok;
 }
 

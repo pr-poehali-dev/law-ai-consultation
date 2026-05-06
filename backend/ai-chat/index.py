@@ -105,6 +105,23 @@ _CASE_LAW_NOT_FOUND_MARKERS = [
     "не обладаю", "у меня нет доступа", "актуальную практику не могу",
     "ограничен в доступе", "к сожалению, не могу", "судебные базы",
 ]
+# Запросы про кодексы и конкретные статьи
+_CODEX_MARKERS = [
+    "статья ", "ст.", "ст ", "часть ", "пункт ", "п.",
+    "гражданский кодекс", "гк рф", "трудовой кодекс", "тк рф",
+    "уголовный кодекс", "ук рф", "гражданский процессуальный", "гпк",
+    "арбитражный процессуальный", "апк", "налоговый кодекс", "нк рф",
+    "административный кодекс", "коап", "жилищный кодекс", "жк рф",
+    "семейный кодекс", "ск рф", "земельный кодекс", "зк рф",
+    "кодекс об административных", "уголовно-процессуальный", "упк",
+]
+# Запросы про разъяснения судов
+_DEFINITIONS_MARKERS = [
+    "постановление пленума", "пленум верховного суда", "пленум вс рф",
+    "постановление вс", "обзор практики", "обзор судебной практики",
+    "разъяснения суда", "позиция верховного суда", "позиция вс рф",
+    "пленум высшего", "постановление пленума вс", "постановление пленума вас",
+]
 
 def is_refusal(text) -> bool:
     if not text:
@@ -131,6 +148,22 @@ def is_case_law_query(messages: list) -> bool:
         return False
     text = last_user.get("content", "").lower()
     return any(marker in text for marker in _CASE_LAW_MARKERS)
+
+def is_codex_query(messages: list) -> bool:
+    """Запрос про конкретные статьи кодексов."""
+    last_user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+    if not last_user:
+        return False
+    text = last_user.get("content", "").lower()
+    return any(marker in text for marker in _CODEX_MARKERS)
+
+def is_definitions_query(messages: list) -> bool:
+    """Запрос про постановления Пленума или разъяснения судов."""
+    last_user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+    if not last_user:
+        return False
+    text = last_user.get("content", "").lower()
+    return any(marker in text for marker in _DEFINITIONS_MARKERS)
 
 def is_case_law_not_found(answer) -> bool:
     if not answer:
@@ -289,11 +322,15 @@ def handler(event: dict, context) -> dict:
 
         _is_case_law = is_case_law_query(messages)
         _is_duty = (not _is_case_law) and is_duty_query(messages)
-        _is_simple = (not _is_case_law) and (not _is_duty) and is_simple_query(messages)
+        _is_codex = is_codex_query(messages)
+        _is_definitions = is_definitions_query(messages)
+        _is_simple = (not _is_case_law) and (not _is_duty) and (not _is_codex) and (not _is_definitions) and is_simple_query(messages)
 
         _t_summary.join(timeout=12)
         summarized = _summary_result[0] if _summary_result else messages
         clean_messages, had_pd = strip_personal_data(summarized)
+
+        _last_user_q = next((m.get("content", "") for m in reversed(clean_messages) if m.get("role") == "user"), "")
 
         needs_expert = False
         personal_data_refused = False
@@ -305,7 +342,6 @@ def handler(event: dict, context) -> dict:
             answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
 
         elif _is_case_law:
-            _last_user_q = next((m.get("content", "") for m in reversed(clean_messages) if m.get("role") == "user"), "")
             case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)
             if case_law_db_ctx:
                 _case_law_msgs = list(clean_messages)
@@ -324,8 +360,7 @@ def handler(event: dict, context) -> dict:
 
         elif _is_duty:
             duty_ctx = get_duty_context_for_chat()
-            _last_user_q_duty = next((m.get("content", "") for m in reversed(clean_messages) if m.get("role") == "user"), "")
-            duty_db_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=5000, query=_last_user_q_duty)
+            duty_db_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=5000, query=_last_user_q)
             duty_messages = list(clean_messages)
             last_user_idx = next((i for i in range(len(duty_messages) - 1, -1, -1)
                                   if duty_messages[i].get("role") == "user"), None)
@@ -336,7 +371,37 @@ def handler(event: dict, context) -> dict:
             answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=1800, fast=True, temperature=0.2)
 
         else:
-            if _is_simple:
+            # Параллельно загружаем кодексы и разъяснения если они релевантны
+            _extra_ctx_parts: list = []
+            if _is_codex or _is_definitions:
+                _codex_result: list = []
+                _def_result: list = []
+                def _fetch_codex():
+                    if _is_codex:
+                        ctx = get_legal_context_for_ai("codex", max_files=3, max_chars=4000, query=_last_user_q)
+                        if ctx: _codex_result.append(ctx)
+                def _fetch_def():
+                    if _is_definitions:
+                        ctx = get_legal_context_for_ai("court_definitions", max_files=2, max_chars=4000, query=_last_user_q)
+                        if ctx: _def_result.append(ctx)
+                _t_codex = threading.Thread(target=_fetch_codex, daemon=True)
+                _t_def = threading.Thread(target=_fetch_def, daemon=True)
+                _t_codex.start(); _t_def.start()
+                _t_codex.join(timeout=6); _t_def.join(timeout=6)
+                if _codex_result: _extra_ctx_parts.append(_codex_result[0])
+                if _def_result: _extra_ctx_parts.append(_def_result[0])
+
+            if _extra_ctx_parts:
+                extra_ctx = "".join(_extra_ctx_parts)
+                enriched_msgs = list(clean_messages)
+                _lu_idx2 = next((i for i in range(len(enriched_msgs) - 1, -1, -1)
+                                 if enriched_msgs[i].get("role") == "user"), None)
+                if _lu_idx2 is not None:
+                    enriched_msgs[_lu_idx2] = {**enriched_msgs[_lu_idx2],
+                                               "content": enriched_msgs[_lu_idx2].get("content", "") + extra_ctx}
+                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2000, fast=True, temperature=0.2)
+                print(f"[AI_CHAT] extra_ctx: codex={_is_codex}, definitions={_is_definitions}, chars={len(extra_ctx)}")
+            elif _is_simple:
                 answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
             else:
                 answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2500, fast=True, temperature=0.3)
