@@ -165,7 +165,7 @@ export default function UploadModal({ defaultCategory, defaultYear, defaultSubca
 
         {/* Файл */}
         <div>
-          <label className="text-[11px] font-semibold text-navy-700 mb-1.5 block">Файл (PDF, DOCX — до 10 МБ)</label>
+          <label className="text-[11px] font-semibold text-navy-700 mb-1.5 block">Файл (PDF, DOCX, ODT — до 10 МБ)</label>
           <div
             onClick={() => fileRef.current?.click()}
             className={`cursor-pointer flex items-center gap-3 px-3 py-3 rounded-xl border-2 border-dashed transition-colors ${
@@ -178,7 +178,7 @@ export default function UploadModal({ defaultCategory, defaultYear, defaultSubca
               {file && <p className="text-[10px] text-muted-foreground mt-0.5">{fmtSize(file.size)}</p>}
             </div>
           </div>
-          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFile} />
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.odt" className="hidden" onChange={handleFile} />
         </div>
 
         {error && (

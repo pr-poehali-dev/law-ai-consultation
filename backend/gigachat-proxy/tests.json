@@ -128,6 +128,14 @@
       "body": {"mode": "doc_generate", "doc_type": "claim", "details": "test"},
       "expectedStatus": 410,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "legal-docs upload — unsupported format txt",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "legal-docs", "sub": "upload", "category": "case_law", "title": "Тест", "file": "dGVzdA==", "filename": "test.txt"},
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
     }
   ]
 }

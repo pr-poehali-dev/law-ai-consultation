@@ -22,6 +22,7 @@ ALLOWED_MIME = {
     "pdf": "application/pdf",
     "doc": "application/msword",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "odt": "application/vnd.oasis.opendocument.text",
 }
 ALLOWED_YEARS = {2024, 2025, 2026, 2027}
 MAX_FILE_SIZE = 10 * 1024 * 1024   # 10 МБ
@@ -60,8 +61,11 @@ def _extract_text_from_pdf(data: bytes) -> str:
             t = page.extract_text() or ""
             if t.strip():
                 parts.append(t.strip())
-        return "\n\n".join(parts)
-    except Exception:
+        result = "\n\n".join(parts)
+        print(f"[LEGAL_PDF] извлечено {len(result)} символов из {len(reader.pages)} страниц")
+        return result
+    except Exception as e:
+        print(f"[LEGAL_PDF] ошибка извлечения: {e}")
         return ""
 
 
@@ -71,8 +75,34 @@ def _extract_text_from_docx(data: bytes) -> str:
         from docx import Document as DocxDocument
         doc = DocxDocument(io.BytesIO(data))
         paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
-        return "\n".join(paragraphs)
-    except Exception:
+        result = "\n".join(paragraphs)
+        print(f"[LEGAL_DOCX] извлечено {len(result)} символов")
+        return result
+    except Exception as e:
+        print(f"[LEGAL_DOCX] ошибка извлечения: {e}")
+        return ""
+
+
+def _extract_text_from_odt(data: bytes) -> str:
+    """Извлекает текст из ODT (OpenDocument Text)."""
+    try:
+        import zipfile
+        from xml.etree import ElementTree as ET
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            with z.open("content.xml") as f:
+                tree = ET.parse(f)
+        ns = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+        parts = []
+        for elem in tree.iter():
+            if elem.tag in (f"{{{ns}}}p", f"{{{ns}}}h"):
+                text = "".join(elem.itertext()).strip()
+                if text:
+                    parts.append(text)
+        result = "\n".join(parts)
+        print(f"[LEGAL_ODT] извлечено {len(result)} символов")
+        return result
+    except Exception as e:
+        print(f"[LEGAL_ODT] ошибка извлечения: {e}")
         return ""
 
 
@@ -82,6 +112,8 @@ def _extract_text(data: bytes, ext: str) -> str:
         return _extract_text_from_pdf(data)
     if ext in ("docx", "doc"):
         return _extract_text_from_docx(data)
+    if ext == "odt":
+        return _extract_text_from_odt(data)
     return ""
 
 
