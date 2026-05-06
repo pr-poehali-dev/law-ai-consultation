@@ -1,4 +1,5 @@
 {
+  "auth-handler": "https://functions.poehali.dev/72b36d91-6fda-44ca-8544-b4d3de630750",
   "payment-reminder": "https://functions.poehali.dev/8c6bf9e8-204d-40c4-aa5d-ac885ccf4365",
   "payment-result": "https://functions.poehali.dev/06694468-abea-4b72-8d57-61d065692569",
   "payment-check": "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591",

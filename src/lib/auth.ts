@@ -1,6 +1,7 @@
 import func2url from "../../backend/func2url.json";
 
 const API_URL = func2url["gigachat-proxy"];
+const AUTH_URL = func2url["auth-handler"] || func2url["gigachat-proxy"];
 const TOKEN_KEY = "yurist_ai_token";
 
 // Keep-alive: держим функцию тёплой только пока пользователь активен в кабинете
@@ -77,12 +78,32 @@ export async function fetchSafe(
   throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
 }
 
+// Auth-actions идут через auth-handler (таймаут 12с), AI-режимы — через gigachat-proxy (таймаут 30с)
+const AUTH_ACTIONS = new Set([
+  "register", "login", "me", "logout", "update-profile",
+  "consume-question", "consume-doc", "refund-doc", "add-paid-service",
+  "report", "my-reports", "admin-reports",
+  "send-otp", "verify-otp", "forgot-password", "change-password",
+  "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
+  "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
+  "business-update-org", "business-consume-action",
+  "business-messages-get", "business-messages-save",
+  "get-billing-log", "list-users", "get-all-billing-log", "get-new-users",
+  "admin-grant", "admin-search-user",
+  "push-subscribe", "push-subscribe-anon", "vapid-public-key",
+  "get-compute-stats", "legal-docs",
+]);
+
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  // Auth-запросы используют AUTH_URL с меньшим таймаутом
+  const action = (body as Record<string, unknown>).action as string | undefined;
+  const url = action && AUTH_ACTIONS.has(action) ? AUTH_URL : API_URL;
+  const effectiveTimeout = action && AUTH_ACTIONS.has(action) ? Math.min(timeoutMs, 12000) : timeoutMs;
+  const tid = setTimeout(() => controller.abort(), effectiveTimeout);
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

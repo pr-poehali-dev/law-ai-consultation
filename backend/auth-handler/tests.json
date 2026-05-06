@@ -1,0 +1,88 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET keep-alive",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "register — missing email",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "register", "name": "Test", "password": "pass123", "agreed_to_terms": true},
+      "expectedStatus": 400
+    },
+    {
+      "name": "register — short password",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "register", "email": "test@example.com", "name": "Test", "password": "123", "agreed_to_terms": true},
+      "expectedStatus": 400
+    },
+    {
+      "name": "login — wrong password",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "login", "email": "nouser@example.com", "password": "wrongpass"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "me — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "me"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "send-otp — bad email",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "send-otp", "email": "notanemail"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "verify-otp — wrong code",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "verify-otp", "email": "test@example.com", "code": "000000"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "consume-question — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "consume-question"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "add-paid-service — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "add-paid-service", "service": "questions"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "unknown action",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "non-existent"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "vapid-public-key — returns key or 503",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "vapid-public-key"},
+      "expectedStatus": 503
+    }
+  ]
+}

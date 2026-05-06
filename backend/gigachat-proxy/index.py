@@ -68,6 +68,34 @@ _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 # Прекомпилированные regex для частых проверок
 _RE_TRUNCATED = re.compile(r'[.!?»\d]\s*$')
+
+# ── IP rate-limit для анонимного чата ──────────────────────────────────────
+# In-memory: {ip: [timestamp, ...]} — сбрасывается при перезапуске контейнера
+# Лимит: 5 запросов в 24 часа с одного IP (localStorage даёт 3, но там легко обойти)
+_ANON_IP_CACHE: dict = {}
+_ANON_IP_LIMIT = 5
+_ANON_IP_WINDOW = 86400  # 24 часа в секундах
+_anon_ip_lock = threading.Lock()
+
+def _check_anon_ip_limit(ip: str) -> bool:
+    """Возвращает True если запрос разрешён, False если лимит исчерпан."""
+    if not ip:
+        return True
+    now = time.time()
+    with _anon_ip_lock:
+        timestamps = _ANON_IP_CACHE.get(ip, [])
+        # Чистим старые записи
+        timestamps = [t for t in timestamps if now - t < _ANON_IP_WINDOW]
+        if len(timestamps) >= _ANON_IP_LIMIT:
+            _ANON_IP_CACHE[ip] = timestamps
+            return False
+        timestamps.append(now)
+        _ANON_IP_CACHE[ip] = timestamps
+        # Периодически чистим весь кэш чтобы не росло в памяти
+        if len(_ANON_IP_CACHE) > 10000:
+            cutoff = now - _ANON_IP_WINDOW
+            _ANON_IP_CACHE.clear()
+        return True
 _RE_PLACEHOLDER = re.compile(r'\{\{([^}]+)\}\}')
 _RE_DOC_END_SPEECH = re.compile(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', re.I)
 _RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', re.I)
@@ -1187,6 +1215,17 @@ def handler(event: dict, context) -> dict:
             messages = body.get("messages", [])
             if not messages:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "messages required"})}
+
+            # ── IP rate-limit для анонимного чата (без токена) ──────────────
+            if not token and ip:
+                _ip_ok = _check_anon_ip_limit(ip)
+                if not _ip_ok:
+                    return {"statusCode": 429, "headers": {**CORS, "Content-Type": "application/json"},
+                            "body": json.dumps({"error": "Лимит бесплатных вопросов исчерпан. Зарегистрируйтесь для продолжения.", "limit_reached": True}, ensure_ascii=False)}
+
+            # ── Для анонимов ограничиваем историю до 6 сообщений (3 пары) ──
+            if not token:
+                messages = messages[-6:]
 
             # Определяем маршрут параллельно со сжатием истории
             is_system_mode = messages and messages[0].get("role") == "system"
