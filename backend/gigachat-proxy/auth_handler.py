@@ -1200,30 +1200,34 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
         if is_admin:
             if target_user_id:
                 cur.execute(
-                    f"SELECT id, user_id, sender, body, attachment_type, attachment_name, is_read, created_at "
+                    f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at "
                     f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
                     (int(target_user_id), limit)
                 )
             else:
                 # Список диалогов (последнее сообщение от каждого пользователя)
+                show_closed = body.get("show_closed", False)
+                closed_filter = "" if show_closed else "AND lm.is_closed IS NOT TRUE"
                 cur.execute(
                     f"""SELECT DISTINCT ON (lm.user_id) lm.user_id, u.name, u.email,
                         lm.body, lm.sender, lm.created_at,
-                        (SELECT COUNT(*) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id AND sender='user' AND is_read=FALSE) as unread
+                        (SELECT COUNT(*) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id AND sender='user' AND is_read=FALSE) as unread,
+                        (SELECT bool_or(is_closed) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id) as is_closed
                         FROM {SCHEMA}.lawyer_messages lm
                         JOIN {SCHEMA}.users u ON u.id = lm.user_id
+                        {closed_filter}
                         ORDER BY lm.user_id, lm.created_at DESC"""
                 )
                 rows = cur.fetchall()
                 return _ok({"dialogs": [
                     {"user_id": r[0], "name": r[1], "email": r[2],
                      "last_message": r[3], "last_sender": r[4],
-                     "last_at": r[5].isoformat(), "unread": r[6]}
+                     "last_at": r[5].isoformat(), "unread": r[6], "is_closed": bool(r[7])}
                     for r in rows
                 ]})
         else:
             cur.execute(
-                f"SELECT id, user_id, sender, body, attachment_type, attachment_name, is_read, created_at "
+                f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at "
                 f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
                 (user_id, limit)
             )
@@ -1249,11 +1253,134 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
         {
             "id": r[0], "user_id": r[1], "sender": r[2],
             "body": r[3], "attachment_type": r[4],
-            "attachment_name": r[5], "is_read": r[6],
-            "created_at": r[7].isoformat(),
+            "attachment_name": r[5], "attachment_content": r[6], "is_read": r[7],
+            "created_at": r[8].isoformat(),
         }
         for r in rows
     ]})
+
+
+def handle_lawyer_close_dialog(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Закрыть диалог с пользователем (только для админа)."""
+    if not is_admin:
+        return _err(403, "Нет доступа")
+    target_user_id = body.get("target_user_id")
+    if not target_user_id:
+        return _err(400, "Укажите target_user_id")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"UPDATE {SCHEMA}.lawyer_messages SET is_closed=TRUE WHERE user_id=%s",
+            (int(target_user_id),)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return _ok({"closed": True})
+
+
+def handle_lawyer_complete_service(token: str, body: dict) -> dict:
+    """Завершить услугу живого юриста для пользователя (только для админа)."""
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("is_admin"):
+        return _err(403, "Нет доступа")
+    target_user_id = body.get("target_user_id")
+    service_type = body.get("service_type", "paid_expert")
+    if not target_user_id:
+        return _err(400, "Укажите target_user_id")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if service_type == "paid_expert":
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_expert=FALSE WHERE id=%s",
+                (int(target_user_id),)
+            )
+        elif service_type == "subscription_consult":
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET subscription_consult_until=NOW() WHERE id=%s",
+                (int(target_user_id),)
+            )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return _ok({"completed": True, "service_type": service_type})
+
+
+def handle_lawyer_upload_file(body: dict, user_id: int) -> dict:
+    """Загрузка файла пользователем для юриста. Хранится 24 часа в S3."""
+    import base64, time
+    import boto3
+    file_b64 = body.get("file", "")
+    filename = sanitize_str(body.get("filename", "document"), max_len=200)
+    if not file_b64:
+        return _err(400, "Файл обязателен")
+    try:
+        file_data = base64.b64decode(file_b64)
+    except Exception:
+        return _err(400, "Некорректный base64")
+    if len(file_data) > 20 * 1024 * 1024:
+        return _err(400, "Файл слишком большой (макс. 20 МБ)")
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
+    allowed = {"pdf", "docx", "doc", "jpg", "jpeg", "png", "txt"}
+    if ext not in allowed:
+        return _err(400, "Недопустимый формат файла")
+    mime_map = {
+        "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc": "application/msword", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+        "png": "image/png", "txt": "text/plain",
+    }
+    content_type = mime_map.get(ext, "application/octet-stream")
+    ts = int(time.time())
+    key = f"lawyer-files/{ts}_{user_id}_{filename}"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url="https://bucket.poehali.dev",
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
+    s3.put_object(Bucket="files", Key=key, Body=file_data, ContentType=content_type,
+                  Metadata={"uploaded_at": str(ts), "user_id": str(user_id), "ttl": str(ts + 86400)})
+    project_id = os.environ["AWS_ACCESS_KEY_ID"]
+    cdn_url = f"https://cdn.poehali.dev/projects/{project_id}/bucket/{key}"
+    return _ok({"url": cdn_url, "key": key, "filename": filename, "expires_at": ts + 86400})
+
+
+def handle_lawyer_cleanup_files(token: str) -> dict:
+    """Удалить файлы юриста старше 24 часов из S3 (только для админа)."""
+    import time
+    import boto3
+    admin = get_user_by_token(token)
+    if not admin or not admin.get("is_admin"):
+        return _err(403, "Нет доступа")
+    s3 = boto3.client(
+        "s3",
+        endpoint_url="https://bucket.poehali.dev",
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
+    now = int(time.time())
+    deleted = []
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket="files", Prefix="lawyer-files/"):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                basename = key.replace("lawyer-files/", "")
+                parts = basename.split("_", 1)
+                try:
+                    uploaded_at = int(parts[0])
+                    if now - uploaded_at >= 86400:
+                        s3.delete_object(Bucket="files", Key=key)
+                        deleted.append(key)
+                except (ValueError, IndexError):
+                    pass
+    except Exception:
+        pass
+    return _ok({"deleted": len(deleted)})
 
 
 # ─────────────────────────────────────────────

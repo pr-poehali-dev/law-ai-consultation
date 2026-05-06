@@ -465,6 +465,7 @@ export interface LawyerMessage {
   body: string;
   attachment_type?: string;
   attachment_name?: string;
+  attachment_content?: string;
   is_read: boolean;
   created_at: string;
 }
@@ -477,6 +478,7 @@ export interface LawyerDialog {
   last_sender: string;
   last_at: string;
   unread: number;
+  is_closed?: boolean;
 }
 
 export async function lawyerSend(params: {
@@ -495,8 +497,30 @@ export async function lawyerSend(params: {
 export async function lawyerMessages(params?: {
   target_user_id?: number;
   limit?: number;
+  show_closed?: boolean;
 }): Promise<{ messages?: LawyerMessage[]; dialogs?: LawyerDialog[]; error?: string }> {
   const res = await apiCall({ action: "lawyer-messages", ...(params || {}) });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка загрузки" };
+  return data;
+}
+
+export async function lawyerCloseDialog(targetUserId: number): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "lawyer-close-dialog", target_user_id: targetUserId });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка" };
+  return { ok: true };
+}
+
+export async function lawyerCompleteService(targetUserId: number, serviceType = "paid_expert"): Promise<{ ok?: boolean; error?: string }> {
+  const res = await apiCall({ action: "lawyer-complete-service", target_user_id: targetUserId, service_type: serviceType });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка" };
+  return { ok: true };
+}
+
+export async function lawyerUploadFile(file: string, filename: string): Promise<{ url?: string; key?: string; filename?: string; expires_at?: number; error?: string }> {
+  const res = await apiCall({ action: "lawyer-upload-file", file, filename }, 30000);
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка загрузки" };
   return data;
