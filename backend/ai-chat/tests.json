@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET keep-alive",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "chat — missing messages",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "chat"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "chat_continue — missing partial",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "chat_continue", "messages": []},
+      "expectedStatus": 400
+    }
+  ]
+}

@@ -5,8 +5,8 @@ import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
 import { ymGoal } from "@/lib/metrika";
 
-const GIGACHAT_URL = func2url["gigachat-proxy"];
-const DOC_TIMEOUT_MS = 120_000; // 120 секунд — генерация может занять до 42с
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"] || func2url["gigachat-proxy"];
+const DOC_TIMEOUT_MS = 120_000;
 
 interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;

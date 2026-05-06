@@ -1,0 +1,62 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET keep-alive",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "doc_generate — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_generate", "doc_type": "claim", "details": "тест"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "doc_generate — missing details",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_generate", "doc_type": "claim"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "doc_continue — missing partial",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_continue", "doc_type": "claim"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "file_analyze — missing file",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_analyze"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "file_cleanup",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_cleanup"},
+      "expectedStatus": 200,
+      "expectedBody": {"deleted": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "unknown mode",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "unknown_mode"},
+      "expectedStatus": 400
+    }
+  ]
+}

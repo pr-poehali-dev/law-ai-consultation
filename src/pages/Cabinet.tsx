@@ -20,7 +20,7 @@ import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup"
 import DocSavedToast from "@/components/DocSavedToast";
 import DocChoiceModal from "@/components/DocChoiceModal";
 
-const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"] || (func2url as Record<string, string>)["gigachat-proxy"];
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
 

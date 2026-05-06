@@ -1,4 +1,4 @@
 {
-  "timeout": 70,
+  "timeout": 25,
   "memory": 256
 }

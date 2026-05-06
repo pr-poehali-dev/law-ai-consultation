@@ -1,13 +1,16 @@
 import func2url from "../../backend/func2url.json";
 
 const API_URL = func2url["gigachat-proxy"];
-const AUTH_URL = func2url["auth-handler"] || func2url["gigachat-proxy"];
+const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"] || func2url["gigachat-proxy"];
+const AUTH_URL = (func2url as Record<string, string>)["auth-handler"] || func2url["gigachat-proxy"];
 const TOKEN_KEY = "yurist_ai_token";
 
-// Keep-alive: держим функцию тёплой только пока пользователь активен в кабинете
-// Запускается из Cabinet.tsx при монтировании компонента
+// Keep-alive: греем все AI-функции пока пользователь активен в кабинете
 export function startKeepAlive(): () => void {
-  const ping = () => fetch(API_URL, { method: "GET" }).catch(() => {});
+  const ping = () => {
+    fetch(API_URL, { method: "GET" }).catch(() => {});
+    fetch(AI_CHAT_URL, { method: "GET" }).catch(() => {});
+  };
   const id = setInterval(ping, 9 * 60 * 1000);
   return () => clearInterval(id);
 }
