@@ -4,6 +4,7 @@ import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
 import { ymGoal } from "@/lib/metrika";
+import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 
 const GIGACHAT_URL = func2url["gigachat-proxy"];
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
@@ -177,17 +178,33 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     try {
       const token = getToken();
-      const res = await fetchSafe(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ mode: "chat", messages: newHist }),
-      }, 90_000, 1, () => setTypingStatus("Переподключаемся..."));
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Ошибка сервера");
-      const aiText = data.answer as string;
-      const truncated = data.truncated as boolean | undefined;
-      const needsExpert = data.needs_expert as boolean | undefined;
-      const personalDataRefused = data.personal_data_refused as boolean | undefined;
+
+      // Проверяем кэш перед запросом к AI (5 минут TTL)
+      const cached = getCachedAnswer(newHist);
+      let aiText: string;
+      let truncated: boolean | undefined;
+      let needsExpert: boolean | undefined;
+      let personalDataRefused: boolean | undefined;
+
+      if (cached) {
+        aiText = cached.answer;
+        truncated = cached.truncated;
+        needsExpert = cached.needs_expert;
+        personalDataRefused = undefined;
+      } else {
+        const res = await fetchSafe(GIGACHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+          body: JSON.stringify({ mode: "chat", messages: newHist }),
+        }, 90_000, 1, () => setTypingStatus("Переподключаемся..."));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Ошибка сервера");
+        aiText = data.answer as string;
+        truncated = data.truncated as boolean | undefined;
+        needsExpert = data.needs_expert as boolean | undefined;
+        personalDataRefused = data.personal_data_refused as boolean | undefined;
+        setCachedAnswer(newHist, aiText, !!truncated, !!needsExpert);
+      }
 
       setMessages((p) => [...p, {
         role: "ai",

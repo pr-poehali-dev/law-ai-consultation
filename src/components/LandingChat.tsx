@@ -6,6 +6,7 @@ import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
 import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSend } from "@/lib/auth";
+import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import {
@@ -106,14 +107,22 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     history.current = newHist;
 
     try {
-      const res = await fetchSafe(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "chat", messages: newHist }),
-      }, 90_000, 1);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Ошибка");
-      const aiText = data.answer as string;
+      // Проверяем кэш перед запросом к AI (5 минут TTL)
+      const cached = getCachedAnswer(newHist);
+      let aiText: string;
+      if (cached) {
+        aiText = cached.answer;
+      } else {
+        const res = await fetchSafe(GIGACHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "chat", messages: newHist }),
+        }, 90_000, 1);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Ошибка");
+        aiText = data.answer as string;
+        setCachedAnswer(newHist, aiText, !!(data.truncated), !!(data.needs_expert));
+      }
       const updatedHist = [...newHist, { role: "assistant", content: aiText }];
       history.current = updatedHist;
       saveHistoryToStorage(updatedHist);
