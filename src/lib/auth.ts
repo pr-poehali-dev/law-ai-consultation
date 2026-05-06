@@ -87,19 +87,27 @@ export async function fetchSafe(
   throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
 }
 
-// Lawyer actions → lawyer-service (таймаут 30с)
+// Lawyer actions → lawyer-service
 const LAWYER_ACTIONS = new Set([
   "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
   "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
+]);
+
+// Actions которые могут занять больше 10с (email, БД + pending orders, SMTP)
+const SLOW_ACTIONS = new Set([
+  "register", "send-otp", "add-paid-service",
 ]);
 
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();
   const action = (body as Record<string, unknown>).action as string | undefined;
-  // lawyer-* → lawyer-service, всё остальное → gigachat-proxy (auth)
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
-  const effectiveTimeout = Math.min(timeoutMs, LAWYER_ACTIONS.has(action ?? "") ? 30000 : 10000);
+  // Медленные actions — 25с, юрист — 30с, остальные — 10с
+  let cap = 10000;
+  if (LAWYER_ACTIONS.has(action ?? "")) cap = 30000;
+  else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
+  const effectiveTimeout = Math.min(timeoutMs, cap);
   const tid = setTimeout(() => controller.abort(), effectiveTimeout);
   try {
     const res = await fetch(url, {
