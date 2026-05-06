@@ -12,7 +12,7 @@ import { TOOLS, type BizTool } from "./BusinessSidebar";
 import BusinessMessages, { type BizMsg } from "./BusinessMessages";
 import BusinessInput, { downloadAsDoc } from "./BusinessInput";
 
-const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
 const TOOL_COLORS: Record<string, string> = {
   blue: "bg-blue-50 text-blue-700 border-blue-100",

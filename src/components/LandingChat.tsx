@@ -18,7 +18,7 @@ import LandingChatMessages from "@/components/LandingChatMessages";
 import LandingChatInput from "@/components/LandingChatInput";
 import { PWAInstallButton } from "@/components/LandingChatUpsell";
 
-const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"] || (func2url as Record<string, string>)["gigachat-proxy"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
 interface LandingChatProps {
   onOpenLogin: (opts?: { freeTrial?: boolean; pendingTab?: string }) => void;

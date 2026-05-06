@@ -8,7 +8,7 @@ import CabinetChatTab from "@/components/cabinet/CabinetChatTab";
 import CabinetDocsTab from "@/components/cabinet/CabinetDocsTab";
 import CabinetHistoryTab from "@/components/cabinet/CabinetHistoryTab";
 
-const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"] || func2url["gigachat-proxy"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
 const FREE_QUESTIONS_LIMIT = 30;
 

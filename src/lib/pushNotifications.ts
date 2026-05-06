@@ -1,12 +1,12 @@
 import func2url from "../../backend/func2url.json";
 import { getToken } from "@/lib/auth";
 
-const API_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+const AUTH_URL = (func2url as Record<string, string>)["auth-handler"];
 const PUSH_ASKED_KEY = "push_permission_asked";
 
 async function apiCall(body: object): Promise<Response> {
   const token = getToken();
-  return fetch(API_URL, {
+  return fetch(AUTH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
