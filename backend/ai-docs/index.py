@@ -396,25 +396,43 @@ def handler(event: dict, context) -> dict:
                     "Ключевую мысль — в начало и в конец. Без воды и длинных оборотов.\n\n"
                 )
 
+            # Параллельно запрашиваем все 4 категории правовой базы
             _duty_db_result: list = []
             _case_law_result: list = []
+            _definitions_result: list = []
+            _codex_result: list = []
+
             def _fetch_duty_db():
                 if doc_type in DUTY_DOC_TYPES:
-                    _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=4000, query=details))
+                    _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=3000, query=details))
             def _fetch_case_law():
-                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=4000, query=details))
-            _t_duty = threading.Thread(target=_fetch_duty_db, daemon=True)
-            _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
-            _t_duty.start(); _t_case.start()
-            _t_duty.join(timeout=8); _t_case.join(timeout=8)
+                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=3000, query=details))
+            def _fetch_definitions():
+                _definitions_result.append(get_legal_context_for_ai("court_definitions", max_files=2, max_chars=3000, query=details))
+            def _fetch_codex():
+                _codex_result.append(get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=details))
+
+            threads = [
+                threading.Thread(target=_fetch_duty_db, daemon=True),
+                threading.Thread(target=_fetch_case_law, daemon=True),
+                threading.Thread(target=_fetch_definitions, daemon=True),
+                threading.Thread(target=_fetch_codex, daemon=True),
+            ]
+            for t in threads: t.start()
+            for t in threads: t.join(timeout=8)
+
             duty_block = (get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else "") + (_duty_db_result[0] if _duty_db_result else "")
             case_law_block = _case_law_result[0] if _case_law_result else ""
+            definitions_block = _definitions_result[0] if _definitions_result else ""
+            codex_block = _codex_result[0] if _codex_result else ""
+            extra_context = duty_block + case_law_block + definitions_block + codex_block
+            print(f"[DOC_GEN] Правовая база: duty={bool(duty_block)}, case_law={bool(case_law_block)}, definitions={bool(definitions_block)}, codex={bool(codex_block)}")
 
             prompt = (
                 history_context + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
                 + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
-                + LEGAL_QUALITY_ADDON + duty_block + case_law_block
+                + LEGAL_QUALITY_ADDON + extra_context
                 + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
@@ -426,7 +444,7 @@ def handler(event: dict, context) -> dict:
                     for m in chat_history[-6:]
                 ) if chat_history else "")
                 + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
-                + duty_block + case_law_block
+                + extra_context
                 + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
 

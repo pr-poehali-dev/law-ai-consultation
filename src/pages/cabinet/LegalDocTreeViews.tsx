@@ -1,6 +1,6 @@
 import Icon from "@/components/ui/icon";
 import { type LegalDoc } from "@/lib/auth";
-import { YEARS, SUBCATEGORIES } from "./legalDocsConstants";
+import { YEARS, SUBCATEGORIES, CATEGORIES, type LegalCategory } from "./legalDocsConstants";
 import DocRow from "./LegalDocRow";
 
 // ─── Дерево судебной практики ────────────────────────────────────────────────
@@ -162,7 +162,7 @@ export function StateDutyList({ docs, deleting, onUpload, onDelete }: {
   if (docs.length === 0) {
     return (
       <div className="py-8 text-center">
-        <Icon name="Receipt" size={32} className="text-blue-400 mx-auto mb-2 opacity-40" />
+        <Icon name="Receipt" size={32} className="text-emerald-400 mx-auto mb-2 opacity-40" />
         <p className="text-sm text-muted-foreground">Нет файлов госпошлин</p>
         <button onClick={onUpload} className="mt-3 text-xs px-4 py-2 rounded-xl btn-gold font-semibold">
           Загрузить первый файл
@@ -175,6 +175,73 @@ export function StateDutyList({ docs, deleting, onUpload, onDelete }: {
       {docs.map(doc => (
         <DocRow key={doc.id} doc={doc} deleting={deleting} onDelete={onDelete} />
       ))}
+    </div>
+  );
+}
+
+// ─── Универсальный список (разъяснения, кодексы) ─────────────────────────────
+
+export function SimpleDocList({ docs, category, deleting, onUpload, onDelete }: {
+  docs: LegalDoc[];
+  category: LegalCategory;
+  deleting: number | null;
+  onUpload: () => void;
+  onDelete: (doc: LegalDoc) => void;
+}) {
+  const cat = CATEGORIES.find(c => c.id === category);
+  if (!cat) return null;
+
+  if (docs.length === 0) {
+    return (
+      <div className="py-8 text-center">
+        <Icon name={cat.icon as never} size={32} className={`${cat.color} mx-auto mb-2 opacity-40`} />
+        <p className="text-sm text-muted-foreground">Нет файлов в категории «{cat.label}»</p>
+        <p className="text-[11px] text-muted-foreground mt-1 max-w-xs mx-auto">{cat.description}</p>
+        <button onClick={onUpload} className="mt-3 text-xs px-4 py-2 rounded-xl btn-gold font-semibold">
+          Загрузить первый файл
+        </button>
+      </div>
+    );
+  }
+
+  // Группировка по году если есть
+  const byYear = new Map<number | null, LegalDoc[]>();
+  docs.forEach(d => {
+    const y = d.doc_year || null;
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y)!.push(d);
+  });
+
+  const years = Array.from(byYear.keys()).sort((a, b) => (b || 0) - (a || 0));
+
+  return (
+    <div className="space-y-3">
+      {years.map(year => {
+        const yearDocs = byYear.get(year)!;
+        return (
+          <div key={year ?? "none"}>
+            {year && (
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className={`h-px flex-1 ${cat.bg.replace("bg-", "bg-")}`} />
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${cat.color} px-2`}>{year}</span>
+                <div className={`h-px flex-1 ${cat.bg}`} />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              {yearDocs.map(doc => (
+                <DocRow key={doc.id} doc={doc} deleting={deleting} onDelete={onDelete} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <button
+        onClick={onUpload}
+        className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed text-xs font-medium transition-colors ${cat.border} ${cat.color} hover:${cat.bg}`}
+      >
+        <Icon name="Plus" size={13} />
+        Добавить файл
+      </button>
     </div>
   );
 }

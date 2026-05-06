@@ -16,7 +16,7 @@ from auth_handler import get_conn, get_user_by_token, _ok, _err
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
-ALLOWED_CATEGORIES = {"case_law", "state_duty"}
+ALLOWED_CATEGORIES = {"case_law", "state_duty", "court_definitions", "codex"}
 ALLOWED_SUBCATEGORIES = {"civil", "criminal", "administrative", ""}
 ALLOWED_MIME = {
     "pdf": "application/pdf",
@@ -420,16 +420,27 @@ def search_legal_chunks(query: str, category: str = "case_law",
             seen.add(key)
             parts.append(f"{header}\n{content[:max_chars]}")
 
-        if category == "case_law":
-            instruction = (
-                "РЕЛЕВАНТНАЯ СУДЕБНАЯ ПРАКТИКА (подобрана автоматически по теме запроса):\n"
+        _CATEGORY_INSTRUCTIONS = {
+            "case_law": (
+                "РЕЛЕВАНТНАЯ СУДЕБНАЯ ПРАКТИКА (подобрана по теме запроса):\n"
                 "Используй для обоснования ответа. Ссылайся на документ по названию."
-            )
-        else:
-            instruction = (
+            ),
+            "state_duty": (
                 "АКТУАЛЬНЫЕ СТАВКИ ГОСПОШЛИНЫ (подобраны по теме запроса):\n"
                 "Используй для точного расчёта пошлины."
-            )
+            ),
+            "court_definitions": (
+                "РАЗЪЯСНЕНИЯ И ПОСТАНОВЛЕНИЯ СУДОВ (подобраны по теме запроса):\n"
+                "Используй для точного обоснования правовых позиций. "
+                "Ссылайся на постановление/определение по названию и дате."
+            ),
+            "codex": (
+                "НОРМЫ ДЕЙСТВУЮЩИХ КОДЕКСОВ РФ (подобраны по теме запроса):\n"
+                "Используй для точных ссылок на статьи. "
+                "Указывай номер статьи и название кодекса точно как в документе."
+            ),
+        }
+        instruction = _CATEGORY_INSTRUCTIONS.get(category, "СПРАВОЧНЫЕ МАТЕРИАЛЫ:")
 
         separator = "\n\n— — —\n\n"
         return f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
@@ -485,16 +496,13 @@ def get_legal_context_fallback(category: str, max_chunks: int = MAX_CHUNKS_FOR_A
                 header += f"\n{meta}"
             parts.append(f"{header}\n{content[:max_chars]}")
 
-        if category == "case_law":
-            instruction = (
-                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика:\n"
-                "Используй если релевантны запросу пользователя."
-            )
-        else:
-            instruction = (
-                "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — ставки госпошлины:\n"
-                "Используй для расчёта пошлины."
-            )
+        _FALLBACK_INSTRUCTIONS = {
+            "case_law": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика:\nИспользуй если релевантны запросу пользователя.",
+            "state_duty": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — ставки госпошлины:\nИспользуй для расчёта пошлины.",
+            "court_definitions": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — разъяснения судов:\nИспользуй для правового обоснования позиций.",
+            "codex": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — нормы кодексов РФ:\nИспользуй для точных ссылок на статьи.",
+        }
+        instruction = _FALLBACK_INSTRUCTIONS.get(category, "СПРАВОЧНЫЕ МАТЕРИАЛЫ:")
 
         separator = "\n\n— — —\n\n"
         result = f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"

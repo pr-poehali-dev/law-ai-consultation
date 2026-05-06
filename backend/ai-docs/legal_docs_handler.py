@@ -85,11 +85,13 @@ def _get_legal_context_fallback(category: str, max_chunks: int, max_chars: int) 
                 header += f"\n{meta}"
             parts.append(f"{header}\n{content[:max_chars]}")
 
-        instruction = (
-            "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика:\nИспользуй если релевантны."
-            if category == "case_law" else
-            "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — ставки госпошлины:\nИспользуй для расчёта."
-        )
+        _INSTRUCTIONS = {
+            "case_law": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — судебная практика:\nИспользуй если релевантны.",
+            "state_duty": "ДОПОЛНИТЕЛЬНЫЕ МАТЕРИАЛЫ — ставки госпошлины:\nИспользуй для расчёта.",
+            "court_definitions": "РАЗЪЯСНЕНИЯ СУДОВ:\nИспользуй для правового обоснования. Ссылайся по названию.",
+            "codex": "НОРМЫ КОДЕКСОВ РФ:\nИспользуй для точных ссылок на статьи. Указывай номер статьи и кодекс.",
+        }
+        instruction = _INSTRUCTIONS.get(category, "СПРАВОЧНЫЕ МАТЕРИАЛЫ:")
         separator = "\n\n— — —\n\n"
         result = f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
         with _legal_cache_lock:
@@ -152,11 +154,13 @@ def get_legal_context_for_ai(category: str, max_files: int = 4, max_chars: int =
             seen.add(key)
             parts.append(f"{header}\n{content[:max_chars]}")
 
-        instruction = (
-            "РЕЛЕВАНТНАЯ СУДЕБНАЯ ПРАКТИКА (подобрана по теме):\nСсылайся по названию."
-            if category == "case_law" else
-            "АКТУАЛЬНЫЕ СТАВКИ ГОСПОШЛИНЫ:\nИспользуй для расчёта."
-        )
+        _SEARCH_INSTRUCTIONS = {
+            "case_law": "РЕЛЕВАНТНАЯ СУДЕБНАЯ ПРАКТИКА (подобрана по теме):\nСсылайся по названию.",
+            "state_duty": "АКТУАЛЬНЫЕ СТАВКИ ГОСПОШЛИНЫ:\nИспользуй для расчёта.",
+            "court_definitions": "РАЗЪЯСНЕНИЯ СУДОВ (подобраны по теме):\nИспользуй для обоснования правовых позиций. Ссылайся по названию и дате.",
+            "codex": "НОРМЫ КОДЕКСОВ РФ (подобраны по теме):\nИспользуй для точных ссылок. Указывай номер статьи и кодекс.",
+        }
+        instruction = _SEARCH_INSTRUCTIONS.get(category, "СПРАВОЧНЫЕ МАТЕРИАЛЫ:")
         separator = "\n\n— — —\n\n"
         return f"\n\n[СПРАВОЧНЫЕ МАТЕРИАЛЫ]\n{instruction}\n\n{separator.join(parts)}\n[/СПРАВОЧНЫЕ МАТЕРИАЛЫ]"
 

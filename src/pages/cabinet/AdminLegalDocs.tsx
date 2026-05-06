@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { getLegalDocs, deleteLegalDoc, type LegalDoc } from "@/lib/auth";
-import { CaseLawTree, StateDutyList } from "./LegalDocTreeViews";
+import { CaseLawTree, StateDutyList, SimpleDocList } from "./LegalDocTreeViews";
 import UploadModal from "./LegalDocUploadModal";
-import { YEARS } from "./legalDocsConstants";
+import { YEARS, CATEGORIES, type LegalCategory } from "./legalDocsConstants";
 
 export default function AdminLegalDocs() {
   const [docs, setDocs] = useState<LegalDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"case_law" | "state_duty">("case_law");
+  const [activeTab, setActiveTab] = useState<LegalCategory>("case_law");
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set([YEARS[0]]));
   const [expandedSubcats, setExpandedSubcats] = useState<Set<string>>(new Set(["civil"]));
   const [showUpload, setShowUpload] = useState(false);
@@ -53,11 +53,12 @@ export default function AdminLegalDocs() {
     setDeleting(null);
   };
 
-  const caseLawDocs = docs.filter(d => d.category === "case_law");
-  const stateDutyDocs = docs.filter(d => d.category === "state_duty");
+  const countByCategory = (cat: LegalCategory) => docs.filter(d => d.category === cat).length;
+  const activeCat = CATEGORIES.find(c => c.id === activeTab)!;
 
   return (
     <div className="bg-white rounded-2xl border border-border p-5 space-y-4">
+      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-navy-50 border border-navy-200 flex items-center justify-center">
@@ -65,7 +66,7 @@ export default function AdminLegalDocs() {
           </div>
           <div>
             <h3 className="text-sm font-bold text-navy-800">Правовая база</h3>
-            <p className="text-[11px] text-muted-foreground">Файлы для AI-консультаций</p>
+            <p className="text-[11px] text-muted-foreground">{docs.length} документов · AI использует при генерации</p>
           </div>
         </div>
         <button
@@ -76,45 +77,49 @@ export default function AdminLegalDocs() {
         </button>
       </div>
 
-      {/* Табы */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab("case_law")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-            activeTab === "case_law"
-              ? "bg-purple-50 border-purple-200 text-purple-600"
-              : "bg-slate-50 border-border text-muted-foreground hover:bg-slate-100"
-          }`}
-        >
-          <Icon name="Gavel" size={12} />
-          Судебная практика
-          <span className="ml-0.5 bg-white/60 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-            {caseLawDocs.length}
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab("state_duty")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-            activeTab === "state_duty"
-              ? "bg-blue-50 border-blue-200 text-blue-600"
-              : "bg-slate-50 border-border text-muted-foreground hover:bg-slate-100"
-          }`}
-        >
-          <Icon name="Receipt" size={12} />
-          Госпошлины
-          <span className="ml-0.5 bg-white/60 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-            {stateDutyDocs.length}
-          </span>
-        </button>
+      {/* Табы — 4 категории */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        {CATEGORIES.map(cat => {
+          const count = countByCategory(cat.id);
+          const isActive = activeTab === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActiveTab(cat.id)}
+              className={`flex flex-col items-start gap-1 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                isActive ? `${cat.bg} ${cat.border} ${cat.color}` : "bg-slate-50 border-border text-muted-foreground hover:bg-slate-100"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 w-full">
+                <Icon name={cat.icon as never} size={13} className="shrink-0" />
+                <span className="text-[11px] font-semibold truncate">{cat.shortLabel}</span>
+                <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/60" : "bg-white border border-border"}`}>
+                  {count}
+                </span>
+              </div>
+              <p className="text-[10px] opacity-70 leading-tight line-clamp-2 hidden sm:block">{cat.description}</p>
+            </button>
+          );
+        })}
       </div>
 
+      {/* Описание активной категории */}
+      <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl ${activeCat.bg} border ${activeCat.border}`}>
+        <Icon name={activeCat.icon as never} size={14} className={`${activeCat.color} shrink-0 mt-0.5`} />
+        <div>
+          <p className={`text-xs font-semibold ${activeCat.color}`}>{activeCat.label}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{activeCat.description}</p>
+        </div>
+      </div>
+
+      {/* Контент */}
       {loading ? (
         <div className="py-6 text-center">
           <Icon name="Loader" size={20} className="animate-spin text-muted-foreground mx-auto" />
         </div>
       ) : activeTab === "case_law" ? (
         <CaseLawTree
-          docs={caseLawDocs}
+          docs={docs.filter(d => d.category === "case_law")}
           expandedYears={expandedYears}
           expandedSubcats={expandedSubcats}
           deleting={deleting}
@@ -123,11 +128,19 @@ export default function AdminLegalDocs() {
           onUpload={openUpload}
           onDelete={handleDelete}
         />
-      ) : (
+      ) : activeTab === "state_duty" ? (
         <StateDutyList
-          docs={stateDutyDocs}
+          docs={docs.filter(d => d.category === "state_duty")}
           deleting={deleting}
           onUpload={() => openUpload(undefined, "")}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <SimpleDocList
+          docs={docs.filter(d => d.category === activeTab)}
+          category={activeTab}
+          deleting={deleting}
+          onUpload={() => openUpload()}
           onDelete={handleDelete}
         />
       )}
@@ -135,10 +148,10 @@ export default function AdminLegalDocs() {
       {/* Статус AI */}
       <div className="pt-2 border-t border-border">
         <div className="flex items-start gap-2">
-          <Icon name="Info" size={13} className="text-muted-foreground mt-0.5 shrink-0" />
+          <Icon name="Sparkles" size={13} className="text-violet-500 mt-0.5 shrink-0" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            AI читает последние 3 файла из категории при каждом запросе. Более свежие файлы имеют приоритет.
-            Судебная практика — для всех документов. Госпошлины — для исков и жалоб.
+            AI использует все 4 категории при генерации документов: ищет релевантные фрагменты по теме запроса.
+            Кодексы и разъяснения позволяют точно ссылаться на статьи без ошибок.
           </p>
         </div>
       </div>
