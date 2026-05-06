@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { User } from "@/lib/auth";
-import { lawyerSend, lawyerMessages } from "@/lib/auth";
+import { lawyerSend, lawyerMessages, lawyerUploadFile } from "@/lib/auth";
 import type { LawyerMessage, LawyerDialog } from "@/lib/auth";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 import ExpertPaywall from "./ExpertPaywall";
 import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
+import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
+import { useAttachment } from "./ExpertAttachPanel";
 
 interface ExpertTabProps {
   user: User;
@@ -21,14 +23,18 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
-  const [attachment, setAttachment] = useState<{ type: string; name: string; content?: string } | null>(null);
-  const [showAttachPanel, setShowAttachPanel] = useState(false);
-  const [viewFullMsg, setViewFullMsg] = useState<{ title: string; content: string; type: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const {
+    attachments, addAttachment, addFiles, removeAttachment, clearAttachments,
+    showAttachPanel, setShowAttachPanel,
+    viewFullMsg, setViewFullMsg,
+  } = useAttachment();
 
   const isPaid = user.isAdmin || user.paidExpert;
 
@@ -61,40 +67,80 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+    ta.style.height = Math.min(ta.scrollHeight, 180) + "px";
   };
 
   const send = async () => {
     const text = input.trim();
-    if (!text && !attachment) return;
+    if (!text && attachments.length === 0) return;
     setSending(true);
     setErr("");
-    const bodyText = text || (attachment ? `Прикрепляю: ${attachment.name}` : "");
+    setUploadProgress(0);
+
+    // Сначала загружаем файлы в S3
+    const fileAtts = attachments.filter(a => a.type === "file") as FileAttachment[];
+    const contentAtts = attachments.filter(a => a.type !== "file") as ContentAttachment[];
+    const uploadedUrls: { name: string; url: string }[] = [];
+
+    if (fileAtts.length > 0) {
+      for (let i = 0; i < fileAtts.length; i++) {
+        const f = fileAtts[i];
+        setUploadProgress(Math.round(((i) / fileAtts.length) * 80));
+        const res = await lawyerUploadFile(f.b64, f.name);
+        if (res.error) {
+          setErr(`Ошибка загрузки ${f.name}: ${res.error}`);
+          setSending(false);
+          setUploadProgress(0);
+          return;
+        }
+        if (res.url) uploadedUrls.push({ name: f.name, url: res.url });
+      }
+      setUploadProgress(90);
+    }
+
+    // Формируем тело сообщения
+    const bodyParts: string[] = [];
+    if (text) bodyParts.push(text);
+    if (uploadedUrls.length > 0) {
+      const fileLinks = uploadedUrls.map(f => `📎 ${f.name}: ${f.url}`).join("\n");
+      bodyParts.push(`\n[Прикреплённые файлы]\n${fileLinks}`);
+    }
+    const bodyText = bodyParts.join("\n").trim() || (contentAtts[0] ? `Прикрепляю: ${contentAtts[0].name}` : "");
+
+    // Первый content-вложение идёт как attachment в сообщение
+    const firstContent = contentAtts[0] || null;
     const params: Parameters<typeof lawyerSend>[0] = {
       body: bodyText,
       ...(user.isAdmin && selectedUserId ? { target_user_id: selectedUserId } : {}),
-      ...(attachment ? {
-        attachment_type: attachment.type,
-        attachment_name: attachment.name,
-        attachment_content: attachment.content || attachment.name,
+      ...(firstContent ? {
+        attachment_type: firstContent.type,
+        attachment_name: firstContent.name,
+        attachment_content: firstContent.content || firstContent.name,
       } : {}),
     };
+
+    // Если несколько content-вложений — добавляем в тело
+    if (contentAtts.length > 1) {
+      const extra = contentAtts.slice(1).map(a => `📄 ${a.name}`).join("\n");
+      params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
+    }
+
     const res = await lawyerSend(params);
-    if (res.error) { setErr(res.error); setSending(false); return; }
+    setUploadProgress(100);
+    if (res.error) { setErr(res.error); setSending(false); setUploadProgress(0); return; }
     setInput("");
-    setAttachment(null);
+    clearAttachments();
     setShowAttachPanel(false);
     if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     await loadMessages();
     setSending(false);
+    setUploadProgress(0);
   };
 
-  // ── Не оплачено ──────────────────────────────────────────────────────
   if (!isPaid && !user.isAdmin) {
     return <ExpertPaywall onPayClick={onPayClick} />;
   }
 
-  // ── Список диалогов для админа ────────────────────────────────────────
   if (user.isAdmin && !selectedUserId) {
     return (
       <ExpertDialogList
@@ -106,7 +152,6 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     );
   }
 
-  // ── Диалог ───────────────────────────────────────────────────────────
   const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedUserId) : null;
   const aiAnswers = messages.filter(m => m.role === "ai" && m.text.length > 30).slice(-5);
 
@@ -119,8 +164,9 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       loading={loading}
       input={input}
       sending={sending}
+      uploadProgress={uploadProgress}
       err={err}
-      attachment={attachment}
+      attachments={attachments}
       showAttachPanel={showAttachPanel}
       viewFullMsg={viewFullMsg}
       aiAnswers={aiAnswers}
@@ -130,10 +176,10 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
       onInputChange={setInput}
       onSend={send}
       onToggleAttachPanel={() => setShowAttachPanel(p => !p)}
-      onShowAttachPanel={() => setShowAttachPanel(true)}
       onHideAttachPanel={() => setShowAttachPanel(false)}
-      onSelectAttachment={setAttachment}
-      onRemoveAttachment={() => setAttachment(null)}
+      onAddAttachment={addAttachment}
+      onAddFiles={addFiles}
+      onRemoveAttachment={removeAttachment}
       onViewFullMsg={setViewFullMsg}
       onCloseFullMsg={() => setViewFullMsg(null)}
       textareaRef={textareaRef}
