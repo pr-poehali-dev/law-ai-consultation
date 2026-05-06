@@ -1071,7 +1071,7 @@ def _err(code: int, msg: str) -> dict:
 
 def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
     """Отправить сообщение юристу (пользователь) или пользователю (админ)."""
-    msg_body = sanitize_str(body.get("body") or "")
+    msg_body = sanitize_str(body.get("body") or "", max_len=5000)
     target_user_id = body.get("target_user_id")  # только для admin
     att_type = sanitize_str(body.get("attachment_type") or "")
     att_name = sanitize_str(body.get("attachment_name") or "")
