@@ -1,0 +1,6 @@
+psycopg2-binary==2.9.12
+requests==2.33.1
+boto3==1.43.0
+pywebpush==2.3.0
+py-vapid==1.9.4
+cryptography==47.0.0

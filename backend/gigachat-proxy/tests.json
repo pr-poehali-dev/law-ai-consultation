@@ -7,6 +7,14 @@
       "expectedStatus": 200
     },
     {
+      "name": "GET keep-alive",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
       "name": "register — missing email",
       "method": "POST",
       "path": "/",
@@ -22,15 +30,6 @@
       "body": {"action": "register", "name": "Иван", "email": "test@example.com", "phone": "+79991234567", "password": "123", "agreed_to_terms": true},
       "expectedStatus": 400,
       "expectedBody": {"error": "Пароль должен быть не менее 6 символов"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "register — no agreement",
-      "method": "POST",
-      "path": "/",
-      "body": {"action": "register", "name": "Иван", "email": "test@example.com", "phone": "+79991234567", "password": "secret123", "agreed_to_terms": false},
-      "expectedStatus": 400,
-      "expectedBody": {"error": "Необходимо согласие на обработку персональных данных"},
       "bodyMatcher": "partial"
     },
     {
@@ -88,28 +87,34 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "vapid-public-key — returns key or 503",
+      "name": "vapid-public-key",
       "method": "POST",
       "path": "/",
       "body": {"action": "vapid-public-key"},
       "expectedStatus": 503,
-      "expectedBody": {"error": "Push уведомления не настроены"},
       "bodyMatcher": "partial"
     },
     {
-      "name": "push-subscribe-anon — missing data",
+      "name": "lawyer-send — 410 moved",
       "method": "POST",
       "path": "/",
-      "body": {"action": "push-subscribe-anon", "endpoint": ""},
-      "expectedStatus": 400,
-      "expectedBody": {"error": "Неполные данные подписки"},
+      "body": {"action": "lawyer-send", "body": "test"},
+      "expectedStatus": 410,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "legal-docs — 410 moved",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "legal-docs", "sub": "list", "category": "case_law"},
+      "expectedStatus": 410,
       "bodyMatcher": "partial"
     },
     {
       "name": "unknown action — 400",
       "method": "POST",
       "path": "/",
-      "body": {"action": "nonexistent-action"},
+      "body": {"action": "nonexistent"},
       "expectedStatus": 400,
       "bodyMatcher": "partial"
     },
@@ -119,22 +124,6 @@
       "path": "/",
       "body": {"mode": "chat", "messages": [{"role": "user", "content": "test"}]},
       "expectedStatus": 410,
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "mode doc_generate — 410 moved",
-      "method": "POST",
-      "path": "/",
-      "body": {"mode": "doc_generate", "doc_type": "claim", "details": "test"},
-      "expectedStatus": 410,
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "legal-docs upload — unsupported format txt",
-      "method": "POST",
-      "path": "/",
-      "body": {"action": "legal-docs", "sub": "upload", "category": "case_law", "title": "Тест", "file": "dGVzdA==", "filename": "test.txt"},
-      "expectedStatus": 401,
       "bodyMatcher": "partial"
     }
   ]

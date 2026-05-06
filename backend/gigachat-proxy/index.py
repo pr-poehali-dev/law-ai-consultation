@@ -19,9 +19,6 @@ from auth_handler import (
     handle_logout, handle_update_profile,
     handle_consume_question, handle_consume_doc, handle_refund_doc, handle_add_paid_service,
     handle_report, handle_send_otp, handle_verify_otp, handle_forgot_password, handle_change_password, sanitize_str,
-    handle_lawyer_send, handle_lawyer_messages,
-    handle_lawyer_close_dialog, handle_lawyer_complete_service,
-    handle_lawyer_upload_file, handle_lawyer_cleanup_files,
     handle_admin_reports, handle_my_reports,
     handle_business_update_org, handle_business_consume_action,
     handle_business_messages_get, handle_business_messages_save,
@@ -43,10 +40,6 @@ from prompts import (
 from state_duty import (
     is_duty_query, get_duty_context_for_chat, get_duty_context_for_doc,
     DUTY_DOC_TYPES,
-)
-from legal_docs_handler import (
-    handle_legal_docs,
-    get_legal_context_for_ai,
 )
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
@@ -633,22 +626,6 @@ def handler(event: dict, context) -> dict:
             _user_info_cached = (u.get("id"), u.get("email"))
         return _user_info_cached
 
-    def _lawyer_send_action():
-        me = _get_me()
-        if "error" in me: return me
-        u = me.get("data", {}).get("user", me.get("data", {}))
-        uid = u.get("id")
-        if not uid: return {"status": 401, "error": "Не авторизован"}
-        return handle_lawyer_send(body, uid, u.get("isAdmin", False))
-
-    def _lawyer_messages_action():
-        me = _get_me()
-        if "error" in me: return me
-        u = me.get("data", {}).get("user", me.get("data", {}))
-        uid = u.get("id")
-        if not uid: return {"status": 401, "error": "Не авторизован"}
-        return handle_lawyer_messages(body, uid, u.get("isAdmin", False))
-
     def _push_subscribe_action():
         me = _get_me()
         if "error" in me:
@@ -676,12 +653,6 @@ def handler(event: dict, context) -> dict:
         "verify-otp": lambda: handle_verify_otp(body),
         "forgot-password": lambda: handle_forgot_password(body),
         "change-password": lambda: handle_change_password(token, body),
-        "lawyer-send": _lawyer_send_action,
-        "lawyer-messages": _lawyer_messages_action,
-        "lawyer-close-dialog": lambda: handle_lawyer_close_dialog(body, _get_me().get("data", {}).get("user", _get_me().get("data", {})).get("id"), _get_me().get("data", {}).get("user", _get_me().get("data", {})).get("is_admin", False)),
-        "lawyer-complete-service": lambda: handle_lawyer_complete_service(token, body),
-        "lawyer-upload-file": lambda: handle_lawyer_upload_file(body, _get_me().get("data", {}).get("user", _get_me().get("data", {})).get("id")),
-        "lawyer-cleanup-files": lambda: handle_lawyer_cleanup_files(token),
         "business-update-org": lambda: handle_business_update_org(token, body),
         "business-consume-action": lambda: handle_business_consume_action(token),
         "business-messages-get": lambda: handle_business_messages_get(token, body),
@@ -692,7 +663,6 @@ def handler(event: dict, context) -> dict:
         "get-new-users": lambda: handle_get_new_users(token, body),
         "admin-grant": lambda: handle_admin_grant(token, body),
         "admin-search-user": lambda: handle_admin_search_user(token, body),
-        "legal-docs": lambda: handle_legal_docs(token, body),
         "push-subscribe": lambda: _push_subscribe_action(),
         "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
         "vapid-public-key": lambda: handle_get_vapid_public_key(),
@@ -707,15 +677,21 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps(result.get("data", {}), ensure_ascii=False)}
 
-    # --- Неизвестный запрос ---
-    # Все AI-режимы (chat, doc_generate, file_analyze) перенесены в отдельные функции:
-    # ai-chat → mode=chat, chat_continue
-    # ai-docs → mode=doc_generate, doc_continue, file_analyze
-    # Этот endpoint обрабатывает только auth-actions выше.
+    # --- Перенесённые actions ---
+    _moved = {
+        "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
+        "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
+        "legal-docs",
+    }
+    if action in _moved:
+        dest = "lawyer-service" if action.startswith("lawyer") else "legal-docs"
+        return {"statusCode": 410, "headers": {**CORS, "Content-Type": "application/json"},
+                "body": json.dumps({"error": f"Action '{action}' перенесён в функцию {dest}."}, ensure_ascii=False)}
+
     mode = body.get("mode", "")
     if mode:
         return {"statusCode": 410, "headers": {**CORS, "Content-Type": "application/json"},
-                "body": json.dumps({"error": f"Режим '{mode}' перенесён. Используйте ai-chat или ai-docs функцию."}, ensure_ascii=False)}
+                "body": json.dumps({"error": f"Режим '{mode}' перенесён в ai-chat или ai-docs."}, ensure_ascii=False)}
 
     return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
             "body": json.dumps({"error": "Неизвестное действие"}, ensure_ascii=False)}

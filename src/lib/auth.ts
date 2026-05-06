@@ -2,8 +2,10 @@ import func2url from "../../backend/func2url.json";
 
 const _f = func2url as Record<string, string>;
 
-// Маршруты к функциям — gigachat-proxy больше НЕ является дефолтом
-const AUTH_URL = _f["auth-handler"];
+// Маршруты к функциям
+const AUTH_URL = _f["gigachat-proxy"];         // авторизация, регистрация, профиль, business
+const LAWYER_URL = _f["lawyer-service"];        // переписка с юристом
+const LEGAL_DOCS_URL = _f["legal-docs"];        // управление правовой базой
 const AI_CHAT_URL = _f["ai-chat"];
 const AI_DOCS_URL = _f["ai-docs"];
 const TOKEN_KEY = "yurist_ai_token";
@@ -85,29 +87,19 @@ export async function fetchSafe(
   throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
 }
 
-// Все actions идут через auth-handler
-const AUTH_ACTIONS = new Set([
-  "register", "login", "me", "logout", "update-profile",
-  "consume-question", "consume-doc", "refund-doc", "add-paid-service",
-  "report", "my-reports", "admin-reports",
-  "send-otp", "verify-otp", "forgot-password", "change-password",
+// Lawyer actions → lawyer-service (таймаут 30с)
+const LAWYER_ACTIONS = new Set([
   "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
   "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
-  "business-update-org", "business-consume-action",
-  "business-messages-get", "business-messages-save",
-  "get-billing-log", "list-users", "get-all-billing-log", "get-new-users",
-  "admin-grant", "admin-search-user",
-  "push-subscribe", "push-subscribe-anon", "vapid-public-key",
-  "get-compute-stats", "legal-docs",
 ]);
 
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
   const controller = new AbortController();
   const action = (body as Record<string, unknown>).action as string | undefined;
-  // Все action-запросы → auth-handler, остальное не должно вызываться через apiCall
-  const url = AUTH_URL;
-  const effectiveTimeout = AUTH_ACTIONS.has(action ?? "") ? Math.min(timeoutMs, 12000) : timeoutMs;
+  // lawyer-* → lawyer-service, всё остальное → gigachat-proxy (auth)
+  const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
+  const effectiveTimeout = Math.min(timeoutMs, LAWYER_ACTIONS.has(action ?? "") ? 30000 : 10000);
   const tid = setTimeout(() => controller.abort(), effectiveTimeout);
   try {
     const res = await fetch(url, {
@@ -457,8 +449,24 @@ export interface LegalDoc {
   case_number: string;
 }
 
+async function legalDocsCall(body: object, timeoutMs = 30000): Promise<Response> {
+  const token = getToken();
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(LEGAL_DOCS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 export async function getLegalDocs(category?: string): Promise<LegalDoc[]> {
-  const res = await apiCall({ action: "legal-docs", action_sub: "list", category: category || "" });
+  const res = await legalDocsCall({ action_sub: "list", category: category || "" });
   const data = await res.json();
   return data.docs || [];
 }
@@ -474,14 +482,14 @@ export async function uploadLegalDoc(params: {
   court_name?: string;
   case_number?: string;
 }): Promise<{ ok?: boolean; id?: number; error?: string }> {
-  const res = await apiCall({ action: "legal-docs", action_sub: "upload", ...params });
+  const res = await legalDocsCall({ action_sub: "upload", ...params }, 60000);
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка загрузки" };
   return { ok: true, id: data.id };
 }
 
 export async function deleteLegalDoc(docId: number): Promise<{ ok?: boolean; error?: string }> {
-  const res = await apiCall({ action: "legal-docs", action_sub: "delete", doc_id: docId });
+  const res = await legalDocsCall({ action_sub: "delete", doc_id: docId });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка удаления" };
   return { ok: true };
