@@ -298,7 +298,7 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 
-def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3, timeout: int = 120) -> str:
+def _call_openai_compat(messages: list, max_tokens: int, temperature: float = 0.3, timeout: int = 80) -> str:
     resp = _http.post(
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},

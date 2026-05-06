@@ -168,11 +168,12 @@ export default function BusinessTab({ user, onPayClick, onRefreshUser }: Busines
       if (attachedFile) { reqBody.file = attachedFile.b64; reqBody.filename = attachedFile.name; }
       if (attachedFile2) { reqBody.file2 = attachedFile2.b64; reqBody.filename2 = attachedFile2.name; }
 
+      const isDocMode = ["contract", "orders", "pretension"].includes(getBizMode());
       const res = await fetchSafe(GIGACHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(reqBody),
-      }, 90_000, 1);
+      }, isDocMode ? 120_000 : 90_000, 1);
       const data = await res.json();
       const aiBody = data.answer || "Не удалось получить ответ";
       const needsExpert = !!data.needs_expert;
