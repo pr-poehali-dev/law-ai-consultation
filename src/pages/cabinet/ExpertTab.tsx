@@ -103,7 +103,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick }: Exper
     if (text) bodyParts.push(text);
     if (uploadedUrls.length > 0) {
       const fileLinks = uploadedUrls.map(f => `📎 ${f.name}: ${f.url}`).join("\n");
-      bodyParts.push(`\n[Прикреплённые файлы]\n${fileLinks}`);
+      bodyParts.push(`[Прикреплённые файлы]\n${fileLinks}`);
     }
     const bodyText = bodyParts.join("\n").trim() || (contentAtts[0] ? `Прикрепляю: ${contentAtts[0].name}` : "");
 

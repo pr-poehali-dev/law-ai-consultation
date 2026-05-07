@@ -18,14 +18,16 @@ function fmtTime(iso: string) {
 
 // Парсим ссылки на файлы из тела сообщения
 function parseFileLinks(body: string): { text: string; files: { name: string; url: string }[] } {
-  const marker = "\n[Прикреплённые файлы]\n";
-  const idx = body.indexOf(marker);
+  // Маркер может быть в начале строки или после \n
+  const MARKER = "[Прикреплённые файлы]";
+  const idx = body.indexOf(MARKER);
   if (idx === -1) return { text: body, files: [] };
   const text = body.slice(0, idx).trim();
-  const filesSection = body.slice(idx + marker.length);
+  const filesSection = body.slice(idx + MARKER.length);
   const files: { name: string; url: string }[] = [];
   filesSection.split("\n").forEach(line => {
-    const match = line.match(/^📎 (.+?): (https?:\/\/.+)$/);
+    const trimmed = line.trim();
+    const match = trimmed.match(/^📎 (.+?): (https?:\/\/.+)$/);
     if (match) files.push({ name: match[1], url: match[2] });
   });
   return { text, files };

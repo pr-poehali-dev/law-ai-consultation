@@ -413,12 +413,16 @@ def handler(event: dict, context) -> dict:
             def _fetch_duty_db():
                 if doc_type in DUTY_DOC_TYPES:
                     _duty_db_result.append(get_legal_context_for_ai("state_duty", max_files=2, max_chars=3000, query=details))
+            # Для коротких кадровых документов правовая база не нужна — не перегружаем промт
             def _fetch_case_law():
-                _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=3000, query=details))
+                if doc_type not in (_MEDIUM_DOC_TYPES | _SHORT_DOC_TYPES):
+                    _case_law_result.append(get_legal_context_for_ai("case_law", max_files=2, max_chars=3000, query=details))
             def _fetch_definitions():
-                _definitions_result.append(get_legal_context_for_ai("court_definitions", max_files=2, max_chars=3000, query=details))
+                if doc_type not in (_MEDIUM_DOC_TYPES | _SHORT_DOC_TYPES):
+                    _definitions_result.append(get_legal_context_for_ai("court_definitions", max_files=2, max_chars=3000, query=details))
             def _fetch_codex():
-                _codex_result.append(get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=details))
+                if doc_type not in (_MEDIUM_DOC_TYPES | _SHORT_DOC_TYPES):
+                    _codex_result.append(get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=details))
 
             threads = [
                 threading.Thread(target=_fetch_duty_db, daemon=True),
@@ -454,7 +458,7 @@ def handler(event: dict, context) -> dict:
                 "contract_receipt", "special_pd_consent", "special_medical_consent",
             }
             _MEDIUM_DOC_TYPES = {
-                # Приказы — стандартные кадровые документы, 1200 токенов
+                # Приказы — стандартные кадровые документы
                 "labor_order_hire", "labor_order_dismiss",
                 "labor_order_bonus", "labor_order_discipline",
             }
@@ -467,7 +471,7 @@ def handler(event: dict, context) -> dict:
             if doc_type in _SHORT_DOC_TYPES:
                 _max_tokens = 400
             elif doc_type in _MEDIUM_DOC_TYPES:
-                _max_tokens = 1200
+                _max_tokens = 1800
             elif doc_type in _LONG_DOC_TYPES:
                 _max_tokens = 4500
             else:

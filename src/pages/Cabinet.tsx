@@ -63,7 +63,7 @@ export default function Cabinet() {
         pay.setPendingDocType(pendingDt);
       }
     },
-    onDocGenerated: () => { setTab("docs"); },
+    onDocGenerated: (doc) => { setTab("docs"); setViewDoc(doc); },
     onDocSaved: (docName) => setDocSavedToast(docName),
     getChatHistory: () => chat.history,
   });
