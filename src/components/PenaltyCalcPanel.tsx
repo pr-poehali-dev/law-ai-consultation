@@ -12,6 +12,8 @@ interface PenaltyCalcPanelProps {
   onClose: () => void;
   onPaymentRequired: () => void;
   embedded?: boolean;
+  /** Контекст документа для AI — дополнительно передаётся в промт */
+  docContext?: string;
 }
 
 type RateType = "percent" | "fixed" | "cbr";
@@ -32,7 +34,7 @@ async function checkProAccess(): Promise<boolean> {
   return user.paidQuestions >= 30 || user.paidDocs >= 10;
 }
 
-export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false }: PenaltyCalcPanelProps) {
+export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false, docContext }: PenaltyCalcPanelProps) {
   const [debt, setDebt] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -89,6 +91,7 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     if (vp.length) lines.push(`Частичные оплаты: ${vp.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
     const vi = increases.filter(p => p.date && p.amount);
     if (vi.length) lines.push(`Увеличения долга: ${vi.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
+    if (docContext) lines.push(`\nКонтекст документа (для справки):\n${docContext.slice(0, 800)}`);
     return lines.join("\n");
   };
 

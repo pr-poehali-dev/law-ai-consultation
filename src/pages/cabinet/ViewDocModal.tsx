@@ -146,6 +146,8 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
   const [showRecs, setShowRecs] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [currentDocContent, setCurrentDocContent] = useState(doc.content);
+  // Flash-эффект при обновлении документа через AI
+  const [docFlash, setDocFlash] = useState(false);
 
   // Фоновый анализ рекомендаций — запускается после показа документа
   useEffect(() => {
@@ -269,18 +271,27 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
 
           {/* Контент документа */}
           <div className="flex-1 overflow-y-auto" ref={contentRef}>
-            <div className="bg-gradient-to-b from-slate-50 to-white px-8 pt-6 pb-4 border-b border-slate-100">
+            <div className={`px-6 sm:px-8 pt-6 pb-4 border-b transition-all duration-700 ${docFlash ? "bg-gradient-to-b from-emerald-50 to-white border-emerald-100" : "bg-gradient-to-b from-slate-50 to-white border-slate-100"}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-8 rounded-full bg-gradient-to-b from-navy-600 to-navy-400" />
+                  <div className={`w-1 h-8 rounded-full bg-gradient-to-b transition-all duration-700 ${docFlash ? "from-emerald-500 to-teal-400" : "from-navy-600 to-navy-400"}`} />
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Юрист AI · Документ</p>
                     <p className="text-xs font-semibold text-navy-700">{doc.date}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <p className="text-[10px] font-medium text-emerald-700">Готов к использованию</p>
+                  {docFlash ? (
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <p className="text-[10px] font-medium text-emerald-600">Обновлён AI</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <p className="text-[10px] font-medium text-emerald-700">Готов к использованию</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -380,7 +391,11 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
           doc={{ name: doc.name, content: currentDocContent, recommendations: doc.recommendations }}
           onClose={() => setShowAiChat(false)}
           onPaymentRequired={() => {}}
-          onDocUpdated={(newContent) => setCurrentDocContent(newContent)}
+          onDocUpdated={(newContent) => {
+            setCurrentDocContent(newContent);
+            setDocFlash(true);
+            setTimeout(() => setDocFlash(false), 1500);
+          }}
         />
       )}
 

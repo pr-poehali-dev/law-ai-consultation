@@ -62,13 +62,14 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
     return (
       <button
         onClick={() => setCollapsed(false)}
-        className={`fixed bottom-5 right-4 sm:right-5 z-[65] flex items-center gap-2 px-3 py-2.5 rounded-2xl shadow-2xl border border-amber-300/40 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold transition-all active:scale-95 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+        className={`fixed bottom-24 right-3 sm:bottom-5 sm:right-5 z-[65] flex items-center gap-2 px-3 py-2.5 rounded-2xl shadow-2xl border border-amber-300/40 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold active:scale-95 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
         style={{ transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}
       >
         <Icon name="Sparkles" size={13} />
-        Рекомендации AI
+        <span className="hidden xs:inline">Рекомендации AI</span>
+        <span className="xs:hidden">AI</span>
         {recommendations.length > 0 && (
-          <span className="w-5 h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center ml-0.5">{recommendations.length}</span>
+          <span className="w-5 h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center">{recommendations.length}</span>
         )}
       </button>
     );
@@ -76,8 +77,10 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
 
   return (
     <div
-      className={`fixed bottom-4 right-3 sm:bottom-5 sm:right-4 z-[65] w-[calc(100vw-24px)] sm:w-[300px] max-w-[320px] bg-white rounded-2xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden transition-all duration-300 ease-out ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-6 opacity-0 scale-95"}`}
-      style={{ maxHeight: "min(460px, 72dvh)" }}
+      className={`fixed bottom-4 right-3 sm:bottom-5 sm:right-4 z-[65] bg-white rounded-2xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden transition-all duration-300 ease-out
+        w-[min(calc(100vw-24px),320px)]
+        ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-6 opacity-0 scale-95"}`}
+      style={{ maxHeight: "min(460px, 60dvh)" }}
       onClick={e => e.stopPropagation()}
     >
       {/* Шапка */}
@@ -154,6 +157,7 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
             onClose={handleBack}
             onPaymentRequired={onPaymentRequired}
             embedded
+            docContext={docContent}
           />
         )}
 
