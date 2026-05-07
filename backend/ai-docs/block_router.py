@@ -2,8 +2,8 @@
 import os
 import sys
 
-_DIR = os.path.dirname(__file__)
-_PROXY_DIR = os.path.join(_DIR, "..", "gigachat-proxy")
+_DIR = os.path.dirname(os.path.realpath(__file__))
+_PROXY_DIR = os.path.realpath(os.path.join(_DIR, "..", "gigachat-proxy"))
 if _PROXY_DIR not in sys.path:
     sys.path.insert(0, _PROXY_DIR)
 

@@ -247,12 +247,14 @@ export default function Cabinet() {
       .join("\n\n");
 
     try {
-      const docTypesList = DOC_TYPES.map(d => `"${d.id}" — ${d.label}`).join(", ");
-      const systemPrompt = `Ты — помощник юриста. На основе переписки определи нужный тип документа и сформулируй максимально подробное техническое задание для его генерации.
-Список доступных типов: ${docTypesList}
-Извлеки из переписки: стороны (ФИО/организации), суммы, даты, адреса, предмет спора или договора, нарушенные права — всё что поможет составить документ.
-Ответь строго в JSON без лишнего текста: {"doc_type": "id_типа", "details": "подробное описание ситуации и всех известных фактов для составления документа"}`;
-      const userPrompt = `Переписка пользователя с юристом:\n\n${dialogContext}\n\nПоследний ответ юриста (на основе которого нажата кнопка):\n${aiText.slice(0, 1000)}`;
+      // Компактный список id→label (без лишних полей) чтобы не перегружать промпт
+      const validIds = new Set(DOC_TYPES.map(d => d.id));
+      const docTypesList = DOC_TYPES.map(d => `"${d.id}":${d.label}`).join("|");
+      const systemPrompt = `Ты — помощник юриста. На основе переписки определи нужный тип документа и сформулируй подробное техническое задание для его генерации.
+Список типов (id:название): ${docTypesList}
+Извлеки из переписки: стороны (ФИО/организации), суммы, даты, адреса, предмет спора, нарушенные права — всё что поможет составить документ.
+Выбери ОДИН id из списка выше. Ответь ТОЛЬКО JSON: {"doc_type":"id_из_списка","details":"подробное описание ситуации и всех известных фактов"}`;
+      const userPrompt = `Переписка:\n\n${dialogContext}\n\nПоследний ответ юриста:\n${aiText.slice(0, 800)}`;
       const token = getToken();
       const res = await fetch(GIGACHAT_URL, {
         method: "POST",
@@ -260,13 +262,15 @@ export default function Cabinet() {
         body: JSON.stringify({ mode: "chat", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
       });
       const data = await res.json();
-      const match = (data.answer || "").match(/\{[\s\S]*\}/);
+      const match = (data.answer || "").match(/\{[\s\S]*?\}/);
       let docTypeId = "claim";
       let details = `${userText}\n\n${aiText.slice(0, 500)}`;
       if (match) {
         try {
           const p = JSON.parse(match[0]);
-          docTypeId = p.doc_type || docTypeId;
+          // Валидируем: принимаем только id из нашего списка
+          const rawId = p.doc_type || "";
+          docTypeId = validIds.has(rawId) ? rawId : "claim";
           details = p.details || details;
         } catch { /* дефолты */ }
       }
