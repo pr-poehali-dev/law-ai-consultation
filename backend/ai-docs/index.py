@@ -450,11 +450,13 @@ def handler(event: dict, context) -> dict:
 
             # Лимиты токенов по типам документов
             _SHORT_DOC_TYPES = {
-                # Приказы — небольшие документы, 500 токенов достаточно
+                # Простые согласия и расписки — реально короткие документы
+                "contract_receipt", "special_pd_consent", "special_medical_consent",
+            }
+            _MEDIUM_DOC_TYPES = {
+                # Приказы — стандартные кадровые документы, 1200 токенов
                 "labor_order_hire", "labor_order_dismiss",
                 "labor_order_bonus", "labor_order_discipline",
-                # Простые согласия и расписки
-                "contract_receipt", "special_pd_consent", "special_medical_consent",
             }
             _LONG_DOC_TYPES = {
                 # Уставы, корпоративные акты, сложные договоры — до 4500 токенов
@@ -463,7 +465,9 @@ def handler(event: dict, context) -> dict:
                 "contract_marriage", "special_will", "special_inheritance_contract",
             }
             if doc_type in _SHORT_DOC_TYPES:
-                _max_tokens = 500
+                _max_tokens = 400
+            elif doc_type in _MEDIUM_DOC_TYPES:
+                _max_tokens = 1200
             elif doc_type in _LONG_DOC_TYPES:
                 _max_tokens = 4500
             else:
@@ -481,10 +485,16 @@ def handler(event: dict, context) -> dict:
 
             if _yandex_refused:
                 print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
+                # Сбрасываем отказной ответ Яндекса — DeepSeek должен написать нормальный документ
+                _refused_text = answer
+                answer = ""
                 try:
                     ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=_max_tokens, temperature=0.15, timeout=80)
-                    answer = ds_answer or answer
-                    print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
+                    if ds_answer and not is_refusal(ds_answer):
+                        answer = ds_answer
+                        print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
+                    else:
+                        print(f"[DOC_GEN] DeepSeek тоже отказал")
                 except Exception as e:
                     print(f"[DOC_GEN] DeepSeek тоже упал: {e}")
 

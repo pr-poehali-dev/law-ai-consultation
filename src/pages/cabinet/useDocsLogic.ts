@@ -46,7 +46,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     localStorage.setItem("cabinet_docs", JSON.stringify(docs));
   };
 
-  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string) => {
+  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string, fromChat = false) => {
     const activeType = overrideType ?? docType;
     const activeDetails = overrideDetails ?? docDetails;
 
@@ -87,7 +87,9 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         reqBody.file = docAttachedFile.b64;
         reqBody.filename = docAttachedFile.name;
       }
-      if (getChatHistory) {
+      // История чата передаётся ТОЛЬКО при генерации из чата (fromChat=true)
+      // Из раздела Документы — пользователь сам вводит задание, история не нужна
+      if (fromChat && getChatHistory) {
         const hist = getChatHistory();
         if (hist.length > 0) reqBody.chat_history = hist.slice(-5);
       }
@@ -149,7 +151,8 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
   const generateDoc = () => _runGenerate();
 
-  const generateDocWith = (dt: DocType, details: string) => _runGenerate(dt, details);
+  // fromChat=true — передаём историю чата как контекст (вызов из чата AI)
+  const generateDocWith = (dt: DocType, details: string) => _runGenerate(dt, details, true);
 
   const continueDoc = async () => {
     if (!currentDoc) return;
