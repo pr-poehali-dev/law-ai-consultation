@@ -445,16 +445,8 @@ def handler(event: dict, context) -> dict:
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
                 f"Запрещены [...] и ___."
             )
-            raw_prompt = (
-                body.get("details", "").strip()
-                + ("\n\nКонтекст диалога:\n" + "\n".join(
-                    f"{'Пользователь' if m.get('role')=='user' else 'Юрист'}: {m.get('content','')[:600]}"
-                    for m in chat_history[-6:]
-                ) if chat_history else "")
-                + (f"\n\nДанные из файла:\n{file_context}" if file_context else "")
-                + extra_context
-                + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
-            )
+            # DeepSeek fallback использует тот же prompt что и Яндекс
+            raw_prompt = prompt
 
             # Лимиты токенов по типам документов
             _SHORT_DOC_TYPES = {
