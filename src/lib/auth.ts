@@ -496,8 +496,15 @@ export async function uploadLegalDoc(params: {
   return { ok: true, id: data.id };
 }
 
-export async function deleteLegalDoc(docId: number): Promise<{ ok?: boolean; error?: string }> {
-  const res = await legalDocsCall({ action_sub: "delete", doc_id: docId });
+export async function requestLegalDocDeleteOtp(docId: number): Promise<{ ok?: boolean; error?: string }> {
+  const res = await legalDocsCall({ action_sub: "delete-request-otp", doc_id: docId });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка отправки кода" };
+  return { ok: true };
+}
+
+export async function deleteLegalDoc(docId: number, otpCode: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await legalDocsCall({ action_sub: "delete", doc_id: docId, otp_code: otpCode });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка удаления" };
   return { ok: true };

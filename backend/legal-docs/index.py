@@ -1,4 +1,4 @@
-"""Управление правовой базой знаний: загрузка, список, удаление документов. Поддерживает PDF, DOCX, ODT до 10 МБ."""
+"""Управление правовой базой знаний: загрузка, список, удаление документов. Поддерживает PDF, DOCX, ODT до 10 МБ. v2 — OTP защита удаления."""
 import json
 import os
 import re
@@ -6,6 +6,10 @@ import base64
 import io
 import time
 import threading
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 import boto3
 import psycopg2
 from datetime import datetime
@@ -201,6 +205,35 @@ def invalidate_legal_cache():
 
 
 # ─────────────────────────────────────────────
+# OTP-хранилище для подтверждения удаления
+# ─────────────────────────────────────────────
+
+_delete_otps: dict[str, tuple[str, float]] = {}  # doc_id → (code, expires_at)
+
+
+def _send_email(to_email: str, subject: str, body_text: str) -> None:
+    smtp_from = os.environ.get("SMTP_FROM_EMAIL", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_from or not smtp_pass:
+        raise RuntimeError("SMTP не настроен")
+    msg = MIMEText(body_text, "plain", "utf-8")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = smtp_from
+    msg["To"] = to_email
+    try:
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
+            server.login(smtp_from, smtp_pass)
+            server.sendmail(smtp_from, [to_email], msg.as_string())
+        return
+    except Exception as e1:
+        pass
+    with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
+        server.ehlo(); server.starttls(); server.ehlo()
+        server.login(smtp_from, smtp_pass)
+        server.sendmail(smtp_from, [to_email], msg.as_string())
+
+
+# ─────────────────────────────────────────────
 # Функции из auth_handler.py
 # ─────────────────────────────────────────────
 
@@ -282,7 +315,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
     if not user:
         return _err(401, "Не авторизован")
 
-    if action in ("upload", "delete") and not user.get("isAdmin", False):
+    if action in ("upload", "delete", "delete-request-otp") and not user.get("isAdmin", False):
         return _err(403, "Только для администратора")
 
     conn = get_conn()
@@ -420,10 +453,46 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 "download_url": cdn_url,
             })
 
-        elif action == "delete":
+        elif action == "delete-request-otp":
             doc_id = int(body.get("doc_id", 0))
             if not doc_id:
                 return _err(400, "Укажите doc_id")
+            # Получаем название документа
+            cur.execute(f"SELECT title FROM {SCHEMA}.legal_docs WHERE id = %s AND is_active = TRUE", (doc_id,))
+            row = cur.fetchone()
+            if not row:
+                return _err(404, "Документ не найден")
+            doc_title = row[0]
+            # Генерируем OTP
+            code = str(random.randint(100000, 999999))
+            _delete_otps[str(doc_id)] = (code, time.time() + 600)  # 10 минут
+            try:
+                _send_email(
+                    "ilya.povarchuk@mail.ru",
+                    f"Удаление документа из правовой базы",
+                    f"Код подтверждения удаления документа «{doc_title}»:\n\n{code}\n\nКод действителен 10 минут.\nЕсли вы не запрашивали удаление — проигнорируйте письмо."
+                )
+            except Exception as e:
+                return _err(500, f"Ошибка отправки письма: {e}")
+            return _ok({"ok": True, "message": "Код отправлен на ilya.povarchuk@mail.ru"})
+
+        elif action == "delete":
+            doc_id = int(body.get("doc_id", 0))
+            otp_code = str(body.get("otp_code", "")).strip()
+            if not doc_id:
+                return _err(400, "Укажите doc_id")
+            # Проверяем OTP
+            stored = _delete_otps.get(str(doc_id))
+            if not stored:
+                return _err(403, "Сначала запросите код подтверждения")
+            stored_code, expires_at = stored
+            if time.time() > expires_at:
+                del _delete_otps[str(doc_id)]
+                return _err(403, "Код подтверждения истёк. Запросите новый.")
+            if otp_code != stored_code:
+                return _err(403, "Неверный код подтверждения")
+            # OTP верный — удаляем
+            del _delete_otps[str(doc_id)]
             cur.execute(
                 f"SELECT s3_key FROM {SCHEMA}.legal_docs WHERE id = %s",
                 (doc_id,)

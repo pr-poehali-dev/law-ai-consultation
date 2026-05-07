@@ -385,7 +385,7 @@ def handler(event: dict, context) -> dict:
             chat_history = body.get("chat_history", [])
             history_context = ""
             if chat_history:
-                last_pairs = chat_history[-10:]
+                last_pairs = chat_history[-5:]
                 history_context = "КОНТЕКСТ ИЗ ПРЕДЫДУЩЕЙ КОНСУЛЬТАЦИИ (используй все упомянутые факты, стороны, суммы, даты):\n"
                 for msg in last_pairs:
                     role_label = "Пользователь" if msg.get("role") == "user" else "Юрист"

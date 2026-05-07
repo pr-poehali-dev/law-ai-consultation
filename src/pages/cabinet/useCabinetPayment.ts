@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
 import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
-import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
+import { DOC_TYPES, findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
 const CHECK_URL = "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591";
@@ -56,11 +56,11 @@ interface UseCabinetPaymentParams {
   chatSendMessage: (text: string) => void;
   chatRemoveUpsell: () => void;
   chatRevealFunnel: () => void;
-  docsGenerateRef: React.MutableRefObject<((dt: typeof DOC_TYPES[0], details: string) => void) | null>;
+  docsGenerateRef: React.MutableRefObject<((dt: DocType, details: string) => void) | null>;
   docsGenerateDoc: () => void;
-  docsSetDocType: (dt: typeof DOC_TYPES[0]) => void;
+  docsSetDocType: (dt: DocType) => void;
   docsSetDocDetails: (v: string) => void;
-  docsGenerateDocWith: (dt: typeof DOC_TYPES[0], details: string) => void;
+  docsGenerateDocWith: (dt: DocType, details: string) => void;
 }
 
 export function useCabinetPayment({
@@ -70,7 +70,7 @@ export function useCabinetPayment({
 }: UseCabinetPaymentParams) {
   const [payment, setPayment] = useState<{ type: ServiceType; name: string } | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
-  const [pendingDocType, setPendingDocType] = useState<typeof DOC_TYPES[0] | null>(null);
+  const [pendingDocType, setPendingDocType] = useState<DocType | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
@@ -102,10 +102,8 @@ export function useCabinetPayment({
             if (action.tab === "chat" && action.chatInput?.trim()) {
               setTimeout(() => chatSendMessage(action.chatInput!), 600);
             } else if (action.tab === "docs" && action.docTypeId) {
-              const dt = DOC_TYPES.find(d => d.id === action.docTypeId);
-              if (dt) {
-                setTimeout(() => docsGenerateRef.current?.(dt, action.docDetails || ""), 600);
-              }
+              const dt = findDocType(action.docTypeId);
+              setTimeout(() => docsGenerateRef.current?.(dt, action.docDetails || ""), 600);
             }
           }
           return;
@@ -152,12 +150,10 @@ export function useCabinetPayment({
       if (action.tab === "chat" && action.chatInput?.trim()) {
         setTimeout(() => chatSendMessage(action.chatInput!), 500);
       } else if (action.tab === "docs" && action.docTypeId) {
-        const dt = DOC_TYPES.find(d => d.id === action.docTypeId);
-        if (dt) {
-          docsSetDocType(dt);
-          if (action.docDetails) docsSetDocDetails(action.docDetails);
-          setTimeout(() => docsGenerateDocWith(dt, action.docDetails || ""), 500);
-        }
+        const dt = findDocType(action.docTypeId);
+        docsSetDocType(dt);
+        if (action.docDetails) docsSetDocDetails(action.docDetails);
+        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || ""), 500);
       }
     }
   };

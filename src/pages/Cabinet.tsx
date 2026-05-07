@@ -240,10 +240,10 @@ export default function Cabinet() {
 
     setCreatingDocFromChat(true);
 
-    const recentMessages = chat.messages.slice(-10);
+    const recentMessages = chat.messages.slice(-5);
     const dialogContext = recentMessages
       .filter(m => m.text && m.text.length > 5)
-      .map(m => `${m.role === "user" ? "Пользователь" : "Юрист"}: ${m.text.slice(0, 600)}`)
+      .map(m => `${m.role === "user" ? "Пользователь" : "Юрист"}: ${m.text.slice(0, 500)}`)
       .join("\n\n");
 
     try {

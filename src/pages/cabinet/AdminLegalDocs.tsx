@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { getLegalDocs, deleteLegalDoc, type LegalDoc } from "@/lib/auth";
+import { getLegalDocs, deleteLegalDoc, requestLegalDocDeleteOtp, type LegalDoc } from "@/lib/auth";
 import { CaseLawTree, StateDutyList, SimpleDocList } from "./LegalDocTreeViews";
 import UploadModal from "./LegalDocUploadModal";
 import { YEARS, CATEGORIES, type LegalCategory } from "./legalDocsConstants";
@@ -14,6 +14,7 @@ export default function AdminLegalDocs() {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadDefaults, setUploadDefaults] = useState<{ year?: number; subcategory?: string }>({});
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ doc: LegalDoc; step: "confirm" | "otp"; otp: string; sending: boolean; error: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -45,12 +46,34 @@ export default function AdminLegalDocs() {
     setShowUpload(true);
   };
 
-  const handleDelete = async (doc: LegalDoc) => {
-    if (!confirm(`Удалить «${doc.title}»?`)) return;
-    setDeleting(doc.id);
-    await deleteLegalDoc(doc.id);
-    await load();
-    setDeleting(null);
+  const handleDelete = (doc: LegalDoc) => {
+    setDeleteModal({ doc, step: "confirm", otp: "", sending: false, error: "" });
+  };
+
+  const handleSendOtp = async () => {
+    if (!deleteModal) return;
+    setDeleteModal(m => m ? { ...m, sending: true, error: "" } : null);
+    const res = await requestLegalDocDeleteOtp(deleteModal.doc.id);
+    if (res.error) {
+      setDeleteModal(m => m ? { ...m, sending: false, error: res.error! } : null);
+    } else {
+      setDeleteModal(m => m ? { ...m, sending: false, step: "otp" } : null);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal || !deleteModal.otp.trim()) return;
+    setDeleteModal(m => m ? { ...m, sending: true, error: "" } : null);
+    setDeleting(deleteModal.doc.id);
+    const res = await deleteLegalDoc(deleteModal.doc.id, deleteModal.otp.trim());
+    if (res.error) {
+      setDeleteModal(m => m ? { ...m, sending: false, error: res.error! } : null);
+      setDeleting(null);
+    } else {
+      setDeleteModal(null);
+      setDeleting(null);
+      await load();
+    }
   };
 
   const countByCategory = (cat: LegalCategory) => docs.filter(d => d.category === cat).length;
@@ -164,6 +187,87 @@ export default function AdminLegalDocs() {
           onClose={() => setShowUpload(false)}
           onDone={() => { setShowUpload(false); load(); }}
         />
+      )}
+
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
+                <Icon name="Trash2" size={16} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-navy-800">Удаление документа</h3>
+                <p className="text-xs text-muted-foreground">Правовая база</p>
+              </div>
+            </div>
+
+            {deleteModal.step === "confirm" ? (
+              <>
+                <p className="text-sm text-navy-700">
+                  Для удаления <span className="font-semibold">«{deleteModal.doc.title}»</span> необходимо подтверждение через код на почту администратора.
+                </p>
+                {deleteModal.error && (
+                  <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{deleteModal.error}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteModal(null)}
+                    className="flex-1 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-slate-50 transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={deleteModal.sending}
+                    className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-60 transition-colors"
+                  >
+                    {deleteModal.sending ? "Отправка..." : "Отправить код"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-navy-700">
+                  Код отправлен на <span className="font-semibold">ilya.povarchuk@mail.ru</span>. Введите его для подтверждения удаления.
+                </p>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={deleteModal.otp}
+                  onChange={e => setDeleteModal(m => m ? { ...m, otp: e.target.value.replace(/\D/g, "") } : null)}
+                  className="w-full px-4 py-2.5 text-center text-xl font-mono tracking-widest border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300"
+                  autoFocus
+                />
+                {deleteModal.error && (
+                  <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{deleteModal.error}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteModal(null)}
+                    className="flex-1 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-slate-50 transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={deleteModal.sending || deleteModal.otp.length !== 6}
+                    className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-60 transition-colors"
+                  >
+                    {deleteModal.sending ? "Удаление..." : "Удалить"}
+                  </button>
+                </div>
+                <button
+                  onClick={handleSendOtp}
+                  className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors"
+                >
+                  Отправить код повторно
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -89,7 +89,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       }
       if (getChatHistory) {
         const hist = getChatHistory();
-        if (hist.length > 0) reqBody.chat_history = hist.slice(-10);
+        if (hist.length > 0) reqBody.chat_history = hist.slice(-5);
       }
 
       const token = getToken();
