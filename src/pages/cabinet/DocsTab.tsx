@@ -19,10 +19,10 @@ export interface GenDoc {
   truncated?: boolean;
 }
 
-export { DOC_TYPES } from "@/pages/cabinet/docBlocks";
-export type { DocType } from "@/pages/cabinet/docBlocks";
 import { DOC_TYPES } from "@/pages/cabinet/docBlocks";
 import type { DocType } from "@/pages/cabinet/docBlocks";
+export { DOC_TYPES };
+export type { DocType };
 
 interface DocsTabProps {
   user: User;

@@ -137,7 +137,7 @@ export function useCabinetPayment({
     const action = loadPendingAction();
     clearPendingAction();
 
-    if (pendingDocType && (svcType === "document" || svcType === "business")) {
+    if (pendingDocType && (["document", "business", "plan_starter", "plan_starter_discount", "plan_pro", "plan_max", "plan_max_expert", "subscription_docs"].includes(svcType))) {
       setPendingDocType(null);
       setTab("docs");
       setTimeout(() => docsGenerateDoc(), 400);

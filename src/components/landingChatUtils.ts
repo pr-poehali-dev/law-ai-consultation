@@ -30,16 +30,62 @@ export function saveHistoryToStorage(hist: { role: string; content: string }[]) 
 
 export function detectDocSuggestion(text: string): string | null {
   const lower = text.toLowerCase();
+  // Исковые заявления
+  if (lower.includes("взыскани") && (lower.includes("долг") || lower.includes("задолженн"))) return "claim_debt";
+  if (lower.includes("расторжени") && lower.includes("брак")) return "claim_divorce";
+  if (lower.includes("раздел") && lower.includes("имуществ")) return "claim_property";
+  if (lower.includes("алимент")) return "claim_alimony";
+  if (lower.includes("потребит") && lower.includes("защит")) return "claim_consumer";
+  if (lower.includes("выселени")) return "claim_eviction";
+  if (lower.includes("ущерб") || lower.includes("возмещени")) return "claim_damage";
+  if (lower.includes("отцовств")) return "claim_paternity";
+  if (lower.includes("судебн") && lower.includes("приказ")) return "claim_order";
+  if (lower.includes("встречн") && lower.includes("иск")) return "claim_counter";
   if (lower.includes("исков")) return "claim";
-  if (lower.includes("претензи")) return "pretension";
+  // Жалобы судебные
   if (lower.includes("апелляц")) return "appeal";
+  if (lower.includes("кассаци") && lower.includes("уголов")) return "criminal_cassation";
   if (lower.includes("кассаци")) return "cassation";
-  if (lower.includes("жалоб")) return "complaint";
-  if (lower.includes("договор")) return "contract";
-  if (lower.includes("ходатайств") || lower.includes("заявлени")) return "application";
+  if (lower.includes("надзорн")) return "supervisory";
+  if (lower.includes("частн") && lower.includes("жалоб")) return "partial_appeal";
+  // Досудебные
+  if (lower.includes("претензи") && lower.includes("потребит")) return "pretension_consumer";
+  if (lower.includes("претензи") && lower.includes("договор")) return "pretension_contract";
+  if (lower.includes("претензи")) return "pretension";
+  if (lower.includes("уведомлени") && lower.includes("расторжени")) return "notification_termination";
   if (lower.includes("уведомлени")) return "notification";
-  const docKeywords = ["иск", "претензи", "жалоб", "заявлени", "договор", "апелляц", "кассаци", "ходатайств", "взыскани", "возражени"];
-  if (docKeywords.some(k => lower.includes(k))) return "claim";
+  // Ходатайства
+  if (lower.includes("ходатайств")) return "petition_evidence";
+  if (lower.includes("возражени") && lower.includes("апелляц")) return "objection_appeal";
+  if (lower.includes("возражени")) return "response_to_claim";
+  if (lower.includes("отзыв") && lower.includes("иск")) return "response_to_claim";
+  // Договоры
+  if (lower.includes("трудов") && lower.includes("договор")) return "labor_contract";
+  if (lower.includes("договор") && lower.includes("аренд")) return "contract_rent";
+  if (lower.includes("договор") && lower.includes("купл")) return "contract_sale";
+  if (lower.includes("договор") && lower.includes("займ")) return "contract_loan";
+  if (lower.includes("договор") && lower.includes("услуг")) return "contract_services";
+  if (lower.includes("договор") && lower.includes("подряд")) return "contract_work";
+  if (lower.includes("расписк")) return "contract_receipt";
+  if (lower.includes("брачн") && lower.includes("договор")) return "contract_marriage";
+  if (lower.includes("договор")) return "contract";
+  // Трудовые
+  if (lower.includes("увольнени")) return "labor_quit_app";
+  if (lower.includes("отпуск")) return "labor_vacation_app";
+  if (lower.includes("сокращени")) return "labor_layoff_notice";
+  if (lower.includes("приказ") && lower.includes("взыскани")) return "labor_order_discipline";
+  // Госорганы
+  if (lower.includes("прокуратур")) return "gov_prosecutor";
+  if (lower.includes("роспотребнадзор")) return "gov_rospotreb";
+  if (lower.includes("полици") || lower.includes("заявление о преступлен")) return "gov_police";
+  if (lower.includes("мошенничеств")) return "gov_fraud";
+  if (lower.includes("трудов") && lower.includes("инспекц")) return "gov_labor_insp";
+  if (lower.includes("жилищн") && lower.includes("инспекц")) return "gov_housing";
+  if (lower.includes("жалоб")) return "complaint";
+  // Судебная речь
+  if (lower.includes("речь") && lower.includes("суд")) return "court_speech";
+  // Общий fallback
+  if (lower.includes("заявлени")) return "application";
   return null;
 }
 

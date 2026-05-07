@@ -7,6 +7,7 @@ import ExpertOfferModal from "@/components/ExpertOfferModal";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import ChatTab, { type DocHint } from "@/pages/cabinet/ChatTab";
 import DocsTab, { type GenDoc } from "@/pages/cabinet/DocsTab";
+import { type DocType } from "@/pages/cabinet/docBlocks";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
 import ProfileTab from "@/pages/cabinet/ProfileTab";
 import ExpertTab from "@/pages/cabinet/ExpertTab";
@@ -32,7 +33,7 @@ interface CabinetContentProps {
   setTab: (tab: Tab) => void;
   setPayment: (p: { type: ServiceType; name: string } | null) => void;
   setViewDoc: (doc: GenDoc | null) => void;
-  setPendingDocType: (dt: DocsLogic["docType"] | null) => void;
+  setPendingDocType: (dt: DocType | null) => void;
   openPlanModal: () => void;
   openDocChoice: (docTypeId: string, docLabel: string) => void;
   createDocFromChat: (aiText: string, userText: string, docHint?: DocHint) => void;

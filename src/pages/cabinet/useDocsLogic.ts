@@ -2,8 +2,8 @@ import { useState } from "react";
 import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe, refundDoc } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
-import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
-import { findDocType, type DocType } from "@/pages/cabinet/docBlocks";
+import { type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
+import { DOC_TYPES, type DocType } from "@/pages/cabinet/docBlocks";
 import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"];
