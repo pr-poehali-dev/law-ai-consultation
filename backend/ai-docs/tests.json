@@ -73,6 +73,13 @@
       "expectedStatus": 401
     },
     {
+      "name": "doc_recommendations — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_recommendations", "doc_content": "тест"},
+      "expectedStatus": 401
+    },
+    {
       "name": "doc_ai_review — unauthorized",
       "method": "POST",
       "path": "/",

@@ -512,49 +512,9 @@ def handler(event: dict, context) -> dict:
             else:
                 truncated = not bool(_RE_DOC_END_OTHER.search(answer[-300:]))
             placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(answer)))
-
-            # Параллельно генерируем рекомендации к документу
-            _rec_result: list = []
-            def _fetch_recommendations():
-                try:
-                    rec_system = (
-                        "Ты — опытный юрист РФ. Анализируй только что созданный документ и определяй, "
-                        "нужны ли дополнительные действия пользователю. "
-                        "Отвечай ТОЛЬКО в формате JSON, без пояснений. "
-                        "Верни пустой список recommendations если дополнительные документы/расчёты не нужны."
-                    )
-                    rec_prompt = (
-                        f"Документ типа '{label}' создан. Текст начала документа:\n{answer[:1500]}\n\n"
-                        "Определи: нужны ли пользователю дополнительные юридические действия? "
-                        "Давай рекомендации ТОЛЬКО если они действительно необходимы.\n\n"
-                        "Верни JSON строго в формате:\n"
-                        '{"recommendations": [{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "краткое обоснование"}, '
-                        '{"type": "doc", "doc_type": "motion_restore_term", "title": "Ходатайство о восстановлении срока", "reason": "..."}]}\n\n'
-                        "Типы:\n"
-                        "- penalty_calc: расчёт неустойки (только если в документе есть денежные требования/долг)\n"
-                        "- doc: подготовка дополнительного документа\n"
-                        "Допустимые doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
-                        "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
-                        "Максимум 3 рекомендации. Верни пустой список если дополнительное не нужно."
-                    )
-                    rec_raw = call_yandex(rec_system, [{"role": "user", "content": rec_prompt}], max_tokens=600, fast=True, temperature=0.1)
-                    m = re.search(r'\{[\s\S]*\}', rec_raw)
-                    if m:
-                        parsed = json.loads(m.group())
-                        recs = parsed.get("recommendations", [])
-                        if isinstance(recs, list) and len(recs) <= 3:
-                            _rec_result.append(recs)
-                except Exception as e:
-                    print(f"[DOC_GEN] Рекомендации не получены: {e}")
-
-            rec_thread = threading.Thread(target=_fetch_recommendations, daemon=True)
-            rec_thread.start()
-            rec_thread.join(timeout=12)
-
-            recommendations = _rec_result[0] if _rec_result else []
-
+            # Рекомендации теперь запрашиваются отдельно (mode=doc_recommendations) после показа документа
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated, "recommendations": recommendations}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
 
         # ── Анализ файлов ────────────────────────────────────────────────────
         if mode == "file_analyze":
@@ -813,6 +773,46 @@ def handler(event: dict, context) -> dict:
             rec_placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(rec_answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": rec_answer, "placeholders": rec_placeholders, "label": rec_label}, ensure_ascii=False)}
+
+        # ── Анализ рекомендаций (вызывается отдельно после показа документа) ──
+        if mode == "doc_recommendations":
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Unauthorized"}, ensure_ascii=False)}
+            doc_name = body.get("doc_name", "Документ")
+            doc_content = body.get("doc_content", "").strip()
+            if not doc_content:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "doc_content required"}, ensure_ascii=False)}
+            rec_sys = (
+                "Ты — опытный юрист РФ. Кратко определи, нужны ли дополнительные действия к документу. "
+                "Отвечай ТОЛЬКО JSON, без пояснений."
+            )
+            rec_pr = (
+                f"Документ «{doc_name}»:\n{doc_content}\n\n"
+                "Нужны ли пользователю дополнительные юридические действия?\n"
+                "Верни JSON:\n"
+                '{"recommendations": ['
+                '{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "..."} | '
+                '{"type": "doc", "doc_type": "motion_restore_term", "title": "...", "reason": "..."}'
+                ']}\n'
+                "Типы doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
+                "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
+                "ТОЛЬКО если реально необходимо. Максимум 2. Пустой список если не нужно."
+            )
+            recs_raw = []
+            try:
+                raw = call_yandex(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=500, fast=True, temperature=0.1)
+                m = re.search(r'\{[\s\S]*\}', raw)
+                if m:
+                    parsed = json.loads(m.group())
+                    recs_raw = parsed.get("recommendations", [])
+                    if not isinstance(recs_raw, list): recs_raw = []
+                    recs_raw = recs_raw[:2]
+            except Exception as e:
+                print(f"[DOC_RECS] ошибка: {e}")
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"recommendations": recs_raw}, ensure_ascii=False)}
 
         # ── AI-анализ документа (помощник) ────────────────────────────────────
         if mode == "doc_ai_review":
