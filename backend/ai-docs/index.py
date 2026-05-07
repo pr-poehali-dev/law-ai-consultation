@@ -814,6 +814,108 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": rec_answer, "placeholders": rec_placeholders, "label": rec_label}, ensure_ascii=False)}
 
+        # ── AI-анализ документа (помощник) ────────────────────────────────────
+        if mode == "doc_ai_review":
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Unauthorized"}, ensure_ascii=False)}
+            doc_name = body.get("doc_name", "Документ")
+            doc_content = body.get("doc_content", "").strip()
+            if not doc_content:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "doc_content required"}, ensure_ascii=False)}
+            review_system = (
+                "Ты — опытный юрист РФ, рецензирующий юридические документы. "
+                "Анализируй документ критически и профессионально. "
+                "Отвечай строго в указанном JSON-формате."
+            )
+            review_prompt = (
+                f"Проанализируй документ «{doc_name}».\n\n"
+                f"Текст документа:\n{doc_content}\n\n"
+                "Дай профессиональное заключение:\n"
+                "1. Наличие юридических ошибок или неточностей\n"
+                "2. Перспектива иска/требования (высокая/средняя/низкая + обоснование)\n"
+                "3. Применимая судебная практика (если знаешь реальные дела — укажи)\n"
+                "4. Краткие рекомендации по улучшению\n\n"
+                "Также определи, нужны ли дополнительные документы.\n\n"
+                "Верни JSON строго в формате:\n"
+                '{"answer": "Развёрнутое заключение (3-6 абзацев)", "recommendations": ['
+                '{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "..."} | '
+                '{"type": "doc", "doc_type": "motion_restore_term", "title": "...", "reason": "..."}]}\n'
+                "Типы doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
+                "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
+                "Максимум 2 рекомендации. Пустой список если дополнительное не нужно."
+            )
+            review_answer = ""
+            review_recs = []
+            try:
+                raw = call_yandex(review_system, [{"role": "user", "content": review_prompt}], max_tokens=1800, fast=False, temperature=0.1)
+                m = re.search(r'\{[\s\S]*\}', raw)
+                if m:
+                    parsed = json.loads(m.group())
+                    review_answer = parsed.get("answer", raw)
+                    review_recs = parsed.get("recommendations", [])
+                else:
+                    review_answer = raw
+            except Exception as e:
+                print(f"[DOC_REVIEW] Яндекс упал: {e} → fallback")
+                try:
+                    raw, _ = call_deepseek(review_system, [{"role": "user", "content": review_prompt}], max_tokens=1800, temperature=0.1, timeout=70)
+                    m = re.search(r'\{[\s\S]*\}', raw)
+                    if m:
+                        parsed = json.loads(m.group())
+                        review_answer = parsed.get("answer", raw)
+                        review_recs = parsed.get("recommendations", [])
+                    else:
+                        review_answer = raw
+                except Exception as e2:
+                    print(f"[DOC_REVIEW] DeepSeek упал: {e2}")
+            if not review_answer:
+                return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось провести анализ. Попробуйте ещё раз."}, ensure_ascii=False)}
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": review_answer, "recommendations": review_recs}, ensure_ascii=False)}
+
+        # ── Редактирование документа AI-помощником ────────────────────────────
+        if mode == "doc_edit":
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Unauthorized"}, ensure_ascii=False)}
+            doc_name = body.get("doc_name", "Документ")
+            doc_content = body.get("doc_content", "").strip()
+            edit_instruction = body.get("edit_instruction", "").strip()
+            if not doc_content or not edit_instruction:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "doc_content and edit_instruction required"}, ensure_ascii=False)}
+            edit_system = (
+                "Ты — юрист-редактор РФ. Тебе передают документ и инструкцию по редактированию. "
+                "ВАЖНО: верни ТОЛЬКО отредактированный документ целиком. "
+                "Сохраняй структуру блоков [ШАПКА], [ЗАГОЛОВОК], [ТЕЛО], [ТРЕБОВАНИЯ], [ПРИЛОЖЕНИЯ], [ПОДПИСЬ], [ОБОСНОВАНИЕ], [ПРИМЕЧАНИЯ]. "
+                "Не добавляй объяснений — только документ."
+            )
+            edit_prompt = (
+                f"Документ «{doc_name}»:\n\n{doc_content}\n\n"
+                f"Инструкция по редактированию: {edit_instruction}\n\n"
+                "Верни полный документ с внесёнными изменениями. "
+                "Где не хватает данных — используй метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}. "
+                "Запрещены [...] и ___."
+            )
+            edit_answer = ""
+            try:
+                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=4000, temperature=0.1)
+            except Exception as e:
+                print(f"[DOC_EDIT] Яндекс упал: {e} → fallback")
+            if not edit_answer or is_refusal(edit_answer):
+                try:
+                    edit_answer, _ = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=4000, temperature=0.1, timeout=80)
+                except Exception as e2:
+                    print(f"[DOC_EDIT] DeepSeek упал: {e2}")
+            if not edit_answer:
+                return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось отредактировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": edit_answer}, ensure_ascii=False)}
+
         return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": f"Unknown mode: {mode}"})}
 

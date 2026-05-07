@@ -19,7 +19,7 @@ import CabinetContent from "@/pages/cabinet/CabinetContent";
 import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
 import DocSavedToast from "@/components/DocSavedToast";
 import DocChoiceModal from "@/components/DocChoiceModal";
-import DocRecommendationsPanel, { type DocRecommendation } from "@/components/DocRecommendationsPanel";
+
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
@@ -40,7 +40,7 @@ export default function Cabinet() {
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
-  const [activeRecommendations, setActiveRecommendations] = useState<{ recs: DocRecommendation[]; doc: GenDoc } | null>(null);
+
 
   const chatSendRef = useRef<((text: string) => void) | null>(null);
   const docsGenerateRef = useRef<((dt: DocType, details: string) => void) | null>(null);
@@ -69,9 +69,7 @@ export default function Cabinet() {
       setTab("docs");
       setViewDoc(doc);
       // Показываем панель рекомендаций если AI их нашёл
-      if (doc.recommendations && doc.recommendations.length > 0) {
-        setActiveRecommendations({ recs: doc.recommendations as DocRecommendation[], doc });
-      }
+
     },
     onDocSaved: (docName) => setDocSavedToast(docName),
     getChatHistory: () => chat.history,
@@ -415,17 +413,6 @@ export default function Cabinet() {
         <DocSavedToast
           docName={docSavedToast}
           onClose={() => setDocSavedToast(null)}
-        />
-      )}
-
-      {/* Панель рекомендаций AI после генерации документа */}
-      {activeRecommendations && (
-        <DocRecommendationsPanel
-          recommendations={activeRecommendations.recs}
-          docContent={activeRecommendations.doc.content}
-          docName={activeRecommendations.doc.name}
-          onClose={() => setActiveRecommendations(null)}
-          onPaymentRequired={() => pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" })}
         />
       )}
 

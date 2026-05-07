@@ -1,12 +1,12 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken, canAskQuestion, consumeQuestion } from "@/lib/auth";
+import { getToken, canAskQuestion, consumeQuestion, getUser, hasActiveSubscription } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import func2url from "../../backend/func2url.json";
 
 const API_URL = (func2url as Record<string, string>)["ai-docs"];
 
-interface PartialEntry { date: string; amount: string; }
+interface PartialEntry { id: number; date: string; amount: string; }
 
 interface PenaltyCalcPanelProps {
   onClose: () => void;
@@ -18,6 +18,19 @@ type RateType = "percent" | "fixed" | "cbr";
 type CbrMode = "multiplier" | "fraction";
 type CbrApply = "periods" | "end" | "today" | "custom";
 type PercentPeriod = "day" | "year";
+
+let _nextId = 1;
+function nextId() { return _nextId++; }
+
+async function checkProAccess(): Promise<boolean> {
+  const user = await getUser();
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  if (hasActiveSubscription(user, "consult")) return true;
+  if (hasActiveSubscription(user, "docs")) return true;
+  // Профи = paidQuestions >= 30 или paidDocs >= 10
+  return user.paidQuestions >= 30 || user.paidDocs >= 10;
+}
 
 export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false }: PenaltyCalcPanelProps) {
   const [debt, setDebt] = useState("");
@@ -40,21 +53,20 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
   const [result, setResult] = useState("");
   const [err, setErr] = useState("");
 
-  const addPartial = () => setPartials(p => [...p, { date: "", amount: "" }]);
-  const removePartial = (i: number) => setPartials(p => p.filter((_, idx) => idx !== i));
-  const updatePartial = (i: number, field: keyof PartialEntry, val: string) =>
-    setPartials(p => p.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
+  const addPartial = () => setPartials(p => [...p, { id: nextId(), date: "", amount: "" }]);
+  const removePartial = (id: number) => setPartials(p => p.filter(e => e.id !== id));
+  const updatePartial = (id: number, field: "date" | "amount", val: string) =>
+    setPartials(p => p.map(e => e.id === id ? { ...e, [field]: val } : e));
 
-  const addIncrease = () => setIncreases(p => [...p, { date: "", amount: "" }]);
-  const removeIncrease = (i: number) => setIncreases(p => p.filter((_, idx) => idx !== i));
-  const updateIncrease = (i: number, field: keyof PartialEntry, val: string) =>
-    setIncreases(p => p.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
+  const addIncrease = () => setIncreases(p => [...p, { id: nextId(), date: "", amount: "" }]);
+  const removeIncrease = (id: number) => setIncreases(p => p.filter(e => e.id !== id));
+  const updateIncrease = (id: number, field: "date" | "amount", val: string) =>
+    setIncreases(p => p.map(e => e.id === id ? { ...e, [field]: val } : e));
 
   const buildCalcData = () => {
     const lines: string[] = [];
     lines.push(`Сумма долга: ${debt} руб.`);
     lines.push(`Период просрочки: с ${dateFrom} по ${dateTo || "дату расчёта"}`);
-
     if (rateType === "percent") {
       lines.push(`Тип расчёта: Вариант А (проценты от суммы долга)`);
       lines.push(`Ставка: ${percentValue}% в ${percentPeriod === "day" ? "день" : "год"}`);
@@ -63,45 +75,36 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
       lines.push(`Твёрдая сумма в день: ${fixedDay} руб.`);
     } else {
       lines.push(`Тип расчёта: Вариант Б (ключевая ставка ЦБ РФ)`);
-      if (cbrMode === "fraction") {
-        lines.push(`Доля ставки: 1/${cbrValue}`);
-      } else {
-        lines.push(`Кратность ставки: ${cbrValue}x`);
-      }
+      lines.push(cbrMode === "fraction" ? `Доля ставки: 1/${cbrValue}` : `Кратность ставки: ${cbrValue}x`);
       const applyMap: Record<CbrApply, string> = {
-        periods: "по периодам действия ЦБ РФ",
-        end: "на конец периода начисления",
-        today: "на сегодня",
-        custom: `на дату ${cbrCustomDate}`,
+        periods: "по периодам действия ЦБ РФ", end: "на конец периода начисления",
+        today: "на сегодня", custom: `на дату ${cbrCustomDate}`,
       };
       lines.push(`Применить ставку: ${applyMap[cbrApply]}`);
     }
-
     if (capEnabled && capValue) {
       lines.push(`Ограничение неустойки: ${capValue} ${capType === "percent" ? "% от суммы долга" : "руб. (фиксированно)"}`);
     }
-
-    const validPartials = partials.filter(p => p.date && p.amount);
-    if (validPartials.length > 0) {
-      lines.push(`Частичные оплаты: ${validPartials.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
-    }
-
-    const validIncreases = increases.filter(p => p.date && p.amount);
-    if (validIncreases.length > 0) {
-      lines.push(`Увеличения долга: ${validIncreases.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
-    }
-
+    const vp = partials.filter(p => p.date && p.amount);
+    if (vp.length) lines.push(`Частичные оплаты: ${vp.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
+    const vi = increases.filter(p => p.date && p.amount);
+    if (vi.length) lines.push(`Увеличения долга: ${vi.map(p => `${p.date} — ${p.amount} руб.`).join("; ")}`);
     return lines.join("\n");
   };
 
   const handleCalc = async () => {
-    if (!debt || !dateFrom) { setErr("Укажите сумму долга и дату начала просрочки"); return; }
+    if (!debt.trim() || !dateFrom) { setErr("Укажите сумму долга и дату начала просрочки"); return; }
     setErr("");
     setLoading(true);
+
+    const hasPro = await checkProAccess();
+    if (!hasPro) { setLoading(false); onPaymentRequired(); return; }
+
     const canAsk = await canAskQuestion();
     if (!canAsk) { setLoading(false); onPaymentRequired(); return; }
     const { ok } = await consumeQuestion();
     if (!ok) { setLoading(false); onPaymentRequired(); return; }
+
     try {
       const token = getToken();
       const res = await fetch(API_URL, {
@@ -124,11 +127,20 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     downloadDoc("Расчёт неустойки", `[ЗАГОЛОВОК]\nРАСЧЁТ НЕУСТОЙКИ\n[ТЕЛО]\n${result}`);
   };
 
-  const inputCls = "w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 focus:ring-1 focus:ring-navy-100 transition-colors";
-  const labelCls = "text-[11px] font-semibold text-navy-600 uppercase tracking-wide mb-1 block";
+  const inp = "w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 focus:ring-1 focus:ring-navy-100 transition-colors placeholder:text-slate-300";
+  const lbl = "text-[11px] font-semibold text-navy-600 uppercase tracking-wide mb-1 block";
+
+  const Radio = ({ value, current, onChange, label }: { value: string; current: string; onChange: (v: string) => void; label: string }) => (
+    <label className="flex items-center gap-2 cursor-pointer select-none group" onClick={() => onChange(value)}>
+      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${current === value ? "border-navy-600 bg-navy-600" : "border-slate-300 group-hover:border-navy-400"}`}>
+        {current === value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+      </div>
+      <span className={`text-xs transition-colors ${current === value ? "text-navy-800 font-medium" : "text-slate-500 group-hover:text-navy-700"}`}>{label}</span>
+    </label>
+  );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Шапка */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-2">
@@ -144,152 +156,150 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
         )}
       </div>
 
-      {/* Форма / Результат */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      {/* Тариф-подсказка */}
+      {!embedded && (
+        <div className="px-4 pt-2.5 pb-0 shrink-0">
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-xl px-2.5 py-1.5">
+            <Icon name="Lock" size={11} className="text-amber-500 shrink-0" />
+            <span className="text-[10px] text-amber-700">Доступно с тарифа <b>Профи</b> и выше · 1 вопрос</span>
+          </div>
+        </div>
+      )}
+
+      {/* Контент */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         {result ? (
+          /* ── Результат ── */
           <div className="space-y-3">
-            <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Icon name="CheckCircle" size={14} className="text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700">Расчёт готов</span>
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <Icon name="CheckCircle" size={14} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Расчёт готов</p>
+                    <p className="text-[10px] text-slate-400">Юридический калькулятор</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm">
+                  <p className="text-xs text-navy-700 whitespace-pre-wrap leading-relaxed">{result}</p>
+                </div>
               </div>
-              <p className="text-xs text-navy-700 whitespace-pre-wrap leading-relaxed">{result}</p>
             </div>
-            <button onClick={handleDownload} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center justify-center gap-1.5">
+            <button onClick={handleDownload} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center justify-center gap-1.5 active:scale-95">
               <Icon name="Download" size={14} />Скачать расчёт .docx
             </button>
-            <button onClick={() => setResult("")} className="w-full py-2 rounded-xl text-xs text-navy-500 hover:text-navy-700 border border-slate-200 hover:border-navy-300 transition-colors">
-              Новый расчёт
+            <button onClick={() => setResult("")} className="w-full py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-navy-600 border border-slate-200 hover:border-navy-200 transition-colors">
+              ← Новый расчёт
             </button>
           </div>
         ) : (
+          /* ── Форма ── */
           <>
             {/* Сумма долга */}
             <div>
-              <label className={labelCls}>Сумма долга</label>
+              <label className={lbl}>Сумма долга</label>
               <div className="relative">
-                <input value={debt} onChange={e => setDebt(e.target.value)} placeholder="100 000" className={inputCls + " pr-8"} />
+                <input value={debt} onChange={e => setDebt(e.target.value)} placeholder="100 000" className={inp + " pr-8"} />
                 <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">₽</span>
               </div>
             </div>
 
             {/* Период */}
             <div>
-              <label className={labelCls}>Период начисления неустойки</label>
+              <label className={lbl}>Период просрочки</label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[10px] text-slate-400 mb-0.5 block">С даты</span>
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} />
+                  <span className="text-[10px] text-slate-400 mb-0.5 block">С даты (начало)</span>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 mb-0.5 block">По дату (пусто = сегодня)</span>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputCls} />
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inp} />
                 </div>
               </div>
             </div>
 
             {/* Тип ставки */}
             <div>
-              <label className={labelCls}>Ставка</label>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { val: "percent" as RateType, label: "В процентах от суммы долга" },
-                  { val: "fixed" as RateType, label: "Твёрдая денежная сумма в день" },
-                  { val: "cbr" as RateType, label: "Зависит от ключевой ставки ЦБ РФ" },
-                ].map(opt => (
-                  <label key={opt.val} className="flex items-center gap-2 cursor-pointer">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${rateType === opt.val ? "border-navy-600 bg-navy-600" : "border-slate-300"}`}>
-                      {rateType === opt.val && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                    <span className="text-xs text-navy-700">{opt.label}</span>
-                  </label>
-                ))}
+              <label className={lbl}>Тип ставки</label>
+              <div className="bg-slate-50 rounded-xl p-3 space-y-2.5">
+                <Radio value="percent" current={rateType} onChange={v => setRateType(v as RateType)} label="В процентах от суммы долга" />
+                <Radio value="fixed" current={rateType} onChange={v => setRateType(v as RateType)} label="Твёрдая сумма в день" />
+                <Radio value="cbr" current={rateType} onChange={v => setRateType(v as RateType)} label="Ключевая ставка ЦБ РФ" />
               </div>
             </div>
 
-            {/* Поля в зависимости от типа ставки */}
+            {/* Поля по типу ставки */}
             {rateType === "percent" && (
-              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-                <label className={labelCls}>Размер ставки</label>
-                <div className="flex gap-2">
-                  <input value={percentValue} onChange={e => setPercentValue(e.target.value)} placeholder="0.1" className={inputCls + " flex-1"} />
-                  <span className="text-sm text-slate-400 self-center">%</span>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-2.5">
+                <label className={lbl}>Размер ставки</label>
+                <div className="flex gap-2 items-center">
+                  <input value={percentValue} onChange={e => setPercentValue(e.target.value)} placeholder="0.1" className={inp + " flex-1"} />
+                  <span className="text-sm text-slate-400 shrink-0 font-medium">%</span>
                 </div>
-                <div className="flex gap-3">
-                  {(["day", "year"] as PercentPeriod[]).map(p => (
-                    <label key={p} className="flex items-center gap-1.5 cursor-pointer">
-                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${percentPeriod === p ? "border-navy-600 bg-navy-600" : "border-slate-300"}`}>
-                        {percentPeriod === p && <div className="w-1 h-1 rounded-full bg-white" />}
-                      </div>
-                      <span className="text-xs text-navy-700">{p === "day" ? "% в день" : "% в год"}</span>
-                    </label>
-                  ))}
+                <div className="flex gap-4">
+                  <Radio value="day" current={percentPeriod} onChange={v => setPercentPeriod(v as PercentPeriod)} label="% в день" />
+                  <Radio value="year" current={percentPeriod} onChange={v => setPercentPeriod(v as PercentPeriod)} label="% в год" />
                 </div>
               </div>
             )}
 
             {rateType === "fixed" && (
-              <div className="bg-slate-50 rounded-xl p-3">
-                <label className={labelCls}>Твёрдая сумма в день</label>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <label className={lbl}>Твёрдая сумма в день</label>
                 <div className="relative">
-                  <input value={fixedDay} onChange={e => setFixedDay(e.target.value)} placeholder="500" className={inputCls + " pr-8"} />
+                  <input value={fixedDay} onChange={e => setFixedDay(e.target.value)} placeholder="500" className={inp + " pr-8"} />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">₽</span>
                 </div>
               </div>
             )}
 
             {rateType === "cbr" && (
-              <div className="bg-slate-50 rounded-xl p-3 space-y-3">
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-3">
                 <div>
-                  <label className={labelCls}>Кратность / доля ставки</label>
-                  <div className="flex gap-3 mb-2">
-                    {(["fraction", "multiplier"] as CbrMode[]).map(m => (
-                      <label key={m} className="flex items-center gap-1.5 cursor-pointer">
-                        <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${cbrMode === m ? "border-navy-600 bg-navy-600" : "border-slate-300"}`}>
-                          {cbrMode === m && <div className="w-1 h-1 rounded-full bg-white" />}
-                        </div>
-                        <span className="text-xs text-navy-700">{m === "fraction" ? "Доля ставки (1/N)" : "Кратность ставки"}</span>
-                      </label>
-                    ))}
+                  <label className={lbl}>Кратность / доля ставки</label>
+                  <div className="flex gap-4 mb-2">
+                    <Radio value="fraction" current={cbrMode} onChange={v => setCbrMode(v as CbrMode)} label="Доля (1/N)" />
+                    <Radio value="multiplier" current={cbrMode} onChange={v => setCbrMode(v as CbrMode)} label="Кратность" />
                   </div>
                   <div className="flex items-center gap-2">
                     {cbrMode === "fraction" && <span className="text-sm text-slate-500 shrink-0">1 /</span>}
-                    <input value={cbrValue} onChange={e => setCbrValue(e.target.value)} placeholder={cbrMode === "fraction" ? "300" : "1.5"} className={inputCls} />
+                    <input value={cbrValue} onChange={e => setCbrValue(e.target.value)} placeholder={cbrMode === "fraction" ? "300" : "1.5"} className={inp} />
                     {cbrMode === "multiplier" && <span className="text-sm text-slate-400 shrink-0">× ставки</span>}
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Применить ставку</label>
-                  <select value={cbrApply} onChange={e => setCbrApply(e.target.value as CbrApply)} className={inputCls}>
+                  <label className={lbl}>Применить ставку</label>
+                  <select value={cbrApply} onChange={e => setCbrApply(e.target.value as CbrApply)} className={inp + " cursor-pointer"}>
                     <option value="periods">По периодам действия ЦБ РФ</option>
                     <option value="end">На конец периода начисления</option>
                     <option value="today">На сегодня</option>
                     <option value="custom">На выбранную дату</option>
                   </select>
                   {cbrApply === "custom" && (
-                    <input type="date" value={cbrCustomDate} onChange={e => setCbrCustomDate(e.target.value)} className={inputCls + " mt-2"} />
+                    <input type="date" value={cbrCustomDate} onChange={e => setCbrCustomDate(e.target.value)} className={inp + " mt-2"} />
                   )}
                 </div>
               </div>
             )}
 
-            {/* Ограничение неустойки */}
+            {/* Ограничение */}
             <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div
-                  onClick={() => setCapEnabled(v => !v)}
-                  className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${capEnabled ? "border-navy-600 bg-navy-600" : "border-slate-300"}`}
-                >
+              <label className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setCapEnabled(v => !v)}>
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${capEnabled ? "border-navy-600 bg-navy-600" : "border-slate-300"}`}>
                   {capEnabled && <Icon name="Check" size={10} className="text-white" />}
                 </div>
                 <span className="text-xs font-medium text-navy-700">Ограничение суммы неустойки</span>
               </label>
               {capEnabled && (
-                <div className="flex gap-2 items-center mt-1">
-                  <input value={capValue} onChange={e => setCapValue(e.target.value)} placeholder={capType === "percent" ? "10" : "50000"} className={inputCls + " flex-1"} />
+                <div className="flex gap-2 items-center">
+                  <input value={capValue} onChange={e => setCapValue(e.target.value)} placeholder={capType === "percent" ? "10" : "50000"} className={inp + " flex-1"} />
                   <div className="flex rounded-xl overflow-hidden border border-slate-200 shrink-0">
-                    <button onClick={() => setCapType("percent")} className={`px-3 py-2 text-xs font-medium transition-colors ${capType === "percent" ? "bg-navy-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>%</button>
-                    <button onClick={() => setCapType("fixed")} className={`px-3 py-2 text-xs font-medium transition-colors ${capType === "fixed" ? "bg-navy-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>₽</button>
+                    <button onClick={() => setCapType("percent")} className={`px-3 py-2 text-xs font-semibold transition-colors ${capType === "percent" ? "bg-navy-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>%</button>
+                    <button onClick={() => setCapType("fixed")} className={`px-3 py-2 text-xs font-semibold transition-colors ${capType === "fixed" ? "bg-navy-700 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>₽</button>
                   </div>
                 </div>
               )}
@@ -300,51 +310,54 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
               {/* Частичные оплаты */}
               <div className="bg-slate-50 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-semibold text-navy-600 uppercase tracking-wide">Частичные оплаты</span>
+                  <span className="text-[10px] font-bold text-navy-600 uppercase tracking-wide">Частичные оплаты</span>
                   <button onClick={addPartial} className="w-5 h-5 rounded-lg bg-navy-100 hover:bg-navy-200 flex items-center justify-center transition-colors">
                     <Icon name="Plus" size={10} className="text-navy-700" />
                   </button>
                 </div>
-                {partials.length === 0 && <p className="text-[10px] text-slate-400">Нажмите + для добавления</p>}
-                {partials.map((p, i) => (
-                  <div key={i} className="mb-1.5 flex flex-col gap-1 relative">
-                    <input type="date" value={p.date} onChange={e => updatePartial(i, "date", e.target.value)} className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none" />
-                    <div className="flex gap-1">
-                      <input value={p.amount} onChange={e => updatePartial(i, "amount", e.target.value)} placeholder="Сумма ₽" className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none" />
-                      <button onClick={() => removePartial(i)} className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors">
-                        <Icon name="Trash2" size={10} />
-                      </button>
+                {partials.length === 0
+                  ? <p className="text-[10px] text-slate-400 italic">Нажмите +</p>
+                  : partials.map(p => (
+                    <div key={p.id} className="mb-2 space-y-1">
+                      <input type="date" value={p.date} onChange={e => updatePartial(p.id, "date", e.target.value)} className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none focus:border-navy-300" />
+                      <div className="flex gap-1">
+                        <input value={p.amount} onChange={e => updatePartial(p.id, "amount", e.target.value)} placeholder="Сумма ₽" className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none focus:border-navy-300" />
+                        <button onClick={() => removePartial(p.id)} className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors">
+                          <Icon name="X" size={10} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                }
               </div>
-
               {/* Увеличения долга */}
               <div className="bg-slate-50 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-semibold text-navy-600 uppercase tracking-wide">Увеличение долга</span>
+                  <span className="text-[10px] font-bold text-navy-600 uppercase tracking-wide">Увеличение долга</span>
                   <button onClick={addIncrease} className="w-5 h-5 rounded-lg bg-navy-100 hover:bg-navy-200 flex items-center justify-center transition-colors">
                     <Icon name="Plus" size={10} className="text-navy-700" />
                   </button>
                 </div>
-                {increases.length === 0 && <p className="text-[10px] text-slate-400">Нажмите + для добавления</p>}
-                {increases.map((p, i) => (
-                  <div key={i} className="mb-1.5 flex flex-col gap-1">
-                    <input type="date" value={p.date} onChange={e => updateIncrease(i, "date", e.target.value)} className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none" />
-                    <div className="flex gap-1">
-                      <input value={p.amount} onChange={e => updateIncrease(i, "amount", e.target.value)} placeholder="Сумма ₽" className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none" />
-                      <button onClick={() => removeIncrease(i)} className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors">
-                        <Icon name="Trash2" size={10} />
-                      </button>
+                {increases.length === 0
+                  ? <p className="text-[10px] text-slate-400 italic">Нажмите +</p>
+                  : increases.map(p => (
+                    <div key={p.id} className="mb-2 space-y-1">
+                      <input type="date" value={p.date} onChange={e => updateIncrease(p.id, "date", e.target.value)} className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none focus:border-navy-300" />
+                      <div className="flex gap-1">
+                        <input value={p.amount} onChange={e => updateIncrease(p.id, "amount", e.target.value)} placeholder="Сумма ₽" className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-[11px] bg-white outline-none focus:border-navy-300" />
+                        <button onClick={() => removeIncrease(p.id)} className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors">
+                          <Icon name="X" size={10} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                }
               </div>
             </div>
 
             {err && (
-              <div className="flex items-center gap-2 text-red-500 bg-red-50 rounded-xl px-3 py-2">
-                <Icon name="AlertCircle" size={13} />
+              <div className="flex items-center gap-2 text-red-500 bg-red-50 rounded-xl px-3 py-2.5 border border-red-100">
+                <Icon name="AlertCircle" size={13} className="shrink-0" />
                 <span className="text-xs">{err}</span>
               </div>
             )}
@@ -358,13 +371,12 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
           <button
             onClick={handleCalc}
             disabled={loading}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white transition-all shadow-sm active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white transition-all shadow-md active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <><Icon name="Loader" size={14} className="animate-spin" />Считаем...</>
-            ) : (
-              <><Icon name="Calculator" size={14} />Рассчитать неустойку · 1 вопрос</>
-            )}
+            {loading
+              ? <><Icon name="Loader" size={14} className="animate-spin" />Считаем...</>
+              : <><Icon name="Calculator" size={14} />Рассчитать · 1 вопрос</>
+            }
           </button>
         </div>
       )}

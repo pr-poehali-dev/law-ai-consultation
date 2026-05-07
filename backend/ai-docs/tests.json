@@ -73,6 +73,27 @@
       "expectedStatus": 401
     },
     {
+      "name": "doc_ai_review — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_ai_review", "doc_content": "тест"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "doc_ai_review — missing content",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_ai_review"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "doc_edit — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "doc_edit", "doc_content": "тест", "edit_instruction": "добавь"},
+      "expectedStatus": 401
+    },
+    {
       "name": "unknown mode",
       "method": "POST",
       "path": "/",

@@ -344,7 +344,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             where_sql = " AND ".join(where_clauses)
             cur.execute(
                 f"""SELECT id, category, title, filename, file_size, mime_type,
-                           created_at, is_active, description, doc_year, subcategory
+                           created_at, is_active, description, doc_year, subcategory, s3_key
                     FROM {SCHEMA}.legal_docs
                     WHERE {where_sql}
                     ORDER BY category, doc_year DESC NULLS LAST, created_at DESC""",
@@ -353,10 +353,20 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             rows = cur.fetchall()
             docs = []
             key_id = os.environ.get("AWS_ACCESS_KEY_ID", "")
+            s3_client = _s3()
             for row in rows:
-                doc_id, cat, title, filename, fsize, mime, created_at, is_active, desc, yr, subcat = row
-                s3_key = f"legal-docs/{cat}/{doc_id}_{filename}"
-                cdn_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
+                doc_id, cat, title, filename, fsize, mime, created_at, is_active, desc, yr, subcat, db_s3_key = row
+                # Берём s3_key из БД, fallback на вычисленный
+                s3_key = db_s3_key if db_s3_key else f"legal-docs/{cat}/{doc_id}_{filename}"
+                # Генерируем presigned URL для скачивания (1 час)
+                try:
+                    cdn_url = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": "files", "Key": s3_key},
+                        ExpiresIn=3600,
+                    )
+                except Exception:
+                    cdn_url = f"https://cdn.poehali.dev/projects/{key_id}/bucket/{s3_key}"
                 cur.execute(
                     f"SELECT COUNT(*) FROM {SCHEMA}.legal_doc_chunks WHERE doc_id = %s AND content != ''",
                     (doc_id,)

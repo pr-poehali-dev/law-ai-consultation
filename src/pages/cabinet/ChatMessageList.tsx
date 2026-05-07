@@ -26,6 +26,36 @@ interface ChatMessageListProps {
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
 }
 
+function PenaltyCalcChatMessage({ text, onPayClick }: { text: string; onPayClick: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex gap-2 items-start">
+      <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+        <Icon name="Scale" size={13} className="text-gold-400" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden">
+          <div className="px-3 py-3">
+            <p className="text-[13px] text-navy-700 leading-relaxed font-golos whitespace-pre-line">{text.replace(/\*\*/g, "")}</p>
+            <button
+              onClick={() => setOpen(v => !v)}
+              className="mt-3 flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-sm w-full justify-center"
+            >
+              <Icon name="Calculator" size={13} />
+              {open ? "Скрыть калькулятор" : "Открыть калькулятор неустойки"}
+            </button>
+          </div>
+          {open && (
+            <div className="border-t border-slate-100" style={{ maxHeight: "540px", overflowY: "auto" }}>
+              <PenaltyCalcPanel onClose={() => setOpen(false)} onPaymentRequired={onPayClick} embedded />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatMessageList({
   user,
   messages,
@@ -110,27 +140,9 @@ export default function ChatMessageList({
               <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
             );
 
-            // Калькулятор неустойки — встроен прямо в чат
+            // Калькулятор неустойки — кнопка раскрывает встроенный калькулятор
             if (msg.isPenaltyCalc) return (
-              <div key={i} className="flex gap-2 items-start">
-                <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  <Icon name="Scale" size={13} className="text-gold-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden">
-                    <div className="px-3 py-2.5 border-b border-slate-100">
-                      <p className="text-[13px] text-navy-700 leading-relaxed font-golos">{msg.text}</p>
-                    </div>
-                    <div style={{ maxHeight: "520px", overflow: "auto" }}>
-                      <PenaltyCalcPanel
-                        onClose={() => {}}
-                        onPaymentRequired={onPayClick}
-                        embedded
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <PenaltyCalcChatMessage key={i} text={msg.text} onPayClick={onPayClick} />
             );
 
             return (
