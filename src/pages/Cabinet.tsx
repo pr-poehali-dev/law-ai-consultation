@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getUserWithStatus, getUser, type User, getToken, startKeepAlive, invalidateUserCache, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
 
-import { DOC_TYPES } from "@/pages/cabinet/DocsTab";
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
+import { findDocType, type DocType, DOC_TYPES } from "@/pages/cabinet/docBlocks";
 import func2url from "../../backend/func2url.json";
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
@@ -41,7 +41,7 @@ export default function Cabinet() {
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
 
   const chatSendRef = useRef<((text: string) => void) | null>(null);
-  const docsGenerateRef = useRef<((dt: typeof DOC_TYPES[0], details: string) => void) | null>(null);
+  const docsGenerateRef = useRef<((dt: DocType, details: string) => void) | null>(null);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
 
@@ -148,14 +148,12 @@ export default function Cabinet() {
 
           if (pendingDocType) {
             // Есть конкретный тип документа — сразу генерируем
-            const dt = DOC_TYPES.find(d => d.id === pendingDocType);
-            if (dt) {
-              setTab("docs");
-              setTimeout(() => {
-                savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
-                docsGenerateRef.current?.(dt, details);
-              }, 800);
-            }
+            const dt = findDocType(pendingDocType);
+            setTab("docs");
+            setTimeout(() => {
+              savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
+              docsGenerateRef.current?.(dt, details);
+            }, 800);
           } else if (details.trim()) {
             // Есть история, но без конкретного документа (купил план) —
             // открываем вкладку документов с предзаполненным описанием ситуации
@@ -207,7 +205,7 @@ export default function Cabinet() {
 
   useEffect(() => {
     if (!pendingDocFromChat || tab !== "docs") return;
-    const dt = DOC_TYPES.find(d => d.id === pendingDocFromChat.docTypeId) || DOC_TYPES[0];
+    const dt = findDocType(pendingDocFromChat.docTypeId);
     const details = pendingDocFromChat.details;
     setPendingDocFromChat(null);
     docs.setDocType(dt);

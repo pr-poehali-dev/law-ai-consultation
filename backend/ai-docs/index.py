@@ -16,6 +16,11 @@ from prompts import (
     SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT, SYSTEM_FILE_QA_PROMPT,
     SYSTEM_DOC_BY_TYPE, REFUSAL_MARKERS, LEGAL_QUALITY_ADDON,
 )
+try:
+    from prompts.block_router import get_system_prompt_for_doc, get_doc_label
+    _BLOCK_ROUTER_OK = True
+except Exception:
+    _BLOCK_ROUTER_OK = False
 from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
 from legal_docs_handler import get_legal_context_for_ai
 
@@ -321,7 +326,7 @@ def handler(event: dict, context) -> dict:
             partial = body.get("partial", "").strip()
             if not partial:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "partial required"})}
-            system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+            system_prompt = get_system_prompt_for_doc(doc_type) if _BLOCK_ROUTER_OK else SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
             context_tail = partial[-800:]
             prompt = (
                 f"Документ был обрезан. Продолжи с того места, где остановился, без повторения уже написанного.\n\n"
@@ -348,17 +353,20 @@ def handler(event: dict, context) -> dict:
             if not details:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
 
-            doc_labels = {
-                "claim": "исковое заявление", "pretension": "досудебную претензию",
-                "complaint": "жалобу", "application": "заявление/ходатайство",
-                "notification": "уведомление", "order": "приказ",
-                "contract": "договор ГПХ", "business_contract": "коммерческий договор",
-                "court_speech": "судебную речь", "response_to_claim": "отзыв на исковое заявление",
-                "objection": "возражение", "appeal": "апелляционную жалобу",
-                "cassation": "кассационную жалобу", "supervisory": "надзорную жалобу",
-            }
-            label = doc_labels.get(doc_type, "документ")
-            system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+            if _BLOCK_ROUTER_OK:
+                label = get_doc_label(doc_type)
+                system_prompt = get_system_prompt_for_doc(doc_type)
+            else:
+                doc_labels = {
+                    "claim": "исковое заявление", "pretension": "досудебную претензию",
+                    "complaint": "жалобу", "application": "заявление/ходатайство",
+                    "notification": "уведомление", "contract": "договор ГПХ",
+                    "court_speech": "судебную речь", "response_to_claim": "отзыв на иск",
+                    "objection": "возражение", "appeal": "апелляционную жалобу",
+                    "cassation": "кассационную жалобу", "supervisory": "надзорную жалобу",
+                }
+                label = doc_labels.get(doc_type, "документ")
+                system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
 
             file_context = ""
             if file_b64 and filename:

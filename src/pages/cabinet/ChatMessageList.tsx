@@ -159,9 +159,7 @@ export default function ChatMessageList({
                       >
                         {creatingDocFromChat
                           ? <><span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
-                          : msg.docHint?.doc_label
-                            ? <><Icon name="FilePlus" size={12} />Составить: {msg.docHint.doc_label}</>
-                            : <><Icon name="FilePlus" size={12} />Создать документ на основе этого ответа</>
+                          : <><Icon name="FilePlus" size={12} />Создать документ</>
                         }
                       </button>
                     )}

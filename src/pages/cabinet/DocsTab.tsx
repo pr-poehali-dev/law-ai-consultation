@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { sendReport } from "@/lib/auth";
 import type { User } from "@/lib/auth";
-import type { ServiceType } from "@/components/PaymentModal";
 import DocsGeneratingOverlay from "@/pages/cabinet/DocsGeneratingOverlay";
 import DocsFormPhase from "@/pages/cabinet/DocsFormPhase";
 import DocsFillingPhase from "@/pages/cabinet/DocsFillingPhase";
@@ -20,26 +19,14 @@ export interface GenDoc {
   truncated?: boolean;
 }
 
-const DOC_TYPES = [
-  { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 600, serviceType: "document" as ServiceType },
-  { id: "response_to_claim", label: "Отзыв на иск", icon: "FileSearch", price: 600, serviceType: "document" as ServiceType },
-  { id: "objection", label: "Возражение", icon: "ShieldAlert", price: 600, serviceType: "document" as ServiceType },
-  { id: "appeal", label: "Апелляционная жалоба", icon: "ArrowUpCircle", price: 600, serviceType: "document" as ServiceType },
-  { id: "cassation", label: "Кассационная жалоба", icon: "RefreshCcw", price: 600, serviceType: "document" as ServiceType },
-  { id: "supervisory", label: "Надзорная жалоба", icon: "Eye", price: 600, serviceType: "document" as ServiceType },
-  { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 600, serviceType: "document" as ServiceType },
-  { id: "complaint", label: "Жалоба", icon: "Building", price: 600, serviceType: "document" as ServiceType },
-  { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 600, serviceType: "document" as ServiceType },
-  { id: "notification", label: "Уведомления", icon: "Bell", price: 600, serviceType: "document" as ServiceType },
-  { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 600, serviceType: "document" as ServiceType },
-  { id: "court_speech", label: "Речь для суда", icon: "Mic", price: 600, serviceType: "document" as ServiceType },
-];
-
-export { DOC_TYPES };
+export { DOC_TYPES } from "@/pages/cabinet/docBlocks";
+export type { DocType } from "@/pages/cabinet/docBlocks";
+import { DOC_TYPES } from "@/pages/cabinet/docBlocks";
+import type { DocType } from "@/pages/cabinet/docBlocks";
 
 interface DocsTabProps {
   user: User;
-  docType: typeof DOC_TYPES[0];
+  docType: DocType;
   docPhase: DocPhase;
   docDetails: string;
   docGenerating: boolean;
@@ -48,7 +35,7 @@ interface DocsTabProps {
   currentDoc: GenDoc | null;
   fillValues: Record<string, string>;
   genDocs: GenDoc[];
-  onDocTypeChange: (dt: typeof DOC_TYPES[0]) => void;
+  onDocTypeChange: (dt: DocType) => void;
   onDocDetailsChange: (v: string) => void;
   onGenerate: () => void;
   onContinue: () => void;
@@ -61,7 +48,7 @@ interface DocsTabProps {
   onGoToChat: () => void;
   onDownload: (name: string, content: string) => void;
   onOpenDoc: (doc: GenDoc) => void;
-  onPayForDoc: (dt: typeof DOC_TYPES[0]) => void;
+  onPayForDoc: (dt: DocType) => void;
   onAnalyzeDoc: (doc: GenDoc) => void;
   onSelectPlan: () => void;
 }

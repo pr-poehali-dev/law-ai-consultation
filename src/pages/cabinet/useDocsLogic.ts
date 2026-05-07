@@ -3,6 +3,7 @@ import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe, refund
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { DOC_TYPES, type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
+import { findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"];
@@ -10,7 +11,7 @@ const DOC_TIMEOUT_MS = 120_000;
 
 interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;
-  onPaymentRequired: (type: ServiceType, name: string, pendingDocType: typeof DOC_TYPES[0]) => void;
+  onPaymentRequired: (type: ServiceType, name: string, pendingDocType: DocType) => void;
   onDocGenerated?: (doc: GenDoc) => void;
   onDocSaved?: (docName: string) => void;
   getChatHistory?: () => { role: string; content: string }[];
@@ -45,7 +46,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     localStorage.setItem("cabinet_docs", JSON.stringify(docs));
   };
 
-  const _runGenerate = async (overrideType?: typeof DOC_TYPES[0], overrideDetails?: string) => {
+  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string) => {
     const activeType = overrideType ?? docType;
     const activeDetails = overrideDetails ?? docDetails;
 
@@ -148,7 +149,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
   const generateDoc = () => _runGenerate();
 
-  const generateDocWith = (dt: typeof DOC_TYPES[0], details: string) => _runGenerate(dt, details);
+  const generateDocWith = (dt: DocType, details: string) => _runGenerate(dt, details);
 
   const continueDoc = async () => {
     if (!currentDoc) return;

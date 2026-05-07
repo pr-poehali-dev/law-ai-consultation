@@ -1,34 +1,20 @@
 import { useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import type { ServiceType } from "@/components/PaymentModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import type { GenDoc } from "@/pages/cabinet/DocsTab";
 import PWAInstallButton from "@/components/PWAInstallButton";
-
-const DOC_TYPES_INTERNAL = [
-  { id: "claim", label: "Исковое заявление", icon: "Gavel", price: 600, serviceType: "document" as ServiceType },
-  { id: "response_to_claim", label: "Отзыв на иск", icon: "FileSearch", price: 600, serviceType: "document" as ServiceType },
-  { id: "objection", label: "Возражение", icon: "ShieldAlert", price: 600, serviceType: "document" as ServiceType },
-  { id: "appeal", label: "Апелляционная жалоба", icon: "ArrowUpCircle", price: 600, serviceType: "document" as ServiceType },
-  { id: "cassation", label: "Кассационная жалоба", icon: "RefreshCcw", price: 600, serviceType: "document" as ServiceType },
-  { id: "supervisory", label: "Надзорная жалоба", icon: "Eye", price: 600, serviceType: "document" as ServiceType },
-  { id: "pretension", label: "Претензия", icon: "AlertCircle", price: 600, serviceType: "document" as ServiceType },
-  { id: "complaint", label: "Жалоба", icon: "Building", price: 600, serviceType: "document" as ServiceType },
-  { id: "application", label: "Заявления / Ходатайства", icon: "ClipboardList", price: 600, serviceType: "document" as ServiceType },
-  { id: "notification", label: "Уведомления", icon: "Bell", price: 600, serviceType: "document" as ServiceType },
-  { id: "contract", label: "Договор ГПХ", icon: "FileCheck", price: 600, serviceType: "document" as ServiceType },
-  { id: "court_speech", label: "Речь для суда", icon: "Mic", price: 600, serviceType: "document" as ServiceType },
-];
+import DocBlockSelector from "@/pages/cabinet/DocBlockSelector";
+import type { DocType } from "@/pages/cabinet/docBlocks";
 
 interface DocsFormPhaseProps {
   user: User;
-  docType: typeof DOC_TYPES_INTERNAL[0];
+  docType: DocType;
   docDetails: string;
   docGenerating: boolean;
   docErr: string;
   genDocs: GenDoc[];
-  onDocTypeChange: (dt: typeof DOC_TYPES_INTERNAL[0]) => void;
+  onDocTypeChange: (dt: DocType) => void;
   onDocDetailsChange: (v: string) => void;
   onGenerate: () => void;
   onGoToChat: () => void;
@@ -78,25 +64,7 @@ export default function DocsFormPhase({
           <PWAInstallButton />
         </div>
         <p className="text-xs text-muted-foreground mb-3">Выберите тип, опишите ситуацию — AI составит документ.</p>
-        <div className="space-y-2">
-          {DOC_TYPES_INTERNAL.map((dt) => (
-            <button
-              key={dt.id}
-              onClick={() => { onDocTypeChange(dt); }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl border transition-all ${
-                docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
-                  <Icon name={dt.icon} size={14} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
-                </div>
-                <span className={`text-sm font-medium truncate ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
-              </div>
-              <span className="text-xs font-semibold text-navy-500 shrink-0 ml-2">{dt.price} ₽</span>
-            </button>
-          ))}
-        </div>
+        <DocBlockSelector selectedId={docType.id} onSelect={onDocTypeChange} />
       </div>
 
       {/* История на мобиле — под списком типов */}
@@ -109,8 +77,8 @@ export default function DocsFormPhase({
             <Icon name="MessageCircle" size={16} className="text-gold-400" />
           </div>
           <div className="text-left flex-1">
-            <div className="text-sm font-semibold">Нужна консультация?</div>
-            <div className="text-xs text-white/70">AI-юрист ответит на ваш вопрос</div>
+            <div className="text-sm font-semibold">Не знаете какой документ нужен?</div>
+            <div className="text-xs text-white/70">Расскажите ситуацию AI и он подскажет</div>
           </div>
           <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
         </button>
@@ -195,25 +163,7 @@ export default function DocsFormPhase({
           <PWAInstallButton />
         </div>
         <p className="text-sm text-muted-foreground mb-4">Выберите нужный тип — справа опишите ситуацию.</p>
-        <div className="space-y-2">
-          {DOC_TYPES_INTERNAL.map((dt) => (
-            <button
-              key={dt.id}
-              onClick={() => { onDocTypeChange(dt); }}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
-                docType.id === dt.id ? "border-navy-500 bg-navy-50" : "border-border hover:border-navy-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${docType.id === dt.id ? "bg-navy-100" : "bg-slate-100"}`}>
-                  <Icon name={dt.icon} size={14} className={docType.id === dt.id ? "text-navy-700" : "text-muted-foreground"} />
-                </div>
-                <span className={`text-sm font-medium truncate ${docType.id === dt.id ? "text-navy-800" : "text-navy-700"}`}>{dt.label}</span>
-              </div>
-              <span className="text-xs font-semibold text-navy-500 shrink-0 ml-2">{dt.price} ₽</span>
-            </button>
-          ))}
-        </div>
+        <DocBlockSelector selectedId={docType.id} onSelect={onDocTypeChange} />
       </div>
 
       {/* Правая колонка — форма генерации + история */}
@@ -273,8 +223,8 @@ export default function DocsFormPhase({
             <Icon name="MessageCircle" size={16} className="text-gold-400" />
           </div>
           <div className="text-left flex-1">
-            <div className="text-sm font-semibold">Нужна консультация?</div>
-            <div className="text-xs text-white/70">AI-юрист ответит на ваш вопрос</div>
+            <div className="text-sm font-semibold">Не знаете какой документ нужен?</div>
+            <div className="text-xs text-white/70">Расскажите ситуацию AI и он подскажет</div>
           </div>
           <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
         </button>
