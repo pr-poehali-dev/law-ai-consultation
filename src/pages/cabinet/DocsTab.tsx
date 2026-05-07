@@ -9,6 +9,13 @@ import DocsReportModal from "@/pages/cabinet/DocsReportModal";
 
 export type DocPhase = "form" | "generating" | "filling" | "done";
 
+export interface DocRecommendationItem {
+  type: "penalty_calc" | "doc";
+  title: string;
+  reason: string;
+  doc_type?: string;
+}
+
 export interface GenDoc {
   id: number;
   name: string;
@@ -17,6 +24,7 @@ export interface GenDoc {
   date: string;
   placeholders: string[];
   truncated?: boolean;
+  recommendations?: DocRecommendationItem[];
 }
 
 import { DOC_TYPES } from "@/pages/cabinet/docBlocks";

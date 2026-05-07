@@ -5,6 +5,7 @@ import UpsellCard from "@/pages/cabinet/UpsellCard";
 import { AnimatedMessage, LegalText, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
 import type { User } from "@/lib/auth";
+import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
 
 interface ChatMessageListProps {
   user: User;
@@ -107,6 +108,29 @@ export default function ChatMessageList({
 
             if (msg.isUpsell) return (
               <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
+            );
+
+            // Калькулятор неустойки — встроен прямо в чат
+            if (msg.isPenaltyCalc) return (
+              <div key={i} className="flex gap-2 items-start">
+                <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                  <Icon name="Scale" size={13} className="text-gold-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden">
+                    <div className="px-3 py-2.5 border-b border-slate-100">
+                      <p className="text-[13px] text-navy-700 leading-relaxed font-golos">{msg.text}</p>
+                    </div>
+                    <div style={{ maxHeight: "520px", overflow: "auto" }}>
+                      <PenaltyCalcPanel
+                        onClose={() => {}}
+                        onPaymentRequired={onPayClick}
+                        embedded
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
 
             return (

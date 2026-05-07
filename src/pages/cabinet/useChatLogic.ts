@@ -157,6 +157,18 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     setInput("");
     setChatErr("");
+
+    // Детектируем запрос расчёта неустойки — показываем калькулятор прямо в чате
+    const penaltyKeywords = /расчёт\s+неустойки|рассчитай\s+неустойку|рассчитать\s+неустойку|посчитай\s+неустойку|подсчитай\s+неустойку|калькулятор\s+неустойки|расчет\s+неустойки|рассчитай\s+пени|посчитай\s+пени/i;
+    if (penaltyKeywords.test(userMsg)) {
+      setMessages((p) => [
+        ...p,
+        { role: "user", text: userMsg },
+        { role: "ai", text: "Для точного расчёта неустойки воспользуйтесь калькулятором ниже. Заполните поля и нажмите «Рассчитать»:", isPenaltyCalc: true },
+      ]);
+      return;
+    }
+
     setMessages((p) => [...p, { role: "user", text: userMsg }]);
     setTyping(true);
     setTypingStatus("Анализирую запрос...");

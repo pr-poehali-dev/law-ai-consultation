@@ -52,6 +52,27 @@
       "bodyMatcher": "partial"
     },
     {
+      "name": "penalty_calc — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "penalty_calc", "calc_data": "тест"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "penalty_calc — missing calc_data",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "penalty_calc"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "rec_doc_generate — unauthorized",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "rec_doc_generate", "rec_doc_type": "motion_restore_term", "rec_context": "тест"},
+      "expectedStatus": 401
+    },
+    {
       "name": "unknown mode",
       "method": "POST",
       "path": "/",

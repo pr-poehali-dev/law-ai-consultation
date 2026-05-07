@@ -23,6 +23,7 @@ except Exception:
     _BLOCK_ROUTER_OK = False
 from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
 from legal_docs_handler import get_legal_context_for_ai
+from penalty_prompt import PENALTY_CALC_SYSTEM, PENALTY_CALC_PROMPT
 
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
 YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt/latest"
@@ -511,8 +512,49 @@ def handler(event: dict, context) -> dict:
             else:
                 truncated = not bool(_RE_DOC_END_OTHER.search(answer[-300:]))
             placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(answer)))
+
+            # Параллельно генерируем рекомендации к документу
+            _rec_result: list = []
+            def _fetch_recommendations():
+                try:
+                    rec_system = (
+                        "Ты — опытный юрист РФ. Анализируй только что созданный документ и определяй, "
+                        "нужны ли дополнительные действия пользователю. "
+                        "Отвечай ТОЛЬКО в формате JSON, без пояснений. "
+                        "Верни пустой список recommendations если дополнительные документы/расчёты не нужны."
+                    )
+                    rec_prompt = (
+                        f"Документ типа '{label}' создан. Текст начала документа:\n{answer[:1500]}\n\n"
+                        "Определи: нужны ли пользователю дополнительные юридические действия? "
+                        "Давай рекомендации ТОЛЬКО если они действительно необходимы.\n\n"
+                        "Верни JSON строго в формате:\n"
+                        '{"recommendations": [{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "краткое обоснование"}, '
+                        '{"type": "doc", "doc_type": "motion_restore_term", "title": "Ходатайство о восстановлении срока", "reason": "..."}]}\n\n'
+                        "Типы:\n"
+                        "- penalty_calc: расчёт неустойки (только если в документе есть денежные требования/долг)\n"
+                        "- doc: подготовка дополнительного документа\n"
+                        "Допустимые doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
+                        "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
+                        "Максимум 3 рекомендации. Верни пустой список если дополнительное не нужно."
+                    )
+                    rec_raw = call_yandex(rec_system, [{"role": "user", "content": rec_prompt}], max_tokens=600, fast=True, temperature=0.1)
+                    m = re.search(r'\{[\s\S]*\}', rec_raw)
+                    if m:
+                        parsed = json.loads(m.group())
+                        recs = parsed.get("recommendations", [])
+                        if isinstance(recs, list) and len(recs) <= 3:
+                            _rec_result.append(recs)
+                except Exception as e:
+                    print(f"[DOC_GEN] Рекомендации не получены: {e}")
+
+            rec_thread = threading.Thread(target=_fetch_recommendations, daemon=True)
+            rec_thread.start()
+            rec_thread.join(timeout=12)
+
+            recommendations = _rec_result[0] if _rec_result else []
+
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": answer, "placeholders": placeholders, "truncated": truncated, "recommendations": recommendations}, ensure_ascii=False)}
 
         # ── Анализ файлов ────────────────────────────────────────────────────
         if mode == "file_analyze":
@@ -692,6 +734,85 @@ def handler(event: dict, context) -> dict:
                 response_data["doc_hint"] = hint_result[0]
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps(response_data, ensure_ascii=False)}
+
+        # ── Расчёт неустойки ─────────────────────────────────────────────────
+        if mode == "penalty_calc":
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Unauthorized"}, ensure_ascii=False)}
+            calc_data = body.get("calc_data", "")
+            if not calc_data:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "calc_data required"}, ensure_ascii=False)}
+            penalty_prompt_text = PENALTY_CALC_PROMPT.format(calc_data=calc_data)
+            pen_answer = ""
+            try:
+                pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, temperature=0.05)
+            except Exception as e:
+                print(f"[PENALTY_CALC] Яндекс упал: {e} → fallback DeepSeek")
+            if not pen_answer or is_refusal(pen_answer):
+                try:
+                    pen_answer, _ = call_deepseek(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, temperature=0.05, timeout=60)
+                except Exception as e:
+                    print(f"[PENALTY_CALC] DeepSeek тоже упал: {e}")
+            if not pen_answer:
+                return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось выполнить расчёт. Попробуйте ещё раз."}, ensure_ascii=False)}
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": pen_answer}, ensure_ascii=False)}
+
+        # ── Генерация документа по рекомендации ──────────────────────────────
+        if mode == "rec_doc_generate":
+            if not token:
+                return {"statusCode": 401, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Unauthorized"}, ensure_ascii=False)}
+            rec_doc_type = body.get("rec_doc_type", "")
+            rec_context = body.get("rec_context", "")
+            rec_reason = body.get("rec_reason", "")
+            if not rec_doc_type or not rec_context:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "rec_doc_type and rec_context required"}, ensure_ascii=False)}
+
+            REC_DOC_LABELS = {
+                "motion_restore_term": "ходатайство о восстановлении срока",
+                "motion_evidence": "ходатайство об истребовании доказательств",
+                "motion_witness": "ходатайство о вызове свидетеля",
+                "motion_third_party": "ходатайство о привлечении третьего лица",
+                "motion_expertise": "ходатайство о назначении экспертизы",
+                "motion_enforcement": "ходатайство об обеспечении иска",
+                "pretension": "досудебную претензию",
+                "complaint": "жалобу",
+                "appeal": "апелляционную жалобу",
+            }
+            rec_label = REC_DOC_LABELS.get(rec_doc_type, "дополнительный документ")
+            rec_system = (
+                "Ты — опытный российский юрист. Составь юридически грамотный документ. "
+                "Используй формат с блоками [ШАПКА], [ЗАГОЛОВОК], [ТЕКСТ], [ПРИЛОЖЕНИЯ], [ПОДПИСЬ]. "
+                "Где нет конкретных данных — ставь {{ПОЛЕ_НАЗВАНИЕ}}. "
+                "Запрещены [...] и ___."
+            )
+            rec_prompt_text = (
+                f"Составь {rec_label} на основании следующего контекста.\n\n"
+                f"Контекст основного документа:\n{rec_context[:2000]}\n\n"
+                f"Обоснование необходимости: {rec_reason}\n\n"
+                "Составь полный готовый документ со ссылками на нормы ТК/ГПК/АПК/ГК РФ."
+            )
+            rec_answer = ""
+            try:
+                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1)
+            except Exception as e:
+                print(f"[REC_DOC] Яндекс упал: {e} → fallback")
+            if not rec_answer or is_refusal(rec_answer):
+                try:
+                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1, timeout=70)
+                except Exception as e:
+                    print(f"[REC_DOC] DeepSeek упал: {e}")
+            if not rec_answer:
+                return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Не удалось создать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
+            rec_placeholders = list(dict.fromkeys(_RE_PLACEHOLDER.findall(rec_answer)))
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": rec_answer, "placeholders": rec_placeholders, "label": rec_label}, ensure_ascii=False)}
 
         return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": f"Unknown mode: {mode}"})}

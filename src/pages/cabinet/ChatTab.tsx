@@ -9,7 +9,7 @@ import ChatMessageList from "@/pages/cabinet/ChatMessageList";
 import ChatInputBar from "@/pages/cabinet/ChatInputBar";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; }
 
 interface ChatTabProps {
   user: User;

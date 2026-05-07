@@ -108,6 +108,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
       const placeholders: string[] = data.placeholders || [];
       const truncated: boolean = data.truncated || false;
+      const recommendations = data.recommendations || [];
       const newDoc: GenDoc = {
         id: Date.now(),
         name: activeType.label,
@@ -116,6 +117,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         date: new Date().toLocaleDateString("ru-RU"),
         placeholders,
         truncated,
+        recommendations,
       };
 
       // Сохраняем немедленно — до любых setState
