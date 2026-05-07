@@ -109,6 +109,7 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "contract_property_split", label: "Соглашение о разделе имущества", icon: "SplitSquareHorizontal", price: 600, serviceType: "document", blockId: "b6" },
       { id: "contract_mediation", label: "Медиативное соглашение", icon: "Handshake", price: 600, serviceType: "document", blockId: "b6" },
       { id: "contract_preliminary", label: "Предварительный договор", icon: "FileClock", price: 600, serviceType: "document", blockId: "b6" },
+      { id: "contract_service_state", label: "Служебный контракт (госслужащие)", icon: "Shield", price: 600, serviceType: "document", blockId: "b6" },
     ],
   },
   {
@@ -125,6 +126,10 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "corporate_rules", label: "ПВТР", icon: "ClipboardList", price: 600, serviceType: "document", blockId: "b7" },
       { id: "corporate_collective", label: "Коллективный договор", icon: "Handshake", price: 600, serviceType: "document", blockId: "b7" },
       { id: "corporate_job_desc", label: "Должностная инструкция", icon: "FileText", price: 600, serviceType: "document", blockId: "b7" },
+      { id: "corporate_founding", label: "Учредительный договор", icon: "FileText", price: 600, serviceType: "document", blockId: "b7" },
+      { id: "corporate_branch", label: "Положение о филиале", icon: "Building", price: 600, serviceType: "document", blockId: "b7" },
+      { id: "corporate_staffing", label: "Штатное расписание", icon: "Table", price: 600, serviceType: "document", blockId: "b7" },
+      { id: "corporate_accounting", label: "Учётная политика", icon: "BookOpen", price: 600, serviceType: "document", blockId: "b7" },
     ],
   },
   {
@@ -136,6 +141,10 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "labor_hire_app", label: "Заявление о приёме на работу", icon: "UserPlus", price: 600, serviceType: "document", blockId: "b8" },
       { id: "labor_quit_app", label: "Заявление об увольнении", icon: "LogOut", price: 600, serviceType: "document", blockId: "b8" },
       { id: "labor_vacation_app", label: "Заявление на отпуск", icon: "Palmtree", price: 600, serviceType: "document", blockId: "b8" },
+      { id: "labor_vacation_exit", label: "Заявление о выходе из отпуска", icon: "LogIn", price: 600, serviceType: "document", blockId: "b8" },
+      { id: "labor_quit_withdraw", label: "Заявление об отзыве заявления об увольнении", icon: "Undo2", price: 600, serviceType: "document", blockId: "b8" },
+      { id: "labor_downtime_notice", label: "Уведомление о простое", icon: "PauseCircle", price: 600, serviceType: "document", blockId: "b8" },
+      { id: "labor_dismiss_notice", label: "Уведомление о предстоящем увольнении", icon: "BellOff", price: 600, serviceType: "document", blockId: "b8" },
       { id: "labor_layoff_notice", label: "Уведомление о сокращении", icon: "UserMinus", price: 600, serviceType: "document", blockId: "b8" },
       { id: "labor_order_hire", label: "Приказ о приёме (Т-1)", icon: "ClipboardCheck", price: 600, serviceType: "document", blockId: "b8" },
       { id: "labor_order_dismiss", label: "Приказ об увольнении (Т-8)", icon: "ClipboardX", price: 600, serviceType: "document", blockId: "b8" },
@@ -155,6 +164,9 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "gov_fraud", label: "Заявление о мошенничестве", icon: "AlertTriangle", price: 600, serviceType: "document", blockId: "b9" },
       { id: "gov_tax_deduction", label: "Заявление на налоговый вычет", icon: "Percent", price: 600, serviceType: "document", blockId: "b9" },
       { id: "gov_explanation", label: "Объяснительная записка", icon: "FileEdit", price: 600, serviceType: "document", blockId: "b9" },
+      { id: "gov_judge_complaint", label: "Жалоба на судью (в ККС)", icon: "AlertOctagon", price: 600, serviceType: "document", blockId: "b9" },
+      { id: "gov_tax_3ndfl", label: "Налоговая декларация (3-НДФЛ)", icon: "Receipt", price: 600, serviceType: "document", blockId: "b9" },
+      { id: "gov_official_appeal", label: "Рапорт / докладная записка", icon: "FileEdit", price: 600, serviceType: "document", blockId: "b9" },
     ],
   },
   {
@@ -168,6 +180,8 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "criminal_statement", label: "Заявление о преступлении (ст.141 УПК)", icon: "FileWarning", price: 600, serviceType: "document", blockId: "b10" },
       { id: "criminal_appeal", label: "Апелляционная жалоба по УД", icon: "ArrowUpCircle", price: 600, serviceType: "document", blockId: "b10" },
       { id: "criminal_cassation", label: "Кассационная жалоба по УД", icon: "RefreshCcw", price: 600, serviceType: "document", blockId: "b10" },
+      { id: "criminal_witness", label: "Ходатайство о вызове свидетелей", icon: "Users", price: 600, serviceType: "document", blockId: "b10" },
+      { id: "criminal_special_order", label: "Ходатайство об особом порядке (гл.40 УПК)", icon: "FileCheck2", price: 600, serviceType: "document", blockId: "b10" },
     ],
   },
   {
@@ -181,6 +195,7 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "website_eula", label: "Лицензионное соглашение (EULA)", icon: "Key", price: 600, serviceType: "document", blockId: "b11" },
       { id: "website_consent", label: "Согласие на обработку ПДн", icon: "UserCheck", price: 600, serviceType: "document", blockId: "b11" },
       { id: "website_disclaimer", label: "Отказ от ответственности", icon: "ShieldOff", price: 600, serviceType: "document", blockId: "b11" },
+      { id: "website_aup", label: "Правила использования сайта (AUP)", icon: "ShieldCheck", price: 600, serviceType: "document", blockId: "b11" },
     ],
   },
   {
@@ -194,11 +209,15 @@ export const DOC_BLOCKS: DocBlock[] = [
       { id: "special_mediation", label: "Медиативное соглашение", icon: "Handshake", price: 600, serviceType: "document", blockId: "b12" },
       { id: "special_guarantee_letter", label: "Гарантийное письмо", icon: "BadgeCheck", price: 600, serviceType: "document", blockId: "b12" },
       { id: "special_reconciliation", label: "Акт сверки расчётов", icon: "BarChart2", price: 600, serviceType: "document", blockId: "b12" },
+      { id: "special_medical_consent", label: "Согласие на медицинское вмешательство", icon: "Heart", price: 600, serviceType: "document", blockId: "b12" },
+      { id: "special_pd_consent", label: "Согласие на обработку ПДн", icon: "Lock", price: 600, serviceType: "document", blockId: "b12" },
+      { id: "special_inheritance_contract", label: "Наследственный договор", icon: "ScrollText", price: 600, serviceType: "document", blockId: "b12" },
     ],
   },
   {
     id: "b13", label: "Проекты решений", icon: "Vote", color: "bg-purple-100 text-purple-700",
     types: [
+      { id: "decision_court", label: "Проект решения суда", icon: "Gavel", price: 600, serviceType: "document", blockId: "b13" },
       { id: "decision_sole", label: "Решение единственного участника", icon: "User", price: 600, serviceType: "document", blockId: "b13" },
       { id: "decision_meeting", label: "Решение общего собрания", icon: "Users", price: 600, serviceType: "document", blockId: "b13" },
       { id: "decision_board", label: "Решение совета директоров", icon: "UserCheck", price: 600, serviceType: "document", blockId: "b13" },

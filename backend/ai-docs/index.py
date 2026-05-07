@@ -456,10 +456,31 @@ def handler(event: dict, context) -> dict:
                 + f"\n\nСоставь {label}. Где данных нет — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
 
+            # Лимиты токенов по типам документов
+            _SHORT_DOC_TYPES = {
+                # Приказы — небольшие документы, 500 токенов достаточно
+                "labor_order_hire", "labor_order_dismiss",
+                "labor_order_bonus", "labor_order_discipline",
+                # Простые согласия и расписки
+                "contract_receipt", "special_pd_consent", "special_medical_consent",
+            }
+            _LONG_DOC_TYPES = {
+                # Уставы, корпоративные акты, сложные договоры — до 4500 токенов
+                "corporate_charter", "corporate_collective", "corporate_rules",
+                "contract_gov", "website_terms", "website_privacy", "website_eula",
+                "contract_marriage", "special_will", "special_inheritance_contract",
+            }
+            if doc_type in _SHORT_DOC_TYPES:
+                _max_tokens = 500
+            elif doc_type in _LONG_DOC_TYPES:
+                _max_tokens = 4500
+            else:
+                _max_tokens = 3500
+
             answer = ""
             _yandex_refused = False
             try:
-                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
+                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=_max_tokens, temperature=0.15)
                 if is_refusal(answer):
                     _yandex_refused = True
             except Exception as e:
@@ -469,7 +490,7 @@ def handler(event: dict, context) -> dict:
             if _yandex_refused:
                 print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
                 try:
-                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=3500, temperature=0.15, timeout=80)
+                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=_max_tokens, temperature=0.15, timeout=80)
                     answer = ds_answer or answer
                     print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
                 except Exception as e:
