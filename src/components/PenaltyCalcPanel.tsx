@@ -125,9 +125,41 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     }
   };
 
+  // Парсим блоки [ШАПКА][ЗАГОЛОВОК][ИСХОДНЫЕ_ДАННЫЕ][РАСЧЁТ][ИТОГ][СНОСКА] из ответа AI
+  function buildDocxContent(raw: string): string {
+    // Если AI уже вернул блоки — используем как есть
+    if (raw.includes("[ШАПКА]") || raw.includes("[ЗАГОЛОВОК]") || raw.includes("[ИСХОДНЫЕ_ДАННЫЕ]")) {
+      return raw;
+    }
+    // Иначе оборачиваем в структуру
+    return `[ЗАГОЛОВОК]\nРАСЧЁТ НЕУСТОЙКИ\n[ТЕЛО]\n${raw}`;
+  }
+
+  // Разбиваем результат на именованные секции для красивого рендера
+  function parseSections(raw: string): { key: string; label: string; content: string }[] {
+    const LABELS: Record<string, string> = {
+      "ШАПКА": "Шапка",
+      "ЗАГОЛОВОК": "Заголовок",
+      "ИСХОДНЫЕ_ДАННЫЕ": "Исходные данные",
+      "РАСЧЁТ": "Расчёт",
+      "ИТОГ": "Итог",
+      "СНОСКА": "Примечание",
+      "ТЕЛО": "",
+    };
+    const blockRe = /\[([А-ЯA-Z_]+)\]\n?([\s\S]*?)(?=\n?\[[А-ЯA-Z_]+\]|$)/g;
+    const found: { key: string; label: string; content: string }[] = [];
+    let m;
+    while ((m = blockRe.exec(raw)) !== null) {
+      const key = m[1];
+      const content = m[2].trim();
+      if (content) found.push({ key, label: LABELS[key] ?? key, content });
+    }
+    return found.length > 0 ? found : [{ key: "ТЕЛО", label: "", content: raw }];
+  }
+
   const handleDownload = () => {
     if (!result) return;
-    downloadDoc("Расчёт неустойки", `[ЗАГОЛОВОК]\nРАСЧЁТ НЕУСТОЙКИ\n[ТЕЛО]\n${result}`);
+    downloadDoc("Расчёт неустойки", buildDocxContent(result));
   };
 
   const inp = "w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 focus:ring-1 focus:ring-navy-100 transition-colors placeholder:text-slate-300";
@@ -173,31 +205,98 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         {result ? (
           /* ── Результат ── */
-          <div className="space-y-3">
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center">
-                    <Icon name="CheckCircle" size={14} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Расчёт готов</p>
-                    <p className="text-[10px] text-slate-400">Юридический калькулятор</p>
+          (() => {
+            const sections = parseSections(result);
+            const SECTION_ICONS: Record<string, string> = {
+              ШАПКА: "AlignRight", ЗАГОЛОВОК: "FileText", ИСХОДНЫЕ_ДАННЫЕ: "List",
+              РАСЧЁТ: "Calculator", ИТОГ: "TrendingUp", СНОСКА: "Info", ТЕЛО: "",
+            };
+            const SECTION_COLORS: Record<string, string> = {
+              ИСХОДНЫЕ_ДАННЫЕ: "bg-blue-50 border-blue-100",
+              РАСЧЁТ: "bg-amber-50 border-amber-100",
+              ИТОГ: "bg-emerald-50 border-emerald-200",
+              СНОСКА: "bg-slate-50 border-slate-200",
+              ШАПКА: "bg-white border-slate-100",
+              ЗАГОЛОВОК: "",
+              ТЕЛО: "bg-white border-slate-100",
+            };
+            return (
+              <div className="space-y-3">
+                {/* Шапка карточки результата */}
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
+                  <div className="p-4 pb-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center">
+                        <Icon name="CheckCircle" size={14} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Расчёт готов</p>
+                        <p className="text-[10px] text-slate-400">Юридический калькулятор неустойки</p>
+                      </div>
+                    </div>
+
+                    {/* Секции документа */}
+                    <div className="space-y-2">
+                      {sections.map((sec, idx) => {
+                        if (sec.key === "ЗАГОЛОВОК") {
+                          return (
+                            <div key={idx} className="text-center py-1">
+                              <p className="text-sm font-bold text-navy-800 uppercase tracking-widest">{sec.content}</p>
+                            </div>
+                          );
+                        }
+                        if (sec.key === "ШАПКА") {
+                          return (
+                            <div key={idx} className="text-right text-[11px] text-navy-600 leading-relaxed bg-white border border-slate-100 rounded-xl px-3 py-2">
+                              {sec.content.split("\n").map((l, j) => <p key={j}>{l}</p>)}
+                            </div>
+                          );
+                        }
+                        if (sec.key === "ИТОГ") {
+                          return (
+                            <div key={idx} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                                <Icon name="TrendingUp" size={11} />ИТОГОВАЯ СУММА
+                              </p>
+                              <p className="text-sm font-bold text-navy-800 whitespace-pre-wrap leading-relaxed">{sec.content}</p>
+                            </div>
+                          );
+                        }
+                        if (sec.key === "СНОСКА") {
+                          return (
+                            <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                              <p className="text-[10px] text-slate-500 leading-relaxed italic">{sec.content}</p>
+                            </div>
+                          );
+                        }
+                        const colorCls = SECTION_COLORS[sec.key] || "bg-white border-slate-100";
+                        const iconName = SECTION_ICONS[sec.key] || "FileText";
+                        const sectionLabel = sec.label;
+                        return (
+                          <div key={idx} className={`rounded-xl border px-3 py-2.5 ${colorCls}`}>
+                            {sectionLabel && (
+                              <p className="text-[10px] font-bold text-navy-600 uppercase tracking-wide mb-1 flex items-center gap-1">
+                                <Icon name={iconName} size={11} />{sectionLabel}
+                              </p>
+                            )}
+                            <p className="text-xs text-navy-700 whitespace-pre-wrap leading-relaxed">{sec.content}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm">
-                  <p className="text-xs text-navy-700 whitespace-pre-wrap leading-relaxed">{result}</p>
-                </div>
+
+                <button onClick={handleDownload} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center justify-center gap-1.5 active:scale-95">
+                  <Icon name="Download" size={14} />Скачать расчёт .docx
+                </button>
+                <button onClick={() => setResult("")} className="w-full py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-navy-600 border border-slate-200 hover:border-navy-200 transition-colors">
+                  ← Новый расчёт
+                </button>
               </div>
-            </div>
-            <button onClick={handleDownload} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center justify-center gap-1.5 active:scale-95">
-              <Icon name="Download" size={14} />Скачать расчёт .docx
-            </button>
-            <button onClick={() => setResult("")} className="w-full py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-navy-600 border border-slate-200 hover:border-navy-200 transition-colors">
-              ← Новый расчёт
-            </button>
-          </div>
+            );
+          })()
         ) : (
           /* ── Форма ── */
           <>

@@ -825,31 +825,33 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "doc_content required"}, ensure_ascii=False)}
             review_system = (
-                "Ты — опытный юрист РФ, рецензирующий юридические документы. "
-                "Анализируй документ критически и профессионально. "
+                "Ты — опытный юрист РФ. Анализируй юридические документы кратко и ёмко. "
+                "Структурируй ответ чётко по разделам с эмодзи-маркерами. "
                 "Отвечай строго в указанном JSON-формате."
             )
+            # Обрезаем документ до 2500 символов — оптимально для анализа
+            doc_for_review = doc_content[:2500]
             review_prompt = (
-                f"Проанализируй документ «{doc_name}».\n\n"
-                f"Текст документа:\n{doc_content}\n\n"
-                "Дай профессиональное заключение:\n"
-                "1. Наличие юридических ошибок или неточностей\n"
-                "2. Перспектива иска/требования (высокая/средняя/низкая + обоснование)\n"
-                "3. Применимая судебная практика (если знаешь реальные дела — укажи)\n"
-                "4. Краткие рекомендации по улучшению\n\n"
-                "Также определи, нужны ли дополнительные документы.\n\n"
-                "Верни JSON строго в формате:\n"
-                '{"answer": "Развёрнутое заключение (3-6 абзацев)", "recommendations": ['
+                f"Проанализируй документ «{doc_name}» (первые символы):\n\n"
+                f"{doc_for_review}\n\n"
+                "Дай заключение СТРОГО в формате (используй эти маркеры):\n"
+                "⚖️ ЮРИДИЧЕСКАЯ КОРРЕКТНОСТЬ\n[1-2 предложения: есть ли ошибки/неточности]\n\n"
+                "📊 ПЕРСПЕКТИВА\n[высокая/средняя/низкая + одна фраза обоснования]\n\n"
+                "📋 РЕКОМЕНДАЦИИ\n[2-3 конкретных улучшения]\n\n"
+                "Верни JSON:\n"
+                '{"answer": "текст заключения выше", "recommendations": ['
                 '{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "..."} | '
-                '{"type": "doc", "doc_type": "motion_restore_term", "title": "...", "reason": "..."}]}\n'
-                "Типы doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
-                "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
-                "Максимум 2 рекомендации. Пустой список если дополнительное не нужно."
+                '{"type": "doc", "doc_type": "TYPE", "title": "...", "reason": "..."}]}\n'
+                "doc_type: motion_restore_term|motion_evidence|motion_witness|motion_third_party|"
+                "motion_expertise|motion_enforcement|pretension|complaint|appeal\n"
+                "Максимум 2 рекомендации. Пустой список если не нужно."
             )
             review_answer = ""
             review_recs = []
+            # Лимит 2000 токенов — быстро и в таймаут
+            REVIEW_MAX_TOKENS = 2000
             try:
-                raw = call_yandex(review_system, [{"role": "user", "content": review_prompt}], max_tokens=1800, fast=False, temperature=0.1)
+                raw = call_yandex(review_system, [{"role": "user", "content": review_prompt}], max_tokens=REVIEW_MAX_TOKENS, fast=True, temperature=0.1)
                 m = re.search(r'\{[\s\S]*\}', raw)
                 if m:
                     parsed = json.loads(m.group())
@@ -858,9 +860,9 @@ def handler(event: dict, context) -> dict:
                 else:
                     review_answer = raw
             except Exception as e:
-                print(f"[DOC_REVIEW] Яндекс упал: {e} → fallback")
+                print(f"[DOC_REVIEW] Яндекс упал: {e} → fallback DeepSeek")
                 try:
-                    raw, _ = call_deepseek(review_system, [{"role": "user", "content": review_prompt}], max_tokens=1800, temperature=0.1, timeout=70)
+                    raw, _ = call_deepseek(review_system, [{"role": "user", "content": review_prompt}], max_tokens=REVIEW_MAX_TOKENS, temperature=0.1, timeout=25)
                     m = re.search(r'\{[\s\S]*\}', raw)
                     if m:
                         parsed = json.loads(m.group())
@@ -869,7 +871,7 @@ def handler(event: dict, context) -> dict:
                     else:
                         review_answer = raw
                 except Exception as e2:
-                    print(f"[DOC_REVIEW] DeepSeek упал: {e2}")
+                    print(f"[DOC_REVIEW] DeepSeek тоже упал: {e2}")
             if not review_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось провести анализ. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -887,41 +889,60 @@ def handler(event: dict, context) -> dict:
             if not doc_content or not edit_instruction:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "doc_content and edit_instruction required"}, ensure_ascii=False)}
+
+            # Оцениваем объём: если документ очень большой, обрезаем до 6000 символов
+            doc_for_edit = doc_content[:6000]
+            doc_truncated_for_edit = len(doc_content) > 6000
+
             edit_system = (
-                "Ты — юрист-редактор РФ. Вносишь ТОЛЬКО запрошенные правки в документ — точечно и хирургически. "
-                "КРИТИЧЕСКИ ВАЖНО:\n"
-                "1. Изменяй ТОЛЬКО те части, которые прямо указаны в инструкции.\n"
-                "2. Весь остальной текст документа передавай ДОСЛОВНО без каких-либо изменений.\n"
-                "3. Сохраняй все блоки [ШАПКА], [ЗАГОЛОВОК], [ТЕЛО], [ТРЕБОВАНИЯ], [ПРИЛОЖЕНИЯ], [ПОДПИСЬ], [ОБОСНОВАНИЕ], [ПРИМЕЧАНИЯ] и их содержимое.\n"
-                "4. Не переформулируй, не улучшай, не сокращай незатронутые части.\n"
-                "5. Верни ТОЛЬКО полный текст документа — без объяснений, без предисловий, без комментариев.\n"
-                "6. Если инструкция требует добавить текст — вставь его в нужное место, не трогая остальное.\n"
-                "7. Если инструкция требует изменить фразу — замени только эту фразу.\n"
-                "8. Запрещены [...], ___ и любые заглушки вместо уже имеющегося текста."
+                "Ты — юрист-редактор РФ. Вносишь ТОЛЬКО запрошенные правки в документ — точечно и хирургически.\n"
+                "ПРАВИЛА:\n"
+                "1. Изменяй ТОЛЬКО части, прямо указанные в инструкции.\n"
+                "2. Весь остальной текст — дословно без изменений.\n"
+                "3. Сохраняй блоки [ШАПКА][ЗАГОЛОВОК][ТЕЛО][ТРЕБОВАНИЯ][ПРИЛОЖЕНИЯ][ПОДПИСЬ][ОБОСНОВАНИЕ][ПРИМЕЧАНИЯ].\n"
+                "4. Не переформулируй незатронутые части.\n"
+                "5. Верни ТОЛЬКО текст документа — никаких пояснений, вступлений, комментариев.\n"
+                "6. Запрещены [...], ___ и заглушки вместо существующего текста.\n"
+                "7. Если правка не умещается полностью — внеси что успеешь, в самом конце добавь маркер: "
+                "##PARTIAL## и после него одной строкой — что НЕ было внесено."
             )
             edit_prompt = (
-                f"ДОКУМЕНТ ДЛЯ РЕДАКТИРОВАНИЯ «{doc_name}»:\n"
+                f"ДОКУМЕНТ «{doc_name}»:\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"{doc_content}\n"
+                f"{doc_for_edit}\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"ИНСТРУКЦИЯ (выполни ТОЛЬКО это, остальное не трогай): {edit_instruction}\n\n"
-                "Верни документ целиком — с внесённой точечной правкой и дословным сохранением всего остального текста."
+                f"ИНСТРУКЦИЯ (выполни ТОЛЬКО это): {edit_instruction}\n\n"
+                "Верни документ с точечной правкой. Остальное — дословно."
             )
             edit_answer = ""
+            # Лимит 2000 токенов — чтобы укладываться в таймаут 30 сек
+            EDIT_MAX_TOKENS = 2000
             try:
-                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=4000, temperature=0.1)
+                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=EDIT_MAX_TOKENS, temperature=0.05)
             except Exception as e:
-                print(f"[DOC_EDIT] Яндекс упал: {e} → fallback")
+                print(f"[DOC_EDIT] Яндекс упал: {e} → fallback DeepSeek")
             if not edit_answer or is_refusal(edit_answer):
                 try:
-                    edit_answer, _ = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=4000, temperature=0.1, timeout=80)
+                    edit_answer, _ = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=EDIT_MAX_TOKENS, temperature=0.05, timeout=25)
                 except Exception as e2:
-                    print(f"[DOC_EDIT] DeepSeek упал: {e2}")
+                    print(f"[DOC_EDIT] DeepSeek тоже упал: {e2}")
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось отредактировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
+
+            # Проверяем частичное внесение
+            partial_note = ""
+            if "##PARTIAL##" in edit_answer:
+                parts = edit_answer.split("##PARTIAL##", 1)
+                edit_answer = parts[0].strip()
+                partial_note = parts[1].strip() if len(parts) > 1 else "Часть правки не вошла в лимит"
+            # Если документ был обрезан для редактирования — восстанавливаем хвост оригинала
+            if doc_truncated_for_edit and edit_answer:
+                # Добавляем часть оригинала, которую не передавали AI
+                edit_answer = edit_answer + "\n" + doc_content[6000:]
+
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": edit_answer}, ensure_ascii=False)}
+                    "body": json.dumps({"answer": edit_answer, "partial_note": partial_note}, ensure_ascii=False)}
 
         return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": f"Unknown mode: {mode}"})}
