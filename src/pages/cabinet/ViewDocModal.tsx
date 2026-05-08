@@ -146,8 +146,11 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
   const [showRecs, setShowRecs] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [currentDocContent, setCurrentDocContent] = useState(doc.content);
+  const [prevDocContent, setPrevDocContent] = useState<string | null>(null);
   // Flash-эффект при обновлении документа через AI
   const [docFlash, setDocFlash] = useState(false);
+  // Ref на первую изменённую строку для автоскролла
+  const firstChangedRef = useRef<HTMLElement | null>(null);
 
   // Фоновый анализ рекомендаций — запускается после показа документа
   useEffect(() => {
@@ -297,19 +300,47 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
             </div>
 
             <div className="px-6 sm:px-10 py-6 font-serif" style={{ fontFamily: "'Times New Roman', Georgia, serif" }}>
-              {hasBlocks
-                ? blocks.map((block, i) => <DocBlock key={i} type={block.type} lines={block.lines} />)
-                : (
+              {(() => {
+                // Строим набор изменённых строк для diff-подсветки
+                const prevLines = prevDocContent ? new Set(prevDocContent.split("\n")) : null;
+                let firstChangedSet = false;
+
+                const renderLine = (line: string, i: number) => {
+                  const isChanged = prevLines !== null && line.trim() && !prevLines.has(line);
+                  const refProp = (isChanged && !firstChangedSet)
+                    ? ((el: HTMLElement | null) => { if (el) { firstChangedRef.current = el; firstChangedSet = true; } })
+                    : undefined;
+
+                  if (!line.trim()) return <div key={i} className="h-2" />;
+                  const isTitle = /^[А-ЯA-ZЁ][А-ЯA-ZЁ\s]{4,}$/.test(line.trim());
+
+                  const changedClass = isChanged
+                    ? "bg-emerald-50 border-l-2 border-emerald-400 pl-2 rounded-r-lg transition-all duration-500"
+                    : "";
+
+                  if (isTitle) return (
+                    <p key={i} ref={refProp as React.Ref<HTMLParagraphElement>}
+                      className={`text-center font-bold text-navy-800 text-lg uppercase my-4 ${changedClass}`}>
+                      {line.trim()}
+                    </p>
+                  );
+                  return (
+                    <p key={i} ref={refProp as React.Ref<HTMLParagraphElement>}
+                      className={`text-sm text-navy-700 leading-relaxed indent-6 ${changedClass}`}>
+                      {line.trim()}
+                    </p>
+                  );
+                };
+
+                if (hasBlocks) {
+                  return blocks.map((block, i) => <DocBlock key={i} type={block.type} lines={block.lines} />);
+                }
+                return (
                   <div className="space-y-2">
-                    {currentDocContent.split("\n").map((line, i) => {
-                      if (!line.trim()) return <div key={i} className="h-2" />;
-                      const isTitle = /^[А-ЯA-ZЁ][А-ЯA-ZЁ\s]{4,}$/.test(line.trim());
-                      if (isTitle) return <p key={i} className="text-center font-bold text-navy-800 text-lg uppercase my-4">{line.trim()}</p>;
-                      return <p key={i} className="text-sm text-navy-700 leading-relaxed indent-6">{line.trim()}</p>;
-                    })}
+                    {currentDocContent.split("\n").map((line, i) => renderLine(line, i))}
                   </div>
-                )
-              }
+                );
+              })()}
             </div>
           </div>
 
@@ -392,9 +423,16 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
           onClose={() => setShowAiChat(false)}
           onPaymentRequired={() => {}}
           onDocUpdated={(newContent) => {
+            setPrevDocContent(currentDocContent);
             setCurrentDocContent(newContent);
             setDocFlash(true);
-            setTimeout(() => setDocFlash(false), 1500);
+            setTimeout(() => setDocFlash(false), 3000);
+            // Автоскролл к первой изменённой строке через 150ms (после ренедра)
+            setTimeout(() => {
+              if (firstChangedRef.current) {
+                firstChangedRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            }, 150);
           }}
         />
       )}

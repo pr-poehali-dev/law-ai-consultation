@@ -307,33 +307,21 @@ export async function consumeDoc(): Promise<boolean> {
   return res.ok;
 }
 
-/** Списать N документов за одну операцию (батчевое) — меньше HTTP-вызовов */
-export async function consumeDocsBatch(count: number): Promise<boolean> {
-  if (count <= 0) return true;
-  if (count === 1) return consumeDoc();
-  const res = await apiCall({ action: "consume-docs-batch", count });
-  if (res.ok) return true;
-  // fallback — поштучно
-  for (let i = 0; i < count; i++) {
-    const ok = await consumeDoc();
-    if (!ok) return false;
-  }
-  return true;
-}
-
-/** Проверить и списать ресурсы за правку AI (1 запрос вместо 4+) */
+/** Проверить и списать ресурсы за правку AI: N документов + 1 вопрос */
 export async function checkAndConsumeEditResources(docsNeeded: number): Promise<{ ok: boolean; reason?: string }> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
-  // Проверка подписки
+  // Проверяем баланс до списания
   const hasDocs = hasActiveSubscription(user, "docs") || user.paidDocs >= docsNeeded;
   const hasQ = hasActiveSubscription(user, "consult") || getDailyFreeLeft() > 0 || user.paidQuestions > 0;
   if (!hasDocs || !hasQ) return { ok: false, reason: "insufficient" };
-  // Списываем всё одним блоком
-  const ok = await consumeDocsBatch(docsNeeded);
-  if (!ok) return { ok: false, reason: "insufficient" };
+  // Списываем документы поштучно (единственный поддерживаемый способ)
+  for (let i = 0; i < docsNeeded; i++) {
+    const ok = await consumeDoc();
+    if (!ok) return { ok: false, reason: "insufficient" };
+  }
   await consumeQuestion();
   return { ok: true };
 }
