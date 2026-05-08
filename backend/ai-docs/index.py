@@ -706,15 +706,11 @@ def handler(event: dict, context) -> dict:
                         "body": json.dumps({"error": "calc_data required"}, ensure_ascii=False)}
             penalty_prompt_text = PENALTY_CALC_PROMPT.format(calc_data=calc_data)
             pen_answer = ""
+            # fast=True + timeout=30 — точно укладываемся, расчёт не требует большой модели
             try:
-                pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, temperature=0.05)
+                pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, fast=True, temperature=0.05)
             except Exception as e:
-                print(f"[PENALTY_CALC] Яндекс упал: {e} → fallback DeepSeek")
-            if not pen_answer or is_refusal(pen_answer):
-                try:
-                    pen_answer, _ = call_deepseek(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, temperature=0.05, timeout=60)
-                except Exception as e:
-                    print(f"[PENALTY_CALC] DeepSeek тоже упал: {e}")
+                print(f"[PENALTY_CALC] Яндекс упал: {e}")
             if not pen_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось выполнить расчёт. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -860,18 +856,7 @@ def handler(event: dict, context) -> dict:
                 else:
                     review_answer = raw
             except Exception as e:
-                print(f"[DOC_REVIEW] Яндекс упал: {e} → fallback DeepSeek")
-                try:
-                    raw, _ = call_deepseek(review_system, [{"role": "user", "content": review_prompt}], max_tokens=REVIEW_MAX_TOKENS, temperature=0.1, timeout=25)
-                    m = re.search(r'\{[\s\S]*\}', raw)
-                    if m:
-                        parsed = json.loads(m.group())
-                        review_answer = parsed.get("answer", raw)
-                        review_recs = parsed.get("recommendations", [])
-                    else:
-                        review_answer = raw
-                except Exception as e2:
-                    print(f"[DOC_REVIEW] DeepSeek тоже упал: {e2}")
+                print(f"[DOC_REVIEW] Яндекс упал: {e}")
             if not review_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось провести анализ. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -915,17 +900,11 @@ def handler(event: dict, context) -> dict:
                 "Верни документ с точечной правкой. Остальное — дословно."
             )
             edit_answer = ""
-            # Лимит 2000 токенов — чтобы укладываться в таймаут 30 сек
-            EDIT_MAX_TOKENS = 2000
+            # fast=True → yandexgpt, timeout=30 → гарантированно укладываемся в таймаут функции
             try:
-                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=EDIT_MAX_TOKENS, temperature=0.05)
+                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2000, fast=True, temperature=0.05)
             except Exception as e:
-                print(f"[DOC_EDIT] Яндекс упал: {e} → fallback DeepSeek")
-            if not edit_answer or is_refusal(edit_answer):
-                try:
-                    edit_answer, _ = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=EDIT_MAX_TOKENS, temperature=0.05, timeout=25)
-                except Exception as e2:
-                    print(f"[DOC_EDIT] DeepSeek тоже упал: {e2}")
+                print(f"[DOC_EDIT] Яндекс упал: {e}")
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось отредактировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}

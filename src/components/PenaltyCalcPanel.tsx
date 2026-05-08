@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken, canAskQuestion, consumeQuestion, getUser, hasActiveSubscription } from "@/lib/auth";
+import { getToken, consumeQuestion, getUser, hasActiveSubscription, getDailyFreeLeft } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import func2url from "../../backend/func2url.json";
 
@@ -24,15 +24,7 @@ type PercentPeriod = "day" | "year";
 let _nextId = 1;
 function nextId() { return _nextId++; }
 
-async function checkProAccess(): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
-  if (user.isAdmin) return true;
-  if (hasActiveSubscription(user, "consult")) return true;
-  if (hasActiveSubscription(user, "docs")) return true;
-  // Профи = paidQuestions >= 30 или paidDocs >= 10
-  return user.paidQuestions >= 30 || user.paidDocs >= 10;
-}
+
 
 export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false, docContext }: PenaltyCalcPanelProps) {
   const [debt, setDebt] = useState("");
@@ -100,11 +92,20 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     setErr("");
     setLoading(true);
 
-    const hasPro = await checkProAccess();
-    if (!hasPro) { setLoading(false); onPaymentRequired(); return; }
-
-    const canAsk = await canAskQuestion();
-    if (!canAsk) { setLoading(false); onPaymentRequired(); return; }
+    // Один запрос getUser — проверяем и доступ и баланс
+    const user = await getUser();
+    if (!user) { setLoading(false); onPaymentRequired(); return; }
+    const isPro = user.isAdmin
+      || hasActiveSubscription(user, "consult")
+      || hasActiveSubscription(user, "docs")
+      || user.paidQuestions >= 30
+      || user.paidDocs >= 10;
+    if (!isPro) { setLoading(false); onPaymentRequired(); return; }
+    const hasQ = user.isAdmin
+      || hasActiveSubscription(user, "consult")
+      || getDailyFreeLeft() > 0
+      || user.paidQuestions > 0;
+    if (!hasQ) { setLoading(false); onPaymentRequired(); return; }
     const { ok } = await consumeQuestion();
     if (!ok) { setLoading(false); onPaymentRequired(); return; }
 

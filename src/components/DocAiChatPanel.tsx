@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import {
   getToken, getUser, hasActiveSubscription,
-  canUseDoc, consumeDoc, canAskQuestion, consumeQuestion,
+  consumeQuestion,
+  checkAndConsumeEditResources,
+  getDailyFreeLeft,
 } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import { type DocRecommendationItem } from "@/pages/cabinet/DocsTab";
@@ -30,14 +32,6 @@ function calcEditCost(docContent: string, instruction: string): { docs: number; 
   const totalChars = docContent.length + instruction.length;
   const docs = Math.max(1, Math.ceil(totalChars / 2500));
   return { docs, questions: 1 };
-}
-
-async function checkProAccess(): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
-  if (user.isAdmin) return true;
-  if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return true;
-  return user.paidQuestions >= 30 || user.paidDocs >= 10;
 }
 
 // Определяем начало секции по codePoint первого символа (эмодзи-диапазоны)
@@ -111,12 +105,21 @@ export default function DocAiChatPanel({ doc, onClose, onPaymentRequired, onDocU
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runAnalysis = async () => {
-    const hasPro = await checkProAccess();
-    if (!hasPro) { onPaymentRequired(); return; }
-
+    // Один getUser — проверяем доступ и можем ли задать вопрос
+    const user = await getUser();
+    if (!user) { onPaymentRequired(); return; }
+    const isPro = user.isAdmin
+      || hasActiveSubscription(user, "consult")
+      || hasActiveSubscription(user, "docs")
+      || user.paidQuestions >= 30
+      || user.paidDocs >= 10;
+    if (!isPro) { onPaymentRequired(); return; }
+    const hasQ = user.isAdmin
+      || hasActiveSubscription(user, "consult")
+      || getDailyFreeLeft() > 0
+      || user.paidQuestions > 0;
+    if (!hasQ) { onPaymentRequired(); return; }
     // Списываем 1 вопрос за первичный анализ
-    const canAsk = await canAskQuestion();
-    if (!canAsk) { onPaymentRequired(); return; }
     await consumeQuestion();
 
     setAnalyzing(true);
@@ -164,19 +167,10 @@ export default function DocAiChatPanel({ doc, onClose, onPaymentRequired, onDocU
     setPendingPartial(null);
 
     if (!isResume) {
-      // Списываем ресурсы
+      // Один батч-вызов вместо 4+ запросов к auth
       const cost = calcEditCost(currentContent, instruction);
-      const canDoc = await canUseDoc();
-      if (!canDoc) { setEditLoading(false); onPaymentRequired(); return; }
-      const canAsk = await canAskQuestion();
-      if (!canAsk) { setEditLoading(false); onPaymentRequired(); return; }
-      let docsLeft = cost.docs;
-      while (docsLeft > 0) {
-        const ok = await consumeDoc();
-        if (!ok) { setEditLoading(false); onPaymentRequired(); return; }
-        docsLeft--;
-      }
-      await consumeQuestion();
+      const result = await checkAndConsumeEditResources(cost.docs);
+      if (!result.ok) { setEditLoading(false); onPaymentRequired(); return; }
     }
 
     const thisEditNum = editCount + 1;
