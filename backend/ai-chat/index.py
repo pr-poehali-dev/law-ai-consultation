@@ -11,7 +11,7 @@ import requests
 
 # ── Модели Yandex ──────────────────────────────────────────────────────────
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt/latest"
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
