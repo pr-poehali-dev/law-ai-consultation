@@ -6,17 +6,16 @@ export type AiMsg = {
   partialNote?: string;
 };
 
-// 1 правка = 1 вопрос + 1 документ / 2500 символов
-export function calcEditCost(docContent: string, instruction: string) {
-  const docs = Math.max(1, Math.ceil((docContent.length + instruction.length) / 2500));
-  return { docs, questions: 1 };
+// 1 правка ≈ 1000 токенов = 5 вопросов + 1 документ
+export function calcEditCost(_docContent: string, _instruction: string) {
+  return { docs: 1, questions: 5 };
 }
 
 // Парсим текст анализа AI на секции по двойному переносу
 export function renderAnalysisText(text: string): React.ReactNode {
   const sections = text.split("\n\n").filter(Boolean);
   if (sections.length <= 1) {
-    return <p className="text-[12.5px] text-navy-200 leading-relaxed whitespace-pre-wrap">{text}</p>;
+    return <p className="text-[12.5px] text-slate-700 leading-relaxed whitespace-pre-wrap">{text}</p>;
   }
   return (
     <div className="space-y-2.5">
@@ -27,11 +26,11 @@ export function renderAnalysisText(text: string): React.ReactNode {
         const cp = head.codePointAt(0) ?? 0;
         const isEmoji = (cp >= 0x2600 && cp <= 0x27FF) || (cp >= 0x1F300 && cp <= 0x1FAFF);
         return (
-          <div key={i} className={isEmoji ? "rounded-xl bg-navy-700/60 border border-navy-600/40 px-3 py-2" : ""}>
-            {isEmoji && <p className="text-[11px] font-bold text-gold-400 mb-1">{head}</p>}
+          <div key={i} className={isEmoji ? "rounded-xl bg-slate-50 border border-slate-200 px-3 py-2" : ""}>
+            {isEmoji && <p className="text-[11px] font-bold text-navy-700 mb-1">{head}</p>}
             {body
-              ? <p className="text-[12px] text-navy-200 leading-relaxed whitespace-pre-wrap">{body}</p>
-              : !isEmoji && <p className="text-[12.5px] text-navy-200 leading-relaxed">{head}</p>
+              ? <p className="text-[12px] text-slate-700 leading-relaxed whitespace-pre-wrap">{body}</p>
+              : !isEmoji && <p className="text-[12.5px] text-slate-700 leading-relaxed">{head}</p>
             }
           </div>
         );

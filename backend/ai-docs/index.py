@@ -706,11 +706,16 @@ def handler(event: dict, context) -> dict:
                         "body": json.dumps({"error": "calc_data required"}, ensure_ascii=False)}
             penalty_prompt_text = PENALTY_CALC_PROMPT.format(calc_data=calc_data)
             pen_answer = ""
-            # fast=True + timeout=30 — точно укладываемся, расчёт не требует большой модели
+            # DeepSeek — точнее считает неустойки по ГК РФ
             try:
-                pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, fast=True, temperature=0.05)
+                pen_answer, _ = call_deepseek(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2500, temperature=0.05, timeout=75)
+                print(f"[PENALTY_CALC] DeepSeek ответил, len={len(pen_answer)}")
             except Exception as e:
-                print(f"[PENALTY_CALC] Яндекс упал: {e}")
+                print(f"[PENALTY_CALC] DeepSeek упал: {e} → fallback YandexGPT")
+                try:
+                    pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, fast=True, temperature=0.05)
+                except Exception as e2:
+                    print(f"[PENALTY_CALC] YandexGPT тоже упал: {e2}")
             if not pen_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось выполнить расчёт. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -904,11 +909,17 @@ def handler(event: dict, context) -> dict:
                 "Верни ПОЛНЫЙ документ с внесёнными изменениями. Остальное — дословно."
             )
             edit_answer = ""
-            # fast=True → yandexgpt, timeout=30 → укладываемся в таймаут функции
+            was_cut = False
+            # DeepSeek — лучше справляется с редактированием юридических документов
             try:
-                edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2000, fast=True, temperature=0.1)
+                edit_answer, was_cut = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2500, temperature=0.1, timeout=75)
+                print(f"[DOC_EDIT] DeepSeek ответил, was_cut={was_cut}, len={len(edit_answer)}")
             except Exception as e:
-                print(f"[DOC_EDIT] Яндекс упал: {e}")
+                print(f"[DOC_EDIT] DeepSeek упал: {e} → fallback YandexGPT")
+                try:
+                    edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2000, fast=True, temperature=0.1)
+                except Exception as e2:
+                    print(f"[DOC_EDIT] YandexGPT тоже упал: {e2}")
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось отредактировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}

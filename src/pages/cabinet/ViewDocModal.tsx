@@ -352,11 +352,18 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
 
             {/* Кнопка AI-помощника */}
             <button
-              onClick={() => { setShowAiChat(true); setShowRecs(false); }}
+              onClick={() => {
+                setShowAiChat(true);
+                setShowRecs(false);
+                // Скроллим документ в начало чтобы пользователь видел его при редактировании
+                setTimeout(() => {
+                  docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                }, 100);
+              }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white transition-all active:scale-95 shadow-sm"
             >
               <Icon name="BrainCircuit" size={13} />
-              Подключить AI-помощника
+              Редактировать документ с помощью AI
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[9px] font-bold">Профи+</span>
             </button>
             <p className="text-[10px] text-slate-400 text-center leading-snug">

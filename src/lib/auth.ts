@@ -307,22 +307,25 @@ export async function consumeDoc(): Promise<boolean> {
   return res.ok;
 }
 
-/** Проверить и списать ресурсы за правку AI: N документов + 1 вопрос */
-export async function checkAndConsumeEditResources(docsNeeded: number): Promise<{ ok: boolean; reason?: string }> {
+/** Проверить и списать ресурсы за правку AI: 1 документ + 5 вопросов */
+export async function checkAndConsumeEditResources(_docsNeeded: number): Promise<{ ok: boolean; reason?: string }> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
+  const QUESTIONS_PER_EDIT = 5;
   // Проверяем баланс до списания
-  const hasDocs = hasActiveSubscription(user, "docs") || user.paidDocs >= docsNeeded;
-  const hasQ = hasActiveSubscription(user, "consult") || getDailyFreeLeft() > 0 || user.paidQuestions > 0;
+  const hasDocs = hasActiveSubscription(user, "docs") || user.paidDocs >= 1;
+  const hasQ = hasActiveSubscription(user, "consult") || user.paidQuestions >= QUESTIONS_PER_EDIT;
   if (!hasDocs || !hasQ) return { ok: false, reason: "insufficient" };
-  // Списываем документы поштучно (единственный поддерживаемый способ)
-  for (let i = 0; i < docsNeeded; i++) {
-    const ok = await consumeDoc();
+  // Списываем 1 документ
+  const docOk = await consumeDoc();
+  if (!docOk) return { ok: false, reason: "insufficient" };
+  // Списываем 5 вопросов поштучно
+  for (let i = 0; i < QUESTIONS_PER_EDIT; i++) {
+    const { ok } = await consumeQuestion();
     if (!ok) return { ok: false, reason: "insufficient" };
   }
-  await consumeQuestion();
   return { ok: true };
 }
 
