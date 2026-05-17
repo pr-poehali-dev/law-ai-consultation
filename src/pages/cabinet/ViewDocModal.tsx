@@ -407,6 +407,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
         <DocRecsPanel
           recommendations={liveRecs}
           docContent={currentDocContent}
+          docId={doc.id}
           onClose={() => setShowRecs(false)}
           onPaymentRequired={() => {}}
         />
@@ -415,7 +416,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
       {/* ── AI-чат помощник (снаружи оверлея!) ──────────────── */}
       {showAiChat && (
         <DocAiChatPanel
-          doc={{ name: doc.name, content: currentDocContent, recommendations: doc.recommendations }}
+          doc={{ id: doc.id, name: doc.name, content: doc.content, recommendations: doc.recommendations }}
           onClose={() => setShowAiChat(false)}
           onPaymentRequired={() => {}}
           onDocUpdated={(newContent) => {
@@ -423,11 +424,18 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
             setCurrentDocContent(newContent);
             setDocFlash(true);
             setTimeout(() => setDocFlash(false), 3000);
-            // Автоскролл к первой изменённой строке через 150ms (после рендера)
+          }}
+          onScrollToChanges={() => {
+            // Скроллим к первой изменённой строке
             setTimeout(() => {
               const el = docScrollRef.current?.querySelector("[data-changed='1']");
-              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 150);
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+              } else {
+                // Если data-changed не найден — скроллим в начало документа
+                docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }, 200);
           }}
         />
       )}

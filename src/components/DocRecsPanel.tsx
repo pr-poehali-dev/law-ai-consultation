@@ -7,6 +7,7 @@ import RecommendationDocPanel from "@/components/RecommendationDocPanel";
 interface DocRecsPanelProps {
   recommendations: DocRecommendationItem[];
   docContent: string;
+  docId?: number | string;
   onClose: () => void;
   onPaymentRequired: () => void;
 }
@@ -15,6 +16,8 @@ type SubMode = "list" | "penalty" | "rec_doc";
 
 const REC_ICONS: Record<string, string> = {
   penalty_calc: "Calculator",
+  state_duty: "Banknote",
+  general: "Lightbulb",
   motion_restore_term: "Clock",
   motion_evidence: "Search",
   motion_witness: "Users",
@@ -27,15 +30,32 @@ const REC_ICONS: Record<string, string> = {
 };
 
 function getIcon(rec: DocRecommendationItem) {
+  if (rec.type === "general") return "Lightbulb";
+  if (rec.type === "state_duty") return "Banknote";
   if (rec.type === "penalty_calc") return "Calculator";
   return REC_ICONS[rec.doc_type || ""] || "FileText";
 }
 
-export default function DocRecsPanel({ recommendations, docContent, onClose, onPaymentRequired }: DocRecsPanelProps) {
+// localStorage для выполненных рекомендаций
+function getDoneKey(docId?: number | string) {
+  return docId ? `rec_done_${docId}` : null;
+}
+function loadDoneMap(docId?: number | string): Record<number, boolean> {
+  const key = getDoneKey(docId);
+  if (!key) return {};
+  try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
+}
+function saveDoneMap(docId: number | string | undefined, map: Record<number, boolean>) {
+  const key = getDoneKey(docId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+export default function DocRecsPanel({ recommendations, docContent, docId, onClose, onPaymentRequired }: DocRecsPanelProps) {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<SubMode>("list");
   const [activeRec, setActiveRec] = useState<DocRecommendationItem | null>(null);
-  const [doneMap, setDoneMap] = useState<Record<number, boolean>>({});
+  const [doneMap, setDoneMap] = useState<Record<number, boolean>>(() => loadDoneMap(docId));
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -46,6 +66,7 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
 
   const handleAction = (rec: DocRecommendationItem) => {
+    if (rec.type === "general" || rec.type === "state_duty") return; // нет действия-панели
     setActiveRec(rec);
     setMode(rec.type === "penalty_calc" ? "penalty" : "rec_doc");
   };
@@ -54,9 +75,16 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
 
   const markDone = (rec: DocRecommendationItem) => {
     const idx = recommendations.indexOf(rec);
-    if (idx !== -1) setDoneMap(p => ({ ...p, [idx]: true }));
+    if (idx !== -1) {
+      const newMap = { ...doneMap, [idx]: true };
+      setDoneMap(newMap);
+      saveDoneMap(docId, newMap);
+    }
     handleBack();
   };
+
+  const hasAction = (rec: DocRecommendationItem) =>
+    rec.type === "penalty_calc" || rec.type === "doc";
 
   if (collapsed) {
     return (
@@ -69,7 +97,9 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
         <span className="hidden xs:inline">Рекомендации AI</span>
         <span className="xs:hidden">AI</span>
         {recommendations.length > 0 && (
-          <span className="w-5 h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center">{recommendations.length}</span>
+          <span className="w-5 h-5 rounded-full bg-white text-amber-600 text-[10px] font-bold flex items-center justify-center">
+            {recommendations.length}
+          </span>
         )}
       </button>
     );
@@ -78,9 +108,9 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
   return (
     <div
       className={`fixed bottom-4 right-3 sm:bottom-5 sm:right-4 z-[65] bg-white rounded-2xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden transition-all duration-300 ease-out
-        w-[min(calc(100vw-24px),320px)]
+        w-[min(calc(100vw-24px),340px)]
         ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-6 opacity-0 scale-95"}`}
-      style={{ maxHeight: "min(460px, 60dvh)" }}
+      style={{ maxHeight: "min(500px, 65dvh)" }}
       onClick={e => e.stopPropagation()}
     >
       {/* Шапка */}
@@ -95,7 +125,10 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
             <Icon name="Sparkles" size={12} className="text-white" />
           </div>
           <p className="text-xs font-bold text-white">
-            {mode === "list" ? `Рекомендации AI · ${recommendations.length}` : mode === "penalty" ? "Расчёт неустойки" : "Дополнительный документ"}
+            {mode === "list"
+              ? `Рекомендации AI · ${recommendations.length}`
+              : mode === "penalty" ? "Расчёт неустойки"
+              : "Дополнительный документ"}
           </p>
         </div>
         <div className="flex gap-1">
@@ -111,62 +144,100 @@ export default function DocRecsPanel({ recommendations, docContent, onClose, onP
       {/* Контент */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {mode === "list" && (
-          <div className="p-3 space-y-2">
-            {recommendations.length === 0 ? (
-              <div className="flex flex-col items-center py-8 gap-2 text-center">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <Icon name="CheckCircle" size={18} className="text-emerald-600" />
-                </div>
-                <p className="text-xs font-semibold text-navy-800">Дополнений не требуется</p>
-              </div>
-            ) : (
-              recommendations.map((rec, i) => {
-                const done = doneMap[i];
-                return (
-                  <div key={i} className={`rounded-xl border p-2.5 transition-all ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-amber-200 hover:bg-white"}`}>
-                    <div className="flex items-start gap-2">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${done ? "bg-emerald-100" : "bg-white border border-slate-200"}`}>
-                        {done
-                          ? <Icon name="CheckCircle" size={13} className="text-emerald-600" />
-                          : <Icon name={getIcon(rec)} size={12} className="text-navy-600" />
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-navy-800 leading-tight">{rec.title}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{rec.reason}</p>
-                      </div>
+          <div className="px-3 py-3 space-y-2">
+            {recommendations.map((rec, idx) => {
+              const done = doneMap[idx];
+              const isActionable = hasAction(rec);
+              return (
+                <div
+                  key={idx}
+                  className={`rounded-xl border p-3 transition-all ${
+                    done
+                      ? "bg-emerald-50 border-emerald-200"
+                      : isActionable
+                        ? "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm cursor-pointer"
+                        : "bg-slate-50 border-slate-100"
+                  }`}
+                  onClick={isActionable && !done ? () => handleAction(rec) : undefined}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      done ? "bg-emerald-100"
+                      : rec.type === "general" ? "bg-amber-50"
+                      : rec.type === "state_duty" ? "bg-blue-50"
+                      : "bg-navy-50"
+                    }`}>
+                      {done
+                        ? <Icon name="CheckCircle" size={14} className="text-emerald-600" />
+                        : <Icon name={getIcon(rec)} size={13} className={
+                            rec.type === "general" ? "text-amber-600"
+                            : rec.type === "state_duty" ? "text-blue-600"
+                            : "text-navy-700"
+                          } />
+                      }
                     </div>
-                    {!done && (
-                      <button
-                        onClick={() => handleAction(rec)}
-                        className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center justify-center gap-1.5 active:scale-95"
-                      >
-                        <Icon name={rec.type === "penalty_calc" ? "Calculator" : "Sparkles"} size={10} />
-                        {rec.type === "penalty_calc" ? "Рассчитать" : "Подготовить документ"}
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`text-[11px] font-bold leading-tight ${done ? "text-emerald-700" : "text-navy-800"}`}>
+                          {rec.title}
+                        </p>
+                        {done && (
+                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                            Выполнено
+                          </span>
+                        )}
+                        {!done && !isActionable && (
+                          <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                            Совет
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">
+                        {rec.reason}
+                      </p>
+                      {(rec.type === "general" && rec.advice) && (
+                        <p className="text-[10px] text-amber-700 leading-relaxed mt-1 font-medium">
+                          {rec.advice}
+                        </p>
+                      )}
+                      {(rec.type === "state_duty" && rec.duty_note) && (
+                        <p className="text-[10px] text-blue-700 leading-relaxed mt-1 font-medium">
+                          {rec.duty_note}
+                        </p>
+                      )}
+                    </div>
+                    {isActionable && !done && (
+                      <Icon name="ChevronRight" size={13} className="text-slate-400 shrink-0 mt-1" />
                     )}
                   </div>
-                );
-              })
+                </div>
+              );
+            })}
+
+            {recommendations.length === 0 && (
+              <div className="text-center py-6">
+                <Icon name="CheckCircle" size={28} className="text-emerald-400 mx-auto mb-2" />
+                <p className="text-xs text-slate-500">Документ не требует дополнительных действий</p>
+              </div>
             )}
           </div>
         )}
 
-        {mode === "penalty" && (
+        {mode === "penalty" && activeRec && (
           <PenaltyCalcPanel
+            docContext={docContent}
             onClose={handleBack}
             onPaymentRequired={onPaymentRequired}
-            embedded
-            docContext={docContent}
+            onSuccess={() => markDone(activeRec)}
           />
         )}
 
-        {mode === "rec_doc" && activeRec && (
+        {mode === "rec_doc" && activeRec && activeRec.doc_type && (
           <RecommendationDocPanel
-            recDocType={activeRec.doc_type || ""}
+            recDocType={activeRec.doc_type}
             recTitle={activeRec.title}
             recReason={activeRec.reason}
-            docContext={docContent.slice(0, 2000)}
+            docContext={docContent}
             onClose={handleBack}
             onPaymentRequired={onPaymentRequired}
             onSuccess={() => markDone(activeRec)}

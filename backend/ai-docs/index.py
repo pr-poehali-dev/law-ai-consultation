@@ -785,31 +785,43 @@ def handler(event: dict, context) -> dict:
             if not doc_content:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "doc_content required"}, ensure_ascii=False)}
+            # Подтягиваем актуальную судебную практику для рекомендаций
+            legal_ctx = ""
+            try:
+                legal_ctx = get_legal_context_for_ai("case_law", max_files=2, max_chars=2000, query=doc_name)
+            except Exception:
+                pass
             rec_sys = (
-                "Ты — опытный юрист РФ. Кратко определи, нужны ли дополнительные действия к документу. "
-                "Отвечай ТОЛЬКО JSON, без пояснений."
+                "Ты — опытный юрист РФ. Анализируй документ и давай ценные рекомендации пользователю. "
+                "Рекомендации должны быть конкретными и полезными. "
+                "Отвечай ТОЛЬКО корректным JSON без пояснений вне JSON."
             )
             rec_pr = (
-                f"Документ «{doc_name}»:\n{doc_content}\n\n"
-                "Нужны ли пользователю дополнительные юридические действия?\n"
-                "Верни JSON:\n"
-                '{"recommendations": ['
-                '{"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "..."} | '
-                '{"type": "doc", "doc_type": "motion_restore_term", "title": "...", "reason": "..."}'
-                ']}\n'
-                "Типы doc_type: motion_restore_term, motion_evidence, motion_witness, motion_third_party, "
-                "motion_expertise, motion_enforcement, pretension, complaint, appeal\n"
-                "ТОЛЬКО если реально необходимо. Максимум 2. Пустой список если не нужно."
+                f"Документ «{doc_name}»:\n{doc_content[:2500]}\n\n"
+                + (f"Актуальная судебная практика по теме:\n{legal_ctx}\n\n" if legal_ctx else "")
+                + "Дай рекомендации пользователю. Типы рекомендаций:\n"
+                '1. {"type": "general", "title": "Краткий заголовок", "reason": "...", "advice": "Конкретный совет"} — общие юридические советы, на что обратить внимание\n'
+                '2. {"type": "state_duty", "title": "Госпошлина", "reason": "...", "duty_note": "Замечание"} — ТОЛЬКО если в документе явно неверно указана или пропущена госпошлина\n'
+                '3. {"type": "penalty_calc", "title": "Расчёт неустойки", "reason": "..."} — ТОЛЬКО если документ подразумевает взыскание неустойки/пени и расчёта нет\n'
+                '4. {"type": "doc", "doc_type": "TYPE", "title": "...", "reason": "..."} — ТОЛЬКО если реально необходим дополнительный документ\n'
+                "   doc_type: motion_restore_term | motion_evidence | motion_witness | motion_third_party | motion_expertise | motion_enforcement | pretension | complaint | appeal\n\n"
+                "ПРАВИЛА:\n"
+                "— general-советы давай всегда (1-2 штуки) если есть что посоветовать\n"
+                "— state_duty — только при реальной ошибке в госпошлине\n"
+                "— penalty_calc и doc — только при реальной необходимости\n"
+                "— Максимум 3 рекомендации. Пустой список если совсем нечего добавить.\n\n"
+                'Верни: {"recommendations": [...]}'
             )
             recs_raw = []
             try:
-                raw = call_yandex(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=500, fast=True, temperature=0.1)
+                raw = call_yandex(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=700, fast=True, temperature=0.15)
                 m = re.search(r'\{[\s\S]*\}', raw)
                 if m:
                     parsed = json.loads(m.group())
                     recs_raw = parsed.get("recommendations", [])
                     if not isinstance(recs_raw, list): recs_raw = []
-                    recs_raw = recs_raw[:2]
+                    recs_raw = recs_raw[:3]
+                    print(f"[DOC_RECS] got {len(recs_raw)} recs")
             except Exception as e:
                 print(f"[DOC_RECS] ошибка: {e}")
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},

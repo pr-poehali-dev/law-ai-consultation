@@ -14,6 +14,8 @@ interface PenaltyCalcPanelProps {
   embedded?: boolean;
   /** Контекст документа для AI — дополнительно передаётся в промт */
   docContext?: string;
+  /** Вызывается после успешного расчёта */
+  onSuccess?: () => void;
 }
 
 type RateType = "percent" | "fixed" | "cbr";
@@ -26,7 +28,7 @@ function nextId() { return _nextId++; }
 
 
 
-export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false, docContext }: PenaltyCalcPanelProps) {
+export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded = false, docContext, onSuccess }: PenaltyCalcPanelProps) {
   const [debt, setDebt] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -124,6 +126,7 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка расчёта");
       setResult(data.answer || "");
+      if (onSuccess) onSuccess();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Ошибка расчёта. Попробуйте ещё раз.");
     } finally {

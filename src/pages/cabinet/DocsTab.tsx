@@ -10,10 +10,14 @@ import DocsReportModal from "@/pages/cabinet/DocsReportModal";
 export type DocPhase = "form" | "generating" | "filling" | "done";
 
 export interface DocRecommendationItem {
-  type: "penalty_calc" | "doc";
+  type: "penalty_calc" | "doc" | "general" | "state_duty";
   title: string;
   reason: string;
   doc_type?: string;
+  /** Только для general: текстовая рекомендация без кнопки действия */
+  advice?: string;
+  /** Для state_duty: текущий расчёт неверный */
+  duty_note?: string;
 }
 
 export interface GenDoc {

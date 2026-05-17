@@ -307,20 +307,27 @@ export async function consumeDoc(): Promise<boolean> {
   return res.ok;
 }
 
-/** Проверить и списать ресурсы за правку AI: 1 документ + 5 вопросов */
+/** Проверить тариф Профи+ для открытия AI-редактора (без списания ресурсов) */
+export async function checkProAccess(): Promise<{ ok: boolean; reason?: string }> {
+  invalidateUserCache();
+  const user = await getUser();
+  if (!user) return { ok: false, reason: "auth" };
+  if (user.isAdmin) return { ok: true };
+  const isPro = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs") || user.paidQuestions >= 30 || user.paidDocs >= 10;
+  if (!isPro) return { ok: false, reason: "not_pro" };
+  return { ok: true };
+}
+
+/** Проверить и списать 5 вопросов за правку AI (документы не списываются) */
 export async function checkAndConsumeEditResources(_docsNeeded: number): Promise<{ ok: boolean; reason?: string }> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
   const QUESTIONS_PER_EDIT = 5;
-  // Проверяем баланс до списания
-  const hasDocs = hasActiveSubscription(user, "docs") || user.paidDocs >= 1;
+  // Проверяем что достаточно вопросов
   const hasQ = hasActiveSubscription(user, "consult") || user.paidQuestions >= QUESTIONS_PER_EDIT;
-  if (!hasDocs || !hasQ) return { ok: false, reason: "insufficient" };
-  // Списываем 1 документ
-  const docOk = await consumeDoc();
-  if (!docOk) return { ok: false, reason: "insufficient" };
+  if (!hasQ) return { ok: false, reason: "insufficient" };
   // Списываем 5 вопросов поштучно
   for (let i = 0; i < QUESTIONS_PER_EDIT; i++) {
     const { ok } = await consumeQuestion();
