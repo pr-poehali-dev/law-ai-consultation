@@ -454,7 +454,21 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             conn.commit()
 
-            _s3().put_object(Bucket="files", Key=s3_key, Body=file_data, ContentType=mime_type)
+            print(f"[S3_UPLOAD] key={s3_key!r} size={len(file_data)} mime={mime_type!r}")
+            try:
+                _s3().put_object(Bucket="files", Key=s3_key, Body=file_data, ContentType=mime_type)
+                print(f"[S3_UPLOAD] OK")
+            except Exception as s3_err:
+                print(f"[S3_UPLOAD] ERROR: {s3_err!r}")
+                # Пробуем с упрощённым ключом без имени файла
+                s3_key_fallback = f"legal-docs/{category}/{doc_id}.{ext}"
+                print(f"[S3_UPLOAD] fallback key={s3_key_fallback!r}")
+                _s3().put_object(Bucket="files", Key=s3_key_fallback, Body=file_data, ContentType=mime_type)
+                s3_key = s3_key_fallback
+                cur2 = conn.cursor()
+                cur2.execute(f"UPDATE {SCHEMA}.legal_docs SET s3_key = %s WHERE id = %s", (s3_key, doc_id))
+                conn.commit()
+                print(f"[S3_UPLOAD] fallback OK")
 
             invalidate_legal_cache()
             key_id = os.environ.get("AWS_ACCESS_KEY_ID", "")
