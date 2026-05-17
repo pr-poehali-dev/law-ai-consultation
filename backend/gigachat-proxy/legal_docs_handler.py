@@ -286,7 +286,10 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                  court_name, case_number)
             )
             doc_id = cur.fetchone()[0]
-            s3_key = f"legal-docs/{category}/{doc_id}_{filename}"
+            # Санируем имя файла: убираем кириллицу, пробелы и спецсимволы
+            safe_filename = re.sub(r"[^\w.\-]", "_", filename, flags=re.ASCII)
+            safe_filename = re.sub(r"_+", "_", safe_filename).strip("_") or f"doc_{doc_id}.{ext}"
+            s3_key = f"legal-docs/{category}/{doc_id}_{safe_filename}"
             cur.execute(
                 f"UPDATE {SCHEMA}.legal_docs SET s3_key = %s WHERE id = %s",
                 (s3_key, doc_id)
