@@ -139,7 +139,7 @@ export default function PaymentModal({
   const startPolling = (id: number) => {
     setStep("polling");
     let attempts = 0;
-    const maxAttempts = 60; // 60 × 3с = 3 минуты
+    const maxAttempts = 300; // 300 × 3с = 15 минут (Robokassa может задержать вебхук)
 
     const poll = async () => {
       attempts++;
@@ -166,7 +166,7 @@ export default function PaymentModal({
       if (attempts < maxAttempts) {
         setTimeout(poll, 3000);
       } else {
-        setErrorMsg("Оплата не подтверждена в течение 3 минут. Если вы оплатили — обновите страницу.");
+        setErrorMsg("Оплата не подтверждена автоматически. Если вы оплатили — обновите страницу, ресурсы появятся.");
         setStep("error");
       }
     };
