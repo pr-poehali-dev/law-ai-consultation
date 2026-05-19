@@ -109,12 +109,12 @@ export function useCabinetPayment({
           return;
         }
       } catch { /* продолжаем */ }
-      // 300 попыток × 3 сек = 15 минут (Robokassa иногда присылает вебхук с большой задержкой)
-      if (attempts < 300) setTimeout(poll, 3000);
+      // 20 попыток × 3 сек = 60 сек
+      if (attempts < 20) setTimeout(poll, 3000);
       else {
         await refreshUser();
-        setErrorToast("Если оплата прошла — обновите страницу, ресурсы появятся автоматически.");
-        setTimeout(() => setErrorToast(null), 8000);
+        setErrorToast("Оплата не прошла или была отменена. Обновите страницу.");
+        setTimeout(() => setErrorToast(null), 6000);
       }
     };
     setTimeout(poll, 800);
