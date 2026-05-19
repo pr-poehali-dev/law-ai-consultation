@@ -4,11 +4,14 @@ export type AiMsg = {
   isEdited?: boolean;
   editNum?: number;
   partialNote?: string;
+  changesSummary?: string;
+  stages?: number;
+  isStageStatus?: boolean;
 };
 
-// 1 правка ≈ 1000 токенов = 5 вопросов + 1 документ
+// 1 правка = 5 вопросов (документы не списываются)
 export function calcEditCost(_docContent: string, _instruction: string) {
-  return { docs: 1, questions: 5 };
+  return { docs: 0, questions: 5 };
 }
 
 // Парсим текст анализа AI на секции по двойному переносу

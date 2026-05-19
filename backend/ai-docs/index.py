@@ -434,7 +434,18 @@ def handler(event: dict, context) -> dict:
             for t in threads: t.start()
             for t in threads: t.join(timeout=8)
 
-            duty_block = (get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else "") + (_duty_db_result[0] if _duty_db_result else "")
+            # Совмещаем ставки из state_duty.py и актуальные данные из БД (НК РФ ст. 333.19, 333.36 и т.д.)
+            duty_static = get_duty_context_for_doc() if doc_type in DUTY_DOC_TYPES else ""
+            duty_db = _duty_db_result[0] if _duty_db_result else ""
+            # Явная инструкция для AI использовать госпошлину из базы
+            duty_block = ""
+            if doc_type in DUTY_DOC_TYPES:
+                duty_block = (
+                    "\n\n[ОБЯЗАТЕЛЬНО] ГОСПОШЛИНА — используй ТОЛЬКО приведённые ниже актуальные ставки и льготы:\n"
+                    + duty_static
+                    + (("\n\nАКТУАЛЬНЫЕ ДАННЫЕ ИЗ ПРАВОВОЙ БАЗЫ:\n" + duty_db) if duty_db else "")
+                    + "\nРАССЧИТАЙ точную сумму госпошлины или укажи льготу. Если цена иска неизвестна — вставь метку {{ЦЕНА_ИСКА}} и формулу расчёта по ставке.\n"
+                )
             case_law_block = _case_law_result[0] if _case_law_result else ""
             definitions_block = _definitions_result[0] if _definitions_result else ""
             codex_block = _codex_result[0] if _codex_result else ""
@@ -888,67 +899,118 @@ def handler(event: dict, context) -> dict:
             doc_name = body.get("doc_name", "Документ")
             doc_content = body.get("doc_content", "").strip()
             edit_instruction = body.get("edit_instruction", "").strip()
+            # Номер этапа при многоэтапном редактировании (0 = первый/единственный)
+            edit_stage = int(body.get("edit_stage", 0))
+            # Сколько всего этапов (0 = автоопределение)
+            edit_total_stages = int(body.get("edit_total_stages", 0))
             if not doc_content or not edit_instruction:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "doc_content and edit_instruction required"}, ensure_ascii=False)}
 
-            # Оцениваем объём: если документ очень большой, обрезаем до 6000 символов
-            doc_for_edit = doc_content[:6000]
-            doc_truncated_for_edit = len(doc_content) > 6000
+            # Подтягиваем судебную практику и госпошлины из правовой базы
+            edit_legal_ctx = ""
+            edit_duty_ctx = ""
+            try:
+                edit_legal_ctx = get_legal_context_for_ai("case_law", max_files=2, max_chars=2000, query=edit_instruction)
+            except Exception:
+                pass
+            try:
+                duty_keywords = ["пошлин", "госпошлин", "333.19", "333.21"]
+                if any(k in edit_instruction.lower() for k in duty_keywords):
+                    edit_duty_ctx = get_legal_context_for_ai("state_duty", max_files=2, max_chars=1500, query=edit_instruction)
+            except Exception:
+                pass
+            extra_edit_ctx = edit_duty_ctx + edit_legal_ctx
+
+            # Документ передаём ЦЕЛИКОМ — не обрезаем, AI вернёт полный текст
+            # Для очень больших документов (>8000 символов) разбиваем на окна
+            EDIT_WINDOW = 8000
+            doc_len = len(doc_content)
+            doc_for_edit = doc_content  # по умолчанию — весь документ
 
             edit_system = (
-                "Ты — опытный юрист-редактор РФ. Вносишь правки в юридический документ.\n"
-                "РЕЖИМЫ (определяй по инструкции):\n"
-                "— РЕДАКЦИЯ: заменяешь конкретные фразы/абзацы на улучшенные юридические формулировки.\n"
-                "— ДОПОЛНЕНИЕ: вставляешь новый текст (до 2000 символов) в нужное место документа.\n"
-                "ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА:\n"
-                "1. Изменяй ТОЛЬКО то, что прямо указано в инструкции.\n"
-                "2. Весь остальной текст — дословно, без малейших изменений.\n"
-                "3. Сохраняй блоки [ШАПКА][ЗАГОЛОВОК][ТЕЛО][ТРЕБОВАНИЯ][ПРИЛОЖЕНИЯ][ПОДПИСЬ][ОБОСНОВАНИЕ][ПРИМЕЧАНИЯ].\n"
-                "4. Качество важнее скорости: юридически корректные формулировки со ссылками на нормы РФ.\n"
-                "5. Верни ТОЛЬКО текст документа — без пояснений, без предисловий.\n"
-                "6. Запрещены [...], ___ и заглушки вместо существующего текста.\n"
-                "7. Если правка не влезает полностью — добавь в конец: ##PARTIAL## и одной строкой что не вошло."
+                "Ты — опытный юрист-редактор РФ. Вносишь точечные правки в юридический документ.\n"
+                "КРИТИЧЕСКИЕ ПРАВИЛА — нарушение недопустимо:\n"
+                "1. Изменяй ТОЛЬКО то, что прямо указано в инструкции пользователя.\n"
+                "2. ВЕСЬ остальной текст документа — ДОСЛОВНО, без единого изменения.\n"
+                "3. ЗАПРЕЩЕНО сокращать, переформулировать или удалять части документа не связанные с заданием.\n"
+                "4. Документ после правки должен быть НЕ КОРОЧЕ оригинала (может быть длиннее при дополнениях).\n"
+                "5. Сохраняй структурные блоки: [ШАПКА][ЗАГОЛОВОК][ТЕЛО][ТРЕБОВАНИЯ][ПРИЛОЖЕНИЯ][ПОДПИСЬ][ОБОСНОВАНИЕ][ПРИМЕЧАНИЯ].\n"
+                "6. Юридически корректные формулировки со ссылками на нормы РФ.\n"
+                "7. Верни ТОЛЬКО полный текст документа — без предисловий, без комментариев, без пояснений.\n"
+                "8. В конце ответа добавь: ##CHANGES## и одной строкой — краткий список внесённых изменений (для пользователя).\n"
+                "9. Если правка очень объёмная и не вся войдёт — добавь ##PARTIAL## и опиши что не вошло."
             )
+
+            stage_note = ""
+            if edit_total_stages > 1:
+                stage_note = f"\n[ЭТАП {edit_stage + 1} из {edit_total_stages}] Вноси только часть изменений, соответствующую этому этапу."
+
             edit_prompt = (
-                f"ДОКУМЕНТ «{doc_name}» (передаётся для редактирования):\n"
+                f"ДОКУМЕНТ «{doc_name}»:\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"{doc_for_edit}\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"ЗАДАЧА: {edit_instruction}\n\n"
-                "Если задача — РЕДАКЦИЯ: найди указанный участок и замени на юридически корректный вариант.\n"
-                "Если задача — ДОПОЛНЕНИЕ: вставь новый текст в логичное место документа (можно до 2000 символов).\n"
-                "Верни ПОЛНЫЙ документ с внесёнными изменениями. Остальное — дословно."
+                f"ЗАДАЧА РЕДАКЦИИ: {edit_instruction}{stage_note}\n\n"
+                + (extra_edit_ctx + "\n\n" if extra_edit_ctx else "")
+                + "Верни ПОЛНЫЙ документ с внесёнными изменениями. "
+                "Все части документа, не затронутые заданием — дословно без изменений. "
+                "Документ не должен стать короче. После текста добавь ##CHANGES## и список изменений."
             )
+
             edit_answer = ""
             was_cut = False
-            # DeepSeek — лучше справляется с редактированием юридических документов
             try:
-                edit_answer, was_cut = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2500, temperature=0.1, timeout=75)
-                print(f"[DOC_EDIT] DeepSeek ответил, was_cut={was_cut}, len={len(edit_answer)}")
+                edit_answer, was_cut = call_deepseek(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=4000, temperature=0.1, timeout=80)
+                print(f"[DOC_EDIT] DeepSeek ответил, was_cut={was_cut}, len={len(edit_answer)}, doc_len={doc_len}")
             except Exception as e:
                 print(f"[DOC_EDIT] DeepSeek упал: {e} → fallback YandexGPT")
                 try:
-                    edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=2000, fast=True, temperature=0.1)
+                    edit_answer = call_yandex(edit_system, [{"role": "user", "content": edit_prompt}], max_tokens=3000, fast=False, temperature=0.1)
                 except Exception as e2:
                     print(f"[DOC_EDIT] YandexGPT тоже упал: {e2}")
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось отредактировать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
 
+            # Извлекаем список изменений (что было сделано)
+            changes_summary = ""
+            if "##CHANGES##" in edit_answer:
+                parts_ch = edit_answer.split("##CHANGES##", 1)
+                edit_answer = parts_ch[0].strip()
+                changes_summary = parts_ch[1].strip() if len(parts_ch) > 1 else ""
+
             # Проверяем частичное внесение
             partial_note = ""
             if "##PARTIAL##" in edit_answer:
-                parts = edit_answer.split("##PARTIAL##", 1)
-                edit_answer = parts[0].strip()
-                partial_note = parts[1].strip() if len(parts) > 1 else "Часть правки не вошла в лимит"
-            # Если документ был обрезан для редактирования — восстанавливаем хвост оригинала
-            if doc_truncated_for_edit and edit_answer:
-                # Добавляем часть оригинала, которую не передавали AI
-                edit_answer = edit_answer + "\n" + doc_content[6000:]
+                parts_p = edit_answer.split("##PARTIAL##", 1)
+                edit_answer = parts_p[0].strip()
+                partial_note = parts_p[1].strip() if len(parts_p) > 1 else "Часть правки не вошла в лимит"
+
+            # Защита от обрезания: если ответ значительно короче оригинала — вернуть ошибку
+            if edit_answer and len(edit_answer) < doc_len * 0.6:
+                print(f"[DOC_EDIT] WARN: ответ обрезан ({len(edit_answer)} < {doc_len}*0.6) — fallback к оригиналу")
+                # Пробуем ещё раз с явным требованием сохранить весь документ
+                try:
+                    retry_prompt = edit_prompt + "\n\nКРИТИЧЕСКИ ВАЖНО: предыдущая попытка вернула обрезанный документ. Верни ПОЛНЫЙ текст без сокращений."
+                    edit_answer_retry, _ = call_deepseek(edit_system, [{"role": "user", "content": retry_prompt}], max_tokens=4000, temperature=0.05, timeout=80)
+                    if edit_answer_retry and len(edit_answer_retry) >= doc_len * 0.7:
+                        edit_answer = edit_answer_retry
+                        if "##CHANGES##" in edit_answer:
+                            pp = edit_answer.split("##CHANGES##", 1)
+                            edit_answer = pp[0].strip()
+                            if not changes_summary:
+                                changes_summary = pp[1].strip() if len(pp) > 1 else ""
+                        print(f"[DOC_EDIT] Retry успешен, len={len(edit_answer)}")
+                except Exception as e3:
+                    print(f"[DOC_EDIT] Retry упал: {e3}")
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"answer": edit_answer, "partial_note": partial_note}, ensure_ascii=False)}
+                    "body": json.dumps({
+                        "answer": edit_answer,
+                        "partial_note": partial_note,
+                        "changes_summary": changes_summary,
+                    }, ensure_ascii=False)}
 
         return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": f"Unknown mode: {mode}"})}

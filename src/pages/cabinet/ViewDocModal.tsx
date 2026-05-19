@@ -304,9 +304,19 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
                 ? blocks.map((block, i) => <DocBlock key={i} type={block.type} lines={block.lines} />)
                 : (() => {
                     const prevLines = prevDocContent ? new Set(prevDocContent.split("\n")) : null;
+                    const changedCount = prevLines ? currentDocContent.split("\n").filter(l => l.trim() && !prevLines.has(l)).length : 0;
                     let firstMarked = false;
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
+                        {/* Бейдж с кол-вом изменений */}
+                        {changedCount > 0 && (
+                          <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 sticky top-0 z-10">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            <p className="text-[11px] font-semibold text-emerald-700">
+                              AI внёс изменения: {changedCount} строк обновлено · подсвечено зелёным
+                            </p>
+                          </div>
+                        )}
                         {currentDocContent.split("\n").map((line, i) => {
                           if (!line.trim()) return <div key={i} className="h-2" />;
                           const isChanged = prevLines !== null && !prevLines.has(line);
@@ -314,7 +324,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
                           if (isFirst) firstMarked = true;
                           const isTitle = /^[А-ЯA-ZЁ][А-ЯA-ZЁ\s]{4,}$/.test(line.trim());
                           const changedClass = isChanged
-                            ? "bg-emerald-50 border-l-2 border-emerald-400 pl-2 rounded-r-lg"
+                            ? "bg-emerald-50/80 border-l-[3px] border-emerald-500 pl-3 rounded-r-xl relative"
                             : "";
                           return isTitle
                             ? <p key={i} {...(isFirst ? { "data-changed": "1" } : {})}
@@ -322,7 +332,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
                                 {line.trim()}
                               </p>
                             : <p key={i} {...(isFirst ? { "data-changed": "1" } : {})}
-                                className={`text-sm text-navy-700 leading-relaxed indent-6 ${changedClass}`}>
+                                className={`text-sm text-navy-700 leading-relaxed ${isChanged ? "pl-3" : "indent-6"} ${changedClass}`}>
                                 {line.trim()}
                               </p>;
                         })}
@@ -419,21 +429,21 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
           doc={{ id: doc.id, name: doc.name, content: doc.content, recommendations: doc.recommendations }}
           onClose={() => setShowAiChat(false)}
           onPaymentRequired={() => {}}
-          onDocUpdated={(newContent) => {
-            setPrevDocContent(currentDocContent);
+          onDocUpdated={(newContent, prevContent) => {
+            setPrevDocContent(prevContent);
             setCurrentDocContent(newContent);
             setDocFlash(true);
-            setTimeout(() => setDocFlash(false), 3000);
+            setTimeout(() => setDocFlash(false), 5000);
           }}
           onScrollToChanges={() => {
-            // Скроллим к первой изменённой строке
             setTimeout(() => {
+              const container = contentRef.current;
+              if (!container) return;
               const el = docScrollRef.current?.querySelector("[data-changed='1']");
               if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
               } else {
-                // Если data-changed не найден — скроллим в начало документа
-                docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                container.scrollTo({ top: 0, behavior: "smooth" });
               }
             }, 200);
           }}
