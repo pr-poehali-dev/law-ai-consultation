@@ -5,6 +5,9 @@ Webhook от ЮКасса (notification URL) после изменения ст�
 """
 import json
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 import psycopg2
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
@@ -34,6 +37,103 @@ DESCRIPTIONS = {
     "business_actions_60":   "+60 бизнес-действий",
     "business_actions_150":  "+150 бизнес-действий",
 }
+
+
+SITE_URL = "https://ии-право.рф"
+
+# Что получает пользователь по каждому тарифу
+GRANT_DETAILS = {
+    "consultation":          "✅ Консультация живого юриста активирована",
+    "document":              "✅ +1 документ добавлен на ваш счёт",
+    "expert":                "✅ Экспертная проверка юристом активирована",
+    "business":              "✅ Бизнес-пакет активирован",
+    "subscription_consult":  "✅ Подписка на консультации активирована на 31 день",
+    "subscription_docs":     "✅ Подписка на документы активирована на 31 день",
+    "plan_starter":          "✅ Тариф «Старт» активирован\n   • +30 вопросов\n   • +5 документов",
+    "plan_starter_discount": "✅ Тариф «Старт» активирован\n   • +30 вопросов\n   • +5 документов",
+    "plan_pro":              "✅ Тариф «Профи» активирован\n   • +100 вопросов\n   • +20 документов\n   • Анализ файлов",
+    "plan_max":              "✅ Тариф «Максимум» активирован\n   • +300 вопросов\n   • +50 документов\n   • Консультация юриста",
+    "plan_max_expert":       "✅ Тариф «Максимум» активирован\n   • +300 вопросов\n   • +50 документов\n   • Консультация юриста",
+    "business_subscription": "✅ Бизнес-подписка активирована\n   • +150 бизнес-действий\n   • Подписка на 31 день",
+    "business_actions_10":   "✅ +10 бизнес-действий добавлено",
+    "business_actions_30":   "✅ +30 бизнес-действий добавлено",
+    "business_actions_50":   "✅ +50 бизнес-действий добавлено",
+    "business_actions_60":   "✅ +60 бизнес-действий добавлено",
+    "business_actions_150":  "✅ +150 бизнес-действий добавлено",
+}
+
+PLAN_TITLES = {
+    "consultation":          "Консультация юриста",
+    "document":              "Документ",
+    "expert":                "Экспертная проверка",
+    "business":              "Бизнес-пакет",
+    "subscription_consult":  "Подписка на консультации",
+    "subscription_docs":     "Подписка на документы",
+    "plan_starter":          "Тариф «Старт»",
+    "plan_starter_discount": "Тариф «Старт»",
+    "plan_pro":              "Тариф «Профи»",
+    "plan_max":              "Тариф «Максимум»",
+    "plan_max_expert":       "Тариф «Максимум»",
+    "business_subscription": "Бизнес-подписка",
+    "business_actions_10":   "+10 бизнес-действий",
+    "business_actions_30":   "+30 бизнес-действий",
+    "business_actions_50":   "+50 бизнес-действий",
+    "business_actions_60":   "+60 бизнес-действий",
+    "business_actions_150":  "+150 бизнес-действий",
+}
+
+
+def send_payment_confirmation(to_email: str, user_name: str, service_type: str, amount: float) -> None:
+    """Отправляет пользователю письмо об успешной оплате."""
+    smtp_from = os.environ.get("SMTP_FROM_EMAIL", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_from or not smtp_pass or not to_email:
+        return
+
+    plan_title = PLAN_TITLES.get(service_type, service_type)
+    grant_text = GRANT_DETAILS.get(service_type, f"✅ {service_type} активирован")
+    greeting = f"Здравствуйте, {user_name}!" if user_name else "Здравствуйте!"
+    amount_str = f"{amount:,.0f}".replace(",", " ") + " ₽"
+
+    body = (
+        f"{greeting}\n\n"
+        f"Ваш платёж успешно принят.\n\n"
+        f"{'─' * 38}\n"
+        f"  Оплачено:  {plan_title}\n"
+        f"  Сумма:     {amount_str}\n"
+        f"{'─' * 38}\n\n"
+        f"{grant_text}\n\n"
+        f"Перейдите в личный кабинет, чтобы начать работу:\n"
+        f"{SITE_URL}/cabinet\n\n"
+        f"Если у вас есть вопросы — напишите нам через кабинет.\n\n"
+        f"С уважением,\n"
+        f"Команда ИИ-Право.рф"
+    )
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = Header(f"Оплата принята — {plan_title} · ИИ-Право.рф", "utf-8")
+    msg["From"] = smtp_from
+    msg["To"] = to_email
+
+    last_err = None
+    try:
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as srv:
+            srv.login(smtp_from, smtp_pass)
+            srv.sendmail(smtp_from, [to_email], msg.as_string())
+        print(f"[PAYMENT] Email подтверждения отправлен: {to_email}")
+        return
+    except Exception as e:
+        last_err = f"SSL-465: {e}"
+    try:
+        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as srv:
+            srv.ehlo(); srv.starttls(); srv.ehlo()
+            srv.login(smtp_from, smtp_pass)
+            srv.sendmail(smtp_from, [to_email], msg.as_string())
+        print(f"[PAYMENT] Email подтверждения отправлен (STARTTLS): {to_email}")
+        return
+    except Exception as e:
+        last_err = f"{last_err} | STARTTLS-587: {e}"
+    print(f"[PAYMENT] WARN: не удалось отправить email подтверждения: {last_err}")
 
 
 def get_conn():
@@ -242,6 +342,20 @@ def handler(event: dict, context) -> dict:
             )
             conn.commit()
             print(f"[PAYMENT] Зачислено: user_id={effective_user_id} service={effective_service}")
+
+            # Получаем имя пользователя и отправляем письмо
+            if effective_email:
+                user_name = ""
+                try:
+                    cur3 = conn.cursor()
+                    cur3.execute(f"SELECT name FROM {SCHEMA}.users WHERE id = %s", (effective_user_id,))
+                    name_row = cur3.fetchone()
+                    if name_row:
+                        user_name = name_row[0] or ""
+                    cur3.close()
+                except Exception:
+                    pass
+                send_payment_confirmation(effective_email, user_name, effective_service, effective_amount)
         else:
             # Пользователь ещё не зарегистрирован — НЕ ставим service_credited,
             # чтобы _credit_pending_orders при регистрации мог подхватить ордер
