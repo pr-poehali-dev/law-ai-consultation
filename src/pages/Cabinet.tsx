@@ -229,7 +229,7 @@ export default function Cabinet() {
     const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
       (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
     if (!canDoc) {
-      // Показываем выбор: 1 документ 600р vs пакет Старт 990р
+      // Показываем выбор: 1 документ 990р vs пакет Старт 1490р
       const hintDocId = docHint?.doc_type || "claim";
       const hintDocLabel = docHint?.doc_label || "документ";
       setShowDocChoice({ docTypeId: hintDocId, docLabel: hintDocLabel });

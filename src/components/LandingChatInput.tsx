@@ -63,7 +63,7 @@ export default function LandingChatInput({
               onClick={onToggleDocMenu}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
               style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
-              title="Создать документ — 600 ₽"
+              title="Создать документ — 990 ₽"
             >
               <Icon name="FileText" size={15} />
             </button>
@@ -73,7 +73,7 @@ export default function LandingChatInput({
                 style={{ background: "#0f1f3d", border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <p className="text-[10px] font-bold uppercase tracking-widest px-3 pt-3 pb-1"
-                  style={{ color: "rgba(255,255,255,0.35)" }}>Создать документ · 600 ₽</p>
+                  style={{ color: "rgba(255,255,255,0.35)" }}>Создать документ · 990 ₽</p>
                 {DOC_TYPES.map(dt => (
                   <button
                     key={dt.id}

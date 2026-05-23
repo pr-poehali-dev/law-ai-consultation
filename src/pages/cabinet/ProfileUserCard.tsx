@@ -143,7 +143,7 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
           {[
             { label: "Старт", sub: "30 вопросов + 5 документов", price: "1 490 ₽", type: "plan_starter" as ServiceType, name: "Тариф Старт", icon: "Zap", badge: "" },
             { label: "Профи", sub: "100 вопросов + 20 документов", price: "3 990 ₽", type: "plan_pro" as ServiceType, name: "Тариф Профи", icon: "Star", badge: "Популярный" },
-            { label: "Максимум", sub: "300 вопросов + 50 документов", price: "9 990 ₽", type: "plan_max" as ServiceType, name: "Тариф Максимум", icon: "Crown", badge: "" },
+            { label: "Максимум", sub: "300 вопросов + 50 документов", price: "5 990 ₽", type: "plan_max" as ServiceType, name: "Тариф Максимум", icon: "Crown", badge: "" },
           ].map((item) => (
             <button key={item.type} onClick={() => onPay(item.type, item.name)}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50/50 transition-all group">
