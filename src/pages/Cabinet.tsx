@@ -427,11 +427,17 @@ export default function Cabinet() {
             pay.setPayment({ type: "document", name: dt.label });
             pay.setPendingDocType(dt);
           }}
-          onChoosePlan={() => {
+          onChoosePlan={(planId) => {
             const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
             setShowDocChoice(null);
             savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
-            pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
+            const id = planId || "plan_starter";
+            const nameMap: Record<string, string> = {
+              plan_starter: "Пакет «Старт»",
+              plan_pro: "Тариф «Профи»",
+              plan_max: "Тариф «Максимум»",
+            };
+            pay.setPayment({ type: id as ServiceType, name: nameMap[id] || "Тариф" });
             pay.setPendingDocType(dt);
           }}
           onClose={() => setShowDocChoice(null)}
