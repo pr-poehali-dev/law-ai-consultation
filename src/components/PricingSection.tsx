@@ -11,15 +11,17 @@ const USER_PLANS = [
     id: "plan_starter",
     name: "Старт",
     price: "1 490",
+    oldPrice: "2 490",
     period: "",
-    desc: "30 вопросов AI-юристу + 5 документов",
+    desc: "Консультации AI + живой юрист + документы",
     badge: null,
+    lawyerFeature: "3 вопроса живому юристу",
     features: [
       "30 вопросов AI-юристу",
-      "5 готовых документов",
-      "Подготовка документов AI",
-      "Генерация .doc из диалога",
-      "Скачивание в .doc формате",
+      "До 5 документов через систему",
+      "Анализ судебной практики при подготовке документа",
+      "Рекомендации по документу от AI-юриста",
+      "Генерация и скачивание .doc",
     ],
     popular: false,
     gradient: "",
@@ -29,17 +31,19 @@ const USER_PLANS = [
     id: "plan_pro",
     name: "Профи",
     price: "3 990",
+    oldPrice: "5 990",
     period: "",
     desc: "Оптимальный выбор для активного использования",
     badge: "Хит",
+    lawyerFeature: "5 вопросов живому юристу с анализом документов",
     features: [
+      "Всё из тарифа «Старт»",
       "100 вопросов AI-юристу",
-      "20 готовых документов",
-      "Анализ одного документа или фото",
+      "До 20 документов через систему",
+      "Загрузка PDF, DOCX, фото для анализа",
       "Определение перспективы дела",
-      "Генерация .doc из диалога",
-      "История консультаций",
-      "Скачивание .doc",
+      "Редактор документов через AI-юриста",
+      "Калькулятор расчёта неустойки",
     ],
     popular: true,
     gradient: "from-navy-600/60 to-navy-800/80",
@@ -49,17 +53,17 @@ const USER_PLANS = [
     id: "plan_max",
     name: "Максимум",
     price: "5 990",
+    oldPrice: "8 990",
     period: "",
     desc: "Для частых юридических задач",
     badge: "Рекомендуем",
+    lawyerFeature: "Консультация юриста + 2 документа от юриста",
     features: [
-      "до 300 вопросов AI-юристу",
-      "50 готовых документов",
       "Всё из тарифа «Профи»",
-      "Приоритетный доступ к AI",
+      "до 300 вопросов AI-юристу",
+      "До 50 документов через систему",
       "Анализ нескольких документов сразу",
-      "Консультация живого юриста на сайте или по телефону",
-      "Подготовка документов живым юристом — 2 документа",
+      "Приоритетный доступ к AI",
     ],
     popular: false,
     gradient: "from-navy-800/5 to-navy-900/10",
@@ -142,11 +146,30 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
                   <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
                 </div>
                 <p className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>{plan.name}</p>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className={`font-cormorant font-bold text-4xl ${plan.popular ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
+                <div className="flex items-baseline gap-2 mb-1 flex-wrap">
+                  <span className={`font-cormorant font-bold text-4xl leading-none ${plan.popular ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
+                  {plan.oldPrice && (
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-sm line-through ${plan.popular ? "text-white/35" : "text-slate-400"}`}>{plan.oldPrice} ₽</span>
+                      {(() => {
+                        const p = parseInt(plan.price.replace(/\s/g, ""), 10);
+                        const o = parseInt(plan.oldPrice.replace(/\s/g, ""), 10);
+                        const pct = o > p ? Math.round(((o - p) / o) * 100) : 0;
+                        return pct > 0 ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500 text-white leading-none">−{pct}%</span>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <p className={`text-xs mb-3 ${plan.popular ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
-                <p className={`text-sm leading-relaxed mb-5 ${plan.popular ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
+                <p className={`text-sm leading-relaxed mb-4 ${plan.popular ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
+                {plan.lawyerFeature && (
+                  <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-4 ${plan.popular ? "bg-white/10 border border-white/15" : "bg-navy-50 border border-navy-100"}`}>
+                    <Icon name="User" size={13} className={`shrink-0 ${plan.popular ? "text-gold-400" : "text-navy-500"}`} />
+                    <span className={`text-xs font-semibold ${plan.popular ? "text-gold-300" : "text-navy-700"}`}>{plan.lawyerFeature}</span>
+                  </div>
+                )}
                 <ul className="space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.popular ? "text-white/85" : "text-navy-700"}`}>
