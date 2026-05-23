@@ -16,7 +16,7 @@ interface Plan {
   color: "light" | "dark" | "max";
 }
 
-const PLANS: Plan[] = [
+export const PLANS: Plan[] = [
   {
     id: "plan_starter",
     name: "Старт",
@@ -81,7 +81,7 @@ const PLANS: Plan[] = [
   },
 ];
 
-function getActivePlan(user: User): string | null {
+export function getActivePlan(user: User): string | null {
   if ((user.paidQuestions ?? 0) >= 300 || (user.paidDocs ?? 0) >= 50) return "plan_max";
   if ((user.paidQuestions ?? 0) >= 100 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
   if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
