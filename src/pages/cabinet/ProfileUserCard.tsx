@@ -41,40 +41,26 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
           </div>
         </div>
 
-        {/* Остатки */}
+        {/* Остатки — тёмные карточки */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            {
-              label: "Вопросов AI",
-              value: user.isAdmin ? "∞" : (user.paidQuestions ?? 0),
-              icon: "MessageCircle",
-              color: "text-blue-600 bg-blue-50 border-blue-100",
-            },
-            {
-              label: "Документов",
-              value: user.isAdmin ? "∞" : (user.paidDocs ?? 0),
-              icon: "FileText",
-              color: "text-amber-600 bg-amber-50 border-amber-100",
-            },
-            {
-              label: "Вопросов юристу",
-              value: user.isAdmin ? "∞" : lawyerQ,
-              icon: "User",
-              color: lawyerQ > 0 || user.isAdmin ? "text-emerald-600 bg-emerald-50 border-emerald-100" : "text-slate-400 bg-slate-50 border-slate-100",
-            },
-            {
-              label: "Бизнес-действий",
-              value: user.isAdmin ? "∞" : (bizSubActive ? (user.businessActionsLeft ?? 0) : "—"),
-              icon: "Briefcase",
-              color: bizSubActive || user.isAdmin ? "text-navy-600 bg-navy-50 border-navy-100" : "text-slate-400 bg-slate-50 border-slate-100",
-            },
-          ].map((stat) => (
-            <div key={stat.label} className={`rounded-2xl border p-3 sm:p-4 ${stat.color}`}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Icon name={stat.icon} size={12} />
-                <span className="text-[10px] font-semibold opacity-80">{stat.label}</span>
+          {([
+            { label: "Вопросов AI",     value: user.isAdmin ? "∞" : (user.paidQuestions ?? 0),   icon: "MessageCircle", accent: "#60a5fa" },
+            { label: "Документов",      value: user.isAdmin ? "∞" : (user.paidDocs ?? 0),         icon: "FileText",      accent: "#fbbf24" },
+            { label: "Вопросов юристу", value: user.isAdmin ? "∞" : lawyerQ,                      icon: "User",          accent: lawyerQ > 0 || user.isAdmin ? "#34d399" : "#64748b" },
+            { label: "Бизнес",          value: user.isAdmin ? "∞" : (bizSubActive ? (user.businessActionsLeft ?? 0) : "—"), icon: "Briefcase", accent: bizSubActive || user.isAdmin ? "#a78bfa" : "#64748b" },
+          ] as const).map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-2xl p-3 sm:p-4 flex flex-col"
+              style={{ background: "linear-gradient(145deg,#0f172a,#1e293b)", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon name={stat.icon as Parameters<typeof Icon>[0]["name"]} size={11} color={stat.accent} />
+                <span className="text-[10px] font-medium leading-none" style={{ color: "rgba(255,255,255,0.4)" }}>{stat.label}</span>
               </div>
-              <div className="font-bold text-xl leading-none">{stat.value}</div>
+              <div className="font-bold text-2xl sm:text-3xl leading-none" style={{ color: stat.accent }}>
+                {stat.value}
+              </div>
             </div>
           ))}
         </div>

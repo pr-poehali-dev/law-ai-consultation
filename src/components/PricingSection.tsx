@@ -69,8 +69,8 @@ const USER_PLANS = [
       "Калькулятор расчёта неустойки",
     ],
     popular: false,
-    gradient: "from-navy-800/5 to-navy-900/10",
-    border: "border-border hover:border-navy-200",
+    gradient: "from-navy-800 to-navy-900",
+    border: "border-gold-400/50 hover:border-gold-400",
   },
 ];
 
@@ -124,7 +124,9 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
               className={`plan-card-animate relative flex flex-col rounded-3xl cursor-pointer transition-all duration-300 overflow-hidden ${
                 plan.popular
                   ? "pricing-popular lg:scale-105"
-                  : `border ${plan.border} bg-gradient-to-br ${plan.gradient} backdrop-blur-sm hover:scale-[1.01] ${hovered === plan.id ? "shadow-xl shadow-black/30" : ""}`
+                  : plan.id === "plan_max"
+                    ? `border-2 ${plan.border} bg-gradient-to-br ${plan.gradient} hover:scale-[1.01] shadow-lg ${hovered === plan.id ? "shadow-gold-400/20 shadow-xl" : "shadow-black/20"}`
+                    : `border ${plan.border} bg-gradient-to-br ${plan.gradient} backdrop-blur-sm hover:scale-[1.01] ${hovered === plan.id ? "shadow-xl shadow-black/30" : ""}`
               }`}
               style={{ animationDelay: `${idx * 100}ms` }}
             >
@@ -134,10 +136,18 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
                   <div className="absolute inset-0 rounded-3xl ring-1 ring-gold-400/25 pointer-events-none" />
                 </>
               )}
+              {plan.id === "plan_max" && (
+                <>
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+                  <div className="absolute inset-0 rounded-3xl ring-1 ring-gold-400/40 pointer-events-none" />
+                </>
+              )}
               {plan.badge && (
                 <div className="absolute top-4 right-4">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                    plan.popular ? "bg-gold-500 text-navy-900" : "bg-navy-100 text-navy-700"
+                    plan.popular ? "bg-gold-500 text-navy-900"
+                    : plan.id === "plan_max" ? "bg-gold-400/25 text-gold-300 border border-gold-400/40"
+                    : "bg-navy-100 text-navy-700"
                   }`}>
                     {plan.badge}
                   </span>
@@ -145,42 +155,54 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
               )}
 
               <div className="p-6 sm:p-7 flex-1">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${plan.popular ? "bg-white/15" : "bg-navy-100"}`}>
-                  <Icon name="Scale" size={18} className={plan.popular ? "text-gold-300" : "text-navy-600"} />
-                </div>
-                <p className={`text-sm font-semibold mb-1 ${plan.popular ? "text-white/70" : "text-muted-foreground"}`}>{plan.name}</p>
-                <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                  <span className={`font-cormorant font-bold text-4xl leading-none ${plan.popular ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
-                  {plan.oldPrice && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-sm line-through ${plan.popular ? "text-white/35" : "text-slate-400"}`}>{plan.oldPrice} ₽</span>
-                      {(() => {
-                        const p = parseInt(plan.price.replace(/\s/g, ""), 10);
-                        const o = parseInt(plan.oldPrice.replace(/\s/g, ""), 10);
-                        const pct = o > p ? Math.round(((o - p) / o) * 100) : 0;
-                        return pct > 0 ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500 text-white leading-none">−{pct}%</span>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
-                </div>
-                <p className={`text-xs mb-3 ${plan.popular ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
-                <p className={`text-sm leading-relaxed mb-4 ${plan.popular ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
-                {plan.lawyerFeature && (
-                  <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-4 ${plan.popular ? "bg-gold-400/20 border border-gold-400/40" : "bg-navy-50 border border-navy-100"}`}>
-                    <Icon name="User" size={13} className={`shrink-0 ${plan.popular ? "text-gold-400" : "text-navy-500"}`} />
-                    <span className={`text-xs font-semibold ${plan.popular ? "text-gold-200" : "text-navy-700"}`}>{plan.lawyerFeature}</span>
-                  </div>
-                )}
-                <ul className="space-y-2.5">
-                  {plan.features.map((f) => (
-                    <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.popular ? "text-white/85" : "text-navy-700"}`}>
-                      <Icon name="Check" size={14} className={`mt-0.5 shrink-0 ${plan.popular ? "text-gold-400" : "text-emerald-500"}`} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+                {(() => {
+                  const isDark = plan.popular || plan.id === "plan_max";
+                  const isMax = plan.id === "plan_max";
+                  return (
+                    <>
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-4 ${isDark ? "bg-white/15" : "bg-navy-100"}`}>
+                        <Icon name="Scale" size={18} className={isDark ? (isMax ? "text-gold-400" : "text-gold-300") : "text-navy-600"} />
+                      </div>
+                      <p className={`text-sm font-semibold mb-1 ${isDark ? "text-white/70" : "text-muted-foreground"}`}>{plan.name}</p>
+                      <div className="flex items-baseline gap-2 mb-1 flex-wrap">
+                        <span className={`font-cormorant font-bold text-4xl leading-none ${isDark ? "text-white" : "text-navy-800"}`}>{plan.price} ₽</span>
+                        {plan.oldPrice && (
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-sm line-through ${isDark ? "text-white/35" : "text-slate-400"}`}>{plan.oldPrice} ₽</span>
+                            {(() => {
+                              const p = parseInt(plan.price.replace(/\s/g, ""), 10);
+                              const o = parseInt(plan.oldPrice.replace(/\s/g, ""), 10);
+                              const pct = o > p ? Math.round(((o - p) / o) * 100) : 0;
+                              return pct > 0 ? (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500 text-white leading-none">−{pct}%</span>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      <p className={`text-xs mb-3 ${isDark ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
+                      <p className={`text-sm leading-relaxed mb-4 ${isDark ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
+                      {plan.lawyerFeature && (
+                        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-4 ${
+                          isDark
+                            ? "bg-gold-400/20 border border-gold-400/40"
+                            : "bg-navy-50 border border-navy-100"
+                        }`}>
+                          <Icon name="User" size={13} className={`shrink-0 ${isDark ? "text-gold-400" : "text-navy-500"}`} />
+                          <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-navy-700"}`}>{plan.lawyerFeature}</span>
+                        </div>
+                      )}
+                      <ul className="space-y-2.5">
+                        {plan.features.map((f) => (
+                          <li key={f} className={`flex items-start gap-2.5 text-sm ${isDark ? "text-white/85" : "text-navy-700"}`}>
+                            <Icon name="Check" size={14} className={`mt-0.5 shrink-0 ${isDark ? "text-gold-400" : "text-emerald-500"}`} />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="p-6 sm:p-7 pt-0">
@@ -189,7 +211,9 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
                   className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
                     plan.popular
                       ? "btn-gold hover:scale-[1.02] active:scale-[0.98]"
-                      : "bg-navy-800 text-white hover:bg-navy-700 hover:shadow-lg"
+                      : plan.id === "plan_max"
+                        ? "bg-gold-500 hover:bg-gold-400 text-navy-900 font-bold hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-navy-800 text-white hover:bg-navy-700 hover:shadow-lg"
                   }`}
                 >
                   Выбрать тариф

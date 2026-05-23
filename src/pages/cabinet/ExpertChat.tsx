@@ -167,6 +167,8 @@ interface ExpertChatProps {
   aiAnswers: ChatMsg[];
   genDocs: GenDoc[];
   isBlocked?: boolean;
+  lawyerQLeft?: number;
+  currentPlanId?: string;
   onBack: () => void;
   onRefresh: () => void;
   onInputChange: (v: string) => void;
@@ -178,6 +180,8 @@ interface ExpertChatProps {
   onRemoveAttachment: (i: number) => void;
   onViewFullMsg: (v: { title: string; content: string; type: string; downloadUrl?: string }) => void;
   onCloseFullMsg: () => void;
+  onBuyLawyerQuestions?: () => void;
+  onUpgradePlan?: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   bottomRef: React.RefObject<HTMLDivElement>;
   adjustTextarea: () => void;
@@ -186,11 +190,12 @@ interface ExpertChatProps {
 export default function ExpertChat({
   isAdmin, selectedUserId, currentDialog, lmsgs, loading,
   input, sending, uploadProgress, err, attachments, showAttachPanel, viewFullMsg,
-  aiAnswers, genDocs, isBlocked = false,
+  aiAnswers, genDocs, isBlocked = false, lawyerQLeft = 0, currentPlanId = "plan_starter",
   onBack, onRefresh, onInputChange, onSend,
   onToggleAttachPanel, onHideAttachPanel,
   onAddAttachment, onAddFiles, onRemoveAttachment,
   onViewFullMsg, onCloseFullMsg,
+  onBuyLawyerQuestions, onUpgradePlan,
   textareaRef, bottomRef, adjustTextarea,
 }: ExpertChatProps) {
   return (
@@ -217,6 +222,21 @@ export default function ExpertChat({
             {isAdmin ? currentDialog?.email : "Онлайн · ответит в течение 24 ч"}
           </p>
         </div>
+        {/* Счётчик вопросов юриста */}
+        {!isAdmin && (
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 ${
+            isBlocked
+              ? "bg-red-50 border border-red-200"
+              : lawyerQLeft <= 2
+                ? "bg-amber-50 border border-amber-200"
+                : "bg-emerald-50 border border-emerald-200"
+          }`}>
+            <Icon name="User" size={11} className={isBlocked ? "text-red-500" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-600"} />
+            <span className={`text-[11px] font-bold ${isBlocked ? "text-red-600" : lawyerQLeft <= 2 ? "text-amber-700" : "text-emerald-700"}`}>
+              {isBlocked ? "0" : lawyerQLeft}
+            </span>
+          </div>
+        )}
         <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
         </button>
@@ -250,7 +270,72 @@ export default function ExpertChat({
             )}
           </div>
         ) : (
-          lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)
+          <>
+            {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)}
+            {/* Воронка при исчерпании вопросов — в конце ленты как системное сообщение */}
+            {isBlocked && !isAdmin && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="flex gap-2 sm:gap-3 items-end max-w-[92%] sm:max-w-[80%]">
+                  <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
+                    <Icon name="UserCheck" size={15} className="text-gold-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10.5px] font-semibold text-navy-500 ml-1 mb-1">{EXPERT_NAME}</p>
+                    {/* Системное сообщение */}
+                    <div className="rounded-2xl rounded-bl-sm bg-white border border-slate-100 shadow px-4 py-3 mb-2">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                          <Icon name="Lock" size={12} className="text-amber-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-navy-800">Вопросы к юристу исчерпаны</p>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Вы можете читать переписку, но отправка новых сообщений недоступна. Пополните вопросы или перейдите на более высокий тариф.
+                      </p>
+                    </div>
+                    {/* Кнопки воронки */}
+                    <div className="space-y-2">
+                      <button
+                        onClick={onBuyLawyerQuestions}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.98] text-left bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 shadow-sm"
+                      >
+                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+                          <Icon name="MessageCircle" size={16} className="text-gold-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white leading-tight">+5 вопросов юристу</p>
+                          <p className="text-xs text-white/60 mt-0.5">Ответ в течение 24 часов</p>
+                        </div>
+                        <span className="text-sm font-bold text-gold-400 shrink-0">990 ₽</span>
+                      </button>
+
+                      {currentPlanId !== "plan_max" && (
+                        <button
+                          onClick={onUpgradePlan}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] text-left shadow-sm"
+                        >
+                          <div className="w-9 h-9 bg-navy-50 rounded-xl flex items-center justify-center shrink-0">
+                            <Icon name="TrendingUp" size={16} className="text-navy-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-navy-800 leading-tight">
+                              {currentPlanId === "plan_starter" ? "Перейти на тариф «Профи»" : "Перейти на тариф «Максимум»"}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {currentPlanId === "plan_starter"
+                                ? "+5 вопросов юристу · 100 вопросов AI"
+                                : "+30 вопросов юристу · 300 вопросов AI"}
+                            </p>
+                          </div>
+                          <Icon name="ChevronRight" size={14} className="text-slate-400 shrink-0" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         <div ref={bottomRef} />
       </div>
@@ -318,25 +403,23 @@ export default function ExpertChat({
           </button>
 
           <div className="relative flex-1">
-            {isBlocked ? (
-              <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-400 select-none cursor-not-allowed">
-                Вопросы исчерпаны
-              </div>
-            ) : (
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={input}
-                onChange={(e) => { onInputChange(e.target.value); adjustTextarea(); }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-                }}
-                disabled={sending}
-                placeholder={isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-800 placeholder:text-muted-foreground outline-none resize-none leading-relaxed transition-colors focus:border-navy-300 focus:bg-white"
-                style={{ minHeight: "40px", maxHeight: "180px" }}
-              />
-            )}
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={(e) => { onInputChange(e.target.value); adjustTextarea(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isBlocked) onSend(); }
+              }}
+              disabled={sending || isBlocked}
+              placeholder={isBlocked ? "Вопросы к юристу исчерпаны" : isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
+              className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none resize-none leading-relaxed transition-colors ${
+                isBlocked
+                  ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed"
+                  : "bg-slate-50 border-slate-200 text-navy-800 placeholder:text-muted-foreground focus:border-navy-300 focus:bg-white"
+              }`}
+              style={{ minHeight: "40px", maxHeight: "180px" }}
+            />
           </div>
 
           <button
