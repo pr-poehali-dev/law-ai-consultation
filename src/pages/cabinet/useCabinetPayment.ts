@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
 import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
+import { ymGoal } from "@/lib/metrika";
 import { DOC_TYPES, findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
@@ -92,7 +93,19 @@ export function useCabinetPayment({
           await refreshUser();
           chatRemoveUpsell();
           chatRevealFunnel();
-          const label = data.service_type ? GRANT_LABELS[data.service_type as ServiceType] : null;
+          const svcType = data.service_type as ServiceType | undefined;
+          // Цели Метрики для каждого пакета
+          ymGoal("payment_success", { service: svcType });
+          if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
+            ymGoal("purchase_plan_starter");
+          } else if (svcType === "plan_pro") {
+            ymGoal("purchase_plan_pro");
+          } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
+            ymGoal("purchase_plan_max");
+          } else if (svcType === "document") {
+            ymGoal("purchase_document");
+          }
+          const label = svcType ? GRANT_LABELS[svcType] : null;
           if (label) {
             setSuccessToast(label);
             setTimeout(() => setSuccessToast(null), 5500);
@@ -127,6 +140,18 @@ export function useCabinetPayment({
     chatRemoveUpsell();
     chatRevealFunnel();
     setPayment(null);
+
+    // Цели Метрики для каждого пакета (залогиненный пользователь через PaymentModal)
+    ymGoal("payment_success", { service: svcType });
+    if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
+      ymGoal("purchase_plan_starter");
+    } else if (svcType === "plan_pro") {
+      ymGoal("purchase_plan_pro");
+    } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
+      ymGoal("purchase_plan_max");
+    } else if (svcType === "document") {
+      ymGoal("purchase_document");
+    }
 
     const label = GRANT_LABELS[svcType];
     if (label) {

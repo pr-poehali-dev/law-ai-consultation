@@ -150,6 +150,16 @@ export default function PaymentModal({
           await addPaidService(serviceType, id);
           localStorage.removeItem("pending_payment");
           ymGoal("payment_success", { service: serviceType });
+          // Отдельные цели для каждого пакета
+          if (serviceType === "plan_starter" || serviceType === "plan_starter_discount") {
+            ymGoal("purchase_plan_starter");
+          } else if (serviceType === "plan_pro") {
+            ymGoal("purchase_plan_pro");
+          } else if (serviceType === "plan_max" || serviceType === "plan_max_expert") {
+            ymGoal("purchase_plan_max");
+          } else if (serviceType === "document") {
+            ymGoal("purchase_document");
+          }
           const user = await getUser();
           if (!user) {
             // Незарегистрированный — показываем форму регистрации
