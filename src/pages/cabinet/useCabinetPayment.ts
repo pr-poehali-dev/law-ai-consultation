@@ -83,6 +83,12 @@ export function useCabinetPayment({
 
   const pollPaymentStatus = (invId: string, action: PendingAction | null) => {
     let attempts = 0;
+    // Экспоненциальный backoff: 3s → 5s → 8s → 12s → 20s → 20s…
+    // Итого ~20 попыток за ~3 минуты вместо частых запросов каждые 3s
+    const getDelay = (attempt: number) =>
+      Math.min(3000 * Math.pow(1.5, attempt - 1), 20_000);
+    const maxAttempts = 20;
+
     const poll = async () => {
       attempts++;
       try {
@@ -122,9 +128,9 @@ export function useCabinetPayment({
           return;
         }
       } catch { /* продолжаем */ }
-      // 20 попыток × 3 сек = 60 сек
-      if (attempts < 20) setTimeout(poll, 3000);
-      else {
+      if (attempts < maxAttempts) {
+        setTimeout(poll, getDelay(attempts));
+      } else {
         await refreshUser();
         setErrorToast("Оплата не прошла или была отменена. Обновите страницу.");
         setTimeout(() => setErrorToast(null), 6000);

@@ -139,7 +139,11 @@ export default function PaymentModal({
   const startPolling = (id: number) => {
     setStep("polling");
     let attempts = 0;
-    const maxAttempts = 60; // 60 × 3с = 3 минуты
+    // Экспоненциальный backoff: 3s → 5s → 8s → 12s → 20s → 20s…
+    // Итого ~20 попыток за ~3 минуты вместо 60 × 3s
+    const getDelay = (attempt: number) =>
+      Math.min(3000 * Math.pow(1.5, attempt - 1), 20_000);
+    const maxAttempts = 20; // ≈ 3 минуты суммарно
 
     const poll = async () => {
       attempts++;
@@ -174,7 +178,7 @@ export default function PaymentModal({
         // продолжаем поллинг
       }
       if (attempts < maxAttempts) {
-        setTimeout(poll, 3000);
+        setTimeout(poll, getDelay(attempts));
       } else {
         setErrorMsg("Оплата не подтверждена в течение 3 минут. Если вы оплатили — обновите страницу.");
         setStep("error");
