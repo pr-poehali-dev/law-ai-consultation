@@ -64,12 +64,15 @@ const PLANS: Plan[] = [
     oldPrice: "8 990",
     questions: 300,
     docs: 50,
-    lawyerFeature: "Консультация + 2 документа от юриста",
+    lawyerFeature: "30 вопросов живому юристу + 2 документа от юриста",
     features: [
       "Всё из тарифа «Профи»",
       "300 вопросов AI-юристу",
       "До 50 документов через систему",
       "Анализ нескольких документов одновременно",
+      "Загрузка PDF, DOCX, фото для анализа",
+      "Редактор документов через AI-юриста",
+      "Калькулятор расчёта неустойки",
       "Приоритетная поддержка",
     ],
     popular: false,
@@ -239,9 +242,9 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
 
                   {/* Консультация юриста — выделенный блок */}
                   {plan.lawyerFeature && !isActive && (
-                    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-3 ${(isDark || isMax) ? "bg-white/10 border border-white/15" : "bg-navy-50 border border-navy-100"}`}>
+                    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-3 ${(isDark || isMax) ? "bg-gold-400/20 border border-gold-400/40" : "bg-navy-50 border border-navy-100"}`}>
                       <Icon name="User" size={13} className={(isDark || isMax) ? "text-gold-400 shrink-0" : "text-navy-500 shrink-0"} />
-                      <span className={`text-[11px] font-semibold ${(isDark || isMax) ? "text-gold-300" : "text-navy-700"}`}>
+                      <span className={`text-[11px] font-semibold ${(isDark || isMax) ? "text-gold-200" : "text-navy-700"}`}>
                         {plan.lawyerFeature}
                       </span>
                     </div>
