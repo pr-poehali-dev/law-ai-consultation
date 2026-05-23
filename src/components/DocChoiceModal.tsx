@@ -138,6 +138,12 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               <span className="text-[11px] font-semibold text-white">5 вопросов живому юристу · анализ документов</span>
             </div>
 
+            {/* Включает всё из Старта */}
+            <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
+              <Icon name="Check" size={11} color="#4ade80" />
+              <span className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Всё из тарифа «Старт»</span>
+            </div>
+
             {/* Фичи — 2 колонки */}
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
               {[
