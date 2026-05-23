@@ -6,11 +6,14 @@ interface Plan {
   id: string;
   name: string;
   price: string;
+  oldPrice?: string;
   questions: number;
   docs: number;
   features: string[];
+  lawyerFeature?: string;
   popular: boolean;
   badge: string | null;
+  color: "light" | "dark" | "max";
 }
 
 const PLANS: Plan[] = [
@@ -18,31 +21,60 @@ const PLANS: Plan[] = [
     id: "plan_starter",
     name: "Старт",
     price: "1 490",
+    oldPrice: "2 490",
     questions: 30,
     docs: 5,
-    features: ["30 вопросов AI-юристу", "5 готовых документов", "Генерация .doc из диалога", "Скачивание в .doc"],
+    lawyerFeature: "3 вопроса живому юристу",
+    features: [
+      "30 вопросов AI-юристу",
+      "До 5 документов через систему",
+      "Анализ судебной практики при подготовке документа",
+      "Рекомендации по документу от AI-юриста",
+      "Генерация и скачивание .doc",
+    ],
     popular: false,
     badge: null,
+    color: "light",
   },
   {
     id: "plan_pro",
     name: "Профи",
     price: "3 990",
+    oldPrice: "5 990",
     questions: 100,
     docs: 20,
-    features: ["100 вопросов AI-юристу", "20 готовых документов", "Анализ PDF, DOCX, фото в чате", "Перспектива дела"],
+    lawyerFeature: "5 вопросов живому юристу",
+    features: [
+      "Всё из тарифа «Старт»",
+      "100 вопросов AI-юристу",
+      "До 20 документов через систему",
+      "Загрузка PDF, DOCX, фото для анализа",
+      "Консультация юриста с анализом документов",
+      "Редактор документов через AI-юриста",
+      "Калькулятор расчёта неустойки",
+    ],
     popular: true,
     badge: "Хит",
+    color: "dark",
   },
   {
     id: "plan_max",
     name: "Максимум",
     price: "5 990",
+    oldPrice: "8 990",
     questions: 300,
     docs: 50,
-    features: ["до 300 вопросов AI-юристу", "50 готовых документов", "Анализ нескольких документов сразу", "Всё из «Профи» + приоритет", "Консультация живого юриста", "2 документа от юриста"],
+    lawyerFeature: "Консультация + 2 документа от юриста",
+    features: [
+      "Всё из тарифа «Профи»",
+      "300 вопросов AI-юристу",
+      "До 50 документов через систему",
+      "Анализ нескольких документов одновременно",
+      "Приоритетная поддержка",
+    ],
     popular: false,
     badge: "Рекомендуем",
+    color: "max",
   },
 ];
 
@@ -51,6 +83,14 @@ function getActivePlan(user: User): string | null {
   if ((user.paidQuestions ?? 0) >= 100 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
   if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
   return null;
+}
+
+function savingsLabel(price: string, oldPrice: string): string {
+  const p = parseInt(price.replace(/\s/g, ""), 10);
+  const o = parseInt(oldPrice.replace(/\s/g, ""), 10);
+  if (!p || !o || o <= p) return "";
+  const pct = Math.round(((o - p) / o) * 100);
+  return `−${pct}%`;
 }
 
 interface PlanModalProps {
@@ -86,9 +126,9 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
       onClick={handleClose}
     >
       <div
-        className={`bg-white w-full sm:rounded-3xl sm:max-w-xl flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-3xl
+        className={`bg-white w-full sm:rounded-3xl sm:max-w-2xl flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-3xl
           ${visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}
-          max-h-[88dvh] sm:max-h-[90vh]`}
+          max-h-[92dvh] sm:max-h-[90vh]`}
         onClick={e => e.stopPropagation()}
       >
         {/* Драг-хэндл мобайл */}
@@ -97,13 +137,13 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
         </div>
 
         {/* Шапка */}
-        <div className="flex items-center justify-between px-4 sm:px-5 pt-3 sm:pt-5 pb-3 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-5 pb-3 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0">
-              <Icon name="Zap" size={15} className="text-gold-400" />
+            <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0">
+              <Icon name="Zap" size={16} className="text-gold-400" />
             </div>
             <div>
-              <h2 className="font-semibold text-navy-800 text-sm sm:text-base leading-tight">Выгодный тариф</h2>
+              <h2 className="font-bold text-navy-800 text-base leading-tight">Выберите тариф</h2>
               <p className="text-[11px] text-muted-foreground">Вопросы и документы начисляются сразу</p>
             </div>
           </div>
@@ -112,11 +152,13 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
           </button>
         </div>
 
-        {/* Тарифы — скролл на мобиле */}
-        <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-2.5 flex-1">
+        {/* Тарифы */}
+        <div className="overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-3 flex-1">
           {PLANS.map((plan) => {
             const isActive = activePlanId === plan.id;
-            const isPopular = plan.popular;
+            const isDark = plan.color === "dark";
+            const isMax = plan.color === "max";
+            const savings = plan.oldPrice ? savingsLabel(plan.price, plan.oldPrice) : "";
 
             return (
               <div
@@ -125,21 +167,26 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
                 className={`relative rounded-2xl border transition-all duration-200 overflow-hidden
                   ${isActive
                     ? "border-emerald-300 bg-emerald-50 cursor-default"
-                    : isPopular
-                      ? "border-gold-400/40 bg-gradient-to-br from-navy-800 to-navy-900 hover:border-gold-400 hover:shadow-lg cursor-pointer active:scale-[0.99]"
-                      : "border-border bg-white hover:border-navy-300 hover:shadow-md cursor-pointer active:scale-[0.99]"
+                    : isDark
+                      ? "border-gold-400/30 bg-gradient-to-br from-navy-800 to-navy-900 hover:border-gold-400 hover:shadow-xl cursor-pointer active:scale-[0.99]"
+                      : isMax
+                        ? "border-slate-300 bg-gradient-to-br from-slate-800 to-navy-900 hover:border-slate-400 hover:shadow-xl cursor-pointer active:scale-[0.99]"
+                        : "border-slate-200 bg-white hover:border-navy-300 hover:shadow-md cursor-pointer active:scale-[0.99]"
                   }`}
               >
-                {/* Топ-полоска популярного */}
-                {isPopular && !isActive && (
+                {/* Топ-полоска */}
+                {isDark && !isActive && (
                   <div className="h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
                 )}
+                {isMax && !isActive && (
+                  <div className="h-0.5 bg-gradient-to-r from-transparent via-slate-400 to-transparent" />
+                )}
 
-                <div className="p-3.5 sm:p-4">
-                  {/* Строка: название + бейдж + цена */}
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-base ${isPopular && !isActive ? "text-white" : "text-navy-800"}`}>
+                <div className="p-4 sm:p-5">
+                  {/* Строка: название + бейдж + цена + экономия */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-bold text-base sm:text-lg leading-tight ${(isDark || isMax) && !isActive ? "text-white" : "text-navy-800"}`}>
                         {plan.name}
                       </span>
                       {isActive && (
@@ -148,36 +195,71 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
                         </span>
                       )}
                       {!isActive && plan.badge && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gold-500 text-navy-900 uppercase tracking-wide">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${isDark ? "bg-gold-500 text-navy-900" : "bg-slate-500 text-white"}`}>
                           {plan.badge}
                         </span>
                       )}
                     </div>
-                    <span className={`font-bold text-lg ${isPopular && !isActive ? "text-white" : "text-navy-800"}`}>
-                      {plan.price} <span className={`text-xs font-normal ${isPopular && !isActive ? "text-white/60" : "text-muted-foreground"}`}>₽</span>
-                    </span>
+
+                    {/* Цена + старая цена + экономия */}
+                    <div className="flex flex-col items-end shrink-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={`font-bold text-xl leading-none ${(isDark || isMax) && !isActive ? "text-white" : "text-navy-800"}`}>
+                          {plan.price}
+                        </span>
+                        <span className={`text-sm font-normal ${(isDark || isMax) && !isActive ? "text-white/50" : "text-muted-foreground"}`}>₽</span>
+                      </div>
+                      {plan.oldPrice && !isActive && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[11px] line-through ${(isDark || isMax) ? "text-white/40" : "text-slate-400"}`}>
+                            {plan.oldPrice} ₽
+                          </span>
+                          {savings && (
+                            <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-emerald-500 text-white leading-none">
+                              {savings}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Ключевые цифры */}
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <div className={`flex items-center gap-1 text-xs font-semibold ${isActive ? "text-emerald-700" : isPopular ? "text-gold-300" : "text-navy-600"}`}>
-                      <Icon name="MessageCircle" size={12} />
-                      {plan.questions} вопр.
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className={`flex items-center gap-1.5 text-[12px] font-semibold ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-gold-300" : "text-navy-600"}`}>
+                      <Icon name="MessageCircle" size={13} />
+                      <span>{plan.questions} вопросов AI</span>
                     </div>
-                    <div className={`w-px h-3 ${isActive ? "bg-emerald-300" : isPopular ? "bg-white/20" : "bg-slate-200"}`} />
-                    <div className={`flex items-center gap-1 text-xs font-semibold ${isActive ? "text-emerald-700" : isPopular ? "text-gold-300" : "text-navy-600"}`}>
-                      <Icon name="FileText" size={12} />
-                      {plan.docs} доку.
+                    <div className={`w-px h-3 ${isActive ? "bg-emerald-300" : (isDark || isMax) ? "bg-white/20" : "bg-slate-200"}`} />
+                    <div className={`flex items-center gap-1.5 text-[12px] font-semibold ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-gold-300" : "text-navy-600"}`}>
+                      <Icon name="FileText" size={13} />
+                      <span>{plan.docs} документов</span>
                     </div>
                   </div>
 
-                  {/* Фичи — компактно */}
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3">
-                    {plan.features.map((f) => (
-                      <span key={f} className={`text-[11px] flex items-center gap-1 ${isActive ? "text-emerald-600" : isPopular ? "text-white/70" : "text-muted-foreground"}`}>
-                        <Icon name="Check" size={10} className={isActive ? "text-emerald-500" : isPopular ? "text-gold-400" : "text-navy-400"} />
-                        {f}
+                  {/* Консультация юриста — выделенный блок */}
+                  {plan.lawyerFeature && !isActive && (
+                    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-3 ${(isDark || isMax) ? "bg-white/10 border border-white/15" : "bg-navy-50 border border-navy-100"}`}>
+                      <Icon name="User" size={13} className={(isDark || isMax) ? "text-gold-400 shrink-0" : "text-navy-500 shrink-0"} />
+                      <span className={`text-[11px] font-semibold ${(isDark || isMax) ? "text-gold-300" : "text-navy-700"}`}>
+                        {plan.lawyerFeature}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Список возможностей */}
+                  <div className="grid grid-cols-1 gap-y-1.5 mb-3.5">
+                    {plan.features.map((f) => (
+                      <div key={f} className="flex items-start gap-2">
+                        <Icon
+                          name="Check"
+                          size={11}
+                          className={`mt-0.5 shrink-0 ${isActive ? "text-emerald-500" : (isDark || isMax) ? "text-gold-400" : "text-navy-400"}`}
+                        />
+                        <span className={`text-[11.5px] leading-snug ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-white/75" : "text-slate-600"}`}>
+                          {f}
+                        </span>
+                      </div>
                     ))}
                   </div>
 
@@ -190,9 +272,15 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
                       </span>
                     </div>
                   ) : (
-                    <div className={`w-full py-2 rounded-xl text-sm font-semibold text-center
-                      ${isPopular ? "bg-gold-500 text-navy-900" : "bg-navy-800 text-white"}`}>
-                      Подключить · {plan.price} ₽
+                    <div className={`w-full py-2.5 rounded-xl text-sm font-bold text-center transition-colors
+                      ${isDark
+                        ? "bg-gold-500 text-navy-900 hover:bg-gold-400"
+                        : isMax
+                          ? "bg-slate-100 text-navy-800 hover:bg-white"
+                          : "bg-navy-800 text-white hover:bg-navy-700"
+                      }`}
+                    >
+                      Выбрать «{plan.name}»
                     </div>
                   )}
                 </div>
@@ -202,17 +290,12 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
         </div>
 
         {/* Футер */}
-        <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-2 shrink-0 border-t border-slate-50">
-          <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground">
-            Без подписки · Начисляется сразу после оплаты · Без автосписаний
-          </p>
-          <p className="text-[10px] text-center text-muted-foreground mt-1">
-            * Подгрузка документов в чат доступна начиная с тарифа «Профи» и выше
+        <div className="px-4 sm:px-6 py-3 border-t border-slate-100 shrink-0 text-center">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Безопасная оплата · Доступ сразу после оплаты · Нет автосписания
           </p>
         </div>
       </div>
     </div>
   );
 }
-
-export { PLANS, getActivePlan };
