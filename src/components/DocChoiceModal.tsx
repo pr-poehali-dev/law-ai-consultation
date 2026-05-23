@@ -1,7 +1,7 @@
 /**
  * Модал выбора при нажатии «Создать документ»:
- * - Показывает что Пакет «Старт» (990р) выгоднее одного документа (600р)
- * - Даёт выбор: 1 документ за 600р или пакет за 990р
+ * - Показывает что Пакет «Старт» (1490р) выгоднее 5 документов по отдельности (990р каждый)
+ * - Даёт выбор: 1 документ за 990р или пакет за 1490р
  */
 import Icon from "@/components/ui/icon";
 
@@ -61,9 +61,9 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide"
                 style={{ background: "rgba(232,168,32,0.2)", color: "#f0c060" }}>
-                Рекомендуем · Выгоднее на 210 ₽
+                Рекомендуем · 5 документов по цене 1.5
               </span>
-              <span className="text-lg font-black" style={{ color: "#f0c060" }}>990 ₽</span>
+              <span className="text-lg font-black" style={{ color: "#f0c060" }}>1 490 ₽</span>
             </div>
 
             <p className="font-bold text-white text-sm mb-2">Пакет «Старт»</p>
@@ -88,10 +88,10 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             <div className="mt-3 pt-3 flex items-center justify-between"
               style={{ borderTop: "1px solid rgba(232,168,32,0.2)" }}>
               <span className="text-xs line-through" style={{ color: "rgba(255,255,255,0.3)" }}>
-                1 документ = 600 ₽ · 5 документов = 3 000 ₽
+                1 документ = 990 ₽ · 5 документов = 4 950 ₽
               </span>
               <div className="flex items-center gap-1">
-                <span className="text-xs font-bold" style={{ color: "#4ade80" }}>Экономия 2 010 ₽</span>
+                <span className="text-xs font-bold" style={{ color: "#4ade80" }}>Экономия 3 460 ₽</span>
               </div>
             </div>
 
@@ -99,7 +99,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition-all"
               style={{ background: "linear-gradient(135deg, #e8a820, #f0c060)", color: "#0a1628" }}
             >
-              Выбрать пакет «Старт» · 990 ₽
+              Выбрать пакет «Старт» · 1 490 ₽
             </button>
           </div>
 
@@ -114,7 +114,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
           >
             <div className="flex items-center justify-between mb-2">
               <p className="font-semibold text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>Только этот документ</p>
-              <span className="text-base font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>600 ₽</span>
+              <span className="text-base font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>990 ₽</span>
             </div>
             <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
               Один документ без дополнительных возможностей
@@ -123,7 +123,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
               style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)" }}
             >
-              Создать 1 документ · 600 ₽
+              Создать 1 документ · 990 ₽
             </button>
           </div>
 

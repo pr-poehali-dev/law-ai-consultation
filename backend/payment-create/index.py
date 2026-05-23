@@ -15,14 +15,14 @@ YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
     "consultation":         "990.00",
-    "document":             "600.00",
+    "document":             "990.00",
     "expert":               "990.00",
     "business":             "1000.00",
     "subscription_consult": "1990.00",
     "subscription_docs":    "4990.00",
     # Тарифы
-    "plan_starter":          "990.00",
-    "plan_starter_discount": "495.00",
+    "plan_starter":          "1490.00",
+    "plan_starter_discount": "745.00",
     "plan_pro":              "3990.00",
     "plan_max":              "5990.00",
     "plan_max_expert":       "5990.00",  # алиас — цена та же, план тот же

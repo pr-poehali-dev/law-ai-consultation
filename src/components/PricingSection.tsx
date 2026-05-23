@@ -10,7 +10,7 @@ const USER_PLANS = [
   {
     id: "plan_starter",
     name: "Старт",
-    price: "990",
+    price: "1 490",
     period: "",
     desc: "30 вопросов AI-юристу + 5 документов",
     badge: null,
