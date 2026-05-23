@@ -48,6 +48,7 @@ export const GRANT_LABELS: Partial<Record<ServiceType, string>> = {
   business_actions_50:   "+50 бизнес-действий добавлено",
   business_actions_60:   "+60 бизнес-действий добавлено",
   business_actions_150:  "+150 бизнес-действий добавлено",
+  lawyer_questions:      "+5 вопросов юристу активировано",
 };
 
 interface UseCabinetPaymentParams {

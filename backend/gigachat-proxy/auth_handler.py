@@ -18,7 +18,8 @@ _SELECT_COLS = (
     "id, email, name, phone, free_questions_used, paid_questions, "
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
-    "business_subscription_until, business_actions_left, business_org_name, referral_code"
+    "business_subscription_until, business_actions_left, business_org_name, referral_code, "
+    "lawyer_questions_left"
 )
 
 MAX_LOGIN_ATTEMPTS = 10
@@ -1054,6 +1055,7 @@ def _format_user(row) -> dict:
         "businessActionsLeft": row[13] if len(row) > 13 else 0,
         "businessOrgName": row[14] if len(row) > 14 else "",
         "referralCode": row[15] if len(row) > 15 else "",
+        "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
     }
 
 

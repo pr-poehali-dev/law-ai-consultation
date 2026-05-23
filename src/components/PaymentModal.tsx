@@ -27,7 +27,8 @@ export type ServiceType =
   | "business_actions_30"
   | "business_actions_50"
   | "business_actions_60"
-  | "business_actions_150";
+  | "business_actions_150"
+  | "lawyer_questions";
 
 interface PaymentModalProps {
   serviceType: ServiceType;

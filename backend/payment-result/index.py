@@ -30,6 +30,7 @@ DESCRIPTIONS = {
     "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов",
     "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
     "plan_max_expert":       "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
+    "lawyer_questions":      "+5 вопросов живому юристу",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
     "business_actions_30":   "+30 бизнес-действий",
@@ -161,9 +162,15 @@ def grant_service(conn, user_id: int, service_type: str):
     cur = conn.cursor()
     try:
         if service_type == "consultation":
-            # Консультация живого юриста — активируем paid_expert
+            # Консультация живого юриста — активируем paid_expert + 5 вопросов
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s",
+                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5 WHERE id = %s",
+                (user_id,)
+            )
+        elif service_type == "lawyer_questions":
+            # Докупить 5 вопросов к живому юристу
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5 WHERE id = %s",
                 (user_id,)
             )
         elif service_type == "document":
@@ -203,12 +210,22 @@ def grant_service(conn, user_id: int, service_type: str):
             )
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 30, paid_docs = paid_docs + 5 WHERE id = %s",
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 30,
+                        paid_docs = paid_docs + 5,
+                        paid_expert = TRUE,
+                        lawyer_questions_left = lawyer_questions_left + 3
+                    WHERE id = %s""",
                 (user_id,)
             )
         elif service_type == "plan_pro":
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20 WHERE id = %s",
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 100,
+                        paid_docs = paid_docs + 20,
+                        paid_expert = TRUE,
+                        lawyer_questions_left = lawyer_questions_left + 5
+                    WHERE id = %s""",
                 (user_id,)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
@@ -216,7 +233,8 @@ def grant_service(conn, user_id: int, service_type: str):
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 300,
                         paid_docs = paid_docs + 50,
-                        paid_expert = TRUE
+                        paid_expert = TRUE,
+                        lawyer_questions_left = lawyer_questions_left + 30
                     WHERE id = %s""",
                 (user_id,)
             )

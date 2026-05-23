@@ -1,0 +1,3 @@
+ALTER TABLE t_p57945357_law_ai_consultation.users
+  ADD COLUMN IF NOT EXISTS paid_expert_questions INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_expert_docs INTEGER NOT NULL DEFAULT 0;

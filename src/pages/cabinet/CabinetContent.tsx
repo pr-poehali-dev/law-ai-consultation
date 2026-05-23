@@ -192,7 +192,8 @@ export default function CabinetContent({
             user={user}
             messages={chat.messages}
             genDocs={docs.genDocs}
-            onPayClick={() => setShowExpertOffer(true)}
+            onPayClick={openPlanModal}
+            onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+5 вопросов юристу" })}
           />
         )}
 

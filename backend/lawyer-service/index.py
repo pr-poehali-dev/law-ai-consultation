@@ -25,7 +25,8 @@ _SELECT_COLS = (
     "id, email, name, phone, free_questions_used, paid_questions, "
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
-    "business_subscription_until, business_actions_left, business_org_name, referral_code"
+    "business_subscription_until, business_actions_left, business_org_name, referral_code, "
+    "lawyer_questions_left"
 )
 
 # ─────────────────────────────────────────────
@@ -80,6 +81,7 @@ def _format_user(row) -> dict:
         "businessActionsLeft": row[13] if len(row) > 13 else 0,
         "businessOrgName": row[14] if len(row) > 14 else "",
         "referralCode": row[15] if len(row) > 15 else "",
+        "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
     }
 
 
@@ -213,6 +215,7 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
 
     conn = get_conn()
     cur = conn.cursor()
+    lawyer_questions_left = None
     try:
         cur.execute(
             f"INSERT INTO {SCHEMA}.lawyer_messages "
@@ -221,6 +224,20 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
             (recipient_id, sender, msg_body, att_type or None, att_name or None, att_content or None)
         )
         row = cur.fetchone()
+
+        # Списываем 1 вопрос к юристу (только когда пишет пользователь)
+        if not is_admin:
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET lawyer_questions_left = GREATEST(0, lawyer_questions_left - 1)
+                    WHERE id = %s
+                    RETURNING lawyer_questions_left""",
+                (user_id,)
+            )
+            qleft_row = cur.fetchone()
+            if qleft_row:
+                lawyer_questions_left = qleft_row[0]
+
         conn.commit()
 
         # Получаем данные отправителя для письма
@@ -308,7 +325,10 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         except Exception as e:
             print(f"[LAWYER_REPLY] Email не отправлен: {e}")
 
-    return _ok({"id": row[0], "created_at": row[1].isoformat()})
+    result = {"id": row[0], "created_at": row[1].isoformat()}
+    if lawyer_questions_left is not None:
+        result["lawyer_questions_left"] = lawyer_questions_left
+    return _ok(result)
 
 
 def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:

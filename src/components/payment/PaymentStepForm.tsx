@@ -19,6 +19,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   business_actions_50: 3500,
   business_actions_60: 6000,
   business_actions_150: 9000,
+  lawyer_questions: 990,
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
@@ -39,6 +40,7 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   business_actions_50: "Дополнительно 50 действий к текущему пакету",
   business_actions_60: "Дополнительно 60 действий к текущему пакету",
   business_actions_150: "Дополнительно 150 действий к текущему пакету",
+  lawyer_questions: "+5 вопросов живому юристу · ответ в течение суток",
 };
 
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {

@@ -166,6 +166,7 @@ interface ExpertChatProps {
   viewFullMsg: { title: string; content: string; type: string; downloadUrl?: string } | null;
   aiAnswers: ChatMsg[];
   genDocs: GenDoc[];
+  isBlocked?: boolean;
   onBack: () => void;
   onRefresh: () => void;
   onInputChange: (v: string) => void;
@@ -185,7 +186,7 @@ interface ExpertChatProps {
 export default function ExpertChat({
   isAdmin, selectedUserId, currentDialog, lmsgs, loading,
   input, sending, uploadProgress, err, attachments, showAttachPanel, viewFullMsg,
-  aiAnswers, genDocs,
+  aiAnswers, genDocs, isBlocked = false,
   onBack, onRefresh, onInputChange, onSend,
   onToggleAttachPanel, onHideAttachPanel,
   onAddAttachment, onAddFiles, onRemoveAttachment,
@@ -317,24 +318,30 @@ export default function ExpertChat({
           </button>
 
           <div className="relative flex-1">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(e) => { onInputChange(e.target.value); adjustTextarea(); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-              }}
-              disabled={sending}
-              placeholder={isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-800 placeholder:text-muted-foreground outline-none resize-none leading-relaxed transition-colors focus:border-navy-300 focus:bg-white"
-              style={{ minHeight: "40px", maxHeight: "180px" }}
-            />
+            {isBlocked ? (
+              <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-400 select-none cursor-not-allowed">
+                Вопросы исчерпаны
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={input}
+                onChange={(e) => { onInputChange(e.target.value); adjustTextarea(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+                }}
+                disabled={sending}
+                placeholder={isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-800 placeholder:text-muted-foreground outline-none resize-none leading-relaxed transition-colors focus:border-navy-300 focus:bg-white"
+                style={{ minHeight: "40px", maxHeight: "180px" }}
+              />
+            )}
           </div>
 
           <button
             onClick={onSend}
-            disabled={sending || (!input.trim() && attachments.length === 0)}
+            disabled={isBlocked || sending || (!input.trim() && attachments.length === 0)}
             className="w-10 h-10 gradient-navy rounded-xl flex items-center justify-center shrink-0 mb-0.5 disabled:opacity-40 hover:opacity-90 transition-all shadow-sm active:scale-95"
           >
             {sending ? (

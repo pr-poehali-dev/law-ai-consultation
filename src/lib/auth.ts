@@ -38,6 +38,7 @@ export interface User {
   businessActionsLeft: number;
   businessOrgName: string;
   referralCode: string;
+  lawyerQuestionsLeft: number;
 }
 
 export function getToken(): string {

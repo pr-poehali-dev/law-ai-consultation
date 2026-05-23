@@ -376,13 +376,19 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             setShowDocChoice(null);
             openDocPayment(dtId);
           }}
-          onChoosePlan={() => {
+          onChoosePlan={(planId) => {
             const dtId = showDocChoice.docTypeId;
             setShowDocChoice(null);
             saveHistoryToStorage(history.current);
             localStorage.setItem(PENDING_DOC_KEY, dtId);
             localStorage.setItem(PENDING_SERVICE_KEY, "plan");
-            setPaymentService({ type: "plan_starter", name: "Пакет «Старт»" });
+            const id = (planId || "plan_starter") as ServiceType;
+            const nameMap: Record<string, string> = {
+              plan_starter: "Тариф «Старт»",
+              plan_pro: "Тариф «Профи»",
+              plan_max: "Тариф «Максимум»",
+            };
+            setPaymentService({ type: id, name: nameMap[id] || "Тариф" });
             setPendingDocType(dtId);
             setShowPayment(true);
           }}
