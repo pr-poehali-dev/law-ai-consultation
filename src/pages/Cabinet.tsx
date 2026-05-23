@@ -431,13 +431,13 @@ export default function Cabinet() {
             const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
             setShowDocChoice(null);
             savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
-            const id = planId || "plan_starter";
+            const id = (planId || "plan_starter") as ServiceType;
             const nameMap: Record<string, string> = {
-              plan_starter: "Пакет «Старт»",
+              plan_starter: "Тариф «Старт»",
               plan_pro: "Тариф «Профи»",
               plan_max: "Тариф «Максимум»",
             };
-            pay.setPayment({ type: id as ServiceType, name: nameMap[id] || "Тариф" });
+            pay.setPayment({ type: id, name: nameMap[id] || "Тариф" });
             pay.setPendingDocType(dt);
           }}
           onClose={() => setShowDocChoice(null)}

@@ -57,7 +57,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
           <div
             className="rounded-2xl p-3.5 cursor-pointer transition-all active:scale-[0.99]"
             style={{ background: "linear-gradient(135deg, rgba(232,168,32,0.13), rgba(232,168,32,0.06))", border: "1.5px solid rgba(232,168,32,0.4)" }}
-            onClick={() => onChoosePlan()}
+            onClick={() => onChoosePlan("plan_starter")}
           >
             {/* Шапка */}
             <div className="flex items-center justify-between mb-2.5">
@@ -103,6 +103,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <button
+              onClick={(e) => { e.stopPropagation(); onChoosePlan("plan_starter"); }}
               className="w-full py-2.5 rounded-xl text-sm font-bold"
               style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }}
             >
@@ -161,6 +162,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <button
+              onClick={(e) => { e.stopPropagation(); onChoosePlan("plan_pro"); }}
               className="w-full py-2.5 rounded-xl text-sm font-bold"
               style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.18)" }}
             >
