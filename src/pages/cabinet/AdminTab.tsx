@@ -3,12 +3,14 @@ import AdminBillingBlock from "@/pages/cabinet/AdminBillingBlock";
 import AdminUsersBlock from "@/pages/cabinet/AdminUsersBlock";
 import AdminSearchBlock from "@/pages/cabinet/AdminSearchBlock";
 import ComputeStatsBlock from "@/pages/cabinet/ComputeStatsBlock";
+import VideoTutorialsAdmin from "@/components/VideoTutorialsAdmin";
 
 export default function AdminTab() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <h2 className="font-cormorant font-bold text-2xl sm:text-3xl text-navy-800 mb-4 sm:mb-6">Администратор</h2>
       <ComputeStatsBlock />
+      <VideoTutorialsAdmin />
       <AdminSearchBlock />
       <AdminLawyerBlock />
       <AdminBillingBlock />

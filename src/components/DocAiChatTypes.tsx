@@ -9,9 +9,10 @@ export type AiMsg = {
   isStageStatus?: boolean;
 };
 
-// 1 правка = 5 вопросов (документы не списываются)
-export function calcEditCost(_docContent: string, _instruction: string) {
-  return { docs: 0, questions: 5 };
+// Стоимость правки по длине инструкции (каждые 500 символов = +5 вопросов)
+export function calcEditCost(_docContent: string, instruction: string) {
+  const stages = Math.min(Math.ceil(Math.max(1, instruction.length) / 500), 4);
+  return { docs: 0, questions: stages * 5 };
 }
 
 // Парсим текст анализа AI на секции по двойному переносу

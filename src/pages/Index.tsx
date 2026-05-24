@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { getUser } from "@/lib/auth";
 import HeroSection from "@/components/HeroSection";
+import VideoTutorialsSection from "@/components/VideoTutorialsSection";
 import FeaturesSection from "@/components/FeaturesSection";
 import ServicesSection from "@/components/ServicesSection";
 import PricingSection from "@/components/PricingSection";
@@ -253,6 +254,7 @@ export default function Index() {
         />
       </div>
 
+      <VideoTutorialsSection />
       <FeaturesSection />
       <ServicesSection
         onSelectService={(service) => {

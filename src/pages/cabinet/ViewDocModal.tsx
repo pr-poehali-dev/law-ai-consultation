@@ -436,16 +436,24 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
             setTimeout(() => setDocFlash(false), 5000);
           }}
           onScrollToChanges={() => {
+            // Даём React время перерендерить документ с подсветкой
             setTimeout(() => {
-              const container = contentRef.current;
-              if (!container) return;
-              const el = docScrollRef.current?.querySelector("[data-changed='1']");
+              const scrollContainer = contentRef.current;
+              if (!scrollContainer) return;
+              // Ищем первый изменённый элемент внутри всего документа
+              const el = scrollContainer.querySelector("[data-changed='1']");
               if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
               } else {
-                container.scrollTo({ top: 0, behavior: "smooth" });
+                // Fallback — скроллим к первому зелёному элементу
+                const greenEl = scrollContainer.querySelector(".border-emerald-500");
+                if (greenEl) {
+                  greenEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                  scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+                }
               }
-            }, 200);
+            }, 350);
           }}
         />
       )}

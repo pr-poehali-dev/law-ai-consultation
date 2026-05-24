@@ -1,0 +1,34 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET список туториалов",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"tutorials": []},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST list без авторизации",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "list"},
+      "expectedStatus": 200,
+      "expectedBody": {"tutorials": []},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "POST create без авторизации — 403",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "create", "title": "Test"},
+      "expectedStatus": 403
+    }
+  ]
+}

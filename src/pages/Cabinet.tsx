@@ -19,6 +19,7 @@ import CabinetContent from "@/pages/cabinet/CabinetContent";
 import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
 import DocSavedToast from "@/components/DocSavedToast";
 import DocChoiceModal from "@/components/DocChoiceModal";
+import WelcomeTutorialsModal, { shouldShowWelcomeTutorials } from "@/components/WelcomeTutorialsModal";
 
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
@@ -40,6 +41,7 @@ export default function Cabinet() {
   const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
+  const [showWelcomeTutorials, setShowWelcomeTutorials] = useState(false);
 
 
   const chatSendRef = useRef<((text: string) => void) | null>(null);
@@ -104,6 +106,14 @@ export default function Cabinet() {
        !user.subscriptionConsultUntil &&
        !user.subscriptionDocsUntil)
     : false;
+
+  // Показываем туториалы при первом входе (один раз)
+  useEffect(() => {
+    if (user && shouldShowWelcomeTutorials()) {
+      const t = setTimeout(() => setShowWelcomeTutorials(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useExitIntent({
     enabled: hasNoPurchase,
@@ -442,6 +452,10 @@ export default function Cabinet() {
           }}
           onClose={() => setShowDocChoice(null)}
         />
+      )}
+
+      {showWelcomeTutorials && (
+        <WelcomeTutorialsModal onClose={() => setShowWelcomeTutorials(false)} />
       )}
 
     </div>

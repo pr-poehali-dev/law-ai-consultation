@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { ymGoal } from "@/lib/metrika";
+import { sendReport } from "@/lib/auth";
 import UpsellCard from "@/pages/cabinet/UpsellCard";
 import { AnimatedMessage, LegalText, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
@@ -24,6 +25,66 @@ interface ChatMessageListProps {
   onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
   creatingDocFromChat?: boolean;
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
+}
+
+// Ключевые слова для показа кнопки «Сообщить о проблеме»
+const SUPPORT_KEYWORDS = [
+  "обратитесь в поддержку", "сообщите о проблеме", "напишите в поддержку",
+  "технической поддержк", "ошибка генерации", "ошибка сервиса", "проблема с сервисом",
+  "не удалось сгенерировать", "не могу создать документ", "повторите попытку",
+  "обратитесь в службу", "служба поддержки", "тех. поддержка",
+];
+
+function ReportButton() {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    await sendReport(text.trim());
+    setSending(false);
+    setSent(true);
+    setTimeout(() => { setOpen(false); setSent(false); setText(""); }, 2000);
+  };
+
+  return (
+    <div className="mt-2 relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border"
+        style={{ background: "rgba(251,191,36,0.08)", borderColor: "rgba(251,191,36,0.3)", color: "#92400e" }}
+      >
+        <Icon name="LifeBuoy" size={12} />Сообщить о проблеме
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 w-68 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-3"
+          onClick={e => e.stopPropagation()}>
+          {sent ? (
+            <div className="flex items-center gap-2 text-emerald-600 py-1">
+              <Icon name="CheckCircle" size={14} /><span className="text-sm font-medium">Отправлено!</span>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs font-semibold text-navy-800 mb-2">Сообщить о проблеме</p>
+              <textarea
+                value={text} onChange={e => setText(e.target.value)}
+                placeholder="Опишите что случилось..."
+                rows={3} autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-navy-400 resize-none mb-2"
+              />
+              <button onClick={handleSend} disabled={sending || !text.trim()}
+                className="w-full py-2 rounded-xl text-xs font-semibold btn-gold disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {sending ? <><Icon name="Loader" size={11} className="animate-spin" />Отправка...</> : <><Icon name="Send" size={11} />Отправить</>}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PenaltyCalcChatMessage({ text, onPayClick }: { text: string; onPayClick: () => void }) {
@@ -186,8 +247,8 @@ export default function ChatMessageList({
                         <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
                       </button>
                     )}
-                    {/* Кнопка создания документа из ответа AI — только на последнем сообщении */}
-                    {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && (
+                    {/* Кнопка создания документа из ответа AI — только когда пользователь задал вопрос (не приветствие) */}
+                    {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && prevUserMsg && prevUserMsg.text.trim().length > 10 && (
                       <button
                         onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                         disabled={creatingDocFromChat}
@@ -198,6 +259,10 @@ export default function ChatMessageList({
                           : <><Icon name="FilePlus" size={12} />Создать документ</>
                         }
                       </button>
+                    )}
+                    {/* Кнопка «Сообщить о проблеме» — когда AI упоминает поддержку или ошибку */}
+                    {!typing && !msg.isFile && SUPPORT_KEYWORDS.some(k => msg.text.toLowerCase().includes(k)) && (
+                      <ReportButton />
                     )}
                     {/* Кнопка «Отправить юристу» — только не под первым приветствием */}
                     {onSendToLawyer && !typing && !msg.isFile && !msg.isUpsell && msg.text.length > 30 && i > 0 && (

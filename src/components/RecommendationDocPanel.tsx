@@ -61,7 +61,7 @@ export default function RecommendationDocPanel({
       if (!res.ok) throw new Error(data.error || "Ошибка генерации");
       setResult(data.answer || "");
       setGenerated(true);
-      if (onSuccess) onSuccess();
+      // onSuccess вызывается после скачивания, не сразу
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Ошибка. Попробуйте ещё раз.");
     } finally {
@@ -72,6 +72,7 @@ export default function RecommendationDocPanel({
   const handleDownload = () => {
     if (!result) return;
     downloadDoc(docLabel, result);
+    if (onSuccess) onSuccess();
   };
 
   return (
@@ -124,12 +125,15 @@ export default function RecommendationDocPanel({
           </>
         ) : (
           <div className="space-y-3">
-            <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Icon name="CheckCircle" size={13} className="text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700">Документ готов</span>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+              <Icon name="CheckCircle" size={14} className="text-emerald-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-emerald-700">Документ подготовлен</p>
+                <p className="text-[10px] text-emerald-600">Нажмите «Скачать» чтобы сохранить</p>
               </div>
-              <p className="text-[11px] text-navy-700 whitespace-pre-wrap leading-relaxed line-clamp-8">{result}</p>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 max-h-48 overflow-y-auto">
+              <p className="text-[11px] text-navy-700 whitespace-pre-wrap leading-relaxed">{result}</p>
             </div>
           </div>
         )}

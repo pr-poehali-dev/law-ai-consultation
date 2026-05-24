@@ -39,15 +39,17 @@ function saveHistory(docId: number | string, entries: EditHistoryEntry[]) {
   } catch { /* ignore */ }
 }
 
-// ─── Оценка сложности правки ─────────────────────────────────────────────────
-function estimateEditStages(docContent: string, instruction: string): number {
-  // ~4 символа = 1 токен. Порог = 2000 токенов ≈ 8000 символов итого (документ + инструкция)
-  const TOKENS_PER_STAGE = 2000;
-  const CHARS_PER_TOKEN = 4;
-  const LIMIT = TOKENS_PER_STAGE * CHARS_PER_TOKEN;
-  const total = docContent.length + instruction.length;
-  if (total <= LIMIT) return 1;
-  return Math.min(Math.ceil(total / LIMIT), 4);
+// ─── Оценка этапов и стоимости ───────────────────────────────────────────────
+// Логика: этапы считаются по длине ИНСТРУКЦИИ (что просит пользователь).
+// До 500 символов инструкции = 1 этап = 5 вопросов
+// Каждые +500 символов = +1 этап +5 вопросов (макс 4 этапа)
+const STAGE_CHARS = 500; // символов инструкции на 1 этап
+export function estimateEditStages(instruction: string): number {
+  if (instruction.length <= STAGE_CHARS) return 1;
+  return Math.min(Math.ceil(instruction.length / STAGE_CHARS), 4);
+}
+export function calcEditQuestions(instruction: string): number {
+  return estimateEditStages(instruction) * 5;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -144,8 +146,8 @@ export default function DocAiChatPanel({
   const handleEditInputChange = (v: string) => {
     setEditInput(v);
     if (v.trim().length > 4) {
-      const stages = estimateEditStages(currentContentRef.current, v);
-      setEditCost({ docs: 0, questions: stages * 5 });
+      const questions = calcEditQuestions(v);
+      setEditCost({ docs: 0, questions });
     } else {
       setEditCost(null);
     }
@@ -153,9 +155,9 @@ export default function DocAiChatPanel({
 
   const handleEditRequest = () => {
     if (!editInput.trim() || !analysisDone || !accessChecked) return;
-    const stages = estimateEditStages(currentContentRef.current, editInput);
+    const stages = estimateEditStages(editInput);
     if (stages > 1) {
-      // Многоэтапная — показываем предупреждение
+      // Многоэтапная — инструкция > 500 символов
       setPendingMultiStage({ stages, totalQ: stages * 5, instruction: editInput });
     } else {
       setPendingConfirm(true);
@@ -199,8 +201,9 @@ export default function DocAiChatPanel({
     setPendingMultiStage(null);
 
     if (!isResume) {
-      // Списываем 5 вопросов за каждый этап
-      for (let s = 0; s < stages; s++) {
+      // Списываем 5 вопросов за каждый этап (один вызов на все этапы)
+      const questionsNeeded = stages; // каждый этап = 1 вызов consume (5 вопросов каждый)
+      for (let s = 0; s < questionsNeeded; s++) {
         const result = await checkAndConsumeEditResources(0);
         if (!result.ok) { setEditLoading(false); onPaymentRequired(); return; }
       }
