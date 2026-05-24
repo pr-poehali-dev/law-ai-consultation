@@ -6,6 +6,7 @@ import { sendReport, getUser, lawyerSend, getToken } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
+import UpgradeNoticeModal from "@/components/UpgradeNoticeModal";
 import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
@@ -139,6 +140,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [sendingToLawyer, setSendingToLawyer] = useState(false);
   const [sentToLawyer, setSentToLawyer] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
 
   const [liveRecs, setLiveRecs] = useState<DocRecommendationItem[]>(doc.recommendations || []);
   const [recsAnalyzing, setRecsAnalyzing] = useState(false);
@@ -225,11 +227,27 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
 
   const handleSendToLawyer = async () => {
     const user = await getUser();
-    if (!user || !user.paidExpert) { setShowExpertOffer(true); return; }
+    if (!user || !user.paidExpert) {
+      // Мягкое уведомление вместо прямого открытия оффера
+      setUpgradeFeature("lawyer");
+      return;
+    }
     setSendingToLawyer(true);
     await lawyerSend({ body: `Прошу проверить документ: ${doc.name}`, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
     setSendingToLawyer(false);
     setSentToLawyer(true);
+  };
+
+  const handleAiEditorClick = async () => {
+    const user = await getUser();
+    const hasAccess = user?.isAdmin || (user?.paidQuestions ?? 0) >= 100 || user?.subscriptionConsultUntil;
+    if (!hasAccess) {
+      setUpgradeFeature("ai_editor");
+      return;
+    }
+    setShowAiChat(true);
+    setShowRecs(false);
+    setTimeout(() => { docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }, 100);
   };
 
   const handleExpertOfferSuccess = async () => { setShowExpertOffer(false); await handleSendToLawyer(); };
@@ -362,14 +380,7 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
 
             {/* Кнопка AI-помощника */}
             <button
-              onClick={() => {
-                setShowAiChat(true);
-                setShowRecs(false);
-                // Скроллим документ в начало чтобы пользователь видел его при редактировании
-                setTimeout(() => {
-                  docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-                }, 100);
-              }}
+              onClick={handleAiEditorClick}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white transition-all active:scale-95 shadow-sm"
             >
               <Icon name="BrainCircuit" size={13} />
@@ -458,9 +469,18 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
         />
       )}
 
-      {/* ExpertMaxOfferModal */}
+      {/* ExpertMaxOfferModal (для случаев с pending action) */}
       {showExpertOffer && (
         <ExpertMaxOfferModal context="doc" onClose={() => setShowExpertOffer(false)} onSuccess={handleExpertOfferSuccess} />
+      )}
+
+      {/* Мягкое уведомление о необходимости повышения тарифа */}
+      {upgradeFeature && (
+        <UpgradeNoticeModal
+          feature={upgradeFeature}
+          onClose={() => setUpgradeFeature(null)}
+          onViewPlans={() => { setUpgradeFeature(null); setShowExpertOffer(true); }}
+        />
       )}
 
       {/* Модалка: Сообщить о проблеме */}

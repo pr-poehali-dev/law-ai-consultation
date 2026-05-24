@@ -775,13 +775,14 @@ def handler(event: dict, context) -> dict:
             )
             rec_answer = ""
             try:
-                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=3500, temperature=0.1)
+                # YandexGPT (не fast) — timeout=80с, max_tokens=2800 безопасно
+                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2800, temperature=0.1)
                 print(f"[REC_DOC] YandexGPT OK len={len(rec_answer)}")
             except Exception as e:
-                print(f"[REC_DOC] Яндекс упал: {e} → fallback")
+                print(f"[REC_DOC] Яндекс упал: {e} → DeepSeek fallback")
             if not rec_answer or is_refusal(rec_answer):
                 try:
-                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=3000, temperature=0.1, timeout=70)
+                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1, timeout=65)
                 except Exception as e:
                     print(f"[REC_DOC] DeepSeek упал: {e}")
             if not rec_answer:
@@ -950,35 +951,34 @@ def handler(event: dict, context) -> dict:
                 + "\nВерни документ с изменениями, затем ##CHANGES## и список правок."
             )
 
-            # Токены: 2000 — безопасный лимит для 90с таймаута
-            # YandexGPT fast — приоритет (надёжнее укладывается в таймаут)
-            # DeepSeek — fallback (лучшее качество, но медленнее)
-            MAX_TOKENS = 2000
+            # DeepSeek — основной (лучшее качество редактирования, конфиденциальность)
+            # YandexGPT fast — резервный (на случай таймаута DeepSeek)
+            # Лимит токенов: 2500 — достаточно для полного документа, укладываемся в 90с
+            MAX_TOKENS = 2500
             edit_answer = ""
 
-            # Пробуем YandexGPT fast первым — быстрее, меньше таймаутов
             try:
-                edit_answer = call_yandex(
+                edit_answer, was_cut = call_deepseek(
                     edit_system,
                     [{"role": "user", "content": edit_prompt}],
                     max_tokens=MAX_TOKENS,
-                    fast=True,
                     temperature=0.05,
+                    timeout=65,
                 )
-                print(f"[DOC_EDIT] YandexGPT OK len={len(edit_answer)} doc={doc_len}")
+                print(f"[DOC_EDIT] DeepSeek OK was_cut={was_cut} len={len(edit_answer)} doc={doc_len}")
             except Exception as e:
-                print(f"[DOC_EDIT] YandexGPT упал: {e} → DeepSeek")
+                print(f"[DOC_EDIT] DeepSeek упал: {e} → YandexGPT fallback")
                 try:
-                    edit_answer, was_cut = call_deepseek(
+                    edit_answer = call_yandex(
                         edit_system,
                         [{"role": "user", "content": edit_prompt}],
                         max_tokens=MAX_TOKENS,
+                        fast=True,
                         temperature=0.05,
-                        timeout=50,
                     )
-                    print(f"[DOC_EDIT] DeepSeek OK len={len(edit_answer)}")
+                    print(f"[DOC_EDIT] YandexGPT OK len={len(edit_answer)}")
                 except Exception as e2:
-                    print(f"[DOC_EDIT] DeepSeek тоже упал: {e2}")
+                    print(f"[DOC_EDIT] YandexGPT тоже упал: {e2}")
 
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},

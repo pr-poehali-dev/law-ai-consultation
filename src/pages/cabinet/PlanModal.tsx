@@ -102,6 +102,10 @@ interface PlanModalProps {
   onSelectPlan: (name: string, price: string, id: string) => void;
 }
 
+const BG = "#0a1628";
+const GOLD = "#e8a820";
+const GOLD_LIGHT = "#f0c060";
+
 export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProps) {
   const [visible, setVisible] = useState(false);
   const activePlanId = getActivePlan(user);
@@ -112,11 +116,7 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
     return () => { clearTimeout(t); document.body.style.overflow = ""; };
   }, []);
 
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(onClose, 250);
-  };
-
+  const handleClose = () => { setVisible(false); setTimeout(onClose, 250); };
   const handleSelect = (plan: Plan) => {
     if (activePlanId === plan.id) return;
     onSelectPlan(plan.name, plan.price, plan.id);
@@ -125,166 +125,181 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-250 ${visible ? "bg-black/60 backdrop-blur-sm" : "bg-transparent"}`}
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-250 ${visible ? "bg-black/65 backdrop-blur-sm" : "bg-transparent"}`}
       onClick={handleClose}
     >
       <div
-        className={`bg-white w-full sm:rounded-3xl sm:max-w-2xl flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-3xl
+        className={`w-full sm:max-w-xl flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-3xl sm:rounded-3xl overflow-hidden
           ${visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}
-          max-h-[92dvh] sm:max-h-[90vh]`}
+          max-h-[94dvh] sm:max-h-[90vh]`}
+        style={{ background: BG }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Драг-хэндл мобайл */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
-          <div className="w-10 h-1 rounded-full bg-slate-200" />
+        {/* Золотая линия сверху */}
+        <div className="shrink-0" style={{ height: 3, background: `linear-gradient(90deg, transparent, ${GOLD} 30%, ${GOLD_LIGHT} 50%, ${GOLD} 70%, transparent)` }} />
+
+        {/* Свайп-хэндл */}
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
         </div>
 
         {/* Шапка */}
-        <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-5 pb-3 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0">
-              <Icon name="Zap" size={16} className="text-gold-400" />
+        <div className="flex items-center justify-between px-5 pt-3 sm:pt-5 pb-3 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `rgba(232,168,32,0.15)`, border: `1px solid rgba(232,168,32,0.3)` }}>
+              <Icon name="Zap" size={16} color={GOLD} />
             </div>
             <div>
-              <h2 className="font-bold text-navy-800 text-base leading-tight">Выберите тариф</h2>
-              <p className="text-[11px] text-muted-foreground">Вопросы и документы начисляются сразу</p>
+              <h2 className="font-bold text-white text-base leading-tight">Выберите тариф</h2>
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>Доступ сразу после оплаты · Нет автосписания</p>
             </div>
           </div>
-          <button onClick={handleClose} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-muted-foreground transition-colors">
-            <Icon name="X" size={16} />
+          <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-white/10">
+            <Icon name="X" size={16} color="rgba(255,255,255,0.6)" />
           </button>
         </div>
 
         {/* Тарифы */}
-        <div className="overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-3 flex-1">
+        <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-3 flex-1">
           {PLANS.map((plan) => {
             const isActive = activePlanId === plan.id;
-            const isDark = plan.color === "dark";
-            const isMax = plan.color === "max";
+            const isDark = plan.color === "dark";   // Профи
+            const isMax = plan.color === "max";      // Максимум
+            const isLight = plan.color === "light";  // Старт
             const savings = plan.oldPrice ? savingsLabel(plan.price, plan.oldPrice) : "";
+
+            // Цвета текста
+            const textPrimary = isActive ? "#059669" : (isLight ? "#1e3a5f" : "#fff");
+            const textSecondary = isActive ? "#10b981" : (isLight ? "#475569" : "rgba(255,255,255,0.65)");
+            const textMuted = isActive ? "#6ee7b7" : (isLight ? "#94a3b8" : "rgba(255,255,255,0.4)");
+
+            // Фон карточки
+            const cardBg = isActive
+              ? "rgba(16,185,129,0.08)"
+              : isLight
+                ? "rgba(255,255,255,0.04)"
+                : "rgba(255,255,255,0.06)";
+
+            // Рамка карточки
+            const cardBorder = isActive
+              ? "1.5px solid rgba(16,185,129,0.5)"
+              : isMax
+                ? `1.5px solid ${GOLD}` // золотой ободок для Максимума
+                : isDark
+                  ? "1.5px solid rgba(232,168,32,0.35)"
+                  : "1.5px solid rgba(255,255,255,0.1)";
 
             return (
               <div
                 key={plan.id}
                 onClick={() => handleSelect(plan)}
-                className={`relative rounded-2xl border transition-all duration-200 overflow-hidden
-                  ${isActive
-                    ? "border-emerald-300 bg-emerald-50 cursor-default"
-                    : isDark
-                      ? "border-gold-400/30 bg-gradient-to-br from-navy-800 to-navy-900 hover:border-gold-400 hover:shadow-xl cursor-pointer active:scale-[0.99]"
-                      : isMax
-                        ? "border-slate-300 bg-gradient-to-br from-slate-800 to-navy-900 hover:border-slate-400 hover:shadow-xl cursor-pointer active:scale-[0.99]"
-                        : "border-slate-200 bg-white hover:border-navy-300 hover:shadow-md cursor-pointer active:scale-[0.99]"
-                  }`}
+                className="relative rounded-2xl overflow-hidden transition-all duration-200"
+                style={{
+                  background: cardBg,
+                  border: cardBorder,
+                  cursor: isActive ? "default" : "pointer",
+                  ...(isMax && !isActive ? { boxShadow: `0 0 20px rgba(232,168,32,0.15)` } : {}),
+                }}
               >
-                {/* Топ-полоска */}
-                {isDark && !isActive && (
-                  <div className="h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
-                )}
-                {isMax && !isActive && (
-                  <div className="h-0.5 bg-gradient-to-r from-transparent via-slate-400 to-transparent" />
+                {/* Золотая линия для Максимум и Профи */}
+                {(isDark || isMax) && !isActive && (
+                  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${GOLD} 30%, ${GOLD_LIGHT} 50%, ${GOLD} 70%, transparent)` }} />
                 )}
 
-                <div className="p-4 sm:p-5">
-                  {/* Строка: название + бейдж + цена + экономия */}
+                <div className="p-4">
+                  {/* Шапка карточки */}
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`font-bold text-base sm:text-lg leading-tight ${(isDark || isMax) && !isActive ? "text-white" : "text-navy-800"}`}>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-bold text-base sm:text-lg leading-tight" style={{ color: textPrimary }}>
                         {plan.name}
                       </span>
                       {isActive && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-wide flex items-center gap-0.5">
-                          <Icon name="Check" size={8} />Активен
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide flex items-center gap-1"
+                          style={{ background: "rgba(16,185,129,0.2)", color: "#34d399" }}>
+                          <Icon name="Check" size={8} color="#34d399" />Активен
                         </span>
                       )}
                       {!isActive && plan.badge && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${isDark ? "bg-gold-500 text-navy-900" : "bg-slate-500 text-white"}`}>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+                          style={{ background: isMax ? `rgba(232,168,32,0.25)` : isDark ? `rgba(232,168,32,0.2)` : "rgba(255,255,255,0.1)", color: isMax || isDark ? GOLD_LIGHT : "rgba(255,255,255,0.7)" }}>
                           {plan.badge}
                         </span>
                       )}
                     </div>
 
-                    {/* Цена + старая цена + экономия */}
+                    {/* Цена */}
                     <div className="flex flex-col items-end shrink-0">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className={`font-bold text-xl leading-none ${(isDark || isMax) && !isActive ? "text-white" : "text-navy-800"}`}>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-black text-xl leading-none" style={{ color: isActive ? "#34d399" : isLight ? "#1e3a5f" : GOLD_LIGHT }}>
                           {plan.price}
                         </span>
-                        <span className={`text-sm font-normal ${(isDark || isMax) && !isActive ? "text-white/50" : "text-muted-foreground"}`}>₽</span>
+                        <span className="text-sm font-normal" style={{ color: textMuted }}>₽</span>
                       </div>
                       {plan.oldPrice && !isActive && (
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`text-[11px] line-through ${(isDark || isMax) ? "text-white/40" : "text-slate-400"}`}>
-                            {plan.oldPrice} ₽
-                          </span>
+                          <span className="text-[11px] line-through" style={{ color: textMuted }}>{plan.oldPrice} ₽</span>
                           {savings && (
-                            <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-emerald-500 text-white leading-none">
-                              {savings}
-                            </span>
+                            <span className="text-[10px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(74,222,128,0.2)", color: "#4ade80" }}>{savings}</span>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Ключевые цифры */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className={`flex items-center gap-1.5 text-[12px] font-semibold ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-gold-300" : "text-navy-600"}`}>
-                      <Icon name="MessageCircle" size={13} />
-                      <span>{plan.questions} вопросов AI</span>
+                  {/* Счётчики */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="MessageCircle" size={12} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} />
+                      <span className="text-[12px] font-semibold" style={{ color: isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b" }}>{plan.questions} вопросов AI</span>
                     </div>
-                    <div className={`w-px h-3 ${isActive ? "bg-emerald-300" : (isDark || isMax) ? "bg-white/20" : "bg-slate-200"}`} />
-                    <div className={`flex items-center gap-1.5 text-[12px] font-semibold ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-gold-300" : "text-navy-600"}`}>
-                      <Icon name="FileText" size={13} />
-                      <span>{plan.docs} документов</span>
+                    <div className="w-px h-3" style={{ background: "rgba(255,255,255,0.12)" }} />
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="FileText" size={12} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} />
+                      <span className="text-[12px] font-semibold" style={{ color: isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b" }}>{plan.docs} документов</span>
                     </div>
                   </div>
 
-                  {/* Консультация юриста — выделенный блок */}
+                  {/* Блок юриста */}
                   {plan.lawyerFeature && !isActive && (
-                    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-3 ${(isDark || isMax) ? "bg-gold-400/20 border border-gold-400/40" : "bg-navy-50 border border-navy-100"}`}>
-                      <Icon name="User" size={13} className={(isDark || isMax) ? "text-gold-400 shrink-0" : "text-navy-500 shrink-0"} />
-                      <span className={`text-[11px] font-semibold ${(isDark || isMax) ? "text-gold-200" : "text-navy-700"}`}>
-                        {plan.lawyerFeature}
-                      </span>
+                    <div className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3"
+                      style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                      <Icon name="User" size={12} color={GOLD} />
+                      <span className="text-[11px] font-semibold" style={{ color: GOLD_LIGHT }}>{plan.lawyerFeature}</span>
                     </div>
                   )}
 
-                  {/* Список возможностей */}
-                  <div className="grid grid-cols-1 gap-y-1.5 mb-3.5">
+                  {/* Список фич */}
+                  <div className="space-y-1 mb-3.5">
                     {plan.features.map((f) => (
                       <div key={f} className="flex items-start gap-2">
-                        <Icon
-                          name="Check"
-                          size={11}
-                          className={`mt-0.5 shrink-0 ${isActive ? "text-emerald-500" : (isDark || isMax) ? "text-gold-400" : "text-navy-400"}`}
-                        />
-                        <span className={`text-[11.5px] leading-snug ${isActive ? "text-emerald-700" : (isDark || isMax) ? "text-white/75" : "text-slate-600"}`}>
-                          {f}
-                        </span>
+                        <Icon name="Check" size={10} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} className="mt-0.5 shrink-0" />
+                        <span className="text-[11.5px] leading-snug" style={{ color: textSecondary }}>{f}</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Кнопка / статус */}
+                  {/* Кнопка */}
                   {isActive ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-emerald-100 rounded-xl">
-                      <Icon name="CheckCircle" size={13} className="text-emerald-600 shrink-0" />
-                      <span className="text-xs text-emerald-700 font-medium">
-                        Тариф активен · {user.paidQuestions ?? 0} вопр. · {user.paidDocs ?? 0} доку.
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                      style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }}>
+                      <Icon name="CheckCircle" size={13} color="#34d399" className="shrink-0" />
+                      <span className="text-xs font-medium" style={{ color: "#34d399" }}>
+                        Активен · {user.paidQuestions ?? 0} вопр. · {user.paidDocs ?? 0} доку.
                       </span>
                     </div>
                   ) : (
-                    <div className={`w-full py-2.5 rounded-xl text-sm font-bold text-center transition-colors
-                      ${isDark
-                        ? "bg-gold-500 text-navy-900 hover:bg-gold-400"
-                        : isMax
-                          ? "bg-slate-100 text-navy-800 hover:bg-white"
-                          : "bg-navy-800 text-white hover:bg-navy-700"
-                      }`}
+                    <button
+                      className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
+                      style={
+                        isMax
+                          ? { background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }
+                          : isDark
+                            ? { background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }
+                            : { background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }
+                      }
                     >
                       Выбрать «{plan.name}»
-                    </div>
+                    </button>
                   )}
                 </div>
               </div>
@@ -293,9 +308,9 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
         </div>
 
         {/* Футер */}
-        <div className="px-4 sm:px-6 py-3 border-t border-slate-100 shrink-0 text-center">
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Безопасная оплата · Доступ сразу после оплаты · Нет автосписания
+        <div className="px-5 py-3 shrink-0 text-center" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+            Защищённая оплата · ЮКасса · Доступ сразу после оплаты · Нет автосписания
           </p>
         </div>
       </div>

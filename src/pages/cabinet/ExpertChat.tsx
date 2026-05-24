@@ -37,29 +37,35 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
   const ext = name.split(".").pop()?.toLowerCase() || "";
   const isImage = ["jpg", "jpeg", "png"].includes(ext);
   const [preview, setPreview] = useState(false);
+  const iconName = isImage ? "Image" : ext === "pdf" ? "FileText" : "File";
 
   return (
     <>
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-        isMe ? "bg-white/15 text-white/90 hover:bg-white/25" : "bg-slate-50 text-navy-700 border border-slate-200 hover:bg-slate-100"
-      }`}>
-        <Icon name={isImage ? "Image" : ext === "pdf" ? "FileText" : "File"} size={13} className="shrink-0" />
-        <span className="flex-1 truncate">{name}</span>
+      {/* Контрастный стиль для обоих сторон: белый фон с рамкой */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border"
+        style={isMe
+          ? { background: "rgba(255,255,255,0.18)", borderColor: "rgba(255,255,255,0.3)", color: "#fff" }
+          : { background: "#fff", borderColor: "#e2e8f0", color: "#1e3a5f" }
+        }
+      >
+        <Icon name={iconName} size={13} className="shrink-0 opacity-80" />
+        <span className="flex-1 truncate font-semibold">{name}</span>
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
-            <button onClick={() => setPreview(true)} className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors ${
-              isMe ? "hover:bg-white/20" : "hover:bg-slate-200"
-            }`}>
+            <button
+              onClick={() => setPreview(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-colors"
+              style={isMe ? { background: "rgba(255,255,255,0.15)" } : { background: "#f1f5f9" }}
+            >
               <Icon name="Eye" size={10} />
             </button>
           )}
-          <a href={url} download={name} target="_blank" rel="noreferrer"
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-colors ${
-              isMe ? "hover:bg-white/20" : "hover:bg-slate-200"
-            }`}
+          <a
+            href={url} download={name} target="_blank" rel="noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors"
+            style={isMe ? { background: "rgba(255,255,255,0.15)" } : { background: "#f1f5f9" }}
           >
-            <Icon name="Download" size={10} />
-            Скачать
+            <Icon name="Download" size={10} />Скачать
           </a>
         </div>
       </div>

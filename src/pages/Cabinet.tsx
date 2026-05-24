@@ -107,12 +107,21 @@ export default function Cabinet() {
        !user.subscriptionDocsUntil)
     : false;
 
-  // Показываем туториалы при первом входе (один раз)
+  // Показываем туториалы при первом входе — только если нет активной генерации/оплаты
   useEffect(() => {
-    if (user && shouldShowWelcomeTutorials()) {
-      const t = setTimeout(() => setShowWelcomeTutorials(true), 1500);
-      return () => clearTimeout(t);
+    if (!user || !shouldShowWelcomeTutorials()) return;
+    // Не показываем если пользователь пришёл с оплаты или идёт в docs
+    const params = new URLSearchParams(window.location.search);
+    const isPostPayment = params.has("payment") || params.has("inv_id");
+    const isPendingDoc = params.get("tab") === "docs";
+    if (isPostPayment || isPendingDoc) {
+      // Помечаем как просмотренное — не мешаем процессу
+      localStorage.setItem("tutorials_welcome_seen", "1");
+      return;
     }
+    // Задержка 3с — даём время кабинету полностью загрузиться
+    const t = setTimeout(() => setShowWelcomeTutorials(true), 3000);
+    return () => clearTimeout(t);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useExitIntent({
