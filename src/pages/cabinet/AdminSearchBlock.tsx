@@ -3,13 +3,14 @@ import Icon from "@/components/ui/icon";
 import { adminSearchUser, adminGrant, type AdminUserFull } from "@/lib/auth";
 
 const SERVICE_LABELS: Record<string, string> = {
-  plan_starter:          "Пакет Старт (+30 вопр / +5 докум)",
-  plan_starter_discount: "Пакет Старт скидка (+30 вопр / +5 докум)",
-  plan_pro:              "Тариф Профи (+100 вопр / +20 докум)",
-  plan_max:              "Тариф Максимум (+300 вопр / +50 докум + юрист)",
+  plan_starter:          "Тариф Старт (+30 вопр AI / +5 докум / +3 вопр юристу)",
+  plan_starter_discount: "Тариф Старт скидка (+30 вопр AI / +5 докум / +3 вопр юристу)",
+  plan_pro:              "Тариф Профи (+100 вопр AI / +20 докум / +5 вопр юристу)",
+  plan_max:              "Тариф Максимум (+300 вопр AI / +50 докум / +30 вопр юристу)",
   document:              "+1 документ",
-  consultation:          "+3 вопроса",
+  consultation:          "+5 вопросов юристу",
   expert:                "Доступ к юристу",
+  lawyer_questions:      "+5 вопросов юристу (докупить)",
 };
 
 function fmtDate(iso: string | null) {
@@ -46,16 +47,17 @@ export default function AdminSearchBlock() {
   const [showEdit, setShowEdit] = useState(false);
 
   // Форма — все поля независимые, можно заполнять любые комбинации
-  const [grantSvc, setGrantSvc] = useState("");
-  const [setQ, setSetQ]         = useState("");   // установить вопросы точно
-  const [setD, setSetD]         = useState("");   // установить документы точно
-  const [comment, setComment]   = useState("");
+  const [grantSvc, setGrantSvc]   = useState("");
+  const [setQ, setSetQ]           = useState("");   // установить вопросы точно
+  const [setD, setSetD]           = useState("");   // установить документы точно
+  const [setLQ, setSetLQ]         = useState("");   // установить вопросы к юристу точно
+  const [comment, setComment]     = useState("");
 
   const [saving, setSaving]         = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok?: boolean; msg?: string; error?: string } | null>(null);
 
   const resetForm = () => {
-    setGrantSvc(""); setSetQ(""); setSetD(""); setComment(""); setSaveResult(null);
+    setGrantSvc(""); setSetQ(""); setSetD(""); setSetLQ(""); setComment(""); setSaveResult(null);
   };
 
   const handleSearch = async () => {
@@ -74,8 +76,9 @@ export default function AdminSearchBlock() {
     const hasService  = !!grantSvc;
     const hasSetQ     = setQ !== "" && setQ !== null;
     const hasSetD     = setD !== "" && setD !== null;
+    const hasSetLQ    = setLQ !== "" && setLQ !== null;
 
-    if (!hasService && !hasSetQ && !hasSetD) {
+    if (!hasService && !hasSetQ && !hasSetD && !hasSetLQ) {
       setSaveResult({ error: "Заполните хотя бы одно поле: тариф или количество" });
       return;
     }
@@ -87,6 +90,7 @@ export default function AdminSearchBlock() {
     if (hasService)  params.grant_service = grantSvc;
     if (hasSetQ)     params.set_questions = Math.max(0, parseInt(setQ));
     if (hasSetD)     params.set_docs      = Math.max(0, parseInt(setD));
+    if (hasSetLQ)    params.set_lawyer_questions = Math.max(0, parseInt(setLQ));
 
     setSaving(true); setSaveResult(null);
     const res = await adminGrant(params);
@@ -193,14 +197,20 @@ export default function AdminSearchBlock() {
             </div>
 
             {/* Баланс */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <div className="bg-blue-50 rounded-xl p-2.5 text-center">
                 <p className="text-xl font-bold text-blue-700">{sel.paid_questions}</p>
-                <p className="text-[10px] text-blue-500 font-medium">Вопросов</p>
+                <p className="text-[10px] text-blue-500 font-medium">Вопр AI</p>
               </div>
               <div className="bg-amber-50 rounded-xl p-2.5 text-center">
                 <p className="text-xl font-bold text-amber-700">{sel.paid_docs}</p>
-                <p className="text-[10px] text-amber-500 font-medium">Документов</p>
+                <p className="text-[10px] text-amber-500 font-medium">Докум</p>
+              </div>
+              <div className={`rounded-xl p-2.5 text-center ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "bg-emerald-50" : "bg-slate-50"}`}>
+                <p className={`text-xl font-bold ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "text-emerald-700" : "text-slate-400"}`}>
+                  {(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ?? 0}
+                </p>
+                <p className={`text-[10px] font-medium ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "text-emerald-500" : "text-slate-400"}`}>Вопр юрист</p>
               </div>
               <div className={`rounded-xl p-2.5 text-center ${sel.paid_expert ? "bg-purple-50" : "bg-slate-50"}`}>
                 <p className={`text-xl font-bold ${sel.paid_expert ? "text-purple-700" : "text-slate-400"}`}>
@@ -294,9 +304,9 @@ export default function AdminSearchBlock() {
                     <Icon name="SlidersHorizontal" size={12} className="text-navy-500" />
                     Итоговое количество после начисления (необязательно)
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Вопросов (итого =)</label>
+                      <label className="text-[10px] text-muted-foreground mb-1 block">Вопросов AI (итого =)</label>
                       <input
                         type="number" min="0"
                         value={setQ}
@@ -312,6 +322,16 @@ export default function AdminSearchBlock() {
                         value={setD}
                         onChange={e => setSetD(e.target.value)}
                         placeholder={`сейчас: ${sel.paid_docs}`}
+                        className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground mb-1 block">Вопросов юристу (итого =)</label>
+                      <input
+                        type="number" min="0"
+                        value={setLQ}
+                        onChange={e => setSetLQ(e.target.value)}
+                        placeholder={`сейчас: ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ?? 0}`}
                         className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
                       />
                     </div>

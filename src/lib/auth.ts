@@ -182,12 +182,14 @@ export async function register(params: {
 export async function login(
   email: string,
   password: string
-): Promise<{ user?: User; error?: string }> {
+): Promise<{ user?: User; error?: string; require_otp?: boolean; hint?: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await apiCall({ action: "login", email, password });
       const data = await res.json();
       if (!res.ok) return { error: data.error || "Неверный email или пароль" };
+      // Для администратора бэкенд требует OTP
+      if (data.require_otp) return { require_otp: true, hint: data.hint };
       setToken(data.token);
       invalidateUserCache();
       return { user: data.user };
@@ -199,11 +201,26 @@ export async function login(
         }
         return { error: "Ошибка соединения. Проверьте интернет." };
       }
-      // Первая попытка упала — ждём 2 сек и повторяем
       await new Promise(r => setTimeout(r, 2000));
     }
   }
   return { error: "Ошибка соединения." };
+}
+
+export async function adminLoginOtp(
+  email: string,
+  code: string
+): Promise<{ user?: User; error?: string }> {
+  try {
+    const res = await apiCall({ action: "admin-login-otp", email, code });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Неверный код" };
+    setToken(data.token);
+    invalidateUserCache();
+    return { user: data.user };
+  } catch {
+    return { error: "Ошибка соединения. Проверьте интернет." };
+  }
 }
 
 // Кэш пользователя — один запрос в 30 сек вместо многократных дублей
@@ -690,9 +707,10 @@ export async function adminGrant(params: {
   docs?: number;
   set_questions?: number;
   set_docs?: number;
+  set_lawyer_questions?: number;
   grant_service?: string;
   comment?: string;
-}): Promise<{ ok?: boolean; changes?: string[]; paid_questions?: number; paid_docs?: number; paid_expert?: boolean; error?: string }> {
+}): Promise<{ ok?: boolean; changes?: string[]; paid_questions?: number; paid_docs?: number; paid_expert?: boolean; lawyer_questions_left?: number; error?: string }> {
   const res = await apiCall({ action: "admin-grant", ...params });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка начисления" };

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { login, register, forgotPassword } from "@/lib/auth";
+import { login, register, forgotPassword, adminLoginOtp } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 
 interface LoginModalProps {
@@ -10,7 +10,7 @@ interface LoginModalProps {
   initialMode?: "login" | "register";
 }
 
-type Mode = "login" | "register" | "forgot";
+type Mode = "login" | "register" | "forgot" | "admin-otp";
 
 export default function LoginModal({ onClose, onSuccess, freeTrial = false, initialMode }: LoginModalProps) {
   const [mode, setMode] = useState<Mode>(initialMode ?? (freeTrial ? "register" : "login"));
@@ -39,6 +39,11 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
   const [success, setSuccess] = useState(false);
   const [trialGranted, setTrialGranted] = useState(false);
 
+  // Admin OTP
+  const [adminOtpEmail, setAdminOtpEmail] = useState("");
+  const [adminOtpCode, setAdminOtpCode] = useState("");
+  const [adminOtpHint, setAdminOtpHint] = useState("");
+
   const switchMode = (m: Mode) => { setMode(m); setError(""); setForgotSent(false); };
 
   // ── Забыл пароль ──
@@ -59,6 +64,25 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
     const res = await login(loginEmail, loginPassword);
     clearTimeout(slowTimer);
     setLoading(false); setLoadingSlow(false);
+    if (res.error) { setError(res.error); return; }
+    // Администратор — требуется OTP
+    if (res.require_otp) {
+      setAdminOtpEmail(loginEmail);
+      setAdminOtpHint(res.hint || `Код отправлен на ${loginEmail}`);
+      setAdminOtpCode("");
+      setMode("admin-otp");
+      return;
+    }
+    ymGoal("login");
+    onSuccess();
+  };
+
+  // ── OTP для администратора ──
+  const handleAdminOtp = async () => {
+    if (!adminOtpCode.trim()) { setError("Введите код из письма"); return; }
+    setLoading(true); setError("");
+    const res = await adminLoginOtp(adminOtpEmail, adminOtpCode.trim());
+    setLoading(false);
     if (res.error) { setError(res.error); return; }
     ymGoal("login");
     onSuccess();
@@ -129,28 +153,30 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
                   <Icon name="Scale" size={24} className="text-gold-400" />
                 </div>
                 <h3 className="font-cormorant font-bold text-2xl text-navy-800">
-                  {mode === "login" ? "Вход в кабинет" : "Регистрация"}
+                  {mode === "login" ? "Вход в кабинет" : mode === "admin-otp" ? "Подтверждение входа" : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — 1 вопрос бесплатно"}
+                  {mode === "login" ? "Введите email и пароль" : mode === "admin-otp" ? "Введите код из письма" : freeTrial ? "Зарегистрируйтесь и получите 1 вопрос бесплатно" : "Создайте аккаунт — 1 вопрос бесплатно"}
                 </p>
               </div>
 
-              {/* Переключатель */}
-              <div className="flex rounded-xl border border-border overflow-hidden mb-6 bg-slate-50">
-                <button
-                  onClick={() => switchMode("login")}
-                  className={`flex-1 py-2.5 text-sm font-medium transition-all ${mode === "login" ? "bg-navy-800 text-white shadow-sm" : "text-muted-foreground hover:text-navy-700"}`}
-                >
-                  Вход
-                </button>
-                <button
-                  onClick={() => switchMode("register")}
-                  className={`flex-1 py-2.5 text-sm font-medium transition-all ${mode === "register" ? "bg-navy-800 text-white shadow-sm" : "text-muted-foreground hover:text-navy-700"}`}
-                >
-                  Регистрация
-                </button>
-              </div>
+              {/* Переключатель — только для login/register */}
+              {mode !== "admin-otp" && mode !== "forgot" && (
+                <div className="flex rounded-xl border border-border overflow-hidden mb-6 bg-slate-50">
+                  <button
+                    onClick={() => switchMode("login")}
+                    className={`flex-1 py-2.5 text-sm font-medium transition-all ${mode === "login" ? "bg-navy-800 text-white shadow-sm" : "text-muted-foreground hover:text-navy-700"}`}
+                  >
+                    Вход
+                  </button>
+                  <button
+                    onClick={() => switchMode("register")}
+                    className={`flex-1 py-2.5 text-sm font-medium transition-all ${mode === "register" ? "bg-navy-800 text-white shadow-sm" : "text-muted-foreground hover:text-navy-700"}`}
+                  >
+                    Регистрация
+                  </button>
+                </div>
+              )}
 
               {/* ── ВХОД ── */}
               {mode === "login" && (
@@ -213,6 +239,58 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
                     className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center mt-1"
                   >
                     Забыли пароль?
+                  </button>
+                </div>
+              )}
+
+              {/* ── OTP для администратора ── */}
+              {mode === "admin-otp" && (
+                <div className="space-y-4 animate-modal-section">
+                  <div className="flex items-center gap-3 p-3.5 bg-navy-50 border border-navy-200 rounded-2xl">
+                    <div className="w-9 h-9 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
+                      <Icon name="ShieldCheck" size={16} className="text-navy-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-navy-800">Двухфакторная проверка</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{adminOtpHint}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-navy-700 mb-1.5 block">Код из письма <span className="text-red-400">*</span></label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={adminOtpCode}
+                      onChange={(e) => setAdminOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className={`${inputCls} text-center text-2xl tracking-[0.5em] font-bold`}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && handleAdminOtp()}
+                    />
+                    <p className="text-[11px] text-slate-400 text-center mt-1.5">Код действителен 10 минут</p>
+                  </div>
+                  {error && (
+                    <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+                      <Icon name="AlertCircle" size={13} />{error}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleAdminOtp}
+                    disabled={loading || adminOtpCode.length < 6}
+                    className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {loading
+                      ? <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+                      : <><Icon name="LogIn" size={16} />Подтвердить вход</>
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { switchMode("login"); setAdminOtpCode(""); }}
+                    className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center"
+                  >
+                    ← Назад к входу
                   </button>
                 </div>
               )}

@@ -358,13 +358,43 @@ def handle_login(body: dict, ip: str = "") -> dict:
             return _err(401, "Неверный email или пароль")
 
         user_id = row[0]
-        # Обновляем дату последнего входа
+
+        # Для администратора — ВСЕГДА требуем OTP-подтверждение по почте
+        if is_admin_email:
+            otp_code = str(secrets.randbelow(900000) + 100000)
+            try:
+                cur.execute(
+                    f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE email = %s AND used = FALSE",
+                    (email,)
+                )
+                cur.execute(
+                    f"INSERT INTO {SCHEMA}.otp_codes (email, code) VALUES (%s, %s)",
+                    (email, otp_code)
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+            try:
+                _send_email(
+                    to_email=email,
+                    subject="ИИ-Право.рф — код подтверждения входа администратора",
+                    body_text=(
+                        f"Кто-то (возможно вы) входит в панель администратора.\n\n"
+                        f"Код подтверждения:\n\n"
+                        f"  {otp_code}\n\n"
+                        f"Код действителен 10 минут.\n"
+                        f"Если это не вы — немедленно смените пароль."
+                    )
+                )
+            except Exception as e:
+                return _err(500, f"Не удалось отправить код: {e}")
+            return _ok({"require_otp": True, "hint": f"Код подтверждения отправлен на {email}"})
+
+        # Обычный пользователь — выдаём токен сразу
         cur.execute(
             f"UPDATE {SCHEMA}.users SET last_login_at = NOW() WHERE id = %s",
             (user_id,)
         )
-        # Множество сессий — каждое устройство имеет свой токен
-        # Удаляем только совсем старые сессии (>30 дней) чтобы не копились
         cur.execute(
             f"DELETE FROM {SCHEMA}.sessions WHERE user_id = %s AND expires_at < NOW()",
             (user_id,)
@@ -802,6 +832,93 @@ def handle_verify_otp(body: dict) -> dict:
             return _err(400, "Неверный или истёкший код")
         # Не помечаем как использованный — пометим при финальной регистрации
         return _ok({"ok": True})
+    finally:
+        cur.close()
+        conn.close()
+
+
+def handle_admin_login_otp(body: dict, ip: str = "") -> dict:
+    """Финальный шаг входа администратора: проверяем OTP и выдаём токен."""
+    email = sanitize_str(body.get("email") or "").lower()
+    code = sanitize_str(body.get("code") or "")
+    if not email or not code:
+        return _err(400, "Укажите email и код")
+
+    # Только для ADMIN_EMAIL
+    if email != ADMIN_EMAIL.lower():
+        return _err(403, "Недостаточно прав")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # Проверяем OTP
+        cur.execute(
+            f"""SELECT id FROM {SCHEMA}.otp_codes
+                WHERE email = %s AND code = %s AND used = FALSE AND expires_at > NOW()
+                ORDER BY created_at DESC LIMIT 1""",
+            (email, code)
+        )
+        otp_row = cur.fetchone()
+        if not otp_row:
+            # Логируем неудачную попытку
+            try:
+                cur.execute(
+                    f"INSERT INTO {SCHEMA}.login_attempts (ip, email, success) VALUES (%s, %s, FALSE)",
+                    (ip or "unknown", email)
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+            return _err(400, "Неверный или истёкший код подтверждения")
+
+        otp_id = otp_row[0]
+        # Помечаем OTP использованным
+        cur.execute(
+            f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE id = %s",
+            (otp_id,)
+        )
+
+        # Ищем пользователя
+        cur.execute(
+            f"SELECT id FROM {SCHEMA}.users WHERE email = %s AND is_admin = TRUE",
+            (email,)
+        )
+        user_row = cur.fetchone()
+        if not user_row:
+            return _err(401, "Администратор не найден")
+
+        user_id = user_row[0]
+        cur.execute(
+            f"UPDATE {SCHEMA}.users SET last_login_at = NOW() WHERE id = %s",
+            (user_id,)
+        )
+        cur.execute(
+            f"DELETE FROM {SCHEMA}.sessions WHERE user_id = %s AND expires_at < NOW()",
+            (user_id,)
+        )
+        token = generate_token()
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '30 days')",
+            (user_id, token)
+        )
+        conn.commit()
+
+        # Логируем успешный вход
+        try:
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.login_attempts (ip, email, success) VALUES (%s, %s, TRUE)",
+                (ip or "unknown", email)
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        cur.execute(f"SELECT {_SELECT_COLS} FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+        u = cur.fetchone()
+        return _ok({"token": token, "user": _format_user(u)})
+    except Exception as e:
+        conn.rollback()
+        return _err(500, str(e))
     finally:
         cur.close()
         conn.close()
@@ -1672,7 +1789,8 @@ def handle_admin_search_user(token: str, body: dict) -> dict:
             f"""SELECT id, email, name, phone, paid_questions, paid_docs, paid_expert,
                        paid_business, is_admin, created_at, last_login_at,
                        subscription_consult_until, subscription_docs_until,
-                       business_subscription_until, business_actions_left
+                       business_subscription_until, business_actions_left,
+                       lawyer_questions_left
                 FROM {SCHEMA}.users
                 WHERE LOWER(email) LIKE %s
                 ORDER BY created_at DESC LIMIT 10""",
@@ -1721,6 +1839,7 @@ def handle_admin_search_user(token: str, body: dict) -> dict:
                 "subscription_docs_until": r[12].isoformat() if r[12] else None,
                 "business_subscription_until": r[13].isoformat() if r[13] else None,
                 "business_actions_left": r[14] or 0,
+                "lawyer_questions_left": r[15] if len(r) > 15 else 0,
                 "orders": orders,
                 "billing": billing,
             })
@@ -1749,7 +1868,9 @@ def handle_admin_grant(token: str, body: dict) -> dict:
     grant_service = sanitize_str(body.get("grant_service", ""), max_len=50)  # начислить тариф
     comment = sanitize_str(body.get("comment", "Ручное действие администратора"), max_len=200)
 
-    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and not grant_service:
+    set_lawyer_questions = body.get("set_lawyer_questions")  # установить вопросы к юристу
+
+    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and set_lawyer_questions is None and not grant_service:
         return _err(400, "Укажите изменение: вопросы, документы или тариф")
 
     conn = get_conn()
@@ -1826,15 +1947,30 @@ def handle_admin_grant(token: str, body: dict) -> dict:
                 (target_user_id, target_email, f"Установлено {sd} докум. · {comment}")
             )
 
+        # Прямая установка вопросов к юристу
+        if set_lawyer_questions is not None:
+            slq = max(0, int(set_lawyer_questions))
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET lawyer_questions_left = %s, paid_expert = TRUE WHERE id = %s",
+                (slq, target_user_id)
+            )
+            changes.append(f"вопросов юристу установлено: {slq}")
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'lawyer_questions', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"Установлено {slq} вопр. юристу · {comment}")
+            )
+
         # Начисление тарифа
         SERVICE_GRANTS = {
-            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5", "Пакет Старт: +30 вопр +5 докум"),
-            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5", "Пакет Старт (скидка): +30 вопр +5 докум"),
-            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20", "Тариф Профи: +100 вопр +20 докум"),
-            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE", "Тариф Максимум: +300 вопр +50 докум +юрист"),
+            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 3", "Тариф Старт: +30 вопр +5 докум +3 вопр юристу"),
+            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 3", "Тариф Старт (скидка): +30 вопр +5 докум +3 вопр юристу"),
+            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "Тариф Профи: +100 вопр +20 докум +5 вопр юристу"),
+            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 30", "Тариф Максимум: +300 вопр +50 докум +30 вопр юристу"),
             "document":              ("paid_docs = paid_docs + 1", "+1 документ"),
-            "consultation":          ("paid_questions = paid_questions + 3", "+3 вопроса (консультация)"),
+            "consultation":          ("paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "+5 вопросов юристу"),
             "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
+            "lawyer_questions":      ("paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "+5 вопросов юристу"),
         }
         if grant_service:
             if grant_service not in SERVICE_GRANTS:
@@ -1855,7 +1991,7 @@ def handle_admin_grant(token: str, body: dict) -> dict:
 
         # Возвращаем обновлённые данные пользователя
         cur.execute(
-            f"SELECT paid_questions, paid_docs, paid_expert FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT paid_questions, paid_docs, paid_expert, lawyer_questions_left FROM {SCHEMA}.users WHERE id = %s",
             (target_user_id,)
         )
         upd = cur.fetchone()
@@ -1865,6 +2001,7 @@ def handle_admin_grant(token: str, body: dict) -> dict:
             "paid_questions": upd[0] if upd else 0,
             "paid_docs": upd[1] if upd else 0,
             "paid_expert": bool(upd[2]) if upd else False,
+            "lawyer_questions_left": upd[3] if upd else 0,
         })
     except Exception as e:
         conn.rollback()

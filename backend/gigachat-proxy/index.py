@@ -1,7 +1,7 @@
 """
-Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v4 — prompts extracted. v5 — email notify. v6 — relay removed.
+Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v7 — admin OTP login + lawyer_questions.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
-auth actions: register, login, me, logout, update-profile, consume-question, add-paid-service
+auth actions: register, login, admin-login-otp, me, logout, update-profile, consume-question, add-paid-service
 """
 import json
 import os
@@ -27,6 +27,7 @@ from auth_handler import (
     handle_admin_grant, handle_admin_search_user,
     handle_push_subscribe, handle_push_subscribe_anon, handle_get_vapid_public_key,
     handle_get_compute_stats, log_compute,
+    handle_admin_login_otp,
 )
 from prompts import (
     TODAY, SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT,
@@ -667,6 +668,7 @@ def handler(event: dict, context) -> dict:
         "push-subscribe-anon": lambda: handle_push_subscribe_anon(body),
         "vapid-public-key": lambda: handle_get_vapid_public_key(),
         "get-compute-stats": lambda: handle_get_compute_stats(token),
+        "admin-login-otp": lambda: handle_admin_login_otp(body, ip),
     }
     if action in auth_actions:
         result = auth_actions[action]()
