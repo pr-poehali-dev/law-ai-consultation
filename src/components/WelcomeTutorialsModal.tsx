@@ -30,9 +30,13 @@ function VideoPlayer({ tutorial, onBack }: { tutorial: Tutorial; onBack: () => v
           <video
             src={tutorial.video_url}
             controls
-            autoPlay
             playsInline
+            preload="metadata"
             className="w-full max-h-full"
+            onLoadedMetadata={(e) => {
+              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+              if (!isMobile) (e.target as HTMLVideoElement).play().catch(() => {});
+            }}
           />
         ) : (
           <div className="text-center py-12">

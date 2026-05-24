@@ -255,7 +255,6 @@ export default function Index() {
       </div>
 
       <VideoTutorialsSection />
-      <FeaturesSection />
       <ServicesSection
         onSelectService={(service) => {
           if (service === "Консультация юриста") {

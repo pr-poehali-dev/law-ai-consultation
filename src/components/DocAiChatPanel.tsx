@@ -155,13 +155,8 @@ export default function DocAiChatPanel({
 
   const handleEditRequest = () => {
     if (!editInput.trim() || !analysisDone || !accessChecked) return;
-    const stages = estimateEditStages(editInput);
-    if (stages > 1) {
-      // Многоэтапная — инструкция > 500 символов
-      setPendingMultiStage({ stages, totalQ: stages * 5, instruction: editInput });
-    } else {
-      setPendingConfirm(true);
-    }
+    // Всегда показываем подтверждение — многоэтапность убрана, бэкенд справляется сам
+    setPendingConfirm(true);
   };
 
   // ─── Выполнение одного этапа редактирования ──────────────────────────────
@@ -193,20 +188,18 @@ export default function DocAiChatPanel({
     };
   }, [doc.name]);
 
-  // ─── Полный цикл редактирования ──────────────────────────────────────────
-  const doEdit = useCallback(async (instruction: string, stages: number, isResume = false) => {
+  // ─── Цикл редактирования (один запрос, без этапов) ───────────────────────
+   
+  const doEdit = useCallback(async (instruction: string, _stages: number = 1, isResume = false) => {
     setEditLoading(true);
     setEditErr("");
     setPendingPartial(null);
     setPendingMultiStage(null);
 
     if (!isResume) {
-      // Списываем 5 вопросов за каждый этап (один вызов на все этапы)
-      const questionsNeeded = stages; // каждый этап = 1 вызов consume (5 вопросов каждый)
-      for (let s = 0; s < questionsNeeded; s++) {
-        const result = await checkAndConsumeEditResources(0);
-        if (!result.ok) { setEditLoading(false); onPaymentRequired(); return; }
-      }
+      // 5 вопросов за одну правку
+      const result = await checkAndConsumeEditResources(0);
+      if (!result.ok) { setEditLoading(false); onPaymentRequired(); return; }
     }
 
     const thisEditNum = editCountRef.current + 1;
@@ -216,37 +209,17 @@ export default function DocAiChatPanel({
       setEditCost(null);
     }
 
-    let stageContent = currentContentRef.current;
     let finalChangesSummary = "";
     let finalPartialNote = "";
+    let stageContent = "";
 
     try {
-      for (let s = 0; s < stages; s++) {
-        if (stages > 1) {
-          setEditStageInfo({ current: s + 1, total: stages });
-          setMessages(prev => {
-            // Удаляем предыдущий статус-этап если есть
-            const filtered = prev.filter(m => !m.isStageStatus);
-            return [...filtered, {
-              role: "ai",
-              text: `⚙️ Этап ${s + 1} из ${stages}: вношу изменения...`,
-              isStageStatus: true,
-            }];
-          });
-        }
+      const result = await doEditStage(instruction, 0, 1, currentContentRef.current);
+      if (!result || !result.newContent) throw new Error("Пустой ответ от редактора");
+      stageContent = result.newContent;
+      finalChangesSummary = result.changesSummary;
+      finalPartialNote = result.partialNote;
 
-        const result = await doEditStage(instruction, s, stages, stageContent);
-        if (!result || !result.newContent) {
-          throw new Error(`Этап ${s + 1} не вернул результат`);
-        }
-
-        stageContent = result.newContent;
-        if (result.changesSummary) finalChangesSummary = result.changesSummary;
-        if (result.partialNote) finalPartialNote = result.partialNote;
-      }
-
-      // Убираем статус-сообщения этапов
-      setMessages(prev => prev.filter(m => !m.isStageStatus));
       setEditStageInfo(null);
 
       if (stageContent) {
@@ -279,31 +252,15 @@ export default function DocAiChatPanel({
         // Мобильные — не сворачиваем сразу, кнопка "посмотреть изменения" в сообщении
       }
 
-      if (finalPartialNote) {
-        setPendingPartial({ note: finalPartialNote, instruction });
-        setMessages(prev => [...prev, {
-          role: "ai",
-          text: `Правка #${thisEditNum} частично внесена.`,
-          isEdited: true,
-          editNum: thisEditNum,
-          partialNote: finalPartialNote,
-          changesSummary: finalChangesSummary,
-          stages,
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          role: "ai",
-          text: stages > 1
-            ? `Правка #${thisEditNum} внесена в ${stages} этапа. Изменения подсвечены в документе.`
-            : `Правка #${thisEditNum} внесена.`,
-          isEdited: true,
-          editNum: thisEditNum,
-          changesSummary: finalChangesSummary,
-          stages,
-        }]);
-      }
+      setMessages(prev => [...prev, {
+        role: "ai",
+        text: `Правка #${thisEditNum} внесена.`,
+        isEdited: true,
+        editNum: thisEditNum,
+        changesSummary: finalChangesSummary,
+        partialNote: finalPartialNote || undefined,
+      }]);
     } catch (e) {
-      setMessages(prev => prev.filter(m => !m.isStageStatus));
       setEditStageInfo(null);
       const msg = e instanceof Error ? e.message : "Ошибка редактирования.";
       setEditErr(msg);
@@ -469,6 +426,10 @@ export default function DocAiChatPanel({
             onShowChangesInDoc={() => {
               handleMinimize();
               setTimeout(() => { if (onScrollToChanges) onScrollToChanges(); }, 200);
+            }}
+            onRollbackToEdit={(editNum) => {
+              const entry = historyRef.current.find(h => h.editNum === editNum);
+              if (entry) handleRollback(entry);
             }}
           />
 

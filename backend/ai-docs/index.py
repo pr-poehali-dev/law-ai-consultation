@@ -775,12 +775,13 @@ def handler(event: dict, context) -> dict:
             )
             rec_answer = ""
             try:
-                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1)
+                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=3500, temperature=0.1)
+                print(f"[REC_DOC] YandexGPT OK len={len(rec_answer)}")
             except Exception as e:
                 print(f"[REC_DOC] Яндекс упал: {e} → fallback")
             if not rec_answer or is_refusal(rec_answer):
                 try:
-                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1, timeout=70)
+                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=3000, temperature=0.1, timeout=70)
                 except Exception as e:
                     print(f"[REC_DOC] DeepSeek упал: {e}")
             if not rec_answer:
@@ -903,94 +904,81 @@ def handler(event: dict, context) -> dict:
             doc_name = body.get("doc_name", "Документ")
             doc_content = body.get("doc_content", "").strip()
             edit_instruction = body.get("edit_instruction", "").strip()
-            edit_stage = int(body.get("edit_stage", 0))
-            edit_total_stages = int(body.get("edit_total_stages", 1))
             if not doc_content or not edit_instruction:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "doc_content and edit_instruction required"}, ensure_ascii=False)}
 
             doc_len = len(doc_content)
-            instr_len = len(edit_instruction)
 
             # Судебную практику подтягиваем ТОЛЬКО если пользователь прямо просит
             extra_edit_ctx = ""
             LEGAL_KEYWORDS = [
-                "практик", "прецедент", "суды решают", "судебн", "решени", "позиция суда",
-                "аналогичн", "пошлин", "госпошлин", "333.19", "333.21",
+                "практик", "прецедент", "суды решают", "судебн", "аналогичн",
+                "пошлин", "госпошлин", "333.19", "333.21",
             ]
-            needs_legal = any(k in edit_instruction.lower() for k in LEGAL_KEYWORDS)
-            if needs_legal:
+            if any(k in edit_instruction.lower() for k in LEGAL_KEYWORDS):
                 try:
-                    extra_edit_ctx = get_legal_context_for_ai("case_law", max_files=1, max_chars=1200, query=edit_instruction)
+                    extra_edit_ctx = get_legal_context_for_ai("case_law", max_files=1, max_chars=1000, query=edit_instruction)
                 except Exception:
                     pass
-                if any(k in edit_instruction.lower() for k in ["пошлин", "госпошлин", "333.19", "333.21"]):
-                    try:
-                        extra_edit_ctx += get_legal_context_for_ai("state_duty", max_files=1, max_chars=800, query=edit_instruction)
-                    except Exception:
-                        pass
 
-            # Для больших документов передаём только нужную часть в этапе
-            # Документ целиком — иначе AI не сможет сохранить структуру
-            # Ограничиваем только промпт — не более 6000 символов документа за запрос
-            DOC_LIMIT = 6000
-            if doc_len > DOC_LIMIT and edit_total_stages > 1:
-                # В многоэтапном режиме каждый этап получает свою часть документа
-                chunk_size = doc_len // edit_total_stages
-                start = edit_stage * chunk_size
-                end = start + chunk_size if edit_stage < edit_total_stages - 1 else doc_len
-                doc_for_edit = doc_content[start:end]
-                stage_note = f"\n[ЭТАП {edit_stage + 1} из {edit_total_stages}] Работай только с этим фрагментом документа."
-            else:
-                doc_for_edit = doc_content[:DOC_LIMIT] if doc_len > DOC_LIMIT else doc_content
-                stage_note = ""
+            # ── Стратегия редактирования ─────────────────────────────────────
+            # Всегда передаём ПОЛНЫЙ документ — иначе AI ломает структуру.
+            # Для очень больших документов (> 8000 символов) обрезаем до 8000,
+            # но хвост восстанавливаем после редактирования.
+            DOC_LIMIT = 8000
+            doc_for_edit = doc_content[:DOC_LIMIT]
+            has_tail = doc_len > DOC_LIMIT
 
             edit_system = (
-                "Ты — опытный юрист-редактор РФ. Вносишь точечные правки в юридический документ.\n"
-                "ПРАВИЛА:\n"
-                "1. Изменяй ТОЛЬКО то, что прямо указано в инструкции.\n"
-                "2. Весь остальной текст — ДОСЛОВНО, без изменений.\n"
-                "3. Не сокращай и не переформулируй незатронутые части.\n"
-                "4. Документ после правки не должен стать короче оригинала.\n"
-                "5. Верни ТОЛЬКО текст документа без предисловий и пояснений.\n"
-                "6. После текста добавь строку: ##CHANGES## и кратко — что изменено."
+                "Ты — юрист-редактор РФ. Вносишь точечные правки в юридический документ.\n"
+                "ПРАВИЛА (обязательны):\n"
+                "1. Изменяй ТОЛЬКО то, что указано в инструкции пользователя.\n"
+                "2. Весь остальной текст — ДОСЛОВНО, без изменений, сокращений, переформулировок.\n"
+                "3. Документ не должен стать короче оригинала.\n"
+                "4. Верни ТОЛЬКО текст документа — без вступлений и объяснений.\n"
+                "5. После текста добавь: ##CHANGES## и одной строкой — что изменено."
             )
 
             edit_prompt = (
                 f"ДОКУМЕНТ «{doc_name}»:\n"
-                "─────────────────────\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"{doc_for_edit}\n"
-                "─────────────────────\n\n"
-                f"ЗАДАЧА: {edit_instruction}{stage_note}\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"ЗАДАЧА: {edit_instruction}\n"
                 + (f"\n{extra_edit_ctx}\n" if extra_edit_ctx else "")
-                + "\nВерни полный текст с изменениями, затем ##CHANGES## и список правок."
+                + "\nВерни документ с изменениями, затем ##CHANGES## и список правок."
             )
 
-            # Безопасный лимит токенов: не более 2500 — чтобы уложиться в таймаут функции (90с)
-            MAX_EDIT_TOKENS = 2500
+            # Токены: 2000 — безопасный лимит для 90с таймаута
+            # YandexGPT fast — приоритет (надёжнее укладывается в таймаут)
+            # DeepSeek — fallback (лучшее качество, но медленнее)
+            MAX_TOKENS = 2000
             edit_answer = ""
+
+            # Пробуем YandexGPT fast первым — быстрее, меньше таймаутов
             try:
-                edit_answer, was_cut = call_deepseek(
+                edit_answer = call_yandex(
                     edit_system,
                     [{"role": "user", "content": edit_prompt}],
-                    max_tokens=MAX_EDIT_TOKENS,
+                    max_tokens=MAX_TOKENS,
+                    fast=True,
                     temperature=0.05,
-                    timeout=55,
                 )
-                print(f"[DOC_EDIT] DeepSeek OK was_cut={was_cut} len={len(edit_answer)} doc={doc_len} instr={instr_len}")
+                print(f"[DOC_EDIT] YandexGPT OK len={len(edit_answer)} doc={doc_len}")
             except Exception as e:
-                print(f"[DOC_EDIT] DeepSeek упал: {e} → YandexGPT fast")
+                print(f"[DOC_EDIT] YandexGPT упал: {e} → DeepSeek")
                 try:
-                    edit_answer = call_yandex(
+                    edit_answer, was_cut = call_deepseek(
                         edit_system,
                         [{"role": "user", "content": edit_prompt}],
-                        max_tokens=MAX_EDIT_TOKENS,
-                        fast=True,
+                        max_tokens=MAX_TOKENS,
                         temperature=0.05,
+                        timeout=50,
                     )
-                    print(f"[DOC_EDIT] YandexGPT OK len={len(edit_answer)}")
+                    print(f"[DOC_EDIT] DeepSeek OK len={len(edit_answer)}")
                 except Exception as e2:
-                    print(f"[DOC_EDIT] YandexGPT упал: {e2}")
+                    print(f"[DOC_EDIT] DeepSeek тоже упал: {e2}")
 
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
@@ -1003,17 +991,9 @@ def handler(event: dict, context) -> dict:
                 edit_answer = parts_ch[0].strip()
                 changes_summary = parts_ch[1].strip() if len(parts_ch) > 1 else ""
 
-            # Если документ был обрезан для этапа — восстанавливаем остальные части
-            if doc_len > DOC_LIMIT and edit_total_stages > 1:
-                chunk_size = doc_len // edit_total_stages
-                start = edit_stage * chunk_size
-                end = start + chunk_size if edit_stage < edit_total_stages - 1 else doc_len
-                # Собираем: до фрагмента + результат + после фрагмента
-                edit_answer = doc_content[:start] + "\n" + edit_answer + "\n" + doc_content[end:]
-                edit_answer = edit_answer.strip()
-            elif doc_len > DOC_LIMIT:
-                # Одноэтапная редакция большого документа — добавляем хвост
-                edit_answer = edit_answer + "\n" + doc_content[DOC_LIMIT:]
+            # Если документ был обрезан — восстанавливаем хвост
+            if has_tail:
+                edit_answer = edit_answer.rstrip() + "\n" + doc_content[DOC_LIMIT:]
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({

@@ -21,6 +21,7 @@ interface DocAiChatMessagesProps {
   onCancelMultiStage: () => void;
   onScrollToChanges?: () => void;
   onShowChangesInDoc?: () => void;
+  onRollbackToEdit?: (editNum: number) => void;
 }
 
 export default function DocAiChatMessages({
@@ -41,6 +42,7 @@ export default function DocAiChatMessages({
   onCancelMultiStage,
   onScrollToChanges,
   onShowChangesInDoc,
+  onRollbackToEdit,
 }: DocAiChatMessagesProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -120,22 +122,33 @@ export default function DocAiChatMessages({
 
               {/* Кнопки после правки */}
               {msg.isEdited && (
-                <div className="mt-2.5 flex gap-2 flex-wrap">
-                  {/* На мобильных — кнопка "посмотреть изменения" вместо автосворачивания */}
-                  {onShowChangesInDoc && (
+                <div className="mt-2.5 space-y-1.5">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {onShowChangesInDoc && (
+                      <button
+                        onClick={onShowChangesInDoc}
+                        className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-colors active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        <Icon name="Eye" size={11} />Изменения
+                      </button>
+                    )}
                     <button
-                      onClick={onShowChangesInDoc}
-                      className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700"
+                      onClick={() => downloadDoc(docName, currentContent)}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-colors active:scale-95 bg-navy-800 text-gold-400 hover:bg-navy-700 border border-navy-700"
                     >
-                      <Icon name="Eye" size={11} />Посмотреть изменения
+                      <Icon name="Download" size={11} />Скачать
                     </button>
-                  )}
-                  <button
-                    onClick={() => downloadDoc(docName, currentContent)}
-                    className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors active:scale-95 bg-navy-800 text-gold-400 hover:bg-navy-700 border border-navy-700"
-                  >
-                    <Icon name="Download" size={11} />Скачать
-                  </button>
+                    {/* Кнопка отката к этой версии */}
+                    {onRollbackToEdit && msg.editNum && msg.editNum > 1 && (
+                      <button
+                        onClick={() => onRollbackToEdit(msg.editNum! - 1)}
+                        className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-[11px] font-semibold transition-colors active:scale-95 border border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                        title="Откатить к предыдущей версии"
+                      >
+                        <Icon name="RotateCcw" size={10} />Откат
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
