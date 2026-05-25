@@ -492,32 +492,20 @@ def handler(event: dict, context) -> dict:
             else:
                 _max_tokens = 3500
 
+            # Генерация только через DeepSeek (deepseek-v32 на Yandex Cloud)
+            # Таймаут функции должен быть 120с — DeepSeek берёт 60-90с на большой документ
             answer = ""
-            _yandex_refused = False
-            # YandexGPT: timeout не более 40с чтобы при fallback на DeepSeek хватало времени
-            _yandex_timeout = 35 if _max_tokens <= 1800 else 45
             try:
-                answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=_max_tokens, temperature=0.15)
-                if is_refusal(answer):
-                    _yandex_refused = True
+                answer, was_cut = call_deepseek(
+                    system_prompt,
+                    [{"role": "user", "content": raw_prompt}],
+                    max_tokens=_max_tokens,
+                    temperature=0.15,
+                    timeout=110,  # 110с < таймаут функции 120с
+                )
+                print(f"[DOC_GEN] DeepSeek OK симв={len(answer)} was_cut={was_cut}")
             except Exception as e:
-                print(f"[DOC_GEN] YandexGPT упал: {e} → fallback DeepSeek V3")
-                _yandex_refused = True
-
-            if _yandex_refused:
-                print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
-                answer = ""
-                try:
-                    # DeepSeek: timeout=65с (суммарно: ~45 Яндекс + 65 DeepSeek = 110с > 90с — не OK)
-                    # Поэтому если Яндекс упал быстро — у DeepSeek есть ~75с
-                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=_max_tokens, temperature=0.15, timeout=70)
-                    if ds_answer and not is_refusal(ds_answer):
-                        answer = ds_answer
-                        print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
-                    else:
-                        print(f"[DOC_GEN] DeepSeek тоже отказал")
-                except Exception as e:
-                    print(f"[DOC_GEN] DeepSeek тоже упал: {e}")
+                print(f"[DOC_GEN] DeepSeek упал: {e}")
 
             if not answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
