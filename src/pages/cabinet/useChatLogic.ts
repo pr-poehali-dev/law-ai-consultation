@@ -7,6 +7,7 @@ import { ymGoal } from "@/lib/metrika";
 import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
+const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
 interface UseChatLogicProps {
@@ -461,7 +462,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     try {
       const token = getToken();
-      const res = await fetchSafe(GIGACHAT_URL, {
+      // file_analyze работает на ai-docs функции (не ai-chat)
+      const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({

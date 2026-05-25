@@ -33,6 +33,9 @@ function VideoModal({ tutorial, onClose }: { tutorial: Tutorial; onClose: () => 
   const handlePlay = () => {
     const v = videoRef.current;
     if (!v) return;
+    // КРИТИЧНО для iOS: явно включаем звук перед play(), т.к. браузер может оставить muted
+    v.muted = false;
+    v.volume = 1.0;
     v.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
   };
 
@@ -73,19 +76,31 @@ function VideoModal({ tutorial, onClose }: { tutorial: Tutorial; onClose: () => 
                 src={tutorial.video_url}
                 controls
                 playsInline
+                // Явно НЕ muted — звук должен работать
+                muted={false}
+                defaultMuted={false}
                 // webkit-playsinline нужен для старых iOS Safari (iOS < 10)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {...({ "webkit-playsinline": "true", "x-webkit-airplay": "allow" } as any)}
                 preload="metadata"
                 className="w-full"
                 style={{ maxHeight: "calc(100dvh - 140px)", display: "block" }}
-                onPlay={() => setPlaying(true)}
+                onPlay={(e) => {
+                  // Гарантируем звук при каждом запуске
+                  const v = e.currentTarget;
+                  if (v.muted) { v.muted = false; v.volume = 1.0; }
+                  setPlaying(true);
+                }}
                 onPause={() => setPlaying(false)}
                 onError={() => setError(true)}
                 onLoadedMetadata={() => {
+                  const v = videoRef.current;
+                  if (!v) return;
+                  v.muted = false;
+                  v.volume = 1.0;
                   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                  if (!isMobile && videoRef.current) {
-                    videoRef.current.play().catch(() => {});
+                  if (!isMobile) {
+                    v.play().catch(() => {});
                   }
                 }}
               >
