@@ -14,6 +14,7 @@ const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 interface ViewDocModalProps {
   doc: GenDoc;
   onClose: () => void;
+  onOpenPlanModal?: () => void;
 }
 
 function parseDocBlocks(content: string): { type: string; lines: string[] }[] {
@@ -129,7 +130,7 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
   );
 }
 
-export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -479,7 +480,12 @@ export default function ViewDocModal({ doc, onClose }: ViewDocModalProps) {
         <UpgradeNoticeModal
           feature={upgradeFeature}
           onClose={() => setUpgradeFeature(null)}
-          onViewPlans={() => { setUpgradeFeature(null); setShowExpertOffer(true); }}
+          onViewPlans={() => {
+            setUpgradeFeature(null);
+            // Открываем PlanModal (Профи + Максимум) если есть, иначе ExpertMaxOfferModal
+            if (onOpenPlanModal) onOpenPlanModal();
+            else setShowExpertOffer(true);
+          }}
         />
       )}
 

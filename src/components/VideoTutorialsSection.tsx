@@ -73,8 +73,9 @@ function VideoModal({ tutorial, onClose }: { tutorial: Tutorial; onClose: () => 
                 src={tutorial.video_url}
                 controls
                 playsInline
-                // НЕ autoPlay — iOS Safari блокирует автозапуск со звуком
-                // НЕ muted — пользователь должен слышать звук
+                // webkit-playsinline нужен для старых iOS Safari (iOS < 10)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {...({ "webkit-playsinline": "true", "x-webkit-airplay": "allow" } as any)}
                 preload="metadata"
                 className="w-full"
                 style={{ maxHeight: "calc(100dvh - 140px)", display: "block" }}
@@ -82,7 +83,6 @@ function VideoModal({ tutorial, onClose }: { tutorial: Tutorial; onClose: () => 
                 onPause={() => setPlaying(false)}
                 onError={() => setError(true)}
                 onLoadedMetadata={() => {
-                  // Автозапуск только на десктопе (не iOS/Android)
                   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                   if (!isMobile && videoRef.current) {
                     videoRef.current.play().catch(() => {});

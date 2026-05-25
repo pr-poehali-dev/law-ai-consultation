@@ -409,6 +409,20 @@ def handler(event: dict, context) -> dict:
                     "Ключевую мысль — в начало и в конец. Без воды и длинных оборотов.\n\n"
                 )
 
+            # ── Типы документов по длине — ДОЛЖНЫ БЫТЬ ОБЪЯВЛЕНЫ ДО THREADS ──────
+            _SHORT_DOC_TYPES = {
+                "contract_receipt", "special_pd_consent", "special_medical_consent",
+            }
+            _MEDIUM_DOC_TYPES = {
+                "labor_order_hire", "labor_order_dismiss",
+                "labor_order_bonus", "labor_order_discipline",
+            }
+            _LONG_DOC_TYPES = {
+                "corporate_charter", "corporate_collective", "corporate_rules",
+                "contract_gov", "website_terms", "website_privacy", "website_eula",
+                "contract_marriage", "special_will", "special_inheritance_contract",
+            }
+
             # Параллельно запрашиваем все 4 категории правовой базы
             _duty_db_result: list = []
             _case_law_result: list = []
@@ -468,22 +482,7 @@ def handler(event: dict, context) -> dict:
             # DeepSeek fallback использует тот же prompt что и Яндекс
             raw_prompt = prompt
 
-            # Лимиты токенов по типам документов
-            _SHORT_DOC_TYPES = {
-                # Простые согласия и расписки — реально короткие документы
-                "contract_receipt", "special_pd_consent", "special_medical_consent",
-            }
-            _MEDIUM_DOC_TYPES = {
-                # Приказы — стандартные кадровые документы
-                "labor_order_hire", "labor_order_dismiss",
-                "labor_order_bonus", "labor_order_discipline",
-            }
-            _LONG_DOC_TYPES = {
-                # Уставы, корпоративные акты, сложные договоры — до 4500 токенов
-                "corporate_charter", "corporate_collective", "corporate_rules",
-                "contract_gov", "website_terms", "website_privacy", "website_eula",
-                "contract_marriage", "special_will", "special_inheritance_contract",
-            }
+            # Лимиты токенов (типы уже объявлены выше перед threads)
             if doc_type in _SHORT_DOC_TYPES:
                 _max_tokens = 400
             elif doc_type in _MEDIUM_DOC_TYPES:
@@ -495,6 +494,8 @@ def handler(event: dict, context) -> dict:
 
             answer = ""
             _yandex_refused = False
+            # YandexGPT: timeout не более 40с чтобы при fallback на DeepSeek хватало времени
+            _yandex_timeout = 35 if _max_tokens <= 1800 else 45
             try:
                 answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=_max_tokens, temperature=0.15)
                 if is_refusal(answer):
@@ -505,11 +506,11 @@ def handler(event: dict, context) -> dict:
 
             if _yandex_refused:
                 print(f"[DOC_GEN] YandexGPT отказал → fallback DeepSeek V3")
-                # Сбрасываем отказной ответ Яндекса — DeepSeek должен написать нормальный документ
-                _refused_text = answer
                 answer = ""
                 try:
-                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=_max_tokens, temperature=0.15, timeout=80)
+                    # DeepSeek: timeout=65с (суммарно: ~45 Яндекс + 65 DeepSeek = 110с > 90с — не OK)
+                    # Поэтому если Яндекс упал быстро — у DeepSeek есть ~75с
+                    ds_answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": raw_prompt}], max_tokens=_max_tokens, temperature=0.15, timeout=70)
                     if ds_answer and not is_refusal(ds_answer):
                         answer = ds_answer
                         print(f"[DOC_GEN] DeepSeek ответил, симв={len(answer)}")
@@ -719,7 +720,8 @@ def handler(event: dict, context) -> dict:
             if not calc_data:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "calc_data required"}, ensure_ascii=False)}
-            penalty_prompt_text = PENALTY_CALC_PROMPT.format(calc_data=calc_data)
+            # Используем replace вместо format — промпт содержит {плейсхолдеры} для AI, не для Python
+            penalty_prompt_text = PENALTY_CALC_PROMPT.replace("{calc_data}", calc_data)
             pen_answer = ""
             # DeepSeek — точнее считает неустойки по ГК РФ
             try:
@@ -923,32 +925,72 @@ def handler(event: dict, context) -> dict:
                 except Exception:
                     pass
 
-            # ── Стратегия редактирования ─────────────────────────────────────
-            # Всегда передаём ПОЛНЫЙ документ — иначе AI ломает структуру.
-            # Для очень больших документов (> 8000 символов) обрезаем до 8000,
-            # но хвост восстанавливаем после редактирования.
-            DOC_LIMIT = 8000
-            doc_for_edit = doc_content[:DOC_LIMIT]
-            has_tail = doc_len > DOC_LIMIT
+            # ── Умная стратегия точечного редактирования ─────────────────────
+            # Шаг 1: находим релевантный фрагмент документа (~2000 символов)
+            # Шаг 2: AI редактирует ТОЛЬКО этот фрагмент
+            # Шаг 3: вставляем отредактированный фрагмент обратно в документ
+            # Это позволяет не нарушать структуру документа и экономить токены
+
+            CONTEXT_WINDOW = 2500  # символов вокруг найденного места
+
+            # Ищем подходящий фрагмент по ключевым словам из инструкции
+            def _find_edit_fragment(content: str, instruction: str) -> tuple[int, int]:
+                """Возвращает (start, end) позиции фрагмента для редактирования."""
+                # Нормализуем инструкцию для поиска
+                instr_lower = instruction.lower()
+                # Разбиваем на строки, ищем наиболее релевантную
+                lines = content.split("\n")
+                best_line_idx = 0
+                best_score = 0
+                # Ключевые слова из инструкции (убираем стоп-слова)
+                stop = {"в", "и", "на", "по", "с", "к", "из", "для", "что", "как", "это", "а", "но", "или", "не"}
+                keywords = [w for w in instr_lower.split() if len(w) > 2 and w not in stop][:10]
+                for i, line in enumerate(lines):
+                    line_lower = line.lower()
+                    score = sum(1 for kw in keywords if kw in line_lower)
+                    if score > best_score:
+                        best_score = score
+                        best_line_idx = i
+                # Находим позицию выбранной строки в исходном тексте
+                char_pos = sum(len(lines[j]) + 1 for j in range(best_line_idx))
+                # Берём фрагмент вокруг найденного места
+                start = max(0, char_pos - CONTEXT_WINDOW // 2)
+                end = min(len(content), char_pos + CONTEXT_WINDOW // 2)
+                # Расширяем до границ строк
+                while start > 0 and content[start - 1] != "\n":
+                    start -= 1
+                while end < len(content) and content[end] != "\n":
+                    end += 1
+                return start, end
+
+            # Для коротких документов — передаём целиком
+            if doc_len <= CONTEXT_WINDOW * 2:
+                doc_fragment = doc_content
+                frag_start, frag_end = 0, doc_len
+                is_full_doc = True
+            else:
+                frag_start, frag_end = _find_edit_fragment(doc_content, edit_instruction)
+                doc_fragment = doc_content[frag_start:frag_end]
+                is_full_doc = False
 
             edit_system = (
                 "Ты — юрист-редактор РФ. Вносишь точечные правки в юридический документ.\n"
                 "ПРАВИЛА (обязательны):\n"
-                "1. Изменяй ТОЛЬКО то, что указано в инструкции пользователя.\n"
-                "2. Весь остальной текст — ДОСЛОВНО, без изменений, сокращений, переформулировок.\n"
-                "3. Документ не должен стать короче оригинала.\n"
-                "4. Верни ТОЛЬКО текст документа — без вступлений и объяснений.\n"
-                "5. После текста добавь: ##CHANGES## и одной строкой — что изменено."
+                "1. Изменяй ТОЛЬКО то, что прямо указано в инструкции пользователя.\n"
+                "2. Весь остальной текст — ДОСЛОВНО, без малейших изменений.\n"
+                "3. Не добавляй заголовки типа 'ДОКУМЕНТ «название»:' — только сам текст.\n"
+                "4. Верни ТОЛЬКО отредактированный текст — без предисловий и пояснений.\n"
+                "5. После текста добавь: ##CHANGES## и кратко — что именно изменено."
             )
 
             edit_prompt = (
-                f"ДОКУМЕНТ «{doc_name}»:\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"{doc_for_edit}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"ЗАДАЧА: {edit_instruction}\n"
+                f"ФРАГМЕНТ ДОКУМЕНТА ДЛЯ РЕДАКТИРОВАНИЯ:\n"
+                "─────────────────────\n"
+                f"{doc_fragment}\n"
+                "─────────────────────\n\n"
+                f"ЗАДАЧА РЕДАКТОРА: {edit_instruction}\n"
                 + (f"\n{extra_edit_ctx}\n" if extra_edit_ctx else "")
-                + "\nВерни документ с изменениями, затем ##CHANGES## и список правок."
+                + "\nВерни отредактированный фрагмент без лишних слов, затем ##CHANGES## и что изменено."
             )
 
             # DeepSeek — основной (лучшее качество редактирования, конфиденциальность)
@@ -991,13 +1033,18 @@ def handler(event: dict, context) -> dict:
                 edit_answer = parts_ch[0].strip()
                 changes_summary = parts_ch[1].strip() if len(parts_ch) > 1 else ""
 
-            # Если документ был обрезан — восстанавливаем хвост
-            if has_tail:
-                edit_answer = edit_answer.rstrip() + "\n" + doc_content[DOC_LIMIT:]
+            # Собираем полный документ: до фрагмента + отредактированный + после фрагмента
+            if is_full_doc:
+                final_doc = edit_answer
+            else:
+                before = doc_content[:frag_start]
+                after = doc_content[frag_end:]
+                final_doc = (before + "\n" + edit_answer + "\n" + after).strip()
+                print(f"[DOC_EDIT] Собран: before={len(before)} fragment={len(edit_answer)} after={len(after)} total={len(final_doc)}")
 
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({
-                        "answer": edit_answer,
+                        "answer": final_doc,
                         "partial_note": "",
                         "changes_summary": changes_summary,
                     }, ensure_ascii=False)}

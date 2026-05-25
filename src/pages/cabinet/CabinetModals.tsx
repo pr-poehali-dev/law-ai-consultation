@@ -45,6 +45,7 @@ export default function CabinetModals({
         <ViewDocModal
           doc={viewDoc}
           onClose={onCloseViewDoc}
+          onOpenPlanModal={onClosePlanModal}
         />
       )}
 

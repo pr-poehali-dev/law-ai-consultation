@@ -395,9 +395,9 @@ export default function DocAiChatPanel({
                       </div>
                       <button
                         onClick={() => handleRollback(entry)}
-                        className="opacity-0 group-hover:opacity-100 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg transition-all active:scale-95 shrink-0"
+                        className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg transition-all active:scale-95 shrink-0 hover:bg-amber-100"
                       >
-                        Откат
+                        ↩ Откат
                       </button>
                     </div>
                   ))}

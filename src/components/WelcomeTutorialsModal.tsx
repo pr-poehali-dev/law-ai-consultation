@@ -31,6 +31,8 @@ function VideoPlayer({ tutorial, onBack }: { tutorial: Tutorial; onBack: () => v
             src={tutorial.video_url}
             controls
             playsInline
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...({ "webkit-playsinline": "true", "x-webkit-airplay": "allow" } as any)}
             preload="metadata"
             className="w-full max-h-full"
             onLoadedMetadata={(e) => {
