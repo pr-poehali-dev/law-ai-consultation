@@ -412,9 +412,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const sendFileAnalysis = async (commentFromInput?: string) => {
     if (!attachedFiles.length || typing) return;
 
+    console.log(`[FILE_ANALYZE] start files=${attachedFiles.length}`);
     invalidateUserCache();
     const currentUser = await getUser();
-    if (!currentUser) return;
+    if (!currentUser) { console.log("[FILE_ANALYZE] no user"); return; }
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
       currentUser.paidQuestions > 0;
@@ -425,6 +426,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       });
       return;
     }
+    console.log(`[FILE_ANALYZE] canAsk=true, paidQ=${currentUser.paidQuestions}`);
 
     const comment = (commentFromInput ?? input).trim();
     const files = attachedFiles;
@@ -454,6 +456,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
     try {
+      console.log("[FILE_ANALYZE] consumeQuestion...");
       const consumeResult = await consumeQuestion();
       if (!consumeResult.ok) {
         setTyping(false);
@@ -470,17 +473,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
       const token = getToken();
       // Обрезаем base64 до 1.5МБ на файл чтобы JSON не превышал ~10МБ при 5 файлах.
-      // Бэкенд всё равно берёт только первые 8000 символов текста из документа.
-      const MAX_B64_PER_FILE = 1_500_000; // ~1.1МБ исходного файла = первые страницы PDF
+      const MAX_B64_PER_FILE = 1_500_000;
+      const payload = files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name }));
+      const bodyStr = JSON.stringify({ mode: "file_analyze", comment, files: payload });
+      console.log(`[FILE_ANALYZE] sending files=${files.length} bodySize=${(bodyStr.length/1024/1024).toFixed(1)}MB`);
       // file_analyze → ai-docs. timeout=115с, retries=0.
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({
-          mode: "file_analyze",
-          comment,
-          files: files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name })),
-        }),
+        body: bodyStr,
       }, 115_000, 0);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
