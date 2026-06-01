@@ -326,36 +326,40 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
-    """Анализ документов через DeepSeek. Лимит ответа — 2500 токенов."""
-    # Передаём не более 6000 символов текста чтобы не перегружать контекст
-    TEXT_LIMIT = min(4000 + (n_docs - 1) * 1000, 6000)
-    clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
+    """Анализ документов через DeepSeek. Лимит ответа — 2500 токенов (обязательно)."""
+    # text уже обрезан вызывающим кодом по per_file_char_limit
+    clean_text = _sanitize_doc_text(text)
 
     if comment:
-        user_content = f"Вопрос пользователя: {comment}\n\nДокумент:\n\n{clean_text}"
+        user_content = (
+            f"Вопрос пользователя: {comment}\n\n"
+            f"{'Документы' if n_docs > 1 else 'Документ'} ({n_docs} шт.):\n\n{clean_text}\n\n"
+            f"ВАЖНО: уложи ответ в 1500–1800 слов максимум."
+        )
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
-        user_content = f"Документ для анализа:\n\n{clean_text}"
-        if n_docs > 1:
-            system_prompt = (
-                SYSTEM_FILE_ANALYZE_PROMPT
-                + f"\n\nВАЖНО: загружено {n_docs} документа(ов). Анализируй каждый отдельно — "
-                f"кратко (3–5 пунктов на документ), уложись в ответ целиком."
-            )
-        else:
-            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+        multi_note = (
+            f"\n\nВАЖНО: загружено {n_docs} документов. "
+            f"Анализируй каждый кратко (2–3 пункта), суммарно уложись в 1800–2000 слов."
+            if n_docs > 1 else ""
+        )
+        user_content = (
+            f"Документ для анализа:\n\n{clean_text}\n\n"
+            f"ВАЖНО: уложи ответ в 1800–2000 слов максимум. Не превышай."
+        )
+        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + multi_note
 
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=2500,  # обязательный лимит ответа
+        max_tokens=2500,   # жёсткий потолок API — DeepSeek не выдаст больше
         temperature=0.15,
         timeout=85,
     )
     if was_cut:
-        print(f"[FILE_ANALYZE] WARN: ответ обрезан по токенам (2500), симв={len(result)}")
+        print(f"[FILE_ANALYZE] WARN: обрезан по max_tokens=2500, симв={len(result)}, docs={n_docs}")
     else:
-        print(f"[FILE_ANALYZE] OK: {len(result)} симв, docs={n_docs}")
+        print(f"[FILE_ANALYZE] OK: симв={len(result)}, docs={n_docs}")
     return result.strip()
 
 
@@ -618,10 +622,15 @@ def handler(event: dict, context) -> dict:
             if not raw_files:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "file required"}, ensure_ascii=False)}
-            if len(raw_files) > 3:
-                raw_files = raw_files[:3]
+            if len(raw_files) > 10:
+                raw_files = raw_files[:10]
 
             extract_results = [None] * len(raw_files)
+
+            # Лимит символов на 1 файл — чем больше файлов, тем меньше на каждый
+            n_raw = len(raw_files)
+            # Суммарно передаём не более 8000 символов в DeepSeek (бюджет токенов)
+            per_file_char_limit = max(800, 8000 // max(n_raw, 1))
 
             def _extract_one(idx, fi):
                 fb64 = fi.get("file", "")
@@ -641,11 +650,11 @@ def handler(event: dict, context) -> dict:
                     except Exception: pass
                 threading.Thread(target=_bg_up, daemon=True).start()
                 if ext == "pdf":
-                    extract_results[idx] = (fname, extract_pdf_text(fdata), None)
+                    extract_results[idx] = (fname, extract_pdf_text(fdata, char_limit=per_file_char_limit), None)
                 elif ext in ("docx", "doc"):
-                    extract_results[idx] = (fname, extract_docx_text(fdata), None)
+                    extract_results[idx] = (fname, extract_docx_text(fdata, char_limit=per_file_char_limit), None)
                 elif ext == "txt":
-                    extract_results[idx] = (fname, fdata.decode("utf-8", errors="replace")[:12000], None)
+                    extract_results[idx] = (fname, fdata.decode("utf-8", errors="replace")[:per_file_char_limit], None)
                 else:
                     compressed = _compress_image(fdata, max_bytes=700_000)
                     ocr_b64 = base64.b64encode(compressed).decode("utf-8")
@@ -653,11 +662,12 @@ def handler(event: dict, context) -> dict:
                     if not t or len(t.strip()) < 15:
                         extract_results[idx] = (fname, "", ocr_b64)
                     else:
-                        extract_results[idx] = (fname, t, None)
+                        extract_results[idx] = (fname, t[:per_file_char_limit], None)
 
             extract_threads = [threading.Thread(target=_extract_one, args=(i, fi), daemon=True) for i, fi in enumerate(raw_files)]
             for t in extract_threads: t.start()
-            for t in extract_threads: t.join(timeout=15)
+            # Таймаут: каждый PDF/DOCX читается ~2с, OCR-фото ~12с; 10 файлов параллельно → 25с
+            for t in extract_threads: t.join(timeout=25)
 
             file_texts = [r for r in extract_results if r is not None]
             filenames_list = [r[0] for r in file_texts]

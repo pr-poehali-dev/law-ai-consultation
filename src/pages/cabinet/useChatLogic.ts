@@ -336,10 +336,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    // Берём только первые 3 с учётом уже прикреплённых
-    const slotsLeft = 3 - attachedFiles.length;
+    // Берём только первые 10 с учётом уже прикреплённых
+    const slotsLeft = 10 - attachedFiles.length;
     if (slotsLeft <= 0) {
-      setChatErr("Можно прикрепить не более 3 файлов");
+      setChatErr("Можно прикрепить не более 10 файлов");
       e.target.value = "";
       return;
     }
