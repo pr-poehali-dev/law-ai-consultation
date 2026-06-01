@@ -65,6 +65,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; b64: string; size: string }[]>([]);
+  // ref всегда актуален для async функций (stale closure fix)
+  const attachedFilesRef = useRef<{ name: string; b64: string; size: string }[]>([]);
+  useEffect(() => { attachedFilesRef.current = attachedFiles; }, [attachedFiles]);
   const [fileUploading, setFileUploading] = useState(false);
 
   // Автоочистка чата раз в сутки
@@ -410,12 +413,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
   // comment передаётся явным параметром из ChatInputBar (native ref) — без iOS race condition
   const sendFileAnalysis = async (commentFromInput?: string) => {
-    if (!attachedFiles.length || typing) return;
+    // Читаем из ref — он всегда актуален (stale closure fix)
+    const currentFiles = attachedFilesRef.current;
+    if (!currentFiles.length || typing) return;
 
-    console.log(`[FILE_ANALYZE] start files=${attachedFiles.length}`);
     invalidateUserCache();
     const currentUser = await getUser();
-    if (!currentUser) { console.log("[FILE_ANALYZE] no user"); return; }
+    if (!currentUser) return;
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
       currentUser.paidQuestions > 0;
@@ -426,10 +430,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       });
       return;
     }
-    console.log(`[FILE_ANALYZE] canAsk=true, paidQ=${currentUser.paidQuestions}`);
 
     const comment = (commentFromInput ?? input).trim();
-    const files = attachedFiles;
+    const files = currentFiles;
     setAttachedFiles([]);
     setInput("");
     setChatErr("");
@@ -456,7 +459,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
     try {
-      console.log("[FILE_ANALYZE] consumeQuestion...");
       const consumeResult = await consumeQuestion();
       if (!consumeResult.ok) {
         setTyping(false);
@@ -472,16 +474,17 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Обрезаем base64 до 1.5МБ на файл чтобы JSON не превышал ~10МБ при 5 файлах.
+      // Обрезаем base64 до 1.5МБ на файл (5 файлов × 1.5МБ = ~7.5МБ JSON).
+      // Бэкенд берёт только первые страницы текста — полный файл не нужен.
       const MAX_B64_PER_FILE = 1_500_000;
-      const payload = files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name }));
-      const bodyStr = JSON.stringify({ mode: "file_analyze", comment, files: payload });
-      console.log(`[FILE_ANALYZE] sending files=${files.length} bodySize=${(bodyStr.length/1024/1024).toFixed(1)}MB`);
-      // file_analyze → ai-docs. timeout=115с, retries=0.
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: bodyStr,
+        body: JSON.stringify({
+          mode: "file_analyze",
+          comment,
+          files: files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name })),
+        }),
       }, 115_000, 0);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
