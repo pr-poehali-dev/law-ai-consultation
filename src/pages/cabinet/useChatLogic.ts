@@ -447,24 +447,25 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       hasImages ? "Распознаю текст на фото (OCR)..." : "Читаю документ..."
     );
 
-    const consumeResult = await consumeQuestion();
-    if (!consumeResult.ok) {
-      setTyping(false);
-      setTypingStatus("");
-      setMessages((p) => {
-        if (p.some(m => m.isUpsell)) return p;
-        return [...p, { role: "ai", isUpsell: true, text: "" }];
-      });
-      return;
-    }
-    const isLastQuestion = consumeResult.isLastQuestion;
-    refreshUser();
-
     const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документах..." : "Анализирую структуру и содержание..."), 4000);
     const t2 = setTimeout(() => setTypingStatus(hasQuestion ? "Формирую ответ..." : "Проверяю соответствие нормам РФ..."), 10000);
     const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
     try {
+      const consumeResult = await consumeQuestion();
+      if (!consumeResult.ok) {
+        setTyping(false);
+        setTypingStatus("");
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+        setMessages((p) => {
+          if (p.some(m => m.isUpsell)) return p;
+          return [...p, { role: "ai", isUpsell: true, text: "" }];
+        });
+        return;
+      }
+      const isLastQuestion = consumeResult.isLastQuestion;
+      refreshUser();
+
       const token = getToken();
       // file_analyze → ai-docs. timeout=115с (чуть меньше таймаута функции 120с).
       // retries=0 — retry только удваивает ожидание при медленном DeepSeek.
@@ -557,24 +558,25 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     setTyping(true);
     setTypingStatus("Читаю документ...");
 
-    const consumeResult = await consumeQuestion();
-    if (!consumeResult.ok) {
-      setTyping(false);
-      setTypingStatus("");
-      setMessages((p) => {
-        if (p.some(m => m.isUpsell)) return p;
-        return [...p, { role: "ai", isUpsell: true, text: "" }];
-      });
-      return;
-    }
-    const isLastQuestion = consumeResult.isLastQuestion;
-    refreshUser();
-
     const t1 = setTimeout(() => setTypingStatus("Анализирую структуру и содержание..."), 4000);
     const t2 = setTimeout(() => setTypingStatus("Проверяю соответствие нормам РФ..."), 10000);
     const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
 
     try {
+      const consumeResult = await consumeQuestion();
+      if (!consumeResult.ok) {
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+        setTyping(false);
+        setTypingStatus("");
+        setMessages((p) => {
+          if (p.some(m => m.isUpsell)) return p;
+          return [...p, { role: "ai", isUpsell: true, text: "" }];
+        });
+        return;
+      }
+      const isLastQuestion = consumeResult.isLastQuestion;
+      refreshUser();
+
       const token = getToken();
       // Кодируем текст документа как .txt файл в base64
       const textBytes = new TextEncoder().encode(docText.slice(0, 12000));
