@@ -348,7 +348,7 @@ def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=2200,   # 2200 < 2500 — оставляем запас на раздел "Подготовить документ"
+        max_tokens=2400,   # 800 слов × 3 токена/слово ≈ 2400 — хватает на полное заключение
         temperature=0.15,
         timeout=85,
     )

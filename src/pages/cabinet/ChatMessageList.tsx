@@ -247,8 +247,8 @@ export default function ChatMessageList({
                         <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
                       </button>
                     )}
-                    {/* Кнопка создания документа из ответа AI — только когда пользователь задал вопрос (не приветствие) */}
-                    {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && prevUserMsg && prevUserMsg.text.trim().length > 10 && (
+                    {/* Кнопка создания документа — для обычных ответов и после анализа файлов */}
+                    {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && prevUserMsg && (msg.docHint != null || prevUserMsg.isFile || prevUserMsg.text.trim().length > 10) && (
                       <button
                         onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                         disabled={creatingDocFromChat}
