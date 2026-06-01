@@ -342,7 +342,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     if (!isImage && !isDoc) return Promise.resolve(null);
 
-    const maxMb = isImage ? 20 : 10;
+    // Лимит: документы 5МБ, фото 10МБ.
+    // 5 файлов × 5МБ × 1.33 base64 = ~33МБ JSON — браузер справляется.
+    const maxMb = isImage ? 10 : 5;
     if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
 
     if (isImage) {
@@ -467,15 +469,17 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // file_analyze → ai-docs. timeout=115с (чуть меньше таймаута функции 120с).
-      // retries=0 — retry только удваивает ожидание при медленном DeepSeek.
+      // Обрезаем base64 до 1.5МБ на файл чтобы JSON не превышал ~10МБ при 5 файлах.
+      // Бэкенд всё равно берёт только первые 8000 символов текста из документа.
+      const MAX_B64_PER_FILE = 1_500_000; // ~1.1МБ исходного файла = первые страницы PDF
+      // file_analyze → ai-docs. timeout=115с, retries=0.
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({
           mode: "file_analyze",
           comment,
-          files: files.map(f => ({ file: f.b64, filename: f.name })),
+          files: files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name })),
         }),
       }, 115_000, 0);
       const data = await res.json();
