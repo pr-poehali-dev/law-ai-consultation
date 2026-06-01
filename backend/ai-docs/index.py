@@ -338,44 +338,44 @@ def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
         multi_note = (
-            f"\n\nДокументов загружено: {n_docs}. "
-            f"По каждому — 2–3 пункта, суммарно уложись в 800 слов."
+            f"\n\nЗагружено {n_docs} документов. По каждому — 2-3 пункта кратко."
             if n_docs > 1 else ""
         )
-        user_content = f"Документ:\n\n{clean_text}"
+        user_content = f"Документ{'ы' if n_docs > 1 else ''}:\n\n{clean_text}"
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + multi_note
 
+    # 400 слов × ~3 токена/слово (кириллица) = ~1200 токенов.
+    # Ставим 1500 — с запасом, промпт сам ограничит объём через инструкцию "400 слов".
+    # was_cut=True при таком лимите означает что промпт ВСЁРАВНО игнорируется — тогда дополняем.
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=2400,   # 800 слов × 3 токена/слово ≈ 2400 — хватает на полное заключение
-        temperature=0.15,
-        timeout=85,
+        max_tokens=1500,
+        temperature=0.1,
+        timeout=60,
     )
     print(f"[FILE_ANALYZE] {'WARN was_cut' if was_cut else 'OK'}: симв={len(result)}, docs={n_docs}")
 
-    # Если ответ обрезан — дозапрашиваем только финальный раздел
+    # Страховка: если всё же обрезан — дописываем только строку с рекомендацией документа
     if was_cut:
         try:
-            continuation, _ = call_deepseek(
-                "Ты — юрист. Продолжи заключение с того места где оборвалось. "
-                "Напиши ТОЛЬКО недостающую часть — раздел «Подготовить документ» одной строкой: "
-                "«Рекомендую подготовить: [название] — нажмите кнопку \"Составить документ\" под этим сообщением.» "
-                "Больше ничего не добавляй.",
+            cont, _ = call_deepseek(
+                "Допиши одной строкой и больше ничего: "
+                "\"Рекомендую подготовить: [название документа] — нажмите кнопку Создать документ.\"",
                 [
                     {"role": "user", "content": user_content},
                     {"role": "assistant", "content": result},
-                    {"role": "user", "content": "Продолжи с того места где оборвалось, допиши раздел «Подготовить документ»."},
+                    {"role": "user", "content": "Допиши только строку с рекомендацией документа."},
                 ],
-                max_tokens=200,
-                temperature=0.1,
-                timeout=25,
+                max_tokens=80,
+                temperature=0.05,
+                timeout=20,
             )
-            if continuation.strip():
-                result = result.rstrip() + "\n\n" + continuation.strip()
-                print(f"[FILE_ANALYZE] continuation appended: +{len(continuation)} симв")
+            if cont.strip():
+                result = result.rstrip() + "\n\n" + cont.strip()
+                print(f"[FILE_ANALYZE] cont appended +{len(cont)} симв")
         except Exception as _ce:
-            print(f"[FILE_ANALYZE] continuation failed: {_ce}")
+            print(f"[FILE_ANALYZE] cont failed: {_ce}")
 
     return result.strip()
 
