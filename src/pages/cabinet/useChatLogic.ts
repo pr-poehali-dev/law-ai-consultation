@@ -332,74 +332,78 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       img.src = url;
     });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  const MAX_ATTACHED = 5;
 
-    // Берём только первые 10 с учётом уже прикреплённых
-    const slotsLeft = 10 - attachedFiles.length;
-    if (slotsLeft <= 0) {
-      setChatErr("Можно прикрепить не более 10 файлов");
-      e.target.value = "";
-      return;
-    }
-    const toProcess = files.slice(0, slotsLeft);
+  const processFile = (file: File): Promise<{ name: string; b64: string; size: string } | null> => {
+    const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
+    const isDoc = /\.(pdf|doc|docx|txt)$/i.test(file.name)
+      || ["application/pdf", "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
 
-    setChatErr("");
-    setFileUploading(true);
+    if (!isImage && !isDoc) return Promise.resolve(null);
 
-    const processFile = (file: File): Promise<{ name: string; b64: string; size: string } | null> => {
-      const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
-      const isDoc = /\.(pdf|doc|docx)$/i.test(file.name)
-        || ["application/pdf", "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type);
+    const maxMb = isImage ? 20 : 10;
+    if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
 
-      if (!isImage && !isDoc) return Promise.resolve(null);
-
-      const maxMb = isImage ? 20 : 10;
-      if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
-
-      if (isImage) {
-        const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
-        const normalizedName = baseName + ".jpg";
-        return compressImageCanvas(file)
-          .then(({ b64, sizeStr }) => ({ name: normalizedName, b64, size: sizeStr }))
-          .catch(() => new Promise((res) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const b64 = (reader.result as string).split(",")[1];
-              res({ name: normalizedName, b64, size: `${(file.size / (1024 * 1024)).toFixed(1)} МБ` });
-            };
-            reader.onerror = () => res(null);
-            reader.readAsDataURL(file);
-          }));
-      } else {
-        return new Promise((res) => {
+    if (isImage) {
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+      const normalizedName = baseName + ".jpg";
+      return compressImageCanvas(file)
+        .then(({ b64, sizeStr }) => ({ name: normalizedName, b64, size: sizeStr }))
+        .catch(() => new Promise((res) => {
           const reader = new FileReader();
           reader.onload = () => {
             const b64 = (reader.result as string).split(",")[1];
-            const sizeStr = file.size < 1024 * 1024
-              ? `${Math.round(file.size / 1024)} КБ`
-              : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
-            res({ name: file.name, b64, size: sizeStr });
+            res({ name: normalizedName, b64, size: `${(file.size / (1024 * 1024)).toFixed(1)} МБ` });
           };
           reader.onerror = () => res(null);
           reader.readAsDataURL(file);
-        });
-      }
-    };
+        }));
+    } else {
+      return new Promise((res) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const b64 = (reader.result as string).split(",")[1];
+          const sizeStr = file.size < 1024 * 1024
+            ? `${Math.round(file.size / 1024)} КБ`
+            : `${(file.size / (1024 * 1024)).toFixed(1)} МБ`;
+          res({ name: file.name, b64, size: sizeStr });
+        };
+        reader.onerror = () => res(null);
+        reader.readAsDataURL(file);
+      });
+    }
+  };
 
+  const _processFiles = (files: File[]) => {
+    if (!files.length) return;
+    const slotsLeft = MAX_ATTACHED - attachedFiles.length;
+    if (slotsLeft <= 0) {
+      setChatErr(`Можно прикрепить не более ${MAX_ATTACHED} файлов`);
+      return;
+    }
+    const toProcess = files.slice(0, slotsLeft);
+    setChatErr("");
+    setFileUploading(true);
     Promise.all(toProcess.map(processFile)).then((results) => {
       const valid = results.filter((r): r is { name: string; b64: string; size: string } => r !== null);
       if (valid.length) {
-        setAttachedFiles((prev) => [...prev, ...valid].slice(0, 3));
+        setAttachedFiles((prev) => [...prev, ...valid].slice(0, MAX_ATTACHED));
       } else {
         setChatErr("Допустимые форматы: PDF, DOC, DOCX или фото (JPG, PNG). Максимум 10 МБ.");
       }
       setFileUploading(false);
     });
+  };
 
+  const handleFileDrop = (fileList: FileList) => {
+    _processFiles(Array.from(fileList));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
+    _processFiles(files);
   };
 
   // comment передаётся явным параметром из ChatInputBar (native ref) — без iOS race condition
@@ -658,6 +662,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     sendMessage,
     continueChat,
     handleFileSelect,
+    handleFileDrop,
     sendFileAnalysis,
     sendDocAnalysis,
     injectAiMessage,

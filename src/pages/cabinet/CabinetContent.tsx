@@ -119,6 +119,7 @@ export default function CabinetContent({
             onSendFile={chat.sendFileAnalysis}
             onContinueChat={chat.continueChat}
             onFileSelect={chat.handleFileSelect}
+            onFileDrop={chat.handleFileDrop}
             onAttachClick={() => chat.fileInputRef.current?.click()}
             onRemoveFile={(idx) => chat.setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
             onPayClick={() => {

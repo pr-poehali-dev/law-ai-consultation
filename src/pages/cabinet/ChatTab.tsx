@@ -28,6 +28,7 @@ interface ChatTabProps {
   onSendFile: (comment: string) => void;
   onContinueChat: (partialText: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileDrop?: (files: FileList) => void;
   onAttachClick: () => void;
   onRemoveFile: (idx: number) => void;
   onPayClick: () => void;
@@ -82,7 +83,7 @@ export default function ChatTab({
   user, messages, input, typing, typingStatus, chatErr,
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
-  onFileSelect, onAttachClick, onRemoveFile,
+  onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
   onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
@@ -200,6 +201,7 @@ export default function ChatTab({
         onAttachClick={onAttachClick}
         onRemoveFile={onRemoveFile}
         onFileSelect={onFileSelect}
+        onFileDrop={onFileDrop}
       />
 
     </div>

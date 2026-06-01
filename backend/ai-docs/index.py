@@ -631,25 +631,24 @@ def handler(event: dict, context) -> dict:
             if not raw_files:
                 return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "file required"}, ensure_ascii=False)}
-            if len(raw_files) > 10:
-                raw_files = raw_files[:10]
+            if len(raw_files) > 5:
+                raw_files = raw_files[:5]
 
             extract_results = [None] * len(raw_files)
 
-            # Бюджет символов на файл: DeepSeek держит ~12 000 символов контекста комфортно.
-            # 1 файл  → 6000 симв (большой документ)
-            # 2–3     → 3000 симв каждый
-            # 4–6     → 1800 симв каждый
-            # 7–10    → 1200 симв каждый (достаточно для сути документа)
+            # Бюджет: суммарно ~8000 симв в DeepSeek контекст (0.48 симв/токен → ~16 000 prompt_tokens)
+            # При max_tokens=2500 на ответ — итого ~18 500 токенов, в пределах модели.
             n_raw = len(raw_files)
             if n_raw == 1:
-                per_file_char_limit = 6000
-            elif n_raw <= 3:
-                per_file_char_limit = 3000
-            elif n_raw <= 6:
-                per_file_char_limit = 1800
+                per_file_char_limit = 8000   # один документ — берём максимум
+            elif n_raw == 2:
+                per_file_char_limit = 4000   # 2×4000=8000
+            elif n_raw == 3:
+                per_file_char_limit = 2700   # 3×2700=8100
+            elif n_raw == 4:
+                per_file_char_limit = 2000   # 4×2000=8000
             else:
-                per_file_char_limit = 1200
+                per_file_char_limit = 1600   # 5×1600=8000
 
             def _extract_one(idx, fi):
                 fb64 = fi.get("file", "")

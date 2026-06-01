@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 
@@ -18,6 +18,7 @@ interface ChatInputBarProps {
   onAttachClick: () => void;
   onRemoveFile: (idx: number) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileDrop?: (files: FileList) => void;
 }
 
 export default function ChatInputBar({
@@ -36,8 +37,11 @@ export default function ChatInputBar({
   onAttachClick,
   onRemoveFile,
   onFileSelect,
+  onFileDrop,
 }: ChatInputBarProps) {
   const nativeInputRef = useRef<HTMLTextAreaElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
 
   useEffect(() => {
     const el = nativeInputRef.current;
@@ -80,17 +84,63 @@ export default function ChatInputBar({
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
-  const MAX_FILES = 10;
+  // ── Drag-and-drop ─────────────────────────────────────────────────────
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (canUploadFiles && e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  }, [canUploadFiles]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+
+    if (!canUploadFiles) {
+      onUpgradeClick?.();
+      return;
+    }
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0 && onFileDrop) {
+      onFileDrop(files);
+    }
+  }, [canUploadFiles, onFileDrop, onUpgradeClick]);
+
+  const MAX_FILES = 5;
   const hasFiles = attachedFiles.length > 0;
   const canAddMore = attachedFiles.length < MAX_FILES;
 
   return (
-    <>
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative"
+    >
       {/* Скрытые file inputs — multiple для выбора нескольких */}
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
         multiple
         className="hidden"
         tabIndex={-1}
@@ -105,6 +155,17 @@ export default function ChatInputBar({
         tabIndex={-1}
         onChange={onFileSelect}
       />
+
+      {/* Drag-and-drop оверлей */}
+      {isDragging && (
+        <div className="absolute inset-0 z-10 rounded-2xl border-2 border-dashed border-navy-400 bg-navy-50/95 flex flex-col items-center justify-center gap-2 pointer-events-none">
+          <div className="w-12 h-12 rounded-2xl bg-navy-100 flex items-center justify-center">
+            <Icon name="Upload" size={22} className="text-navy-600" />
+          </div>
+          <p className="text-sm font-semibold text-navy-700">Отпустите файлы для загрузки</p>
+          <p className="text-[11px] text-navy-500">PDF, DOCX, JPG, PNG · до {MAX_FILES} файлов</p>
+        </div>
+      )}
 
       {/* Прикреплённые файлы */}
       {hasFiles && (
@@ -124,13 +185,13 @@ export default function ChatInputBar({
               </div>
               <button
                 onClick={() => onRemoveFile(idx)}
-                className="p-1 text-muted-foreground hover:text-red-500"
+                className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                title="Удалить файл"
               >
                 <Icon name="X" size={13} />
               </button>
             </div>
           ))}
-          {/* Подсказка о возможности добавить ещё */}
           {canAddMore ? (
             <button
               onClick={onAttachClick}
@@ -160,7 +221,7 @@ export default function ChatInputBar({
             onClick={canUploadFiles ? onAttachClick : onUpgradeClick}
             disabled={typing || fileUploading || (!canUploadFiles && !onUpgradeClick) || (canUploadFiles && !canAddMore)}
             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 active:bg-slate-100 transition-colors ${canUploadFiles ? "text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"}`}
-            title={canUploadFiles ? "Прикрепить до 3 файлов (PDF, DOCX, фото)" : "Анализ документов — тариф «Профи» и выше"}
+            title={canUploadFiles ? `Прикрепить до ${MAX_FILES} файлов (PDF, DOCX, фото) или перетащите` : "Анализ документов — тариф «Профи» и выше"}
           >
             {fileUploading
               ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
@@ -222,15 +283,15 @@ export default function ChatInputBar({
             <Icon name="Send" size={14} className="text-white ml-0.5" />
           </button>
         </div>
-        <div className="px-3 pb-2 pt-1 border-t border-slate-100 mt-1 flex items-center justify-between">
-          <p className="text-[10px] text-slate-400">Носят информационный характер</p>
-          {!hasFiles && (
-            <p className="text-[10px] text-slate-300">
-              {canUploadFiles ? "📎 до 3 файлов · PDF, DOCX, фото" : "🔒 файлы — в тарифе «Профи»+"}
-            </p>
-          )}
+        <div className="px-3 pb-2 flex items-center justify-between gap-2">
+          <p className="text-[10px] text-slate-400 leading-tight">
+            {canUploadFiles
+              ? `Перетащите файлы или нажмите скрепку · до ${MAX_FILES} файлов (PDF, DOCX, JPG)`
+              : "AI-юрист обучен на судебной практике РФ · Не является официальной консультацией"
+            }
+          </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
