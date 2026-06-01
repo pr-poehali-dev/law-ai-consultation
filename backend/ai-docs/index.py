@@ -108,9 +108,13 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
         timeout=timeout,
     )
     resp.raise_for_status()
-    choice = resp.json()["choices"][0]
+    resp_json = resp.json()
+    choice = resp_json["choices"][0]
     text = choice["message"]["content"] or ""
     was_cut = choice.get("finish_reason") == "length"
+    # Логируем реальный usage токенов для диагностики
+    usage = resp_json.get("usage", {})
+    print(f"[DEEPSEEK] finish={choice.get('finish_reason')} prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')} симв={len(text)}")
     return text, was_cut
 
 # ── Файловые утилиты ───────────────────────────────────────────────────────
@@ -326,56 +330,55 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
-    """Анализ документов через DeepSeek. Лимит ответа — 2500 токенов (обязательно)."""
-    # text уже обрезан вызывающим кодом по per_file_char_limit
+    """Анализ документов через DeepSeek (Yandex Cloud).
+    
+    Реальный лимит output у deepseek-v32 через Yandex API — около 500-800 токенов стабильно.
+    Промпт написан так чтобы полный ответ укладывался в 400-500 токенов.
+    """
     clean_text = _sanitize_doc_text(text)
 
     if comment:
-        user_content = (
-            f"Вопрос: {comment}\n\n"
-            f"{'Документы' if n_docs > 1 else 'Документ'}:\n\n{clean_text}"
-        )
+        # QA-режим: вопрос по документу
+        user_content = f"Вопрос: {comment}\n\nДокумент:\n{clean_text}"
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
-        multi_note = (
-            f"\n\nЗагружено {n_docs} документов. По каждому — 2-3 пункта кратко."
-            if n_docs > 1 else ""
-        )
-        user_content = f"Документ{'ы' if n_docs > 1 else ''}:\n\n{clean_text}"
-        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + multi_note
+        # Анализ без вопроса
+        if n_docs > 1:
+            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + f"\n\nЗагружено {n_docs} документов — по каждому раздел 3 пункт."
+        else:
+            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
+        user_content = f"Документ:\n{clean_text}"
 
-    # 400 слов × ~3 токена/слово (кириллица) = ~1200 токенов.
-    # Ставим 1500 — с запасом, промпт сам ограничит объём через инструкцию "400 слов".
-    # was_cut=True при таком лимите означает что промпт ВСЁРАВНО игнорируется — тогда дополняем.
+    # Промпт написан под ~300-400 слов ответа = ~600-800 токенов кириллицей.
+    # max_tokens=900 — достаточно для полного ответа и не обрезает.
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=1500,
+        max_tokens=900,
         temperature=0.1,
-        timeout=60,
+        timeout=75,
     )
     print(f"[FILE_ANALYZE] {'WARN was_cut' if was_cut else 'OK'}: симв={len(result)}, docs={n_docs}")
 
-    # Страховка: если всё же обрезан — дописываем только строку с рекомендацией документа
-    if was_cut:
+    # Если всё же обрезало (редкий случай) — дописываем финальную строку
+    if was_cut and result:
         try:
             cont, _ = call_deepseek(
-                "Допиши одной строкой и больше ничего: "
-                "\"Рекомендую подготовить: [название документа] — нажмите кнопку Создать документ.\"",
+                "Одной строкой завершите: Рекомендую подготовить: [тип документа] — нажмите кнопку Создать документ.",
                 [
                     {"role": "user", "content": user_content},
                     {"role": "assistant", "content": result},
-                    {"role": "user", "content": "Допиши только строку с рекомендацией документа."},
+                    {"role": "user", "content": "Допишите раздел 5 одной строкой."},
                 ],
-                max_tokens=80,
+                max_tokens=60,
                 temperature=0.05,
                 timeout=20,
             )
             if cont.strip():
                 result = result.rstrip() + "\n\n" + cont.strip()
-                print(f"[FILE_ANALYZE] cont appended +{len(cont)} симв")
-        except Exception as _ce:
-            print(f"[FILE_ANALYZE] cont failed: {_ce}")
+                print(f"[FILE_ANALYZE] cont +{len(cont)} симв")
+        except Exception:
+            pass
 
     return result.strip()
 
