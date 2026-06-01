@@ -332,34 +332,51 @@ def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
 
     if comment:
         user_content = (
-            f"Вопрос пользователя: {comment}\n\n"
-            f"{'Документы' if n_docs > 1 else 'Документ'} ({n_docs} шт.):\n\n{clean_text}\n\n"
-            f"ВАЖНО: уложи ответ в 1500–1800 слов максимум."
+            f"Вопрос: {comment}\n\n"
+            f"{'Документы' if n_docs > 1 else 'Документ'}:\n\n{clean_text}"
         )
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
         multi_note = (
-            f"\n\nВАЖНО: загружено {n_docs} документов. "
-            f"Анализируй каждый кратко (2–3 пункта), суммарно уложись в 1800–2000 слов."
+            f"\n\nДокументов загружено: {n_docs}. "
+            f"По каждому — 2–3 пункта, суммарно уложись в 800 слов."
             if n_docs > 1 else ""
         )
-        user_content = (
-            f"Документ для анализа:\n\n{clean_text}\n\n"
-            f"ВАЖНО: уложи ответ в 1800–2000 слов максимум. Не превышай."
-        )
+        user_content = f"Документ:\n\n{clean_text}"
         system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + multi_note
 
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=2500,   # жёсткий потолок API — DeepSeek не выдаст больше
+        max_tokens=2200,   # 2200 < 2500 — оставляем запас на раздел "Подготовить документ"
         temperature=0.15,
-        timeout=90,        # чуть меньше join(93) чтобы успел вернуть ответ до таймаута потока
+        timeout=85,
     )
+    print(f"[FILE_ANALYZE] {'WARN was_cut' if was_cut else 'OK'}: симв={len(result)}, docs={n_docs}")
+
+    # Если ответ обрезан — дозапрашиваем только финальный раздел
     if was_cut:
-        print(f"[FILE_ANALYZE] WARN: обрезан по max_tokens=2500, симв={len(result)}, docs={n_docs}")
-    else:
-        print(f"[FILE_ANALYZE] OK: симв={len(result)}, docs={n_docs}")
+        try:
+            continuation, _ = call_deepseek(
+                "Ты — юрист. Продолжи заключение с того места где оборвалось. "
+                "Напиши ТОЛЬКО недостающую часть — раздел «Подготовить документ» одной строкой: "
+                "«Рекомендую подготовить: [название] — нажмите кнопку \"Составить документ\" под этим сообщением.» "
+                "Больше ничего не добавляй.",
+                [
+                    {"role": "user", "content": user_content},
+                    {"role": "assistant", "content": result},
+                    {"role": "user", "content": "Продолжи с того места где оборвалось, допиши раздел «Подготовить документ»."},
+                ],
+                max_tokens=200,
+                temperature=0.1,
+                timeout=25,
+            )
+            if continuation.strip():
+                result = result.rstrip() + "\n\n" + continuation.strip()
+                print(f"[FILE_ANALYZE] continuation appended: +{len(continuation)} симв")
+        except Exception as _ce:
+            print(f"[FILE_ANALYZE] continuation failed: {_ce}")
+
     return result.strip()
 
 
@@ -781,8 +798,9 @@ def handler(event: dict, context) -> dict:
             # hint запускаем первым — он быстрый (YandexGPT fast, 30с)
             # analysis запускается параллельно — DeepSeek 2500 токенов, до 90с
             t_hint.start(); t_analysis.start()
-            t_analysis.join(timeout=93)   # 20с извлечение + 93с анализ = 113с < 120с таймаут функции
-            # hint к этому моменту уже завершён (30с << 93с), join мгновенный
+            # worst case: извлечение 20с + анализ 85с + continuation 25с = 130с — не хватает при 120с функции
+            # поэтому join(93): если первый ответ обрезан и continuation не успеет — отдадим частичный
+            t_analysis.join(timeout=93)
             t_hint.join(timeout=2)
 
             elapsed = time.time() - _analyze_start
