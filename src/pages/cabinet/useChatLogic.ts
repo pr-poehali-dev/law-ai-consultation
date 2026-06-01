@@ -345,9 +345,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     if (!isImage && !isDoc) return Promise.resolve(null);
 
-    // Лимит: документы 5МБ, фото 10МБ.
-    // 5 файлов × 5МБ × 1.33 base64 = ~33МБ JSON — браузер справляется.
-    const maxMb = isImage ? 10 : 5;
+    // Лимит: документы 1.5МБ, фото 5МБ.
+    // 5 файлов × 1.5МБ × 1.33 base64 = ~10МБ JSON — нормально для fetch.
+    // 1.5МБ PDF = ~10-15 страниц текста, достаточно для анализа.
+    // ВАЖНО: не обрезать base64 после — PyPDF2 не читает усечённые PDF (нет EOF).
+    const maxMb = isImage ? 5 : 1.5;
     if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
 
     if (isImage) {
@@ -395,7 +397,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (valid.length) {
         setAttachedFiles((prev) => [...prev, ...valid].slice(0, MAX_ATTACHED));
       } else {
-        setChatErr("Допустимые форматы: PDF, DOC, DOCX или фото (JPG, PNG). Максимум 10 МБ.");
+        setChatErr("Допустимые форматы: PDF/DOCX до 1.5 МБ, фото JPG/PNG до 5 МБ.");
       }
       setFileUploading(false);
     });
@@ -474,16 +476,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Обрезаем base64 до 1.5МБ на файл (5 файлов × 1.5МБ = ~7.5МБ JSON).
-      // Бэкенд берёт только первые страницы текста — полный файл не нужен.
-      const MAX_B64_PER_FILE = 1_500_000;
+      // Передаём файлы целиком — обрезка base64 ломает PDF (PyPDF2 не читает без EOF).
+      // Размер ограничен на этапе загрузки (1.5МБ на документ = ~10МБ JSON для 5 файлов).
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({
           mode: "file_analyze",
           comment,
-          files: files.map(f => ({ file: f.b64.slice(0, MAX_B64_PER_FILE), filename: f.name })),
+          files: files.map(f => ({ file: f.b64, filename: f.name })),
         }),
       }, 115_000, 0);
       const data = await res.json();

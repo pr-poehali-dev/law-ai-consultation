@@ -203,7 +203,7 @@ export default function ChatInputBar({
             </button>
           ) : (
             <p className="text-[10px] text-center text-muted-foreground py-0.5">
-              Максимум {MAX_FILES} файлов · PDF, DOCX, JPG, PNG
+              Максимум {MAX_FILES} файлов · PDF до 1.5МБ, DOCX, JPG
             </p>
           )}
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
