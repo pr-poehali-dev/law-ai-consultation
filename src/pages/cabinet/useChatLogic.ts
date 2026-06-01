@@ -345,11 +345,12 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     if (!isImage && !isDoc) return Promise.resolve(null);
 
-    // Лимит: документы 1.5МБ, фото 5МБ.
-    // 5 файлов × 1.5МБ × 1.33 base64 = ~10МБ JSON — нормально для fetch.
-    // 1.5МБ PDF = ~10-15 страниц текста, достаточно для анализа.
-    // ВАЖНО: не обрезать base64 после — PyPDF2 не читает усечённые PDF (нет EOF).
-    const maxMb = isImage ? 5 : 1.5;
+    // Лимит: документы 5МБ, фото 5МБ.
+    // ВАЖНО: 5 файлов × 5МБ × 1.33 base64 = ~33МБ — слишком много для платформы (~10МБ лимит).
+    // Платформа режет запрос молча. 3 файла по 5МБ = ~20МБ — тоже на грани.
+    // Безопасный расчёт: лимит платформы ~10МБ ÷ 1.33 ÷ MAX_ATTACHED = ~1.5МБ/файл при 5.
+    // Но при 1-3 файлах допускаем до 5МБ (3 × 5 × 1.33 = ~20МБ — граница).
+    const maxMb = 5;
     if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
 
     if (isImage) {
@@ -476,8 +477,18 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Передаём файлы целиком — обрезка base64 ломает PDF (PyPDF2 не читает без EOF).
-      // Размер ограничен на этапе загрузки (1.5МБ на документ = ~10МБ JSON для 5 файлов).
+      // Проверяем суммарный размер — платформа режет запросы > ~10МБ молча.
+      // base64 overhead = 1.33x от исходного файла.
+      const PLATFORM_LIMIT_BYTES = 9 * 1024 * 1024; // 9МБ JSON — безопасная граница
+      const totalB64 = files.reduce((sum, f) => sum + f.b64.length, 0);
+      if (totalB64 > PLATFORM_LIMIT_BYTES) {
+        const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
+        throw new Error(
+          `Суммарный размер файлов (${totalMb} МБ) превышает лимит. ` +
+          `Используйте меньше файлов или уменьшите их размер.`
+        );
+      }
+
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },

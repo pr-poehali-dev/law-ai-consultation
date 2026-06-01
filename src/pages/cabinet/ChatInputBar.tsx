@@ -203,7 +203,7 @@ export default function ChatInputBar({
             </button>
           ) : (
             <p className="text-[10px] text-center text-muted-foreground py-0.5">
-              Максимум {MAX_FILES} файлов · PDF до 1.5МБ, DOCX, JPG
+              Максимум {MAX_FILES} файлов · до 5МБ каждый (суммарно до 7МБ)
             </p>
           )}
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
@@ -286,7 +286,7 @@ export default function ChatInputBar({
         <div className="px-3 pb-2 flex items-center justify-between gap-2">
           <p className="text-[10px] text-slate-400 leading-tight">
             {canUploadFiles
-              ? `Перетащите файлы или нажмите скрепку · до ${MAX_FILES} файлов (PDF, DOCX, JPG)`
+              ? `Перетащите файлы или нажмите скрепку · до ${MAX_FILES} файлов по 5МБ (суммарно до 7МБ)`
               : "AI-юрист обучен на судебной практике РФ · Не является официальной консультацией"
             }
           </p>
