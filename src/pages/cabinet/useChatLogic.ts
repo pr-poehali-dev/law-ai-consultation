@@ -466,7 +466,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     try {
       const token = getToken();
-      // file_analyze работает на ai-docs функции (не ai-chat)
+      // file_analyze → ai-docs. timeout=115с (чуть меньше таймаута функции 120с).
+      // retries=0 — retry только удваивает ожидание при медленном DeepSeek.
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
@@ -475,7 +476,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
           comment,
           files: files.map(f => ({ file: f.b64, filename: f.name })),
         }),
-      }, 90_000, 1, () => setTypingStatus("Переподключаемся..."));
+      }, 115_000, 0);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;
@@ -581,12 +582,12 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const b64 = btoa(Array.from(textBytes).map(b => String.fromCharCode(b)).join(""));
       const filename = `${docName}.txt`;
 
-      // sendDocAnalysis — тоже file_analyze, должен идти на ai-docs (не ai-chat)
+      // sendDocAnalysis → ai-docs. timeout=115с, retries=0.
       const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({ mode: "file_analyze", file: b64, filename, comment: "" }),
-      }, 90_000, 1, () => setTypingStatus("Переподключаемся..."));
+      }, 115_000, 0);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       const aiText = data.answer as string;
