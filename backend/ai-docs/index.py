@@ -330,56 +330,45 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
         return ""
 
 def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
-    """Анализ документов через DeepSeek (Yandex Cloud).
-    
-    Реальный лимит output у deepseek-v32 через Yandex API — около 500-800 токенов стабильно.
-    Промпт написан так чтобы полный ответ укладывался в 400-500 токенов.
+    """Анализ документов через DeepSeek v3 (Yandex Cloud).
+
+    Из логов: 900 completion_tokens = ~433 симв (кириллица ≈ 0.48 симв/токен).
+    Для полного ответа (5 разделов, ~1200-1500 симв) нужно max_tokens=2500.
+    timeout=95с — DeepSeek генерирует 2500 токенов за ~30-60с реально.
     """
     clean_text = _sanitize_doc_text(text)
 
     if comment:
-        # QA-режим: вопрос по документу
-        user_content = f"Вопрос: {comment}\n\nДокумент:\n{clean_text}"
+        # Пользователь задал вопрос — отвечаем на него с опорой на документ
+        user_content = (
+            f"Вопрос пользователя: {comment}\n\n"
+            f"{'Документы' if n_docs > 1 else 'Документ'} ({n_docs} шт.):\n\n{clean_text}"
+        )
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
-        # Анализ без вопроса
+        # Анализ без конкретного вопроса
         if n_docs > 1:
-            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + f"\n\nЗагружено {n_docs} документов — по каждому раздел 3 пункт."
+            note = (
+                f"\n\nВАЖНО: загружено {n_docs} документов. "
+                f"Раздел 3 (Риски) — укажи риски по каждому документу отдельно. "
+                f"Раздел 4 (Рекомендации) — учти все документы вместе."
+            )
         else:
-            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
-        user_content = f"Документ:\n{clean_text}"
+            note = ""
+        user_content = (
+            f"{'Документы' if n_docs > 1 else 'Документ'} для анализа "
+            f"({'каждый проанализируй отдельно' if n_docs > 1 else ''}):\n\n{clean_text}"
+        )
+        system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + note
 
-    # Промпт написан под ~300-400 слов ответа = ~600-800 токенов кириллицей.
-    # max_tokens=900 — достаточно для полного ответа и не обрезает.
     result, was_cut = call_deepseek(
         system_prompt,
         [{"role": "user", "content": user_content}],
-        max_tokens=900,
-        temperature=0.1,
-        timeout=75,
+        max_tokens=2500,   # 2500 токенов × 0.48 симв/токен ≈ 1200 симв — полный ответ
+        temperature=0.15,
+        timeout=95,        # 95с < 120с таймаут функции, хватает на 2500 токенов
     )
     print(f"[FILE_ANALYZE] {'WARN was_cut' if was_cut else 'OK'}: симв={len(result)}, docs={n_docs}")
-
-    # Если всё же обрезало (редкий случай) — дописываем финальную строку
-    if was_cut and result:
-        try:
-            cont, _ = call_deepseek(
-                "Одной строкой завершите: Рекомендую подготовить: [тип документа] — нажмите кнопку Создать документ.",
-                [
-                    {"role": "user", "content": user_content},
-                    {"role": "assistant", "content": result},
-                    {"role": "user", "content": "Допишите раздел 5 одной строкой."},
-                ],
-                max_tokens=60,
-                temperature=0.05,
-                timeout=20,
-            )
-            if cont.strip():
-                result = result.rstrip() + "\n\n" + cont.strip()
-                print(f"[FILE_ANALYZE] cont +{len(cont)} симв")
-        except Exception:
-            pass
-
     return result.strip()
 
 
@@ -801,10 +790,9 @@ def handler(event: dict, context) -> dict:
             # hint запускаем первым — он быстрый (YandexGPT fast, 30с)
             # analysis запускается параллельно — DeepSeek 2500 токенов, до 90с
             t_hint.start(); t_analysis.start()
-            # worst case: извлечение 20с + анализ 85с + continuation 25с = 130с — не хватает при 120с функции
-            # поэтому join(93): если первый ответ обрезан и continuation не успеет — отдадим частичный
-            t_analysis.join(timeout=93)
-            t_hint.join(timeout=2)
+            # Бюджет: извлечение 20с + анализ DeepSeek 95с = 115с < 120с таймаут функции
+            t_analysis.join(timeout=97)   # чуть больше timeout DeepSeek=95с чтобы поток успел вернуть результат
+            t_hint.join(timeout=2)        # hint уже давно завершён (~5-15с), join мгновенный
 
             elapsed = time.time() - _analyze_start
             print(f"[FILE_ANALYZE] analysis elapsed={elapsed:.1f}s, result={'OK' if analysis_result[0] else 'FAIL'}")
