@@ -581,7 +581,8 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const b64 = btoa(Array.from(textBytes).map(b => String.fromCharCode(b)).join(""));
       const filename = `${docName}.txt`;
 
-      const res = await fetchSafe(GIGACHAT_URL, {
+      // sendDocAnalysis — тоже file_analyze, должен идти на ai-docs (не ai-chat)
+      const res = await fetchSafe(AI_DOCS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({ mode: "file_analyze", file: b64, filename, comment: "" }),
