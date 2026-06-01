@@ -1,7 +1,7 @@
 """
 AI-документы — генерация, анализ и продолжение документов.
 Режимы: doc_generate, doc_continue, file_analyze, file_cleanup.
-Таймаут: 90 секунд.
+Таймаут: 120 секунд. Анализ: DeepSeek 2500 токенов.
 """
 import json
 import os
@@ -188,17 +188,75 @@ def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
     return result
 
 def extract_docx_text(data: bytes, char_limit: int = 12000) -> str:
-    from docx import Document as DocxDocument
-    doc = DocxDocument(io.BytesIO(data))
-    parts = []
-    total = 0
-    for p in doc.paragraphs:
-        if p.text.strip():
-            parts.append(p.text)
-            total += len(p.text)
-            if total >= char_limit:
-                break
-    return "\n".join(parts)[:char_limit]
+    """Читает .docx (python-docx) или .doc (Word 97-2003 через встроенный zipfile/regex)."""
+    # Шаг 1: пробуем как .docx (OOXML = zip-архив с word/document.xml)
+    try:
+        from docx import Document as DocxDocument
+        doc = DocxDocument(io.BytesIO(data))
+        parts = []
+        total = 0
+        for p in doc.paragraphs:
+            t = p.text.strip()
+            if t:
+                parts.append(t)
+                total += len(t)
+                if total >= char_limit:
+                    break
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    t = cell.text.strip()
+                    if t and total < char_limit:
+                        parts.append(t)
+                        total += len(t)
+        result = "\n".join(parts)[:char_limit]
+        if len(result.strip()) >= 30:
+            return result
+    except Exception:
+        pass
+
+    # Шаг 2: fallback — читаем как zip (docx без расширения или повреждённый)
+    try:
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            if "word/document.xml" in zf.namelist():
+                xml_bytes = zf.read("word/document.xml")
+                # Убираем все XML-теги, оставляем текст
+                text = xml_bytes.decode("utf-8", errors="ignore")
+                text = re.sub(r'<[^>]+>', ' ', text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) >= 30:
+                    return text[:char_limit]
+    except Exception:
+        pass
+
+    # Шаг 3: .doc (Word 97-2003 OLE) — парсим бинарник без внешних зависимостей
+    # Сигнатура OLE: D0 CF 11 E0 A1 B1 1A E1
+    if len(data) > 8 and data[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
+        try:
+            # Ищем текстовые блоки UTF-16-LE (Word хранит текст как Unicode)
+            decoded = data.decode("utf-16-le", errors="ignore")
+            # Оставляем только печатные символы, убираем мусор
+            cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', ' ', decoded)
+            # Выбираем «слова» длиннее 2 символов
+            words = re.findall(r'[А-ЯЁа-яёA-Za-z0-9][А-ЯЁа-яёA-Za-z0-9\s\.,;:!?\-«»"\']{2,}', cleaned)
+            result = " ".join(words)[:char_limit]
+            if len(result.strip()) >= 50:
+                return result
+        except Exception:
+            pass
+        try:
+            # Попытка cp1251 (кириллица в старых doc)
+            decoded = data.decode("cp1251", errors="ignore")
+            cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', ' ', decoded)
+            words = re.findall(r'[А-ЯЁа-яёA-Za-z0-9][А-ЯЁа-яёA-Za-z0-9\s\.,;:!?\-«»"\']{2,}', cleaned)
+            result = " ".join(words)[:char_limit]
+            if len(result.strip()) >= 50:
+                return result
+        except Exception:
+            pass
+
+    return ""
 
 def _compress_image(image_data: bytes, max_bytes: int = 900_000) -> bytes:
     if len(image_data) <= max_bytes:
@@ -267,30 +325,38 @@ def extract_image_text_ocr(image_data: bytes, ext: str) -> str:
     except Exception:
         return ""
 
-def analyze_file_with_yandex(text: str, comment: str, iam_token: str, n_docs: int = 1) -> str:
-    TEXT_LIMIT = min(2500 + (n_docs - 1) * 800, 4500)
-    MAX_TOKENS = min(1200 + (n_docs - 1) * 400, 2000)
+def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
+    """Анализ документов через DeepSeek. Лимит ответа — 2500 токенов."""
+    # Передаём не более 6000 символов текста чтобы не перегружать контекст
+    TEXT_LIMIT = min(4000 + (n_docs - 1) * 1000, 6000)
     clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
+
     if comment:
-        user_content = f"Вопрос: {comment}\n\nДокумент:\n\n{clean_text}"
+        user_content = f"Вопрос пользователя: {comment}\n\nДокумент:\n\n{clean_text}"
         system_prompt = SYSTEM_FILE_QA_PROMPT
     else:
         user_content = f"Документ для анализа:\n\n{clean_text}"
         if n_docs > 1:
-            system_prompt = SYSTEM_FILE_ANALYZE_PROMPT + f"\n\nВАЖНО: загружено {n_docs} документа(ов). Анализируй каждый отдельно — кратко (3–5 пунктов на документ), уложись в ответ целиком."
+            system_prompt = (
+                SYSTEM_FILE_ANALYZE_PROMPT
+                + f"\n\nВАЖНО: загружено {n_docs} документа(ов). Анализируй каждый отдельно — "
+                f"кратко (3–5 пунктов на документ), уложись в ответ целиком."
+            )
         else:
             system_prompt = SYSTEM_FILE_ANALYZE_PROMPT
-    messages_for_ds = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_content}]
-    resp = _http.post(
-        "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {iam_token}"},
-        json={"model": YANDEX_MODEL, "messages": messages_for_ds, "max_tokens": MAX_TOKENS, "temperature": 0.2, "stream": False},
-        timeout=45,
+
+    result, was_cut = call_deepseek(
+        system_prompt,
+        [{"role": "user", "content": user_content}],
+        max_tokens=2500,  # обязательный лимит ответа
+        temperature=0.15,
+        timeout=85,
     )
-    resp.raise_for_status()
-    result = resp.json()["choices"][0]["message"]["content"].strip()
-    print(f"[FILE_ANALYZE] OK: {len(result)} симв, docs={n_docs}")
-    return result
+    if was_cut:
+        print(f"[FILE_ANALYZE] WARN: ответ обрезан по токенам (2500), симв={len(result)}")
+    else:
+        print(f"[FILE_ANALYZE] OK: {len(result)} симв, docs={n_docs}")
+    return result.strip()
 
 
 def handler(event: dict, context) -> dict:
@@ -650,7 +716,7 @@ def handler(event: dict, context) -> dict:
 
             def _do_analysis():
                 try:
-                    analysis_result[0] = analyze_file_with_yandex(combined_text, comment, iam_token, n_docs=n_files)
+                    analysis_result[0] = analyze_file_with_deepseek(combined_text, comment, n_docs=n_files)
                 except Exception as _ae:
                     analysis_error[0] = str(_ae)
                     print(f"[FILE_ANALYZE] Поток упал: {_ae}")
@@ -693,7 +759,7 @@ def handler(event: dict, context) -> dict:
             t_analysis = threading.Thread(target=_do_analysis, daemon=True)
             t_hint = threading.Thread(target=_do_hint, daemon=True)
             t_analysis.start(); t_hint.start()
-            t_analysis.join(timeout=50)
+            t_analysis.join(timeout=90)   # DeepSeek 2500 токенов — до 85с
             t_hint.join(timeout=15)
 
             if not analysis_result[0]:
