@@ -150,9 +150,9 @@ export default function VideoTutorialsSection() {
   useEffect(() => {
     if (!API_URL) { setLoading(false); return; }
     fetch(API_URL, { method: "GET" })
-      .then(r => r.json())
-      .then(data => { if (data.tutorials) setTutorials(data.tutorials); })
-      .catch(() => {})
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.tutorials) setTutorials(data.tutorials); })
+      .catch(() => { /* видеотуториалы временно недоступны */ })
       .finally(() => setLoading(false));
   }, []);
 

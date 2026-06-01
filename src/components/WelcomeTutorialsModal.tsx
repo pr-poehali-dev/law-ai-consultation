@@ -62,9 +62,9 @@ export default function WelcomeTutorialsModal({ onClose }: WelcomeTutorialsModal
 
     if (API_URL) {
       fetch(API_URL, { method: "GET" })
-        .then(r => r.json())
-        .then(data => { if (data.tutorials) setTutorials(data.tutorials); })
-        .catch(() => {});
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.tutorials) setTutorials(data.tutorials); })
+        .catch(() => { /* туториалы недоступны — показываем без них */ });
     }
 
     return () => { clearTimeout(t); document.body.style.overflow = ""; };
