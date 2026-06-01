@@ -335,7 +335,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       img.src = url;
     });
 
-  const MAX_ATTACHED = 5;
+  const MAX_ATTACHED = 3;
 
   const processFile = (file: File): Promise<{ name: string; b64: string; size: string } | null> => {
     const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);

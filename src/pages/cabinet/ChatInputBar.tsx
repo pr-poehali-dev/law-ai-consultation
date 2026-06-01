@@ -124,7 +124,7 @@ export default function ChatInputBar({
     }
   }, [canUploadFiles, onFileDrop, onUpgradeClick]);
 
-  const MAX_FILES = 5;
+  const MAX_FILES = 3;
   const hasFiles = attachedFiles.length > 0;
   const canAddMore = attachedFiles.length < MAX_FILES;
 
