@@ -354,7 +354,7 @@ def analyze_file_with_deepseek(text: str, comment: str, n_docs: int = 1) -> str:
         [{"role": "user", "content": user_content}],
         max_tokens=2500,   # жёсткий потолок API — DeepSeek не выдаст больше
         temperature=0.15,
-        timeout=85,
+        timeout=90,        # чуть меньше join(93) чтобы успел вернуть ответ до таймаута потока
     )
     if was_cut:
         print(f"[FILE_ANALYZE] WARN: обрезан по max_tokens=2500, симв={len(result)}, docs={n_docs}")
@@ -627,10 +627,20 @@ def handler(event: dict, context) -> dict:
 
             extract_results = [None] * len(raw_files)
 
-            # Лимит символов на 1 файл — чем больше файлов, тем меньше на каждый
+            # Бюджет символов на файл: DeepSeek держит ~12 000 символов контекста комфортно.
+            # 1 файл  → 6000 симв (большой документ)
+            # 2–3     → 3000 симв каждый
+            # 4–6     → 1800 симв каждый
+            # 7–10    → 1200 симв каждый (достаточно для сути документа)
             n_raw = len(raw_files)
-            # Суммарно передаём не более 8000 символов в DeepSeek (бюджет токенов)
-            per_file_char_limit = max(800, 8000 // max(n_raw, 1))
+            if n_raw == 1:
+                per_file_char_limit = 6000
+            elif n_raw <= 3:
+                per_file_char_limit = 3000
+            elif n_raw <= 6:
+                per_file_char_limit = 1800
+            else:
+                per_file_char_limit = 1200
 
             def _extract_one(idx, fi):
                 fb64 = fi.get("file", "")
@@ -666,8 +676,8 @@ def handler(event: dict, context) -> dict:
 
             extract_threads = [threading.Thread(target=_extract_one, args=(i, fi), daemon=True) for i, fi in enumerate(raw_files)]
             for t in extract_threads: t.start()
-            # Таймаут: каждый PDF/DOCX читается ~2с, OCR-фото ~12с; 10 файлов параллельно → 25с
-            for t in extract_threads: t.join(timeout=25)
+            # PDF/DOCX: ~1–2с, OCR-фото: ~12с, все потоки параллельно → достаточно 20с
+            for t in extract_threads: t.join(timeout=20)
 
             file_texts = [r for r in extract_results if r is not None]
             filenames_list = [r[0] for r in file_texts]
@@ -768,12 +778,22 @@ def handler(event: dict, context) -> dict:
             _analyze_start = time.time()
             t_analysis = threading.Thread(target=_do_analysis, daemon=True)
             t_hint = threading.Thread(target=_do_hint, daemon=True)
-            t_analysis.start(); t_hint.start()
-            t_analysis.join(timeout=90)   # DeepSeek 2500 токенов — до 85с
-            t_hint.join(timeout=15)
+            # hint запускаем первым — он быстрый (YandexGPT fast, 30с)
+            # analysis запускается параллельно — DeepSeek 2500 токенов, до 90с
+            t_hint.start(); t_analysis.start()
+            t_analysis.join(timeout=93)   # 20с извлечение + 93с анализ = 113с < 120с таймаут функции
+            # hint к этому моменту уже завершён (30с << 93с), join мгновенный
+            t_hint.join(timeout=2)
+
+            elapsed = time.time() - _analyze_start
+            print(f"[FILE_ANALYZE] analysis elapsed={elapsed:.1f}s, result={'OK' if analysis_result[0] else 'FAIL'}")
 
             if not analysis_result[0]:
-                err_msg = "Анализ занял слишком много времени. Попробуйте ещё раз." if not analysis_error[0] else "Не удалось проанализировать документ. Попробуйте ещё раз."
+                err_msg = (
+                    f"Анализ занял слишком много времени ({elapsed:.0f}с). Попробуйте с меньшим числом файлов."
+                    if not analysis_error[0] else
+                    f"Не удалось проанализировать документ: {analysis_error[0][:120]}"
+                )
                 return {"statusCode": 502, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": err_msg}, ensure_ascii=False)}
 
