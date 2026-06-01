@@ -80,8 +80,9 @@ export default function ChatInputBar({
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  const MAX_FILES = 10;
   const hasFiles = attachedFiles.length > 0;
-  const canAddMore = attachedFiles.length < 3;
+  const canAddMore = attachedFiles.length < MAX_FILES;
 
   return (
     <>
@@ -137,11 +138,11 @@ export default function ChatInputBar({
               className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] text-navy-500 hover:text-navy-700 border border-dashed border-navy-200 rounded-xl hover:border-navy-400 transition-colors disabled:opacity-40"
             >
               <Icon name="Plus" size={11} />
-              Добавить ещё файл ({attachedFiles.length}/3)
+              Добавить ещё файл ({attachedFiles.length}/{MAX_FILES})
             </button>
           ) : (
             <p className="text-[10px] text-center text-muted-foreground py-0.5">
-              Максимум 3 файла · PDF, DOCX, JPG, PNG
+              Максимум {MAX_FILES} файлов · PDF, DOCX, JPG, PNG
             </p>
           )}
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
