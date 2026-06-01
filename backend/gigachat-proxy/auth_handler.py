@@ -19,7 +19,7 @@ _SELECT_COLS = (
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
-    "lawyer_questions_left"
+    "lawyer_questions_left, has_file_analysis"
 )
 
 MAX_LOGIN_ATTEMPTS = 10
@@ -184,9 +184,9 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 30, paid_docs = paid_docs + 5 WHERE id = %s", (user_id,))
         elif service_type == "plan_pro":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20 WHERE id = %s", (user_id,))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, has_file_analysis = TRUE WHERE id = %s", (user_id,))
         elif service_type in ("plan_max", "plan_max_expert"):
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE WHERE id = %s", (user_id,))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, has_file_analysis = TRUE WHERE id = %s", (user_id,))
         elif service_type == "subscription_consult":
             cur.execute(f"UPDATE {SCHEMA}.users SET subscription_consult_until = GREATEST(NOW(), COALESCE(subscription_consult_until, NOW())) + INTERVAL '31 days' WHERE id = %s", (user_id,))
         elif service_type == "subscription_docs":
@@ -592,7 +592,8 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 100,
-                        paid_docs = paid_docs + 20
+                        paid_docs = paid_docs + 20,
+                        has_file_analysis = TRUE
                     WHERE id = %s""",
                 (user["id"],)
             )
@@ -602,7 +603,8 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 300,
                         paid_docs = paid_docs + 50,
-                        paid_expert = TRUE
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE
                     WHERE id = %s""",
                 (user["id"],)
             )
@@ -1173,6 +1175,7 @@ def _format_user(row) -> dict:
         "businessOrgName": row[14] if len(row) > 14 else "",
         "referralCode": row[15] if len(row) > 15 else "",
         "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
+        "hasFileAnalysis": bool(row[17]) if len(row) > 17 else False,
     }
 
 

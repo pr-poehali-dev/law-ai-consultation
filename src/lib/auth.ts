@@ -39,6 +39,7 @@ export interface User {
   businessOrgName: string;
   referralCode: string;
   lawyerQuestionsLeft: number;
+  hasFileAnalysis: boolean;
 }
 
 export function getToken(): string {
