@@ -44,7 +44,8 @@ def get_conn():
 def sanitize_str(s: str, max_len: int = 255) -> str:
     if not s:
         return ""
-    cleaned = re.sub(r'[\x00-\x1f\x7f]', '', str(s))
+    # Удаляем управляющие символы кроме \n (0x0a) и \t (0x09) — они нужны в теле сообщений
+    cleaned = re.sub(r'[\x00-\x08\x0b-\x1f\x7f]', '', str(s))
     return cleaned[:max_len].strip()
 
 
