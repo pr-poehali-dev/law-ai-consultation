@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Forbidden host",
+      "method": "GET",
+      "path": "/?url=https://evil.com/file.pdf",
+      "expectedStatus": 403,
+      "expectedBody": {"error": "forbidden host"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

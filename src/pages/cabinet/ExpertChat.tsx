@@ -44,19 +44,23 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
     if (dlState === "loading") return;
     setDlState("loading");
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("fetch failed");
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-      setDlState("done");
-      setTimeout(() => setDlState("idle"), 2500);
+      // Используем бэкенд-прокси чтобы обойти CORS cdn.poehali.dev
+      import("../../backend/func2url.json").then(async (mod) => {
+        const proxyUrl = (mod.default as Record<string, string>)["file-proxy"];
+        const res = await fetch(`${proxyUrl}?url=${encodeURIComponent(url)}`);
+        if (!res.ok) throw new Error(`proxy ${res.status}`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        setDlState("done");
+        setTimeout(() => setDlState("idle"), 2500);
+      }).catch(() => { setDlState("error"); setTimeout(() => setDlState("idle"), 2500); });
     } catch {
       setDlState("error");
       setTimeout(() => setDlState("idle"), 2500);
