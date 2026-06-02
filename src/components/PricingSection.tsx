@@ -183,13 +183,26 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
                       <p className={`text-xs mb-3 ${isDark ? "text-white/55" : "text-muted-foreground"}`}>{plan.period}</p>
                       <p className={`text-sm leading-relaxed mb-4 ${isDark ? "text-white/75" : "text-muted-foreground"}`}>{plan.desc}</p>
                       {plan.lawyerFeature && (
-                        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 mb-4 ${
-                          isDark
-                            ? "bg-gold-400/20 border border-gold-400/40"
-                            : "bg-navy-50 border border-navy-100"
-                        }`}>
-                          <Icon name="User" size={13} className={`shrink-0 ${isDark ? "text-gold-400" : "text-navy-500"}`} />
-                          <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-navy-700"}`}>{plan.lawyerFeature}</span>
+                        <div className="relative flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 mb-4 overflow-hidden"
+                          style={isDark ? {
+                            background: "linear-gradient(135deg, rgba(232,168,32,0.18) 0%, rgba(180,110,10,0.10) 100%)",
+                            border: "1px solid rgba(232,168,32,0.35)",
+                            boxShadow: "0 0 18px rgba(232,168,32,0.10) inset",
+                          } : {
+                            background: "linear-gradient(135deg, #f0f4ff 0%, #e8edf8 100%)",
+                            border: "1px solid rgba(22,45,90,0.12)",
+                          }}>
+                          {isDark && (
+                            <div className="absolute top-0 left-0 right-0 h-px"
+                              style={{ background: "linear-gradient(90deg, transparent, rgba(232,168,32,0.5), transparent)" }} />
+                          )}
+                          <div className="w-5 h-5 rounded-lg flex items-center justify-center shrink-0"
+                            style={isDark
+                              ? { background: "rgba(232,168,32,0.25)", border: "1px solid rgba(232,168,32,0.4)" }
+                              : { background: "rgba(22,45,90,0.08)" }}>
+                            <Icon name="UserCheck" size={11} className={isDark ? "text-gold-400" : "text-navy-500"} />
+                          </div>
+                          <span className={`text-xs font-semibold leading-snug ${isDark ? "text-white" : "text-navy-700"}`}>{plan.lawyerFeature}</span>
                         </div>
                       )}
                       <ul className="space-y-2.5">
