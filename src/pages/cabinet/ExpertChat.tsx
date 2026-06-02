@@ -49,40 +49,48 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
     const proxyUrl = (func2url as Record<string, string>)["file-proxy"];
     const href = `${proxyUrl}?url=${encodeURIComponent(url)}`;
 
-    // iOS: открываем окно синхронно (до await), затем загружаем blob и вставляем в него.
-    // Окно остаётся на домене приложения — poehali не отображается.
+    // iOS: поведение зависит от типа файла.
+    // PDF — Safari умеет открывать blob напрямую.
+    // DOCX/DOC и прочие — blob Safari игнорирует; нужно открыть window и перенаправить на прокси-URL
+    // (прокси отдаёт Content-Disposition: attachment → iOS предложит «Открыть в...»).
     if (isIOS) {
-      const win = window.open("", "_blank");
-      if (!win) {
-        // Всплывающие окна заблокированы — fallback через прямую ссылку
-        const a = document.createElement("a");
-        a.href = href;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setDlState("done");
-        setTimeout(() => setDlState("idle"), 2000);
+      const isPdf = ext === "pdf";
+
+      if (isPdf) {
+        // PDF: открываем окно синхронно, грузим blob, Safari покажет файл
+        const win = window.open("", "_blank");
+        if (!win) {
+          window.location.href = href;
+          return;
+        }
+        win.document.write(`<html><body style="margin:0;background:#0a1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#e8a820;font-size:16px">Загрузка файла...</body></html>`);
+        setDlState("loading");
+        setDlProgress(0);
+        try {
+          const res = await fetch(href);
+          if (!res.ok) throw new Error(`${res.status}`);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          win.location.href = blobUrl;
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+          setDlProgress(100);
+          setDlState("done");
+          setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2000);
+        } catch {
+          win.close();
+          setDlState("error");
+          setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2500);
+        }
         return;
       }
-      win.document.write(`<html><body style="margin:0;background:#0a1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#e8a820;font-size:16px">Загрузка файла...</body></html>`);
-      setDlState("loading");
-      setDlProgress(0);
-      try {
-        const res = await fetch(href);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        win.location.href = blobUrl;
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
-        setDlProgress(100);
-        setDlState("done");
-        setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2000);
-      } catch {
-        win.close();
-        setDlState("error");
-        setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2500);
-      }
+
+      // DOCX/DOC и другие: Safari не умеет отображать blob — открываем прокси-URL напрямую.
+      // Прокси отдаёт Content-Disposition: attachment + правильный MIME → iOS предложит «Открыть в Word/Files».
+      // Открываем в новом окне синхронно (из прямого обработчика клика) → нет poehali в адресной строке
+      const win = window.open(href, "_blank");
+      if (!win) window.location.href = href;
+      setDlState("done");
+      setTimeout(() => { setDlState("idle"); }, 2000);
       return;
     }
 

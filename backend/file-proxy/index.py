@@ -60,10 +60,22 @@ def handler(event: dict, context) -> dict:
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
 
+    # MIME-map для корректного скачивания на iOS
+    MIME_MAP = {
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc":  "application/msword",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls":  "application/vnd.ms-excel",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "ppt":  "application/vnd.ms-powerpoint",
+        "pdf":  "application/pdf",
+    }
+
     try:
         resp = s3.get_object(Bucket="files", Key=s3_key)
         data = resp["Body"].read()
-        content_type = resp.get("ContentType", "application/octet-stream")
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        content_type = MIME_MAP.get(ext) or resp.get("ContentType") or "application/octet-stream"
     except Exception as e:
         return {
             "statusCode": 502,
