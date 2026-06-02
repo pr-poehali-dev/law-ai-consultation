@@ -76,7 +76,7 @@ export default function LandingChatMessages({
                     <Icon name="Gift" size={12} color="#4ade80" />
                   </div>
                   <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    <span style={{ color: "#4ade80" }} className="font-semibold">3 вопроса в день — бесплатно</span> для всех, без регистрации и оплаты.
+                    <span style={{ color: "#4ade80" }} className="font-semibold text-[#ffffff]">3 вопроса в день — бесплатно</span> для всех, без регистрации и оплаты.
                   </p>
                 </div>
 
