@@ -322,14 +322,14 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           <span className="text-xs font-medium">MAX</span>
         </a>
         <a
-          href="https://vc.ru/id1663201/2892255-yuridicheskie-uslugi-ai-yurista-za-990-rubley"
+          href="https://dzen.ru/jurist_ai?share_to=link"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-all duration-200 active:scale-95"
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
         >
-          <span className="text-xs font-bold shrink-0" style={{ color: "rgba(255,255,255,0.8)" }}>VC</span>
-          <span className="text-xs font-medium">Читать на VC.ru</span>
+          <span className="text-xs font-bold shrink-0" style={{ color: "rgba(255,82,82,0.9)" }}>Дзен</span>
+          <span className="text-xs font-medium">Читать на Дзен</span>
         </a>
         </div>
       </div>
