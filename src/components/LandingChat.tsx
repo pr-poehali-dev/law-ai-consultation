@@ -328,7 +328,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-all duration-200 active:scale-95"
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
         >
-          <span className="text-xs font-bold shrink-0" style={{ color: "rgba(255,82,82,0.9)" }}>Дзен</span>
+          <span className="text-xs font-bold shrink-0" style={{ color: "rgba(255,82,82,0.9)" }}>Д</span>
           <span className="text-xs font-medium">Читать на Дзен</span>
         </a>
         </div>
