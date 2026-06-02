@@ -37,19 +37,42 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
   const ext = name.split(".").pop()?.toLowerCase() || "";
   const isImage = ["jpg", "jpeg", "png"].includes(ext);
   const [preview, setPreview] = useState(false);
+  const [dlState, setDlState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const iconName = isImage ? "Image" : ext === "pdf" ? "FileText" : "File";
+
+  const handleDownload = async () => {
+    if (dlState === "loading") return;
+    setDlState("loading");
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      setDlState("done");
+      setTimeout(() => setDlState("idle"), 2500);
+    } catch {
+      setDlState("error");
+      setTimeout(() => setDlState("idle"), 2500);
+    }
+  };
 
   return (
     <>
-      {/* Контрастный стиль для обоих сторон: белый фон с рамкой */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border"
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border min-w-0"
         style={isMe
           ? { background: "rgba(255,255,255,0.18)", borderColor: "rgba(255,255,255,0.3)", color: "#fff" }
           : { background: "#fff", borderColor: "#e2e8f0", color: "#1e3a5f" }
         }
       >
         <Icon name={iconName} size={13} className="shrink-0 opacity-80" />
-        <span className="flex-1 truncate font-semibold">{name}</span>
+        <span className="flex-1 truncate font-semibold min-w-0">{name}</span>
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
             <button
@@ -60,13 +83,18 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
               <Icon name="Eye" size={10} />
             </button>
           )}
-          <a
-            href={url} download={name} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors"
+          <button
+            onClick={handleDownload}
+            disabled={dlState === "loading"}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all active:scale-95 disabled:opacity-60"
             style={isMe ? { background: "rgba(255,255,255,0.15)" } : { background: "#f1f5f9" }}
           >
-            <Icon name="Download" size={10} />Скачать
-          </a>
+            {dlState === "loading" && <Icon name="Loader" size={10} className="animate-spin" />}
+            {dlState === "done" && <Icon name="Check" size={10} />}
+            {dlState === "error" && <Icon name="AlertCircle" size={10} />}
+            {dlState === "idle" && <Icon name="Download" size={10} />}
+            {dlState === "loading" ? "Загрузка…" : dlState === "done" ? "Готово" : dlState === "error" ? "Ошибка" : "Скачать"}
+          </button>
         </div>
       </div>
       {preview && (
@@ -100,11 +128,11 @@ function MsgBubble({ msg, isAdmin }: { msg: LawyerMessage; isAdmin: boolean }) {
           <Icon name="UserCheck" size={15} className="text-gold-400" />
         </div>
       )}
-      <div className={`max-w-[85%] sm:max-w-[72%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+      <div className={`max-w-[80%] sm:max-w-[72%] min-w-0 flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
         {!isMe && (
           <p className="text-[10.5px] font-semibold text-navy-500 ml-1">{EXPERT_NAME}</p>
         )}
-        <div className={`rounded-2xl px-4 py-3 shadow-sm transition-all flex flex-col gap-2 ${
+        <div className={`rounded-2xl px-4 py-3 shadow-sm transition-all flex flex-col gap-2 min-w-0 w-full ${
           isMe
             ? "bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm"
             : "bg-white border border-slate-100 text-navy-800 rounded-bl-sm shadow"
