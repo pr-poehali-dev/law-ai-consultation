@@ -33,58 +33,53 @@ export default function LandingChatMessages({
     >
       {messages.map((msg, i) => (
         <div key={i}>
-          {/* Приветственный блок (первое сообщение AI) — карточки */}
+          {/* Приветственный блок (первое сообщение AI) */}
           {i === 0 && msg.role === "ai" ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
-                  <Icon name="Scale" size={11} color="#e8a820" />
-                </div>
-                <span className="text-xs font-semibold" style={{ color: "#e8a820" }}>AI-юрист</span>
+            <div className="flex gap-2 items-start">
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                <Icon name="Scale" size={11} color="#e8a820" />
               </div>
-              {/* Карточка 1 — Документ */}
-              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
-                style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.15)" }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: "linear-gradient(135deg, #e8a820, #c97d10)" }}>
-                  <Icon name="FileText" size={14} color="#fff" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-white mb-0.5">Подготовка документов</p>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>
-                    Укажите, какой документ нужен (иск, претензия, договор, возражение и т.п.) — AI подготовит его за 5 минут.
-                    Чем детальнее опишете ситуацию, тем качественнее документ.
+              <div className="rounded-2xl rounded-tl-sm px-4 py-3.5 space-y-3"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", maxWidth: "85%" }}>
+
+                {/* Строка 1 */}
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "linear-gradient(135deg, #e8a820cc, #c97d10cc)" }}>
+                    <Icon name="FileText" size={12} color="#fff" />
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
+                    Укажите, какой документ нужен — <span className="text-white font-medium">иск, претензия, договор, возражение</span> и т.п. AI подготовит его за <span className="text-white font-medium">5 минут</span>. Чем детальнее опишете ситуацию, тем качественнее результат.
                   </p>
                 </div>
-              </div>
-              {/* Карточка 2 — Цена */}
-              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
-                style={{ background: "rgba(232,168,32,0.10)", border: "1px solid rgba(232,168,32,0.25)" }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: "rgba(232,168,32,0.2)", border: "1px solid rgba(232,168,32,0.3)" }}>
-                  <Icon name="Banknote" size={14} color="#e8a820" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold" style={{ color: "#e8a820" }}>990 ₽ за документ</p>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>
-                    Начиная с пакета «Старт» — отправка документа на проверку живому юристу с доступом к чату.
+
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+
+                {/* Строка 2 */}
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "rgba(232,168,32,0.18)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                    <Icon name="Banknote" size={12} color="#e8a820" />
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
+                    Стоимость создания 1 документа — <span style={{ color: "#e8c84a" }} className="font-semibold">990 ₽</span>. С пакета «Старт» доступна отправка на проверку <span className="text-white font-medium">живому юристу</span> с доступом к чату.
                   </p>
                 </div>
-              </div>
-              {/* Карточка 3 — Бесплатно */}
-              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
-                style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                  <Icon name="Gift" size={14} color="#4ade80" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold" style={{ color: "#4ade80" }}>3 вопроса в день — бесплатно!</p>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>
-                    Задавайте вопросы AI-юристу каждый день без регистрации и оплаты.
+
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+
+                {/* Строка 3 */}
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.25)" }}>
+                    <Icon name="Gift" size={12} color="#4ade80" />
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
+                    <span style={{ color: "#4ade80" }} className="font-semibold">3 вопроса в день — бесплатно</span> для всех, без регистрации и оплаты.
                   </p>
                 </div>
+
               </div>
             </div>
           ) : (
