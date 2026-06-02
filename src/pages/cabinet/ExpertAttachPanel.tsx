@@ -178,6 +178,7 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent,
   onClose: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
 
@@ -232,37 +233,55 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent,
       </div>
 
       <div className="p-3 flex flex-col gap-3">
-        {/* Drag-and-drop зона */}
-        <div
-          className={`relative border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
-            dragOver ? "border-navy-400 bg-navy-50" : "border-slate-200 hover:border-navy-300 hover:bg-slate-50"
-          } ${currentCount >= MAX_FILES ? "opacity-50 pointer-events-none" : ""}`}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); processFiles(e.dataTransfer.files); }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.txt,image/*"
-            className="hidden"
-            onChange={(e) => { processFiles(e.target.files); e.target.value = ""; }}
-          />
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-10 h-10 bg-navy-100 rounded-2xl flex items-center justify-center">
-              <Icon name="Upload" size={18} className="text-navy-600" />
+        {/* Скрытые input-ы */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.doc,.txt"
+          className="hidden"
+          onChange={(e) => { processFiles(e.target.files); e.target.value = ""; }}
+        />
+        <input
+          ref={photoInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { processFiles(e.target.files); e.target.value = ""; }}
+        />
+
+        {/* Две кнопки загрузки */}
+        <div className={`grid grid-cols-2 gap-2 ${currentCount >= MAX_FILES ? "opacity-50 pointer-events-none" : ""}`}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 hover:border-navy-300 hover:bg-navy-50 active:scale-95 transition-all"
+          >
+            <div className="w-9 h-9 bg-navy-100 rounded-xl flex items-center justify-center">
+              <Icon name="FileText" size={16} className="text-navy-600" />
             </div>
-            <div>
-              <p className="text-xs font-semibold text-navy-700">Нажмите чтобы выбрать файл</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">PDF, DOCX, JPG, PNG · до {MAX_FILE_MB} МБ · макс. {MAX_FILES} файлов</p>
+            <div className="text-center">
+              <p className="text-xs font-semibold text-navy-700">Документ</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">PDF, DOCX, TXT</p>
             </div>
-          </div>
-          {uploadErr && (
-            <p className="text-[11px] text-red-500 mt-2 font-medium">{uploadErr}</p>
-          )}
+          </button>
+          <button
+            onClick={() => photoInputRef.current?.click()}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 hover:border-navy-300 hover:bg-navy-50 active:scale-95 transition-all"
+          >
+            <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+              <Icon name="Camera" size={16} className="text-amber-600" />
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-semibold text-navy-700">Фото</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">JPG, PNG</p>
+            </div>
+          </button>
         </div>
+
+        {uploadErr && (
+          <p className="text-[11px] text-red-500 font-medium px-1">{uploadErr}</p>
+        )}
 
         {/* AI-ответы и документы */}
         {(aiAnswers.length > 0 || genDocs.length > 0) && (

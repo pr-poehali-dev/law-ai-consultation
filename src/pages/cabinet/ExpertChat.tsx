@@ -41,35 +41,23 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
   const [dlState, setDlState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const iconName = isImage ? "Image" : ext === "pdf" ? "FileText" : "File";
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (dlState === "loading") return;
-    setDlState("loading");
-    try {
-      const proxyUrl = (func2url as Record<string, string>)["file-proxy"];
-      const res = await fetch(`${proxyUrl}?url=${encodeURIComponent(url)}`);
-      if (!res.ok) throw new Error(`proxy ${res.status}`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
+    const proxyUrl = (func2url as Record<string, string>)["file-proxy"];
+    const downloadHref = `${proxyUrl}?url=${encodeURIComponent(url)}`;
 
-      // iOS Safari не поддерживает <a download> с blob — открываем в новой вкладке
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
-        window.open(blobUrl, "_blank");
-      } else {
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-      setDlState("done");
-      setTimeout(() => setDlState("idle"), 2500);
-    } catch {
-      setDlState("error");
-      setTimeout(() => setDlState("idle"), 2500);
-    }
+    // Создаём <a> синхронно (до любого await) — iOS Safari разрешает window.open только из прямого клика
+    const a = document.createElement("a");
+    a.href = downloadHref;
+    a.download = name;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setDlState("done");
+    setTimeout(() => setDlState("idle"), 2000);
   };
 
   return (
@@ -94,15 +82,11 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
           )}
           <button
             onClick={handleDownload}
-            disabled={dlState === "loading"}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all active:scale-95 disabled:opacity-60"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all active:scale-95"
             style={isMe ? { background: "rgba(255,255,255,0.15)" } : { background: "#f1f5f9" }}
           >
-            {dlState === "loading" && <Icon name="Loader" size={10} className="animate-spin" />}
-            {dlState === "done" && <Icon name="Check" size={10} />}
-            {dlState === "error" && <Icon name="AlertCircle" size={10} />}
-            {dlState === "idle" && <Icon name="Download" size={10} />}
-            {dlState === "loading" ? "Загрузка…" : dlState === "done" ? "Готово" : dlState === "error" ? "Ошибка" : "Скачать"}
+            {dlState === "done" ? <Icon name="Check" size={10} /> : <Icon name="Download" size={10} />}
+            {dlState === "done" ? "Готово" : "Скачать"}
           </button>
         </div>
       </div>
