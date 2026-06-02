@@ -1,8 +1,7 @@
 import json
-import urllib.request
-import urllib.error
 import base64
 import os
+from urllib.parse import urlparse, unquote
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -10,11 +9,11 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token, X-Authorization",
 }
 
-ALLOWED_HOST = "cdn.poehali.dev"
+CDN_HOST = "cdn.poehali.dev"
 
 
 def handler(event: dict, context) -> dict:
-    """Прокси для скачивания файлов с CDN — обходит CORS-ограничения браузера."""
+    """Прокси для скачивания файлов из S3 — обходит CORS-ограничения браузера."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -29,42 +28,61 @@ def handler(event: dict, context) -> dict:
         }
 
     # Безопасность: разрешаем только наш CDN
-    from urllib.parse import urlparse
     parsed = urlparse(file_url)
-    if parsed.hostname != ALLOWED_HOST:
+    if parsed.hostname != CDN_HOST:
         return {
             "statusCode": 403,
             "headers": {**CORS, "Content-Type": "application/json"},
             "body": json.dumps({"error": "forbidden host"}),
         }
 
-    try:
-        req = urllib.request.Request(file_url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = resp.read()
-            content_type = resp.headers.get("Content-Type", "application/octet-stream")
-    except urllib.error.HTTPError as e:
+    # CDN путь: /projects/{project_id}/bucket/{key...}
+    # Извлекаем S3 ключ — всё после /bucket/
+    path = unquote(parsed.path)
+    bucket_marker = "/bucket/"
+    idx = path.find(bucket_marker)
+    if idx == -1:
         return {
-            "statusCode": e.code,
+            "statusCode": 400,
             "headers": {**CORS, "Content-Type": "application/json"},
-            "body": json.dumps({"error": f"upstream {e.code}"}),
+            "body": json.dumps({"error": "invalid cdn url"}),
         }
+
+    s3_key = path[idx + len(bucket_marker):]
+    filename = s3_key.split("/")[-1]
+
+    # Скачиваем из S3 напрямую
+    import boto3
+    s3 = boto3.client(
+        "s3",
+        endpoint_url="https://bucket.poehali.dev",
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
+
+    try:
+        resp = s3.get_object(Bucket="files", Key=s3_key)
+        data = resp["Body"].read()
+        content_type = resp.get("ContentType", "application/octet-stream")
     except Exception as e:
         return {
             "statusCode": 502,
             "headers": {**CORS, "Content-Type": "application/json"},
-            "body": json.dumps({"error": str(e)}),
+            "body": json.dumps({"error": str(e), "key": s3_key}),
         }
 
-    filename = file_url.split("/")[-1]
     encoded = base64.b64encode(data).decode("utf-8")
+
+    # Кодируем имя файла для Content-Disposition (RFC 5987)
+    from urllib.parse import quote
+    encoded_name = quote(filename, safe="")
 
     return {
         "statusCode": 200,
         "headers": {
             **CORS,
             "Content-Type": content_type,
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
         },
         "body": encoded,
         "isBase64Encoded": True,
