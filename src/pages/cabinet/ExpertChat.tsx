@@ -49,17 +49,40 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
     const proxyUrl = (func2url as Record<string, string>)["file-proxy"];
     const href = `${proxyUrl}?url=${encodeURIComponent(url)}`;
 
-    // iOS: blob из async заблокирован — кликаем по ссылке синхронно.
-    // Прокси отдаёт Content-Disposition: attachment — Safari скачает без perехода на poehali
+    // iOS: открываем окно синхронно (до await), затем загружаем blob и вставляем в него.
+    // Окно остаётся на домене приложения — poehali не отображается.
     if (isIOS) {
-      const a = document.createElement("a");
-      a.href = href;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setDlState("done");
-      setTimeout(() => setDlState("idle"), 2000);
+      const win = window.open("", "_blank");
+      if (!win) {
+        // Всплывающие окна заблокированы — fallback через прямую ссылку
+        const a = document.createElement("a");
+        a.href = href;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setDlState("done");
+        setTimeout(() => setDlState("idle"), 2000);
+        return;
+      }
+      win.document.write(`<html><body style="margin:0;background:#0a1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#e8a820;font-size:16px">Загрузка файла...</body></html>`);
+      setDlState("loading");
+      setDlProgress(0);
+      try {
+        const res = await fetch(href);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        win.location.href = blobUrl;
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+        setDlProgress(100);
+        setDlState("done");
+        setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2000);
+      } catch {
+        win.close();
+        setDlState("error");
+        setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2500);
+      }
       return;
     }
 
