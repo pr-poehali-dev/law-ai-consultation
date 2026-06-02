@@ -50,12 +50,19 @@ function FileLink({ name, url, isMe }: { name: string; url: string; isMe: boolea
       if (!res.ok) throw new Error(`proxy ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+
+      // iOS Safari не поддерживает <a download> с blob — открываем в новой вкладке
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        window.open(blobUrl, "_blank");
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
       setDlState("done");
       setTimeout(() => setDlState("idle"), 2500);

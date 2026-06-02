@@ -246,17 +246,17 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent,
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.txt"
+            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.txt,image/*"
             className="hidden"
-            onChange={(e) => processFiles(e.target.files)}
+            onChange={(e) => { processFiles(e.target.files); e.target.value = ""; }}
           />
           <div className="flex flex-col items-center gap-2">
             <div className="w-10 h-10 bg-navy-100 rounded-2xl flex items-center justify-center">
               <Icon name="Upload" size={18} className="text-navy-600" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-navy-700">Перетащите файлы или нажмите</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">PDF, DOCX, DOC, JPG, PNG, TXT · до {MAX_FILE_MB} МБ каждый · макс. {MAX_FILES} файлов</p>
+              <p className="text-xs font-semibold text-navy-700">Нажмите чтобы выбрать файл</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">PDF, DOCX, JPG, PNG · до {MAX_FILE_MB} МБ · макс. {MAX_FILES} файлов</p>
             </div>
           </div>
           {uploadErr && (
