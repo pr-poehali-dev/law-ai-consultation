@@ -33,6 +33,61 @@ export default function LandingChatMessages({
     >
       {messages.map((msg, i) => (
         <div key={i}>
+          {/* Приветственный блок (первое сообщение AI) — карточки */}
+          {i === 0 && msg.role === "ai" ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                  <Icon name="Scale" size={11} color="#e8a820" />
+                </div>
+                <span className="text-xs font-semibold" style={{ color: "#e8a820" }}>AI-юрист</span>
+              </div>
+              {/* Карточка 1 — Документ */}
+              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
+                style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "linear-gradient(135deg, #e8a820, #c97d10)" }}>
+                  <Icon name="FileText" size={14} color="#fff" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-white mb-0.5">Подготовка документов</p>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>
+                    Укажите, какой документ нужен (иск, претензия, договор, возражение и т.п.) — AI подготовит его за 5 минут.
+                    Чем детальнее опишете ситуацию, тем качественнее документ.
+                  </p>
+                </div>
+              </div>
+              {/* Карточка 2 — Цена */}
+              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
+                style={{ background: "rgba(232,168,32,0.10)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "rgba(232,168,32,0.2)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                  <Icon name="Banknote" size={14} color="#e8a820" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: "#e8a820" }}>990 ₽ за документ</p>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>
+                    Начиная с пакета «Старт» — отправка документа на проверку живому юристу с доступом к чату.
+                  </p>
+                </div>
+              </div>
+              {/* Карточка 3 — Бесплатно */}
+              <div className="rounded-2xl px-4 py-3 flex gap-3 items-start"
+                style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                  <Icon name="Gift" size={14} color="#4ade80" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: "#4ade80" }}>3 вопроса в день — бесплатно!</p>
+                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>
+                    Задавайте вопросы AI-юристу каждый день без регистрации и оплаты.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             {msg.role === "ai" && (
               <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
@@ -60,6 +115,7 @@ export default function LandingChatMessages({
               )}
             </div>
           </div>
+          )}
 
           {/* Кнопки под ответом AI — только не под приветствием (i > 0) */}
           {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
