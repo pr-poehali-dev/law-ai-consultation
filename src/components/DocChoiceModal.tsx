@@ -98,8 +98,8 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <div className="flex items-center justify-between pt-2 mb-2.5" style={{ borderTop: "1px solid rgba(232,168,32,0.2)" }}>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 990 ₽</span>
-              <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Экономия 3 460 ₽</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 490 ₽</span>
+              <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Экономия 960 ₽</span>
             </div>
 
             <button
