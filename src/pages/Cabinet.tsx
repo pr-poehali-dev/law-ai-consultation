@@ -181,10 +181,16 @@ export default function Cabinet() {
       // Подхватываем контекст диалога с лендинга
       // landing_chat_history уже прочитана useChatLogic при инициализации — чистим её здесь
       const pendingDocType = localStorage.getItem("landing_pending_doc");
+      const pendingServiceType = localStorage.getItem("landing_pending_service");
       const rawHist = localStorage.getItem("landing_chat_history");
       localStorage.removeItem("landing_chat_history");
       localStorage.removeItem("landing_pending_doc");
-      if (pendingDocType || rawHist) {
+      localStorage.removeItem("landing_pending_service");
+
+      // quick_questions: история уже перенесена useChatLogic, просто открываем чат
+      if (pendingServiceType === "quick_questions") {
+        setTab("chat");
+      } else if (pendingDocType || rawHist) {
         try {
           const hist: { role: string; content: string }[] = rawHist ? JSON.parse(rawHist) : [];
           const userMsgs = hist.filter(m => m.role === "user").map(m => m.content).join("\n");

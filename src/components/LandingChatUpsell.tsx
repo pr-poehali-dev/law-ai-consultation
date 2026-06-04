@@ -4,11 +4,11 @@ import Icon from "@/components/ui/icon";
 // ── UpsellBlock ────────────────────────────────────────────────────────────────
 export function UpsellBlock({
   onBuyPlan,
-  onBuyDoc,
+  onBuyQuickQuestions,
   onLogin,
 }: {
   onBuyPlan: () => void;
-  onBuyDoc: () => void;
+  onBuyQuickQuestions: () => void;
   onLogin: () => void;
 }) {
   return (
@@ -63,9 +63,9 @@ export function UpsellBlock({
             </div>
           </button>
 
-          {/* Один документ */}
+          {/* +3 вопроса к AI */}
           <button
-            onClick={onBuyDoc}
+            onClick={onBuyQuickQuestions}
             className="w-full rounded-xl mb-2 transition-all active:scale-[0.98]"
             style={{
               padding: "10px 14px",
@@ -76,15 +76,15 @@ export function UpsellBlock({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
-                  <Icon name="FileText" size={12} color="#a0b4cc" />
+                  <Icon name="MessageCircle" size={12} color="#a0b4cc" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Создать один документ</p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Иск, претензия, жалоба или договор</p>
+                  <p className="text-xs font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Докупить 3 вопроса AI-юристу</p>
+                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Диалог продолжится в личном кабинете</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-base font-bold" style={{ color: "#f0c060" }}>490</span>
+                <span className="text-base font-bold" style={{ color: "#f0c060" }}>199</span>
                 <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>₽</span>
               </div>
             </div>

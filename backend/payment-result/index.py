@@ -256,6 +256,21 @@ def grant_service(conn, user_id: int, service_type: str):
             cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 60 WHERE id = %s", (user_id,))
         elif service_type == "business_actions_150":
             cur.execute(f"UPDATE {SCHEMA}.users SET business_actions_left = business_actions_left + 150 WHERE id = %s", (user_id,))
+        elif service_type == "quick_questions":
+            # +3 вопроса к AI-юристу
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s",
+                (user_id,)
+            )
+        elif service_type == "doc_analysis":
+            # Разовый анализ документа: has_file_analysis + 1 вопрос для consumeQuestion
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET has_file_analysis = TRUE,
+                        paid_questions = paid_questions + 1
+                    WHERE id = %s""",
+                (user_id,)
+            )
         conn.commit()
     finally:
         cur.close()

@@ -9,7 +9,7 @@ interface LandingChatMessagesProps {
   chatEndRef: React.RefObject<HTMLDivElement>;
   onCreateDoc: (docTypeId: string) => void;
   onBuyPlan: () => void;
-  onBuyDoc: () => void;
+  onBuyQuickQuestions: () => void;
   onLogin: () => void;
   onSendToLawyer?: (msgText: string) => void;
 }
@@ -21,7 +21,7 @@ export default function LandingChatMessages({
   chatEndRef,
   onCreateDoc,
   onBuyPlan,
-  onBuyDoc,
+  onBuyQuickQuestions,
   onLogin,
   onSendToLawyer,
 }: LandingChatMessagesProps) {
@@ -152,7 +152,7 @@ export default function LandingChatMessages({
       {showUpsell && (
         <UpsellBlock
           onBuyPlan={onBuyPlan}
-          onBuyDoc={onBuyDoc}
+          onBuyQuickQuestions={onBuyQuickQuestions}
           onLogin={onLogin}
         />
       )}

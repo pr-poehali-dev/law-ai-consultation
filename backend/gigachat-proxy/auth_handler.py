@@ -567,7 +567,16 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
         elif service_type == "doc_analysis":
-            cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s", (user["id"],))
+            # Анализ документа: даём has_file_analysis + 1 вопрос чтобы consumeQuestion не блокировал
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET has_file_analysis = TRUE,
+                        paid_questions = paid_questions + 1
+                    WHERE id = %s""",
+                (user["id"],)
+            )
+        elif service_type == "quick_questions":
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
         elif service_type == "expert":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
