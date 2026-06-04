@@ -186,7 +186,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
           >
             <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
-            <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>990 ₽</span>
+            <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>490 ₽</span>
           </button>
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
