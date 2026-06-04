@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getUserWithStatus, getUser, type User, getToken, startKeepAlive, invalidateUserCache, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
+import { PENDING_FILE_KEY } from "@/components/landingChatUtils";
 
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import { findDocType, type DocType, DOC_TYPES } from "@/pages/cabinet/docBlocks";
@@ -159,6 +160,23 @@ export default function Cabinet() {
         return;
       }
       setUser(u);
+
+      // Подхватываем pending-файл с лендинга (анализ документа 99₽)
+      const pendingFileRaw = localStorage.getItem(PENDING_FILE_KEY);
+      if (pendingFileRaw) {
+        localStorage.removeItem(PENDING_FILE_KEY);
+        localStorage.removeItem("landing_pending_service");
+        try {
+          const { name, b64, comment } = JSON.parse(pendingFileRaw) as { name: string; b64: string; comment: string };
+          if (name && b64) {
+            setTab("chat");
+            // Запускаем анализ напрямую после небольшой задержки (кабинет инициализируется)
+            setTimeout(() => {
+              chat.analyzeFileDirectly({ name, b64 }, comment || "");
+            }, 800);
+          }
+        } catch { /* ignore */ }
+      }
 
       // Подхватываем контекст диалога с лендинга
       // landing_chat_history уже прочитана useChatLogic при инициализации — чистим её здесь

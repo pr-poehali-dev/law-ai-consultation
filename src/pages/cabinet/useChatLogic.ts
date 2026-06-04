@@ -653,6 +653,88 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
+  // Запустить анализ файла напрямую (используется при редиректе из лендинга после оплаты)
+  const analyzeFileDirectly = async (file: { name: string; b64: string }, comment: string) => {
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+    const canAsk = currentUser.isAdmin ||
+      hasActiveSubscription(currentUser, "consult") ||
+      currentUser.hasFileAnalysis ||
+      currentUser.paidQuestions > 0;
+    if (!canAsk) return;
+
+    const files = [{ ...file, size: "" }];
+    setChatErr("");
+    const hasImages = /\.(jpg|jpeg|png)$/i.test(file.name);
+    const hasQuestion = !!comment.trim();
+
+    setMessages((p) => [...p, {
+      role: "user",
+      text: `📎 ${file.name}${comment.trim() ? `\n${comment.trim()}` : ""}`,
+      isFile: true,
+    } as ChatMsg]);
+
+    setTyping(true);
+    setTypingStatus(hasImages ? "Распознаю текст на фото (OCR)..." : "Читаю документ...");
+
+    const t1 = setTimeout(() => setTypingStatus(hasQuestion ? "Ищу ответ в документах..." : "Анализирую структуру и содержание..."), 4000);
+    const t2 = setTimeout(() => setTypingStatus(hasQuestion ? "Формирую ответ..." : "Проверяю соответствие нормам РФ..."), 10000);
+    const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
+
+    try {
+      const consumeResult = await consumeQuestion();
+      if (!consumeResult.ok) {
+        setMessages((p) => {
+          if (p.some(m => m.isUpsell)) return p;
+          return [...p, { role: "ai", isUpsell: true, text: "" }];
+        });
+        return;
+      }
+      const isLastQuestion = consumeResult.isLastQuestion;
+      refreshUser();
+
+      const token = getToken();
+      const res = await fetchSafe(AI_DOCS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({
+          mode: "file_analyze",
+          comment: comment.trim(),
+          files: files.map(f => ({ file: f.b64, filename: f.name })),
+        }),
+      }, 115_000, 0);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка анализа");
+      const aiText = data.answer as string;
+      const docHint: DocHint | undefined = data.doc_hint
+        ? { ...data.doc_hint, extracted_text: data.extracted_text }
+        : undefined;
+
+      if (isLastQuestion && aiText.length > 200) {
+        const half = Math.ceil(aiText.length / 2);
+        const cutIdx = aiText.lastIndexOf(" ", half) || half;
+        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
+        setMessages((p) => [...p, { role: "ai", text: visibleText, fullAnswer: aiText, isLastQuestion: true, truncated: false, docHint }]);
+      } else {
+        setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
+        invalidateUserCache();
+        refreshUser();
+      }
+      setHistory((p) => [...p,
+        { role: "user", content: `Я загрузил документ: ${file.name}` },
+        { role: "assistant", content: aiText },
+      ]);
+    } catch (e) {
+      setChatErr(e instanceof Error ? e.message : "Ошибка анализа");
+      setMessages((p) => [...p, { role: "ai", text: "Не удалось проанализировать документ. Попробуйте ещё раз." }]);
+    } finally {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      setTyping(false);
+      setTypingStatus("");
+    }
+  };
+
   // Вставить сообщение AI без запроса к серверу (для диалога уточнения документа)
   const injectAiMessage = (text: string) => {
     setMessages((p) => [...p, { role: "ai", text }]);
@@ -689,6 +771,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     handleFileDrop,
     sendFileAnalysis,
     sendDocAnalysis,
+    analyzeFileDirectly,
     injectAiMessage,
     removeUpsell,
     revealAnswer,

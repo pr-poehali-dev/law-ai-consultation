@@ -4,6 +4,7 @@ export const CHAT_HISTORY_KEY = "landing_chat_history";
 export const PENDING_DOC_KEY = "landing_pending_doc";
 export const PENDING_SERVICE_KEY = "landing_pending_service";
 export const PENDING_TIMESTAMP_KEY = "landing_pending_ts";
+export const PENDING_FILE_KEY = "landing_pending_file"; // {name, b64, comment}
 export const PENDING_TTL_MS = 30 * 60 * 1000; // 30 минут
 
 export function clearLandingPending() {
@@ -11,6 +12,7 @@ export function clearLandingPending() {
   localStorage.removeItem(PENDING_DOC_KEY);
   localStorage.removeItem(PENDING_SERVICE_KEY);
   localStorage.removeItem(PENDING_TIMESTAMP_KEY);
+  localStorage.removeItem(PENDING_FILE_KEY);
 }
 
 export function checkAndClearExpiredPending() {

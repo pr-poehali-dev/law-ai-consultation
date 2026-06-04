@@ -5,12 +5,13 @@ import func2url from "../../backend/func2url.json";
 import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
+import DocAnalysisPaywall from "@/components/DocAnalysisPaywall";
 import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSend } from "@/lib/auth";
 import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import {
-  PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS,
+  PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
   detectDocSuggestion, DOC_LABELS_MAP, type Message,
 } from "@/components/landingChatUtils";
@@ -41,10 +42,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
+  const [showDocAnalysisPaywall, setShowDocAnalysisPaywall] = useState(false);
   const [paymentService, setPaymentService] = useState<{ type: ServiceType; name: string }>({ type: "plan_pro", name: "Тариф «Профи»" });
   const [pendingDocType, setPendingDocType] = useState<string | null>(null);
   const [showExpertMaxOffer, setShowExpertMaxOffer] = useState(false);
   const [pendingLawyerMsg, setPendingLawyerMsg] = useState<string | null>(null);
+  // Прикреплённый файл для анализа
+  const [attachedFile, setAttachedFile] = useState<{ name: string; b64: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -88,6 +92,12 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const sendMessage = useCallback(async (text?: string) => {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
+
+    // Если есть прикреплённый файл — показываем paywall анализа
+    if (attachedFile) {
+      setShowDocAnalysisPaywall(true);
+      return;
+    }
 
     if (getDailyFreeLeft() === 0) {
       setShowUpsell(true);
@@ -155,12 +165,16 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     e.target.value = "";
-    saveHistoryToStorage(history.current);
-    localStorage.setItem(PENDING_SERVICE_KEY, "plan");
-    setPendingDocType(null);
-    setShowProOffer(true);
+    // Читаем файл в base64 и сохраняем в state — модалка появится позже при нажатии «Отправить»
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = (reader.result as string).split(",")[1];
+      setAttachedFile({ name: file.name, b64 });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSendToLawyer = useCallback(async (msgText: string) => {
@@ -204,12 +218,29 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowDocChoice({ docTypeId, docLabel: DOC_LABELS_MAP[docTypeId] || "документ" });
   };
 
+  // Запускает оплату анализа документа (разовый 99₽ или Профи)
+  const openDocAnalysisPayment = useCallback((serviceType: ServiceType, serviceName: string) => {
+    if (!attachedFile) return;
+    setShowDocAnalysisPaywall(false);
+    // Сохраняем файл и запрос в localStorage — подхватим в кабинете после оплаты
+    try {
+      localStorage.setItem(PENDING_FILE_KEY, JSON.stringify({ name: attachedFile.name, b64: attachedFile.b64, comment: input.trim() }));
+      localStorage.setItem(PENDING_SERVICE_KEY, "file_analysis");
+      localStorage.setItem("landing_pending_ts", String(Date.now()));
+    } catch { /* ignore quota */ }
+    saveHistoryToStorage(history.current);
+    setPaymentService({ type: serviceType, name: serviceName });
+    setShowPayment(true);
+  }, [attachedFile, input]);
+
   const handlePaymentSuccess = () => {
     setShowPayment(false);
-    // pending_doc и история уже сохранены в openDocPayment/openPlanPayment
-    // После оплаты + регистрации (которая произошла внутри PaymentModal) — идём в кабинет
     const pendingService = localStorage.getItem(PENDING_SERVICE_KEY);
-    navigate("/cabinet?from=payment&tab=" + (pendingService === "doc" ? "docs" : "docs"));
+    if (pendingService === "file_analysis") {
+      navigate("/cabinet?from=payment&tab=chat");
+    } else {
+      navigate("/cabinet?from=payment&tab=" + (pendingService === "doc" ? "docs" : "docs"));
+    }
   };
 
   return (
@@ -271,6 +302,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           fileInputRef={fileInputRef}
           textareaRef={textareaRef}
           messagesLength={messages.length}
+          attachedFile={attachedFile}
           onInputChange={setInput}
           onSend={() => sendMessage()}
           onKeyDown={handleKeyDown}
@@ -278,6 +310,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onToggleDocMenu={() => setShowDocMenu(v => !v)}
           onCreateDoc={handleCreateDoc}
           onFileSelect={handleFileSelect}
+          onRemoveFile={() => setAttachedFile(null)}
         />
       </div>
 
@@ -399,6 +432,15 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           context="chat"
           onClose={() => { setShowExpertMaxOffer(false); setPendingLawyerMsg(null); }}
           onSuccess={handleExpertMaxSuccess}
+        />
+      )}
+
+      {showDocAnalysisPaywall && attachedFile && (
+        <DocAnalysisPaywall
+          fileName={attachedFile.name}
+          onChooseSingle={() => openDocAnalysisPayment("doc_analysis", "Разовый анализ документа")}
+          onChoosePro={() => openDocAnalysisPayment("plan_pro", "Тариф «Профи»")}
+          onClose={() => setShowDocAnalysisPaywall(false)}
         />
       )}
     </div>

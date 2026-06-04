@@ -566,6 +566,8 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s", (user["id"],))
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
+        elif service_type == "doc_analysis":
+            cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s", (user["id"],))
         elif service_type == "expert":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users

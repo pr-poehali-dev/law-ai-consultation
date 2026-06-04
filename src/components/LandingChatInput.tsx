@@ -10,6 +10,7 @@ interface LandingChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   messagesLength: number;
+  attachedFile?: { name: string } | null;
   onInputChange: (v: string) => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -17,6 +18,7 @@ interface LandingChatInputProps {
   onToggleDocMenu: () => void;
   onCreateDoc: (docTypeId: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile?: () => void;
 }
 
 export default function LandingChatInput({
@@ -28,6 +30,7 @@ export default function LandingChatInput({
   fileInputRef,
   textareaRef,
   messagesLength,
+  attachedFile,
   onInputChange,
   onSend,
   onKeyDown,
@@ -35,6 +38,7 @@ export default function LandingChatInput({
   onToggleDocMenu,
   onCreateDoc,
   onFileSelect,
+  onRemoveFile,
 }: LandingChatInputProps) {
   const autoResize = () => {
     const el = textareaRef.current;
@@ -45,6 +49,21 @@ export default function LandingChatInput({
 
   return (
     <>
+      {/* Индикатор прикреплённого файла */}
+      {attachedFile && (
+        <div className="px-3 pt-2.5 pb-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl" style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.3)" }}>
+            <Icon name="Paperclip" size={12} color="#f0c060" className="shrink-0" />
+            <span className="flex-1 text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.75)" }}>{attachedFile.name}</span>
+            <span className="text-[10px] shrink-0" style={{ color: "rgba(232,168,32,0.7)" }}>Нажмите «Отправить»</span>
+            {onRemoveFile && (
+              <button onClick={onRemoveFile} className="shrink-0 ml-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <Icon name="X" size={11} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="border-t px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
         <div className="flex items-end gap-2">
           {/* Скрепка */}
