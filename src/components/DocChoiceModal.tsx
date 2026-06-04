@@ -111,64 +111,6 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </button>
           </div>
 
-          {/* ── Тариф ПРОФИ ── */}
-          <div
-            className="rounded-2xl p-3.5 cursor-pointer transition-all active:scale-[0.99]"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.14)" }}
-            onClick={() => onChoosePlan("plan_pro")}
-          >
-            {/* Шапка */}
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide" style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
-                  Профи
-                </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(74,222,128,0.2)", color: "#4ade80" }}>
-                  Хит
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1.5 shrink-0">
-                <span className="text-lg font-black text-white leading-none">3 990 ₽</span>
-                <span className="text-[11px] line-through" style={{ color: "rgba(255,255,255,0.3)" }}>5 990 ₽</span>
-              </div>
-            </div>
-
-            {/* Юрист */}
-            <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-2.5" style={{ background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.16)" }}>
-              <Icon name="User" size={12} color="rgba(255,255,255,0.85)" />
-              <span className="text-[11px] font-semibold text-white">5 вопросов живому юристу · анализ документов</span>
-            </div>
-
-            {/* Включает всё из Старта */}
-            <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
-              <Icon name="Check" size={11} color="#4ade80" />
-              <span className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Всё из тарифа «Старт»</span>
-            </div>
-
-            {/* Фичи — 2 колонки */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
-              {[
-                "100 вопросов AI-юристу",
-                "20 документов",
-                "Загрузка PDF / фото",
-                "Редактор документов",
-                "Калькулятор неустойки",
-              ].map((text) => (
-                <div key={text} className="flex items-start gap-1.5">
-                  <Icon name="Check" size={10} color="rgba(255,255,255,0.5)" className="mt-0.5 shrink-0" />
-                  <span className="text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.58)" }}>{text}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); onChoosePlan("plan_pro"); }}
-              className="w-full py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.18)" }}
-            >
-              Выбрать «Профи» · 3 990 ₽
-            </button>
-          </div>
         </div>
 
         {/* ── Липкий футер: Только этот документ ── */}
