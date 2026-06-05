@@ -425,6 +425,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     if (!currentUser) return;
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
+      currentUser.hasFileAnalysis ||
       currentUser.paidQuestions > 0;
     if (!canAsk) {
       setMessages((p) => {
@@ -691,7 +692,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         });
         return;
       }
-      const isLastQuestion = consumeResult.isLastQuestion;
       refreshUser();
 
       const token = getToken();
@@ -711,16 +711,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         ? { ...data.doc_hint, extracted_text: data.extracted_text }
         : undefined;
 
-      if (isLastQuestion && aiText.length > 200) {
-        const half = Math.ceil(aiText.length / 2);
-        const cutIdx = aiText.lastIndexOf(" ", half) || half;
-        const visibleText = aiText.slice(0, cutIdx).trimEnd() + "…";
-        setMessages((p) => [...p, { role: "ai", text: visibleText, fullAnswer: aiText, isLastQuestion: true, truncated: false, docHint }]);
-      } else {
-        setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
-        invalidateUserCache();
-        refreshUser();
-      }
+      // analyzeFileDirectly — оплаченный анализ, ответ никогда не обрезается
+      setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
+      invalidateUserCache();
+      refreshUser();
       setHistory((p) => [...p,
         { role: "user", content: `Я загрузил документ: ${file.name}` },
         { role: "assistant", content: aiText },
