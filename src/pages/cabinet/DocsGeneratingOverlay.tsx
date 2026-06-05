@@ -38,7 +38,7 @@ export default function DocsGeneratingOverlay({ docLabel, retrying }: { docLabel
         </div>
 
         <h3 className="font-cormorant font-bold text-xl text-navy-800 mb-1">
-          {retrying ? "Переподключаемся..." : `Составляю ${docLabel}`}
+          {retrying ? "Переподключаемся..." : "Составляю документ"}
         </h3>
         <p className="text-xs text-muted-foreground mb-6">
           {retrying ? "Соединение прервалось — повторная попытка" : "AI-юрист работает над документом"}
