@@ -263,12 +263,9 @@ def grant_service(conn, user_id: int, service_type: str):
                 (user_id,)
             )
         elif service_type == "doc_analysis":
-            # Разовый анализ документа: has_file_analysis + 1 вопрос для consumeQuestion
+            # Разовый анализ документа
             cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET has_file_analysis = TRUE,
-                        paid_questions = paid_questions + 1
-                    WHERE id = %s""",
+                f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s",
                 (user_id,)
             )
         conn.commit()

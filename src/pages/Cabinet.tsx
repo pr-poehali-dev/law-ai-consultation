@@ -170,10 +170,30 @@ export default function Cabinet() {
           const { name, b64, comment } = JSON.parse(pendingFileRaw) as { name: string; b64: string; comment: string };
           if (name && b64) {
             setTab("chat");
-            // Запускаем анализ напрямую после небольшой задержки (кабинет инициализируется)
-            setTimeout(() => {
+            // Ждём начисления от вебхука ЮКассы — делаем ретраи до 35 сек
+            const waitAndAnalyze = async () => {
+              const MAX_WAIT_MS = 35_000;
+              const RETRY_INTERVAL_MS = 2_000;
+              const started = Date.now();
+              while (Date.now() - started < MAX_WAIT_MS) {
+                invalidateUserCache();
+                const freshUser = await getUser();
+                const canRun = freshUser && (
+                  freshUser.isAdmin ||
+                  hasActiveSubscription(freshUser, "consult") ||
+                  freshUser.hasFileAnalysis ||
+                  (freshUser.paidQuestions ?? 0) > 0
+                );
+                if (canRun) {
+                  chat.analyzeFileDirectly({ name, b64 }, comment || "");
+                  return;
+                }
+                await new Promise(res => setTimeout(res, RETRY_INTERVAL_MS));
+              }
+              // Вебхук так и не пришёл — всё равно пробуем (функция сама покажет ошибку)
               chat.analyzeFileDirectly({ name, b64 }, comment || "");
-            }, 800);
+            };
+            setTimeout(waitAndAnalyze, 800);
           }
         } catch { /* ignore */ }
       }

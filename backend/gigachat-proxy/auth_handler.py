@@ -488,6 +488,17 @@ def handle_consume_question(token: str) -> dict:
         return _err(401, "Не авторизован")
     if user.get("isAdmin", False) or _has_active_subscription(user, "consult"):
         return _ok({"ok": True, "is_last_question": False})
+    # has_file_analysis — разовый анализ документа, не списываем вопрос из пула
+    if user.get("hasFileAnalysis", False):
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = FALSE WHERE id = %s", (user["id"],))
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+        return _ok({"ok": True, "is_last_question": False})
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -567,14 +578,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
         elif service_type == "doc_analysis":
-            # Анализ документа: даём has_file_analysis + 1 вопрос чтобы consumeQuestion не блокировал
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET has_file_analysis = TRUE,
-                        paid_questions = paid_questions + 1
-                    WHERE id = %s""",
-                (user["id"],)
-            )
+            cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s", (user["id"],))
         elif service_type == "quick_questions":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
         elif service_type == "expert":
