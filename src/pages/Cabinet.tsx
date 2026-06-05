@@ -1,51 +1,41 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { getUserWithStatus, getUser, type User, getToken, startKeepAlive, invalidateUserCache, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
-import { PENDING_FILE_KEY } from "@/components/landingChatUtils";
+import { useNavigate } from "react-router-dom";
+import { getUser, type User, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
 
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
-import { findDocType, type DocType, DOC_TYPES } from "@/pages/cabinet/docBlocks";
-import func2url from "../../backend/func2url.json";
+import { type DocType } from "@/pages/cabinet/docBlocks";
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
-import { ServiceType } from "@/components/PaymentModal";
-import { type DocHint } from "@/pages/cabinet/ChatTab";
 import {
   useCabinetPayment,
-  savePendingAction, loadPendingAction, clearPendingAction,
+  savePendingAction,
 } from "@/pages/cabinet/useCabinetPayment";
 import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
-import ExitIntentPopup, { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
-import DocSavedToast from "@/components/DocSavedToast";
-import DocChoiceModal from "@/components/DocChoiceModal";
-import WelcomeTutorialsModal, { shouldShowWelcomeTutorials } from "@/components/WelcomeTutorialsModal";
+import { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
+import { shouldShowWelcomeTutorials } from "@/components/WelcomeTutorialsModal";
 
-
-const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
+import { useCabinetInit } from "@/pages/cabinet/useCabinetInit";
+import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
+import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
+import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
 
 export default function Cabinet() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
-  // Если токена нет — сразу редиректим без белого экрана
   const hasToken = useRef(!!localStorage.getItem("yurist_ai_token")).current;
   const [authChecked, setAuthChecked] = useState(false);
   const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
   const [showExitIntent, setShowExitIntent] = useState(false);
-  const [pendingDocFromChat, setPendingDocFromChat] = useState<{ details: string; docTypeId: string } | null>(null);
-  const [creatingDocFromChat, setCreatingDocFromChat] = useState(false);
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showWelcomeTutorials, setShowWelcomeTutorials] = useState(false);
 
-
-  const chatSendRef = useRef<((text: string) => void) | null>(null);
   const docsGenerateRef = useRef<((dt: DocType, details: string) => void) | null>(null);
 
   const refreshUser = async () => { const u = await getUser(); if (u) setUser(u); };
@@ -55,13 +45,10 @@ export default function Cabinet() {
     onPaymentRequired: (type, name) => pay.setPayment({ type, name }),
   });
 
-  chatSendRef.current = chat.sendMessage;
-
   const docs = useDocsLogic({
     refreshUser,
     onPaymentRequired: (type, name, pendingDt) => {
       if (pendingDt) {
-        // Показываем выбор: 1 документ vs пакет Старт
         setShowDocChoice({ docTypeId: pendingDt.id, docLabel: pendingDt.label });
       } else {
         pay.setPayment({ type, name });
@@ -71,8 +58,6 @@ export default function Cabinet() {
     onDocGenerated: (doc) => {
       setTab("docs");
       setViewDoc(doc);
-      // Показываем панель рекомендаций если AI их нашёл
-
     },
     onDocSaved: (docName) => setDocSavedToast(docName),
     getChatHistory: () => chat.history,
@@ -100,6 +85,28 @@ export default function Cabinet() {
     docsGenerateDocWith: docs.generateDocWith,
   });
 
+  const { creatingDocFromChat, createDocFromChat } = useCabinetDocFromChat({
+    user,
+    tab,
+    setTab,
+    docs,
+    chat,
+    openDocChoice: (docTypeId, docLabel) => setShowDocChoice({ docTypeId, docLabel }),
+  });
+
+  useCabinetInit({
+    hasToken,
+    setUser,
+    setAuthChecked,
+    setAuthTimeout,
+    setTab,
+    analyzeFileDirectly: chat.analyzeFileDirectly,
+    setDocDetails: docs.setDocDetails,
+    setDocPhase: docs.setDocPhase,
+    docsGenerateRef,
+    pollPaymentStatus: pay.pollPaymentStatus,
+  });
+
   const hasNoPurchase = user
     ? (!user.isAdmin &&
        (user.paidQuestions ?? 0) === 0 &&
@@ -108,19 +115,15 @@ export default function Cabinet() {
        !user.subscriptionDocsUntil)
     : false;
 
-  // Показываем туториалы при первом входе — только если нет активной генерации/оплаты
   useEffect(() => {
     if (!user || !shouldShowWelcomeTutorials()) return;
-    // Не показываем если пользователь пришёл с оплаты или идёт в docs
     const params = new URLSearchParams(window.location.search);
     const isPostPayment = params.has("payment") || params.has("inv_id");
     const isPendingDoc = params.get("tab") === "docs";
     if (isPostPayment || isPendingDoc) {
-      // Помечаем как просмотренное — не мешаем процессу
       localStorage.setItem("tutorials_welcome_seen", "1");
       return;
     }
-    // Задержка 3с — даём время кабинету полностью загрузиться
     const t = setTimeout(() => setShowWelcomeTutorials(true), 3000);
     return () => clearTimeout(t);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,290 +133,14 @@ export default function Cabinet() {
     onShow: () => setShowExitIntent(true),
   });
 
-  useEffect(() => {
-    // Нет токена — мгновенный редирект без белого экрана
-    if (!hasToken) {
-      window.location.replace("/");
-      return;
-    }
-
-    const ref = searchParams.get("ref");
-    if (ref) localStorage.setItem("ref_code", ref);
-    const tabParam = searchParams.get("tab") as Tab | null;
-    if (tabParam && ["chat", "docs", "expert", "business", "history", "profile"].includes(tabParam)) {
-      setTab(tabParam);
-    }
-    // Таймаут 20 сек — iOS PWA после сна может долго стартовать (cold start + retry)
-    const timeoutId = setTimeout(() => setAuthTimeout(true), 20000);
-
-    getUserWithStatus().then(({ user: u, unauthorized }) => {
-      clearTimeout(timeoutId);
-      setAuthChecked(true);
-      if (!u) {
-        // Редиректим ТОЛЬКО при явном 401 (нет токена / токен невалиден)
-        // При сетевых ошибках или 500 — показываем экран "нет соединения", не разлогиниваем
-        if (unauthorized) {
-          window.location.href = "/?login=1";
-        } else {
-          setAuthTimeout(true);
-        }
-        return;
-      }
-      setUser(u);
-
-      // Подхватываем pending-файл с лендинга (анализ документа 99₽)
-      const pendingFileRaw = localStorage.getItem(PENDING_FILE_KEY);
-      if (pendingFileRaw) {
-        localStorage.removeItem(PENDING_FILE_KEY);
-        localStorage.removeItem("landing_pending_service");
-        try {
-          const { name, b64, comment } = JSON.parse(pendingFileRaw) as { name: string; b64: string; comment: string };
-          if (name && b64) {
-            setTab("chat");
-            // Ждём начисления от вебхука ЮКассы — делаем ретраи до 35 сек
-            const waitAndAnalyze = async () => {
-              const MAX_WAIT_MS = 35_000;
-              const RETRY_INTERVAL_MS = 2_000;
-              const started = Date.now();
-              while (Date.now() - started < MAX_WAIT_MS) {
-                invalidateUserCache();
-                const freshUser = await getUser();
-                const canRun = freshUser && (
-                  freshUser.isAdmin ||
-                  hasActiveSubscription(freshUser, "consult") ||
-                  freshUser.hasFileAnalysis ||
-                  (freshUser.paidQuestions ?? 0) > 0
-                );
-                if (canRun) {
-                  chat.analyzeFileDirectly({ name, b64 }, comment || "");
-                  return;
-                }
-                await new Promise(res => setTimeout(res, RETRY_INTERVAL_MS));
-              }
-              // Вебхук так и не пришёл — всё равно пробуем (функция сама покажет ошибку)
-              chat.analyzeFileDirectly({ name, b64 }, comment || "");
-            };
-            setTimeout(waitAndAnalyze, 800);
-          }
-        } catch { /* ignore */ }
-      }
-
-      // Подхватываем контекст диалога с лендинга
-      // landing_chat_history уже прочитана useChatLogic при инициализации — чистим её здесь
-      const pendingDocType = localStorage.getItem("landing_pending_doc");
-      const pendingServiceType = localStorage.getItem("landing_pending_service");
-      const rawHist = localStorage.getItem("landing_chat_history");
-      localStorage.removeItem("landing_chat_history");
-      localStorage.removeItem("landing_pending_doc");
-      localStorage.removeItem("landing_pending_service");
-
-      // quick_questions: история уже перенесена useChatLogic, просто открываем чат
-      if (pendingServiceType === "quick_questions") {
-        setTab("chat");
-      } else if (pendingDocType || rawHist) {
-        try {
-          const hist: { role: string; content: string }[] = rawHist ? JSON.parse(rawHist) : [];
-          const userMsgs = hist.filter(m => m.role === "user").map(m => m.content).join("\n");
-          const details = userMsgs.slice(0, 2000);
-
-          if (pendingDocType) {
-            // Есть конкретный тип документа — сразу генерируем
-            const dt = findDocType(pendingDocType);
-            setTab("docs");
-            setTimeout(() => {
-              savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
-              docsGenerateRef.current?.(dt, details);
-            }, 800);
-          } else if (details.trim()) {
-            // Есть история, но без конкретного документа (купил план) —
-            // открываем вкладку документов с предзаполненным описанием ситуации
-            setTab("docs");
-            setTimeout(() => {
-              docs.setDocDetails(details);
-              docs.setDocPhase("form");
-            }, 600);
-          }
-        } catch { /* ignore */ }
-      }
-    });
-
-    // visibilitychange: при возврате в PWA после долгого сна — обновляем данные пользователя
-    const handleVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      invalidateUserCache();
-      getUserWithStatus().then(({ user: u, unauthorized }) => {
-        if (!u && unauthorized) {
-          // Только настоящий 401 — разлогиниваем
-          window.location.href = "/?login=1";
-        } else if (u) {
-          setUser(u);
-        }
-        // При сетевой ошибке — оставляем пользователя на месте
-      });
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    const stopKeepAlive = startKeepAlive();
-    return () => {
-      stopKeepAlive();
-      clearTimeout(timeoutId);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
-
-  useEffect(() => {
-    const isSuccess = searchParams.get("payment") === "success";
-    const invId = searchParams.get("inv_id");
-    if (!isSuccess || !invId) return;
-    setSearchParams({});
-    const action = loadPendingAction();
-    clearPendingAction();
-    pay.pollPaymentStatus(invId, action);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!pendingDocFromChat || tab !== "docs") return;
-    const dt = findDocType(pendingDocFromChat.docTypeId);
-    const details = pendingDocFromChat.details;
-    setPendingDocFromChat(null);
-    docs.setDocType(dt);
-    docs.setDocDetails(details);
-    docs.setDocPhase("form");
-    docs.setDocErr("");
-    setTimeout(() => docs.generateDocWith(dt, details), 300);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingDocFromChat, tab]);
-
-  const createDocFromChat = async (aiText: string, userText: string, docHint?: DocHint) => {
-    if (creatingDocFromChat || !user) return;
-
-    const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
-      (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
-    if (!canDoc) {
-      // Показываем выбор: 1 документ 990р vs пакет Старт 1490р
-      const hintDocId = docHint?.doc_type || "claim";
-      const hintDocLabel = docHint?.doc_label || "документ";
-      setShowDocChoice({ docTypeId: hintDocId, docLabel: hintDocLabel });
-      return;
-    }
-
-    if (docHint?.doc_type && docHint?.details) {
-      const details = docHint.extracted_text
-        ? `${docHint.details}\n\n[Текст из документа пользователя]:\n${docHint.extracted_text.slice(0, 4000)}`
-        : docHint.details;
-      setPendingDocFromChat({ details, docTypeId: docHint.doc_type });
-      setTab("docs");
-      return;
-    }
-
-    setCreatingDocFromChat(true);
-
-    const recentMessages = chat.messages.slice(-5);
-    const dialogContext = recentMessages
-      .filter(m => m.text && m.text.length > 5)
-      .map(m => `${m.role === "user" ? "Пользователь" : "Юрист"}: ${m.text.slice(0, 500)}`)
-      .join("\n\n");
-
-    try {
-      // Компактный список id→label (без лишних полей) чтобы не перегружать промпт
-      const validIds = new Set(DOC_TYPES.map(d => d.id));
-      const docTypesList = DOC_TYPES.map(d => `"${d.id}":${d.label}`).join("|");
-      const systemPrompt = `Ты — помощник юриста. На основе переписки определи нужный тип документа и сформулируй подробное техническое задание для его генерации.
-Список типов (id:название): ${docTypesList}
-Извлеки из переписки: стороны (ФИО/организации), суммы, даты, адреса, предмет спора, нарушенные права — всё что поможет составить документ.
-Выбери ОДИН id из списка выше. Ответь ТОЛЬКО JSON: {"doc_type":"id_из_списка","details":"подробное описание ситуации и всех известных фактов"}`;
-      const userPrompt = `Переписка:\n\n${dialogContext}\n\nПоследний ответ юриста:\n${aiText.slice(0, 800)}`;
-      const token = getToken();
-      const res = await fetch(GIGACHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ mode: "chat", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
-      });
-      const data = await res.json();
-      const match = (data.answer || "").match(/\{[\s\S]*?\}/);
-      let docTypeId = "claim";
-      let details = `${userText}\n\n${aiText.slice(0, 500)}`;
-      if (match) {
-        try {
-          const p = JSON.parse(match[0]);
-          // Валидируем: принимаем только id из нашего списка
-          const rawId = p.doc_type || "";
-          docTypeId = validIds.has(rawId) ? rawId : "claim";
-          details = p.details || details;
-        } catch { /* дефолты */ }
-      }
-      setPendingDocFromChat({ details, docTypeId });
-      setTab("docs");
-    } catch {
-      setPendingDocFromChat({ details: `${userText}\n\n${aiText.slice(0, 500)}`, docTypeId: "claim" });
-      setTab("docs");
-    } finally {
-      setCreatingDocFromChat(false);
-    }
-  };
-
   if (!authChecked || !user) {
-    // Таймаут — нет связи с сервером
-    if (authTimeout) return (
-      <div
-        className="fixed inset-0 flex items-center justify-center"
-        style={{ background: "#0a1628", paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="flex flex-col items-center gap-5 px-8 text-center max-w-xs">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-          </div>
-          <div>
-            <p className="font-semibold mb-1" style={{ color: "rgba(255,255,255,0.9)" }}>Нет соединения</p>
-            <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Проверьте интернет и попробуйте снова</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2.5 text-sm font-semibold rounded-xl"
-              style={{ background: "linear-gradient(135deg, #e8a820, #f0c060)", color: "#0a1628" }}
-            >
-              Повторить
-            </button>
-            <button
-              onClick={() => { localStorage.removeItem("yurist_ai_token"); window.location.replace("/"); }}
-              className="px-6 py-2.5 text-sm font-semibold rounded-xl"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
-            >
-              На главную
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-    // Обычная загрузка — фон #0a1628 совпадает с инлайн-стилем в index.html (нет вспышки)
-    return (
-      <div
-        className="fixed inset-0 flex flex-col items-center justify-center"
-        style={{ background: "#0a1628", paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="flex flex-col items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl" style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8a820" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>Загружаем кабинет...</p>
-          <div className="flex gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"0ms"}}/>
-            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"150ms"}}/>
-            <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{background:"#e8a820", animationDelay:"300ms"}}/>
-          </div>
-        </div>
-      </div>
-    );
+    return <CabinetLoadingScreen timeout={authTimeout} />;
   }
 
   const isPremium = hasActiveSubscription(user, "consult");
   const totalLeft = user.isAdmin || isPremium
     ? 999
     : getDailyFreeLeft() + (user.paidQuestions ?? 0);
-  // Загрузка файлов в чат — постоянный флаг hasFileAnalysis (выставляется при покупке Профи/Макс)
   const canUploadFiles = user.isAdmin || isPremium || user.hasFileAnalysis === true;
 
   return (
@@ -460,57 +187,24 @@ export default function Cabinet() {
         onSelectPlan={pay.handleSelectPlan}
       />
 
-      {showExitIntent && (
-        <ExitIntentPopup
-          onAccept={() => {
-            setShowExitIntent(false);
-            savePendingAction({ tab: "chat" });
-            pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
-          }}
-          onClose={() => setShowExitIntent(false)}
-        />
-      )}
-
-      {/* Toast: документ сохранён */}
-      {docSavedToast && (
-        <DocSavedToast
-          docName={docSavedToast}
-          onClose={() => setDocSavedToast(null)}
-        />
-      )}
-
-      {/* Выбор: 1 документ 600р vs Пакет Старт 990р */}
-      {showDocChoice && (
-        <DocChoiceModal
-          docLabel={showDocChoice.docLabel}
-          onChooseDoc={() => {
-            const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
-            setShowDocChoice(null);
-            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
-            pay.setPayment({ type: "document", name: dt.label });
-            pay.setPendingDocType(dt);
-          }}
-          onChoosePlan={(planId) => {
-            const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
-            setShowDocChoice(null);
-            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
-            const id = (planId || "plan_starter") as ServiceType;
-            const nameMap: Record<string, string> = {
-              plan_starter: "Тариф «Старт»",
-              plan_pro: "Тариф «Профи»",
-              plan_max: "Тариф «Максимум»",
-            };
-            pay.setPayment({ type: id, name: nameMap[id] || "Тариф" });
-            pay.setPendingDocType(dt);
-          }}
-          onClose={() => setShowDocChoice(null)}
-        />
-      )}
-
-      {showWelcomeTutorials && (
-        <WelcomeTutorialsModal onClose={() => setShowWelcomeTutorials(false)} />
-      )}
-
+      <CabinetOverlays
+        showExitIntent={showExitIntent}
+        docSavedToast={docSavedToast}
+        showDocChoice={showDocChoice}
+        showWelcomeTutorials={showWelcomeTutorials}
+        docDetails={docs.docDetails}
+        onCloseExitIntent={() => setShowExitIntent(false)}
+        onAcceptExitIntent={() => {
+          setShowExitIntent(false);
+          savePendingAction({ tab: "chat" });
+          pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
+        }}
+        onCloseDocSavedToast={() => setDocSavedToast(null)}
+        onCloseDocChoice={() => setShowDocChoice(null)}
+        onCloseWelcomeTutorials={() => setShowWelcomeTutorials(false)}
+        setPayment={pay.setPayment}
+        setPendingDocType={pay.setPendingDocType}
+      />
     </div>
   );
 }
