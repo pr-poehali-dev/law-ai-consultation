@@ -167,6 +167,10 @@ export default function ExpertMaxOfferModal({ onClose, onSuccess, context = "cha
           <p className="text-center mt-2" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
           </p>
+          <p className="text-center mt-2" style={{ fontSize: 11 }}>
+            <span style={{ color: "rgba(255,255,255,0.35)" }}>Уже есть подписка? </span>
+            <a href="/cabinet" className="underline underline-offset-2" style={{ color: "rgba(255,255,255,0.55)" }}>Войдите в личный кабинет</a>
+          </p>
         </div>
       </div>
     </div>

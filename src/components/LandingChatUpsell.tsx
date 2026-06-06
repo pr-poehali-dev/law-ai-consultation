@@ -102,6 +102,10 @@ export function UpsellBlock({
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
           </p>
+          <p className="text-center text-[11px] mt-2">
+            <span style={{ color: "rgba(255,255,255,0.35)" }}>Уже есть подписка? </span>
+            <a href="/cabinet" className="underline underline-offset-2" style={{ color: "rgba(255,255,255,0.55)" }}>Войдите в личный кабинет</a>
+          </p>
         </div>
       </div>
     </div>

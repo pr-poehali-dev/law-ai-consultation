@@ -205,6 +205,10 @@ export default function ExpertOfferModal({ onClose, onSelectOffer, mode = "exper
           <p className="text-[10px] sm:text-[11px] text-center text-muted-foreground">
             Защищённая оплата · Доступ сразу после оплаты · Без автосписаний
           </p>
+          <p className="text-center text-[11px] mt-1.5 text-muted-foreground">
+            Уже есть подписка?{" "}
+            <a href="/cabinet" className="underline underline-offset-2 text-navy-600 hover:text-navy-800">Войдите в личный кабинет</a>
+          </p>
         </div>
       </div>
     </div>
