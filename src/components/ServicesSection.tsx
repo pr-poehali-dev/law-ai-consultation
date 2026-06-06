@@ -52,7 +52,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "50 000+", label: "пользователей" },
+  { value: "12 000+", label: "пользователей" },
   { value: "120+", label: "типов документов" },
   { value: "24/7", label: "доступность" },
   { value: "99%", label: "довольных клиентов" },
