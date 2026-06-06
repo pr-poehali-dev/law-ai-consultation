@@ -15,7 +15,7 @@ YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
     "consultation":         "990.00",
-    "document":             "490.00",
+    "document":             "990.00",
     "doc_analysis":         "99.00",
     "quick_questions":      "199.00",
     "expert":               "990.00",
