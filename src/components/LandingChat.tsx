@@ -376,7 +376,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         </div>
       </div>
 
-      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>3 вопроса бесплатно каждый день · Документ 490 ₽ · Пакет 30 вопросов + 5 документов за 1490 ₽</p>
+      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>3 вопроса бесплатно каждый день · Документ 990 ₽ · Пакет 30 вопросов + 5 документов за 1490 ₽</p>
 
       {/* Модалки */}
       {showLogin && (
