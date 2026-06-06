@@ -122,34 +122,7 @@ export default function ServicesSection({ onSelectService }: ServicesSectionProp
           ))}
         </div>
 
-        {/* How it works */}
-        <div className="bg-gradient-to-br from-navy-800 to-navy-900 rounded-3xl p-6 sm:p-10 md:p-14">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="font-cormorant font-bold text-2xl sm:text-3xl md:text-4xl text-white mb-3">
-              Как это работает
-            </h2>
-            <p className="text-white/65 text-sm sm:text-base">Получите юридическую помощь за 4 простых шага</p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-6">
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={step.title} className="relative text-center group">
-                {i < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-full h-[1px] bg-gradient-to-r from-gold-500/50 to-transparent" />
-                )}
-                <div className="relative inline-flex mb-5">
-                  <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center mx-auto transition-all duration-300 group-hover:bg-gold-500/20">
-                    <Icon name={step.icon} size={26} className="text-gold-400" />
-                  </div>
-                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-gold-500 rounded-full text-[10px] font-bold text-navy-900 flex items-center justify-center">
-                    {i + 1}
-                  </span>
-                </div>
-                <h4 className="font-golos font-semibold text-white mb-2">{step.title}</h4>
-                <p className="text-white/65 text-sm leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+
 
 
       </div>
