@@ -63,7 +63,7 @@ export default function LandingChatMessages({
                     <Icon name="Banknote" size={12} color="#e8a820" />
                   </div>
                   <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    Стоимость создания 1 документа — <span style={{ color: "#e8c84a" }} className="font-semibold">490 ₽</span>. С пакета «Старт» доступна отправка на проверку <span className="text-white font-medium">живому юристу</span> с доступом к чату.
+                    С пакета «Старт» доступна отправка на проверку <span className="text-white font-medium">живому юристу</span> с доступом к чату.
                   </p>
                 </div>
 
