@@ -8,7 +8,7 @@ const FONT = "Times New Roman";
 const SIZE_NORMAL = 28; // 14pt
 const SIZE_SMALL = 24;  // 12pt
 const SIZE_HEADER = 32; // 16pt
-const LINE_SPACING = 360; // 1.5 интервал
+const LINE_SPACING = 414; // ~1.8 интервал (как в предпросмотре)
 
 const spacer = (pt = 80) => new Paragraph({ text: "", spacing: { after: pt } });
 

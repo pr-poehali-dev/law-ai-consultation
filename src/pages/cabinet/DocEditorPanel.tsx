@@ -8,14 +8,36 @@ interface DocEditorPanelProps {
   onClose: () => void;
 }
 
+// Преобразовать HTML-элемент в plain-text, сохраняя переносы строк
+function elementToText(el: HTMLElement): string {
+  let result = "";
+  for (const node of el.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent || "";
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const tag = (node as HTMLElement).tagName.toLowerCase();
+      if (tag === "br") {
+        result += "\n";
+      } else if (tag === "div" || tag === "p") {
+        const inner = elementToText(node as HTMLElement).trimEnd();
+        if (inner) result += inner + "\n";
+        else result += "\n";
+      } else {
+        result += elementToText(node as HTMLElement);
+      }
+    }
+  }
+  return result;
+}
+
 // Собрать HTML обратно в plain-text с тегами секций
 function collectContent(container: HTMLElement): string {
   const sections = container.querySelectorAll("[data-section-type]");
-  if (!sections.length) return container.innerText;
+  if (!sections.length) return elementToText(container).trim();
   const parts: string[] = [];
   sections.forEach(el => {
     const type = el.getAttribute("data-section-type");
-    const text = (el as HTMLElement).innerText.trim();
+    const text = elementToText(el as HTMLElement).trim();
     if (type && type !== "RAW") parts.push(`[${type}]\n${text}`);
     else parts.push(text);
   });
