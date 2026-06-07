@@ -101,7 +101,7 @@ export default function ViewDocFooter({
         >
           <Icon name={showEditor ? "X" : "PenLine"} size={13} />
           {showEditor ? "Закрыть редактор" : "Редактирование + AI"}
-          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[9px] font-bold">Профи+</span>
+          {!showEditor && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[9px] font-bold">Профи+</span>}
         </button>
         <p className="text-[10px] text-slate-400 text-center leading-snug">
           Редактор документа с AI-консультантом по заполнению
