@@ -6,10 +6,10 @@ interface UpgradeNoticeModalProps {
   description?: string;   // Описание
   requiredPlan?: string;  // Минимальный тариф
   onClose: () => void;
-  onViewPlans: () => void;
+  onViewPlans: (minPlanId?: string) => void;
 }
 
-const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string }> = {
+const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string; minPlanId?: string }> = {
   lawyer: {
     icon: "UserCheck",
     plan: "Старт",
@@ -19,16 +19,19 @@ const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string }>
     icon: "BrainCircuit",
     plan: "Профи",
     desc: "Редактирование документов с помощью AI доступно с тарифа «Профи» и выше.",
+    minPlanId: "plan_pro",
   },
   file_analysis: {
     icon: "FileSearch",
     plan: "Профи",
     desc: "Анализ документов и файлов доступен с тарифа «Профи» и выше.",
+    minPlanId: "plan_pro",
   },
   ai_fill_chat: {
     icon: "MessagesSquare",
     plan: "Профи",
     desc: "AI-консультант по заполнению реквизитов доступен с тарифа «Профи» и выше.",
+    minPlanId: "plan_pro",
   },
   default: {
     icon: "Lock",
@@ -52,7 +55,7 @@ export default function UpgradeNoticeModal({
   }, []);
 
   const handleClose = () => { setVisible(false); setTimeout(onClose, 220); };
-  const handlePlans = () => { setVisible(false); setTimeout(onViewPlans, 220); };
+  const handlePlans = () => { setVisible(false); setTimeout(() => onViewPlans(info.minPlanId), 220); };
 
   return (
     <div

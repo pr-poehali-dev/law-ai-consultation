@@ -604,9 +604,9 @@ ${docTextClean}
         <UpgradeNoticeModal
           feature={upgradeFeature}
           onClose={() => setUpgradeFeature(null)}
-          onViewPlans={() => {
+          onViewPlans={(minPlanId) => {
             setUpgradeFeature(null);
-            if (onOpenPlanModal) onOpenPlanModal();
+            if (onOpenPlanModal) onOpenPlanModal(minPlanId);
             else setShowExpertOffer(true);
           }}
         />

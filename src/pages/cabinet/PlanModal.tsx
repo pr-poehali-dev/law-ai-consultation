@@ -100,15 +100,20 @@ interface PlanModalProps {
   user: User;
   onClose: () => void;
   onSelectPlan: (name: string, price: string, id: string) => void;
+  minPlanId?: string;
 }
 
 const BG = "#0a1628";
 const GOLD = "#e8a820";
 const GOLD_LIGHT = "#f0c060";
 
-export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProps) {
+export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: PlanModalProps) {
   const [visible, setVisible] = useState(false);
   const activePlanId = getActivePlan(user);
+
+  const planOrder = ["plan_starter", "plan_pro", "plan_max"];
+  const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
+  const visiblePlans = minIdx > 0 ? PLANS.filter(p => planOrder.indexOf(p.id) >= minIdx) : PLANS;
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10);
@@ -161,7 +166,7 @@ export default function PlanModal({ user, onClose, onSelectPlan }: PlanModalProp
 
         {/* Тарифы */}
         <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-3 flex-1">
-          {PLANS.map((plan) => {
+          {visiblePlans.map((plan) => {
             const isActive = activePlanId === plan.id;
             const isDark = plan.color === "dark";   // Профи
             const isMax = plan.color === "max";      // Максимум

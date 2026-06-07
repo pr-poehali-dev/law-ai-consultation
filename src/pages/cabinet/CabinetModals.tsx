@@ -23,7 +23,7 @@ interface CabinetModalsProps {
   onClosePayment: () => void;
   onPaySuccess: (type: ServiceType) => void;
   onCloseViewDoc: () => void;
-  onOpenPlanModal: () => void;
+  onOpenPlanModal: (minPlanId?: string) => void;
   onClosePlanModal: () => void;
   onSelectPlan: (name: string, id: ServiceType) => void;
 }
@@ -37,6 +37,7 @@ export default function CabinetModals({
   onCloseViewDoc, onOpenPlanModal, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
+  const [planMinId, setPlanMinId] = useState<string | undefined>(undefined);
 
   return (
     <>
@@ -53,7 +54,7 @@ export default function CabinetModals({
         <ViewDocModal
           doc={viewDoc}
           onClose={onCloseViewDoc}
-          onOpenPlanModal={onOpenPlanModal}
+          onOpenPlanModal={(minPlanId) => { setPlanMinId(minPlanId); onOpenPlanModal(minPlanId); }}
           fillValues={fillValues}
           onFillChange={onFillChange}
           onApplyFill={onApplyFill}
@@ -65,7 +66,8 @@ export default function CabinetModals({
       {showPlanModal && !showExpertOffer && (
         <PlanModal
           user={user}
-          onClose={onClosePlanModal}
+          minPlanId={planMinId}
+          onClose={() => { setPlanMinId(undefined); onClosePlanModal(); }}
           onSelectPlan={(name, _price, id) => {
             if (id === "plan_max") {
               onClosePlanModal();
