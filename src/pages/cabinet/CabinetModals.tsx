@@ -18,6 +18,8 @@ interface CabinetModalsProps {
   fillValues?: Record<string, string>;
   onFillChange?: (key: string, value: string) => void;
   onApplyFill?: () => void;
+  paidQuestions?: number;
+  onPayForQuestions?: () => void;
   onClosePayment: () => void;
   onPaySuccess: (type: ServiceType) => void;
   onCloseViewDoc: () => void;
@@ -29,6 +31,7 @@ export default function CabinetModals({
   user, payment, viewDoc, showPlanModal,
   successToast, errorToast,
   fillValues, onFillChange, onApplyFill,
+  paidQuestions, onPayForQuestions,
   onClosePayment, onPaySuccess,
   onCloseViewDoc, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
@@ -53,6 +56,8 @@ export default function CabinetModals({
           fillValues={fillValues}
           onFillChange={onFillChange}
           onApplyFill={onApplyFill}
+          paidQuestions={paidQuestions}
+          onPayForQuestions={onPayForQuestions}
         />
       )}
 

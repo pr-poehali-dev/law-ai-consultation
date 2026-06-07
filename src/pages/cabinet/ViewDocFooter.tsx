@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
+import { getToken } from "@/lib/auth";
+import func2url from "../../../backend/func2url.json";
+
+const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+
+interface AiChatMsg {
+  role: "user" | "ai";
+  text: string;
+}
 
 interface ViewDocFooterProps {
   docName: string;
@@ -18,6 +27,7 @@ interface ViewDocFooterProps {
   reportText: string;
   reportLoading: boolean;
   reportSent: boolean;
+  paidQuestions: number;
   onSendToLawyer: (comment: string) => void;
   onAiEditorClick: () => void;
   onToggleRecs: () => void;
@@ -26,6 +36,7 @@ interface ViewDocFooterProps {
   onCloseReport: () => void;
   onReportTextChange: (v: string) => void;
   onSendReport: () => void;
+  onPayForQuestions: () => void;
 }
 
 export default function ViewDocFooter({
@@ -43,6 +54,7 @@ export default function ViewDocFooter({
   reportText,
   reportLoading,
   reportSent,
+  paidQuestions,
   onSendToLawyer,
   onAiEditorClick,
   onToggleRecs,
@@ -51,9 +63,78 @@ export default function ViewDocFooter({
   onCloseReport,
   onReportTextChange,
   onSendReport,
+  onPayForQuestions,
 }: ViewDocFooterProps) {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [lawyerComment, setLawyerComment] = useState("");
+
+  // AI-чат по заполнению
+  const [showAiFillChat, setShowAiFillChat] = useState(false);
+  const [aiMessages, setAiMessages] = useState<AiChatMsg[]>([]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiTyping, setAiTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showAiFillChat && aiMessages.length === 0) {
+      setAiMessages([{
+        role: "ai",
+        text: `Привет! Я помогу разобраться с заполнением документа «${docName}». Задайте любой вопрос — например, что именно писать в то или иное поле.`,
+      }]);
+    }
+  }, [showAiFillChat]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showAiFillChat) {
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+  }, [aiMessages, showAiFillChat]);
+
+  const handleOpenAiChat = () => {
+    setShowAiFillChat(true);
+    setTimeout(() => inputRef.current?.focus(), 300);
+  };
+
+  const handleAiSend = async () => {
+    const text = aiInput.trim();
+    if (!text || aiTyping) return;
+
+    if (paidQuestions <= 0) {
+      onPayForQuestions();
+      return;
+    }
+
+    const userMsg: AiChatMsg = { role: "user", text };
+    setAiMessages(prev => [...prev, userMsg]);
+    setAiInput("");
+    setAiTyping(true);
+
+    try {
+      const token = getToken();
+      const systemPrompt = `Ты AI-юрист-помощник. Пользователь работает с документом: "${docName}". Помогай только по вопросам заполнения реквизитов этого документа. Отвечай кратко, по делу, на русском языке. Не предлагай другие услуги.`;
+      const history = [
+        { role: "system", content: systemPrompt },
+        ...aiMessages.map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
+        { role: "user", content: text },
+      ];
+      const res = await fetch(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({ mode: "chat", messages: history }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiMessages(prev => [...prev, { role: "ai", text: data.answer || "Не удалось получить ответ" }]);
+      } else {
+        setAiMessages(prev => [...prev, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
+      }
+    } catch {
+      setAiMessages(prev => [...prev, { role: "ai", text: "Нет соединения. Попробуйте ещё раз." }]);
+    } finally {
+      setAiTyping(false);
+    }
+  };
 
   const handleOpenComment = () => {
     setLawyerComment("");
@@ -83,6 +164,16 @@ export default function ViewDocFooter({
               : <><Icon name="UserCheck" size={13} color="#f0c060" />Отправить на проверку юристу</>}
           </button>
         )}
+
+        {/* Кнопка AI-консультанта по заполнению */}
+        <button
+          onClick={handleOpenAiChat}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-95 shadow-sm"
+          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}
+        >
+          <Icon name="MessagesSquare" size={13} />
+          Уточнить у AI-юриста по заполнению
+        </button>
 
         {/* Кнопка AI-помощника */}
         <button
@@ -127,6 +218,131 @@ export default function ViewDocFooter({
         </div>
       </div>
 
+      {/* ── AI-чат по заполнению документа ── */}
+      {showAiFillChat && (
+        <div className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:px-4" onClick={() => setShowAiFillChat(false)}>
+          <div
+            className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
+            style={{ maxHeight: "85dvh", background: "#f8fafc" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Шапка */}
+            <div className="flex items-center gap-3 px-4 py-3.5 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Icon name="Bot" size={16} color="white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white leading-tight">AI-юрист</p>
+                <p className="text-[10px] text-white/60 truncate">По заполнению: {docName}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
+                  <Icon name="MessageCircle" size={10} color="white" />
+                  <span className="text-[10px] font-semibold text-white">{paidQuestions} вопр.</span>
+                </div>
+                <button onClick={() => setShowAiFillChat(false)} className="w-7 h-7 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                  <Icon name="X" size={14} color="white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Сообщения */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3" style={{ minHeight: 0 }}>
+              {aiMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
+                  {msg.role === "ai" && (
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                      <Icon name="Bot" size={12} color="white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "rounded-tr-sm text-white"
+                        : "rounded-tl-sm text-navy-800 border border-slate-200"
+                    }`}
+                    style={msg.role === "user"
+                      ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }
+                      : { background: "white" }
+                    }
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+
+              {aiTyping && (
+                <div className="flex justify-start gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                    <Icon name="Bot" size={12} color="white" />
+                  </div>
+                  <div className="px-3.5 py-3 bg-white border border-slate-200 rounded-2xl rounded-tl-sm flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Баннер докупки вопросов */}
+              {paidQuestions <= 0 && (
+                <div className="rounded-2xl p-4 border" style={{ background: "linear-gradient(135deg,#fff7ed,#fef3c7)", borderColor: "#fbbf24" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="Zap" size={14} className="text-amber-600 shrink-0" />
+                    <p className="text-xs font-bold text-amber-800">Вопросы закончились</p>
+                  </div>
+                  <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">
+                    Докупите пакет вопросов, чтобы продолжить общение с AI-юристом
+                  </p>
+                  <button
+                    onClick={onPayForQuestions}
+                    className="w-full py-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
+                    style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}
+                  >
+                    +3 вопроса · 199 ₽
+                  </button>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Ввод */}
+            <div className="shrink-0 px-3 py-3 border-t border-slate-200 bg-white">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={aiInput}
+                  onChange={e => setAiInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiSend()}
+                  placeholder={paidQuestions > 0 ? "Что писать в поле «ФИО»?" : "Нет доступных вопросов..."}
+                  disabled={paidQuestions <= 0 || aiTyping}
+                  className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all placeholder:text-slate-400 disabled:opacity-50"
+                  style={{ border: "1.5px solid transparent" }}
+                  onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
+                  onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
+                />
+                <button
+                  onClick={handleAiSend}
+                  disabled={!aiInput.trim() || aiTyping || paidQuestions <= 0}
+                  className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 shrink-0"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
+                >
+                  {aiTyping
+                    ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <Icon name="Send" size={14} color="white" />
+                  }
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 text-center mt-1.5">
+                Вопросы по заполнению реквизитов документа
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Модалка: Комментарий для юриста */}
       {showCommentModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCommentModal(false)}>
@@ -135,11 +351,9 @@ export default function ViewDocFooter({
             style={{ background: "linear-gradient(160deg,#0a1628 0%,#162d5a 60%,#0d2040 100%)" }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Декоративное свечение */}
             <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(232,168,32,0.12) 0%, transparent 70%)", transform: "translate(20%,-20%)" }} />
 
             <div className="relative px-6 pt-7 pb-6">
-              {/* Шапка */}
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.25)" }}>
@@ -155,12 +369,10 @@ export default function ViewDocFooter({
                 </button>
               </div>
 
-              {/* Подпись */}
               <p className="text-sm font-semibold mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
                 Укажите комментарии для юриста-эксперта по ситуации:
               </p>
 
-              {/* Textarea */}
               <textarea
                 value={lawyerComment}
                 onChange={e => setLawyerComment(e.target.value)}
@@ -168,12 +380,7 @@ export default function ViewDocFooter({
                 rows={5}
                 autoFocus
                 className="w-full text-sm outline-none resize-none rounded-2xl px-4 py-3 transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "rgba(255,255,255,0.85)",
-                  caretColor: "#f0c060",
-                }}
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)", caretColor: "#f0c060" }}
                 onFocus={e => { e.target.style.borderColor = "rgba(232,168,32,0.4)"; }}
                 onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
               />
@@ -181,7 +388,6 @@ export default function ViewDocFooter({
                 Комментарий необязателен — можно оставить пустым
               </p>
 
-              {/* Кнопки */}
               <div className="flex gap-2.5">
                 <button
                   onClick={() => setShowCommentModal(false)}
@@ -212,12 +418,10 @@ export default function ViewDocFooter({
             style={{ background: "linear-gradient(160deg,#0a1628 0%,#162d5a 60%,#0d2040 100%)" }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Декоративные кольца */}
-            <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
-            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(-40%,40%)" }} />
+            <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
+            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(-40%,40%)" }} />
 
             <div className="relative px-6 pt-8 pb-6">
-              {/* Иконка успеха */}
               <div className="flex justify-center mb-5">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.3)" }}>
@@ -229,13 +433,11 @@ export default function ViewDocFooter({
                 </div>
               </div>
 
-              {/* Заголовок */}
               <h3 className="text-center font-bold text-xl mb-1.5" style={{ color: "#f0c060" }}>Документ отправлен!</h3>
               <p className="text-center text-sm mb-5" style={{ color: "rgba(255,255,255,0.65)" }}>
                 Юрист получил ваш документ на проверку
               </p>
 
-              {/* Карточки времени */}
               <div className="rounded-2xl mb-5 p-4 space-y-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)" }}>
@@ -268,7 +470,6 @@ export default function ViewDocFooter({
                 </div>
               </div>
 
-              {/* Кнопка */}
               <button
                 onClick={onCloseLawyerSuccess}
                 className="w-full py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98]"

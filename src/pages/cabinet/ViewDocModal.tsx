@@ -14,7 +14,7 @@ import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 
-export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -254,6 +254,8 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
               reportText={reportText}
               reportLoading={reportLoading}
               reportSent={reportSent}
+              paidQuestions={paidQuestions}
+              onPayForQuestions={onPayForQuestions ?? (() => { if (onOpenPlanModal) onOpenPlanModal(); else setUpgradeFeature("ai_editor"); })}
               onSendToLawyer={handleSendToLawyer}
               onAiEditorClick={handleAiEditorClick}
               onToggleRecs={() => setShowRecs(v => !v)}

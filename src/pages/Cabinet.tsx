@@ -183,6 +183,8 @@ export default function Cabinet() {
         fillValues={docs.fillValues}
         onFillChange={(key, val) => docs.setFillValues((p) => ({ ...p, [key]: val }))}
         onApplyFill={docs.applyFillValues}
+        paidQuestions={user.paidQuestions ?? 0}
+        onPayForQuestions={() => pay.setPayment({ type: "quick_questions", name: "+3 вопроса AI-юристу" })}
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
         onCloseViewDoc={() => setViewDoc(null)}

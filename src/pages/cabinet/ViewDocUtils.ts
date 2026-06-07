@@ -7,6 +7,8 @@ export interface ViewDocModalProps {
   fillValues?: Record<string, string>;
   onFillChange?: (key: string, value: string) => void;
   onApplyFill?: () => void;
+  paidQuestions?: number;
+  onPayForQuestions?: () => void;
 }
 
 export function parseDocBlocks(content: string): { type: string; lines: string[] }[] {
