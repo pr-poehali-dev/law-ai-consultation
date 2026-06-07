@@ -13,7 +13,7 @@ import type { ViewDocModalProps } from "./ViewDocUtils";
 import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
-const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
 interface AiFillMsg { role: "user" | "ai"; text: string; }
 
@@ -118,15 +118,36 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
     setAiFillTyping(true);
     try {
       const token = getToken();
+      // Текст документа без реквизитов (убираем {{ПОЛЯ}}) для контекста AI
+      const docTextClean = doc.content
+        .replace(/\{\{[^}]+\}\}/g, "[поле для заполнения]")
+        .replace(/^\[([А-ЯA-Z_]+)\]$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+        .slice(0, 3000);
+      const systemPrompt = `Ты опытный AI-юрист-помощник. Пользователь работает с документом «${doc.name}».
+
+Текст документа (для контекста):
+---
+${docTextClean}
+---
+
+Твоя задача — помочь пользователю правильно заполнить реквизиты этого документа: объяснить, что именно нужно указать в каждом поле, какие данные потребуются, как их правильно оформить согласно требованиям российского законодательства.
+
+Отвечай кратко, понятно, на русском языке. Не предлагай другие услуги.`;
       const history = [
-        { role: "system", content: `Ты AI-юрист. Документ: "${doc.name}". Отвечай только по заполнению реквизитов. Кратко, по-русски.` },
+        { role: "system", content: systemPrompt },
         ...aiFillMsgs.map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
         { role: "user", content: text },
       ];
-      const res = await fetch(GIGACHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) }, body: JSON.stringify({ mode: "chat", messages: history }) });
+      const res = await fetch(AI_CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({ mode: "chat", messages: history }),
+      });
       const data = res.ok ? await res.json() : {};
-      setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Ошибка. Попробуйте ещё раз." }]);
-    } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения." }]); }
+      setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Не удалось получить ответ. Попробуйте ещё раз." }]);
+    } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения. Попробуйте ещё раз." }]); }
     finally { setAiFillTyping(false); }
   };
 
@@ -308,9 +329,14 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
             />
           </div>
 
+          {/* Разделитель */}
+          {(showAiFillChat || hasPlaceholders) && (
+            <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
+          )}
+
           {/* ── AI-чат по заполнению (десктоп, колонка) ── */}
           {showAiFillChat && (
-            <div className={`hidden sm:flex flex-col w-72 shrink-0 border-l border-slate-100 overflow-hidden ${!hasPlaceholders ? "rounded-r-3xl" : ""}`} style={{ background: "#f8fafc" }}>
+            <div className={`hidden sm:flex flex-col w-72 shrink-0 overflow-hidden ${!hasPlaceholders ? "rounded-r-3xl" : ""}`} style={{ background: "#f8fafc" }}>
               {/* Шапка */}
               <div className="flex items-center gap-2.5 px-4 py-3.5 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                 <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -395,9 +421,14 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
             </div>
           )}
 
+          {/* Разделитель между AI-чатом и реквизитами */}
+          {showAiFillChat && hasPlaceholders && (
+            <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
+          )}
+
           {/* ── Правая панель реквизитов (только десктоп) ── */}
           {hasPlaceholders && (
-            <div className={`hidden sm:flex flex-col w-72 shrink-0 border-l border-slate-100 bg-slate-50/60 overflow-hidden ${!showAiFillChat ? "rounded-r-3xl" : ""}`}>
+            <div className={`hidden sm:flex flex-col w-72 shrink-0 overflow-hidden rounded-r-3xl`} style={{ background: "#f8fafc" }}>
               <div className="px-5 py-4 border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-navy-800 flex items-center justify-center shrink-0">
