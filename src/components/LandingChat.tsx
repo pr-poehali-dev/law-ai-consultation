@@ -433,6 +433,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             setShowPayment(true);
           }}
           onClose={() => setShowDocChoice(null)}
+          onLoginClick={() => { setShowDocChoice(null); setShowLogin(true); }}
         />
       )}
 

@@ -8,13 +8,14 @@ interface DocChoiceModalProps {
   onChooseDoc: () => void;
   onChoosePlan: (planId?: string) => void;
   onClose: () => void;
+  onLoginClick?: () => void;
 }
 
 const GOLD = "#e8a820";
 const GOLD_LIGHT = "#f0c060";
 const BG = "#0a1628";
 
-export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, onClose }: DocChoiceModalProps) {
+export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, onClose, onLoginClick }: DocChoiceModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={onClose} />
@@ -139,7 +140,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
           </p>
           <p className="text-center text-[11px] mt-2">
             <span style={{ color: "rgba(255,255,255,0.35)" }}>Уже есть подписка? </span>
-            <a href="/cabinet" className="underline underline-offset-2" style={{ color: "rgba(255,255,255,0.55)" }}>Войдите в личный кабинет</a>
+            <button onClick={onLoginClick} className="underline underline-offset-2 transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.55)" }}>Войдите в личный кабинет</button>
           </p>
         </div>
       </div>
