@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
 import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
@@ -11,6 +11,53 @@ interface AiChatMsg {
   role: "user" | "ai";
   text: string;
 }
+
+function NoBuyBanner({ onPay }: { onPay: () => void }) {
+  return (
+    <div className="rounded-2xl p-4 border" style={{ background: "linear-gradient(135deg,#fff7ed,#fef3c7)", borderColor: "#fbbf24" }}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon name="Zap" size={14} className="text-amber-600 shrink-0" />
+        <p className="text-xs font-bold text-amber-800">Вопросы закончились</p>
+      </div>
+      <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">Докупите пакет вопросов для AI-юриста</p>
+      <button onClick={onPay} className="w-full py-2 rounded-xl text-xs font-bold active:scale-[0.98]" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>
+        +3 вопроса · 199 ₽
+      </button>
+    </div>
+  );
+}
+
+const ChatInput = forwardRef<HTMLInputElement, { value: string; onChange: (v: string) => void; onSend: () => void; typing: boolean; hasQuestions: boolean }>(
+  ({ value, onChange, onSend, typing, hasQuestions }, ref) => (
+    <div className="shrink-0 px-3 py-3 border-t border-slate-200 bg-white">
+      <div className="flex items-center gap-2">
+        <input
+          ref={ref}
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && onSend()}
+          placeholder={hasQuestions ? "Что писать в поле «ФИО»?" : "Нет доступных вопросов..."}
+          disabled={!hasQuestions || typing}
+          className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all placeholder:text-slate-400 disabled:opacity-50"
+          style={{ border: "1.5px solid transparent" }}
+          onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
+          onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
+        />
+        <button
+          onClick={onSend}
+          disabled={!value.trim() || typing || !hasQuestions}
+          className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 shrink-0"
+          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
+        >
+          {typing
+            ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            : <Icon name="Send" size={14} color="white" />}
+        </button>
+      </div>
+    </div>
+  )
+);
 
 interface ViewDocFooterProps {
   docName: string;
@@ -76,12 +123,49 @@ export default function ViewDocFooter({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Drag
+  const chatRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [chatPos, setChatPos] = useState<{ x: number; y: number } | null>(null);
+
+  const initPos = useCallback(() => {
+    const isMobile = window.innerWidth < 640;
+    if (isMobile) return null;
+    return { x: window.innerWidth - 380 - 16, y: window.innerHeight - 480 - 16 };
+  }, []);
+
+  const onDragStart = useCallback((e: React.PointerEvent) => {
+    const el = chatRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    dragState.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+    el.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    if (!dragState.current) return;
+    const dx = e.clientX - dragState.current.startX;
+    const dy = e.clientY - dragState.current.startY;
+    const nx = dragState.current.origX + dx;
+    const ny = dragState.current.origY + dy;
+    const el = chatRef.current;
+    if (!el) return;
+    const maxX = window.innerWidth - el.offsetWidth;
+    const maxY = window.innerHeight - el.offsetHeight;
+    setChatPos({ x: Math.max(0, Math.min(nx, maxX)), y: Math.max(0, Math.min(ny, maxY)) });
+  }, []);
+
+  const onDragEnd = useCallback(() => { dragState.current = null; }, []);
+
   useEffect(() => {
     if (showAiFillChat && aiMessages.length === 0) {
       setAiMessages([{
         role: "ai",
         text: `Привет! Я помогу разобраться с заполнением документа «${docName}». Задайте любой вопрос — например, что именно писать в то или иное поле.`,
       }]);
+    }
+    if (showAiFillChat && chatPos === null) {
+      setChatPos(initPos());
     }
   }, [showAiFillChat]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -218,64 +302,125 @@ export default function ViewDocFooter({
         </div>
       </div>
 
-      {/* ── AI-чат по заполнению документа ── */}
+      {/* ── AI-чат по заполнению: floating draggable виджет ── */}
       {showAiFillChat && (
-        <div className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:px-4" onClick={() => setShowAiFillChat(false)}>
+        <>
+          {/* Мобайл: шторка снизу без drag */}
+          <div className="sm:hidden fixed inset-0 z-[85] flex items-end" onClick={() => setShowAiFillChat(false)}>
+            <div
+              className="relative w-full rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
+              style={{ maxHeight: "82dvh", background: "#f8fafc" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* drag-ручка */}
+              <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+                <div className="w-10 h-1 rounded-full bg-slate-300" />
+              </div>
+              {/* шапка */}
+              <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Icon name="Bot" size={16} color="white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white">AI-юрист</p>
+                  <p className="text-[10px] text-white/60 truncate">По заполнению: {docName}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
+                    <Icon name="MessageCircle" size={10} color="white" />
+                    <span className="text-[10px] font-semibold text-white">{paidQuestions} вопр.</span>
+                  </div>
+                  <button onClick={() => setShowAiFillChat(false)} className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center">
+                    <Icon name="X" size={14} color="white" />
+                  </button>
+                </div>
+              </div>
+              {/* сообщения */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
+                {aiMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
+                    {msg.role === "ai" && <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>}
+                    <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 border border-slate-200 bg-white"}`} style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {aiTyping && (
+                  <div className="flex justify-start gap-2">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>
+                    <div className="px-3.5 py-3 bg-white border border-slate-200 rounded-2xl rounded-tl-sm flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
+                {paidQuestions <= 0 && <NoBuyBanner onPay={onPayForQuestions} />}
+                <div ref={chatEndRef} />
+              </div>
+              <ChatInput ref={inputRef} value={aiInput} onChange={setAiInput} onSend={handleAiSend} typing={aiTyping} hasQuestions={paidQuestions > 0} />
+            </div>
+          </div>
+
+          {/* Десктоп: floating draggable */}
           <div
-            className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
-            style={{ maxHeight: "85dvh", background: "#f8fafc" }}
-            onClick={e => e.stopPropagation()}
+            ref={chatRef}
+            className="hidden sm:flex fixed z-[85] flex-col rounded-3xl shadow-2xl overflow-hidden select-none"
+            style={{
+              width: 360,
+              height: 460,
+              background: "#f8fafc",
+              left: chatPos ? chatPos.x : "auto",
+              top: chatPos ? chatPos.y : "auto",
+              right: chatPos ? "auto" : 16,
+              bottom: chatPos ? "auto" : 16,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.1)",
+            }}
           >
-            {/* Шапка */}
-            <div className="flex items-center gap-3 px-4 py-3.5 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            {/* Шапка — drag-зона */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 shrink-0 cursor-grab active:cursor-grabbing"
+              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", touchAction: "none" }}
+              onPointerDown={onDragStart}
+              onPointerMove={onDragMove}
+              onPointerUp={onDragEnd}
+              onPointerLeave={onDragEnd}
+            >
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0 pointer-events-none">
                 <Icon name="Bot" size={16} color="white" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pointer-events-none">
                 <p className="text-sm font-bold text-white leading-tight">AI-юрист</p>
                 <p className="text-[10px] text-white/60 truncate">По заполнению: {docName}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15 pointer-events-none">
                   <Icon name="MessageCircle" size={10} color="white" />
                   <span className="text-[10px] font-semibold text-white">{paidQuestions} вопр.</span>
                 </div>
-                <button onClick={() => setShowAiFillChat(false)} className="w-7 h-7 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                <button
+                  onClick={() => setShowAiFillChat(false)}
+                  className="w-7 h-7 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+                  onPointerDown={e => e.stopPropagation()}
+                >
                   <Icon name="X" size={14} color="white" />
                 </button>
               </div>
             </div>
 
             {/* Сообщения */}
-            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3" style={{ minHeight: 0 }}>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
               {aiMessages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
-                  {msg.role === "ai" && (
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                      <Icon name="Bot" size={12} color="white" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? "rounded-tr-sm text-white"
-                        : "rounded-tl-sm text-navy-800 border border-slate-200"
-                    }`}
-                    style={msg.role === "user"
-                      ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }
-                      : { background: "white" }
-                    }
-                  >
+                  {msg.role === "ai" && <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>}
+                  <div className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 border border-slate-200 bg-white"}`} style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
                     {msg.text}
                   </div>
                 </div>
               ))}
-
               {aiTyping && (
                 <div className="flex justify-start gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                    <Icon name="Bot" size={12} color="white" />
-                  </div>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>
                   <div className="px-3.5 py-3 bg-white border border-slate-200 rounded-2xl rounded-tl-sm flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -283,64 +428,13 @@ export default function ViewDocFooter({
                   </div>
                 </div>
               )}
-
-              {/* Баннер докупки вопросов */}
-              {paidQuestions <= 0 && (
-                <div className="rounded-2xl p-4 border" style={{ background: "linear-gradient(135deg,#fff7ed,#fef3c7)", borderColor: "#fbbf24" }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="Zap" size={14} className="text-amber-600 shrink-0" />
-                    <p className="text-xs font-bold text-amber-800">Вопросы закончились</p>
-                  </div>
-                  <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">
-                    Докупите пакет вопросов, чтобы продолжить общение с AI-юристом
-                  </p>
-                  <button
-                    onClick={onPayForQuestions}
-                    className="w-full py-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
-                    style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}
-                  >
-                    +3 вопроса · 199 ₽
-                  </button>
-                </div>
-              )}
-
+              {paidQuestions <= 0 && <NoBuyBanner onPay={onPayForQuestions} />}
               <div ref={chatEndRef} />
             </div>
 
-            {/* Ввод */}
-            <div className="shrink-0 px-3 py-3 border-t border-slate-200 bg-white">
-              <div className="flex items-center gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={aiInput}
-                  onChange={e => setAiInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiSend()}
-                  placeholder={paidQuestions > 0 ? "Что писать в поле «ФИО»?" : "Нет доступных вопросов..."}
-                  disabled={paidQuestions <= 0 || aiTyping}
-                  className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all placeholder:text-slate-400 disabled:opacity-50"
-                  style={{ border: "1.5px solid transparent" }}
-                  onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
-                  onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
-                />
-                <button
-                  onClick={handleAiSend}
-                  disabled={!aiInput.trim() || aiTyping || paidQuestions <= 0}
-                  className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 shrink-0"
-                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
-                >
-                  {aiTyping
-                    ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    : <Icon name="Send" size={14} color="white" />
-                  }
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-400 text-center mt-1.5">
-                Вопросы по заполнению реквизитов документа
-              </p>
-            </div>
+            <ChatInput ref={inputRef} value={aiInput} onChange={setAiInput} onSend={handleAiSend} typing={aiTyping} hasQuestions={paidQuestions > 0} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Модалка: Комментарий для юриста */}
