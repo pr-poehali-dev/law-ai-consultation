@@ -247,7 +247,8 @@ ${docTextClean}
         <div
           className={`bg-white w-full sm:rounded-3xl flex shadow-2xl transition-all duration-250 ease-out
             ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-[0.97]"}
-            max-h-[95dvh] sm:max-h-[90vh] rounded-t-3xl
+            rounded-t-3xl
+            ${(showEditor && showAiFillChat) ? "max-h-[55dvh] sm:max-h-[90vh]" : "max-h-[95dvh] sm:max-h-[90vh]"}
             ${(showAiFillChat || showEditor) ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
           onClick={e => e.stopPropagation()}
         >
@@ -516,8 +517,9 @@ ${docTextClean}
 
       {/* ── Мобильный AI-чат по заполнению (шторка снизу) ── */}
       {showAiFillChat && (
-        <div className="sm:hidden fixed inset-0 z-[85] flex items-end" onClick={() => setShowAiFillChat(false)}>
-          <div className="relative w-full rounded-t-3xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "78dvh", background: "#f8fafc" }} onClick={e => e.stopPropagation()}>
+        <div className={`sm:hidden fixed z-[85] flex items-end ${showEditor ? "inset-x-0 bottom-0" : "inset-0"}`} onClick={!showEditor ? () => setShowAiFillChat(false) : undefined}>
+          {!showEditor && <div className="absolute inset-0" onClick={() => setShowAiFillChat(false)} />}
+          <div className="relative w-full rounded-t-3xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: showEditor ? "45dvh" : "78dvh", background: "#f8fafc" }} onClick={e => e.stopPropagation()}>
             <div className="flex justify-center pt-2.5 pb-1 shrink-0">
               <div className="w-10 h-1 rounded-full bg-slate-300" />
             </div>

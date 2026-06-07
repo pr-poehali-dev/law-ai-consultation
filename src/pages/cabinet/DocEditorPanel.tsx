@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, type ReactNode } from "react";
 import Icon from "@/components/ui/icon";
 import { parseDocBlocks } from "./ViewDocUtils";
 
@@ -113,7 +113,7 @@ function esc(str: string): string {
 // ── Вспомогательные компоненты ─────────────────────────────────────────────
 
 function ToolBtn({ children, onClick, title, className = "" }: {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
   title?: string;
   className?: string;
@@ -164,20 +164,21 @@ export default function DocEditorPanel({ content, onApply, onClose }: DocEditorP
 
         <Sep />
 
-        <ToolBtn title="По левому краю" onClick={() => exec("justifyLeft")}>
-          <Icon name="AlignLeft" size={12} />
-        </ToolBtn>
-        <ToolBtn title="По центру" onClick={() => exec("justifyCenter")}>
-          <Icon name="AlignCenter" size={12} />
-        </ToolBtn>
-        <ToolBtn title="По ширине" onClick={() => exec("justifyFull")}>
-          <Icon name="AlignJustify" size={12} />
-        </ToolBtn>
-        <ToolBtn title="По правому краю" onClick={() => exec("justifyRight")}>
-          <Icon name="AlignRight" size={12} />
-        </ToolBtn>
-
-        <Sep />
+        <span className="hidden sm:contents">
+          <ToolBtn title="По левому краю" onClick={() => exec("justifyLeft")}>
+            <Icon name="AlignLeft" size={12} />
+          </ToolBtn>
+          <ToolBtn title="По центру" onClick={() => exec("justifyCenter")}>
+            <Icon name="AlignCenter" size={12} />
+          </ToolBtn>
+          <ToolBtn title="По ширине" onClick={() => exec("justifyFull")}>
+            <Icon name="AlignJustify" size={12} />
+          </ToolBtn>
+          <ToolBtn title="По правому краю" onClick={() => exec("justifyRight")}>
+            <Icon name="AlignRight" size={12} />
+          </ToolBtn>
+          <Sep />
+        </span>
 
         <ToolBtn title="Маркированный список" onClick={() => exec("insertUnorderedList")}>
           <Icon name="List" size={12} />
@@ -192,19 +193,17 @@ export default function DocEditorPanel({ content, onApply, onClose }: DocEditorP
           className="h-7 px-1.5 rounded-lg border border-slate-200 text-xs text-navy-700 bg-white outline-none cursor-pointer"
           defaultValue=""
           onChange={e => { exec("fontSize", e.target.value); e.target.value = ""; }}
-          title="Размер шрифта"
+          title="Размер"
         >
           <option value="" disabled>Размер</option>
-          <option value="1">10</option>
           <option value="2">12</option>
           <option value="3">14</option>
           <option value="4">16</option>
           <option value="5">18</option>
-          <option value="6">20</option>
         </select>
 
         <select
-          className="h-7 px-1.5 rounded-lg border border-slate-200 text-xs text-navy-700 bg-white outline-none cursor-pointer max-w-[110px]"
+          className="hidden sm:block h-7 px-1.5 rounded-lg border border-slate-200 text-xs text-navy-700 bg-white outline-none cursor-pointer max-w-[110px]"
           defaultValue=""
           onChange={e => { exec("fontName", e.target.value); e.target.value = ""; }}
           title="Шрифт"
@@ -224,11 +223,11 @@ export default function DocEditorPanel({ content, onApply, onClose }: DocEditorP
           contentEditable
           suppressContentEditableWarning
           spellCheck
-          className="outline-none px-6 sm:px-10 py-6 min-h-full"
+          className="outline-none px-4 sm:px-10 py-4 sm:py-6 min-h-full"
           style={{
             fontFamily: "'Times New Roman', Georgia, serif",
-            fontSize: "14px",
-            lineHeight: "1.8",
+            fontSize: "13px",
+            lineHeight: "1.7",
             color: "#1e2d4a",
           }}
         />
