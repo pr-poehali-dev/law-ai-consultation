@@ -180,6 +180,9 @@ export default function Cabinet() {
         successToast={pay.successToast}
         errorToast={pay.errorToast}
         tab={tab}
+        fillValues={docs.fillValues}
+        onFillChange={(key, val) => docs.setFillValues((p) => ({ ...p, [key]: val }))}
+        onApplyFill={docs.applyFillValues}
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
         onCloseViewDoc={() => setViewDoc(null)}

@@ -15,6 +15,9 @@ interface CabinetModalsProps {
   successToast: string | null;
   errorToast: string | null;
   tab: "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
+  fillValues?: Record<string, string>;
+  onFillChange?: (key: string, value: string) => void;
+  onApplyFill?: () => void;
   onClosePayment: () => void;
   onPaySuccess: (type: ServiceType) => void;
   onCloseViewDoc: () => void;
@@ -25,6 +28,7 @@ interface CabinetModalsProps {
 export default function CabinetModals({
   user, payment, viewDoc, showPlanModal,
   successToast, errorToast,
+  fillValues, onFillChange, onApplyFill,
   onClosePayment, onPaySuccess,
   onCloseViewDoc, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
@@ -46,6 +50,9 @@ export default function CabinetModals({
           doc={viewDoc}
           onClose={onCloseViewDoc}
           onOpenPlanModal={onClosePlanModal}
+          fillValues={fillValues}
+          onFillChange={onFillChange}
+          onApplyFill={onApplyFill}
         />
       )}
 

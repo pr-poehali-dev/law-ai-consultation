@@ -4,6 +4,9 @@ export interface ViewDocModalProps {
   doc: GenDoc;
   onClose: () => void;
   onOpenPlanModal?: () => void;
+  fillValues?: Record<string, string>;
+  onFillChange?: (key: string, value: string) => void;
+  onApplyFill?: () => void;
 }
 
 export function parseDocBlocks(content: string): { type: string; lines: string[] }[] {
