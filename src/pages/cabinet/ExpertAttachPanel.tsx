@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
+import DocPreview from "@/components/DocPreview";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 
@@ -54,54 +55,49 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4">
-      <div className="absolute inset-0 bg-navy-900/70 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-scale-in">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white w-full sm:rounded-3xl sm:max-w-2xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col overflow-hidden shadow-2xl rounded-t-3xl">
+
         {/* Header */}
-        <div className={`flex items-center gap-3 px-5 py-4 shrink-0 border-b border-border ${
-          type === "document" ? "bg-gradient-to-r from-emerald-50 to-teal-50" :
-          type === "chat_answer" ? "bg-gradient-to-r from-blue-50 to-indigo-50" :
-          type === "file" ? "bg-gradient-to-r from-amber-50 to-orange-50" :
-          "bg-gradient-to-r from-slate-50 to-gray-50"
-        }`}>
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm ${
-            type === "document" ? "bg-emerald-100" :
-            type === "chat_answer" ? "bg-blue-100" :
-            type === "file" ? "bg-amber-100" : "bg-slate-100"
+        <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 shrink-0 border-b border-slate-100">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+            type === "document" ? "bg-navy-800" :
+            type === "chat_answer" ? "bg-indigo-600" : "bg-amber-100"
           }`}>
             <Icon
               name={type === "document" ? "FileText" : type === "chat_answer" ? "Bot" : type === "image" ? "Image" : "File"}
-              size={18}
-              className={type === "document" ? "text-emerald-600" : type === "chat_answer" ? "text-blue-600" : type === "file" ? "text-amber-600" : "text-slate-600"}
+              size={17}
+              color={type === "file" ? "#d97706" : "white"}
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               {type === "document" ? "Документ" : type === "chat_answer" ? "Ответ AI" : "Файл"}
             </p>
-            <p className="text-sm font-bold text-navy-800 truncate">{title}</p>
+            <p className="text-sm font-bold text-navy-900 truncate leading-tight">{title}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             {(downloadUrl || content) && (
               <button
                 onClick={handleDownload}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 text-white rounded-xl text-xs font-medium hover:bg-navy-800 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-800 text-white rounded-xl text-xs font-semibold hover:bg-navy-700 transition-colors"
               >
                 <Icon name="Download" size={12} />
-                Скачать
+                <span className="hidden sm:inline">Скачать</span>
               </button>
             )}
-            <button onClick={onClose} className="p-2 hover:bg-white/70 rounded-xl transition-colors">
-              <Icon name="X" size={16} className="text-muted-foreground" />
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
+              <Icon name="X" size={16} className="text-slate-400" />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {isImage && downloadUrl ? (
-            <div className="flex items-center justify-center p-6 bg-checkerboard min-h-[200px]">
-              <img src={downloadUrl} alt={title} className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-lg" />
+            <div className="flex items-center justify-center p-6 min-h-[200px] bg-slate-50">
+              <img src={downloadUrl} alt={title} className="max-w-full max-h-[60vh] object-contain rounded-2xl shadow-lg" />
             </div>
           ) : isFile && downloadUrl ? (
             <div className="flex flex-col items-center justify-center gap-4 p-10 text-center">
@@ -112,6 +108,10 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
                 <p className="font-semibold text-navy-800 mb-1">{title}</p>
                 <p className="text-sm text-muted-foreground">Нажмите «Скачать» для просмотра</p>
               </div>
+            </div>
+          ) : type === "document" && content ? (
+            <div className="px-4 sm:px-8 py-5 sm:py-6 bg-white">
+              <DocPreview content={content} fillValues={{}} />
             </div>
           ) : (
             <div className="p-5 text-sm text-navy-800 whitespace-pre-wrap leading-relaxed font-golos">
