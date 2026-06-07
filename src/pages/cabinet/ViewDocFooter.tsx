@@ -18,6 +18,7 @@ interface ViewDocFooterProps {
   reportText: string;
   reportLoading: boolean;
   reportSent: boolean;
+  showEditor: boolean;
   onSendToLawyer: (comment: string) => void;
   onAiEditorClick: () => void;
   onAiFillChatClick: () => void;
@@ -44,6 +45,7 @@ export default function ViewDocFooter({
   reportText,
   reportLoading,
   reportSent,
+  showEditor,
   onSendToLawyer,
   onAiEditorClick,
   onAiFillChatClick,
@@ -79,27 +81,30 @@ export default function ViewDocFooter({
           </button>
         )}
 
-        {/* Кнопка AI-консультанта по заполнению */}
-        <button
-          onClick={onAiFillChatClick}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-95 shadow-sm"
-          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}
-        >
-          <Icon name="MessagesSquare" size={13} />
-          Уточнить у AI-юриста по заполнению
-        </button>
+        {/* Кнопка AI-консультанта по заполнению (скрыта если открыт редактор — там чат уже есть) */}
+        {!showEditor && (
+          <button
+            onClick={onAiFillChatClick}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-95 shadow-sm"
+            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}
+          >
+            <Icon name="MessagesSquare" size={13} />
+            Уточнить у AI-юриста по заполнению
+          </button>
+        )}
 
-        {/* Кнопка AI-помощника */}
+        {/* Кнопка редактора + AI */}
         <button
           onClick={onAiEditorClick}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white transition-all active:scale-95 shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-95 shadow-sm"
+          style={{ background: showEditor ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#4f46e5,#7c3aed)", color: "white" }}
         >
-          <Icon name="BrainCircuit" size={13} />
-          Редактировать документ с помощью AI
+          <Icon name={showEditor ? "X" : "PenLine"} size={13} />
+          {showEditor ? "Закрыть редактор" : "Редактирование + AI"}
           <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[9px] font-bold">Профи+</span>
         </button>
         <p className="text-[10px] text-slate-400 text-center leading-snug">
-          Анализ · Перспектива · Судебная практика · Редактирование
+          Редактор документа с AI-консультантом по заполнению
         </p>
 
         <div className="flex items-center justify-between gap-2 pt-0.5">

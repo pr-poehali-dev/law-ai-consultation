@@ -9,6 +9,7 @@ import DocAiChatPanel from "@/components/DocAiChatPanel";
 import UpgradeNoticeModal from "@/components/UpgradeNoticeModal";
 import ViewDocContent from "./ViewDocContent";
 import ViewDocFooter from "./ViewDocFooter";
+import DocEditorPanel from "./DocEditorPanel";
 import type { ViewDocModalProps } from "./ViewDocUtils";
 import func2url from "../../../backend/func2url.json";
 
@@ -36,6 +37,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   const hasRecs = liveRecs.length > 0;
   const [showRecs, setShowRecs] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [showFillPanel, setShowFillPanel] = useState(false);
   const [showAiFillChat, setShowAiFillChat] = useState(false);
   const [aiFillMsgs, setAiFillMsgs] = useState<AiFillMsg[]>([]);
@@ -199,9 +201,16 @@ ${docTextClean}
       setUpgradeFeature("ai_editor");
       return;
     }
-    setShowAiChat(true);
+    // Открываем редактор + AI-чат одновременно
+    setShowEditor(true);
     setShowRecs(false);
-    setTimeout(() => { docScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }, 100);
+    // Открываем AI-чат если ещё не открыт
+    if (!showAiFillChat) {
+      if (aiFillMsgs.length === 0) {
+        setAiFillMsgs([{ role: "ai", text: `Привет! Помогу разобраться с заполнением «${doc.name}». Задайте любой вопрос по реквизитам.` }]);
+      }
+      setShowAiFillChat(true);
+    }
   };
 
   const handleExpertOfferSuccess = async () => { setShowExpertOffer(false); await handleSendToLawyer(""); };
@@ -233,7 +242,7 @@ ${docTextClean}
           className={`bg-white w-full sm:rounded-3xl flex shadow-2xl transition-all duration-250 ease-out
             ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-[0.97]"}
             max-h-[95dvh] sm:max-h-[90vh] rounded-t-3xl
-            ${showAiFillChat ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
+            ${(showAiFillChat || showEditor) ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
           onClick={e => e.stopPropagation()}
         >
           {/* ── Левая/основная часть: документ ── */}
@@ -301,15 +310,29 @@ ${docTextClean}
               </div>
             )}
 
-            {/* Контент документа */}
-            <ViewDocContent
-              docDate={doc.date}
-              docFlash={docFlash}
-              currentDocContent={currentDocContent}
-              prevDocContent={prevDocContent}
-              contentRef={contentRef}
-              docScrollRef={docScrollRef}
-            />
+            {/* Контент документа / Редактор */}
+            {showEditor ? (
+              <DocEditorPanel
+                content={currentDocContent}
+                onApply={(newContent) => {
+                  setPrevDocContent(currentDocContent);
+                  setCurrentDocContent(newContent);
+                  setDocFlash(true);
+                  setTimeout(() => setDocFlash(false), 3000);
+                  setShowEditor(false);
+                }}
+                onClose={() => setShowEditor(false)}
+              />
+            ) : (
+              <ViewDocContent
+                docDate={doc.date}
+                docFlash={docFlash}
+                currentDocContent={currentDocContent}
+                prevDocContent={prevDocContent}
+                contentRef={contentRef}
+                docScrollRef={docScrollRef}
+              />
+            )}
 
             {/* Нижняя панель + модалка отчёта */}
             <ViewDocFooter
@@ -327,8 +350,9 @@ ${docTextClean}
               reportText={reportText}
               reportLoading={reportLoading}
               reportSent={reportSent}
+              showEditor={showEditor}
               onSendToLawyer={handleSendToLawyer}
-              onAiEditorClick={handleAiEditorClick}
+              onAiEditorClick={showEditor ? () => setShowEditor(false) : handleAiEditorClick}
               onAiFillChatClick={handleOpenAiFillChat}
               onToggleRecs={() => setShowRecs(v => !v)}
               onClose={handleClose}
@@ -340,7 +364,7 @@ ${docTextClean}
           </div>
 
           {/* Разделитель */}
-          {(showAiFillChat || hasPlaceholders) && (
+          {(showAiFillChat || hasPlaceholders || showEditor) && (
             <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
           )}
 
