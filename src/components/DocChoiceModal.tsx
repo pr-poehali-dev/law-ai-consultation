@@ -125,11 +125,14 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
         >
           <button
             onClick={onChooseDoc}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all active:scale-[0.99]"
+            className="w-full flex flex-col px-4 py-3 rounded-xl transition-all active:scale-[0.99] text-left"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
           >
-            <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
-            <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>990 ₽</span>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
+              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>990 ₽</span>
+            </div>
+            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>+ проверка живым юристом-экспертом</span>
           </button>
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
