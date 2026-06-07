@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
-import { sendReport, getUser, lawyerSend, getToken } from "@/lib/auth";
+import { sendReport, getUser, lawyerSend, getToken, consumeQuestion, hasActiveSubscription } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
@@ -101,7 +101,15 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
     setTimeout(onClose, 250);
   };
 
-  const handleOpenAiFillChat = () => {
+  const handleOpenAiFillChat = async () => {
+    const user = await getUser();
+    const hasAccess = user?.isAdmin
+      || (user?.paidQuestions ?? 0) >= 100
+      || hasActiveSubscription(user!, "consult");
+    if (!hasAccess) {
+      setUpgradeFeature("ai_fill_chat");
+      return;
+    }
     if (aiFillMsgs.length === 0) {
       setAiFillMsgs([{ role: "ai", text: `Привет! Помогу разобраться с заполнением «${doc.name}». Задайте любой вопрос по реквизитам.` }]);
     }
@@ -147,6 +155,8 @@ ${docTextClean}
       });
       const data = res.ok ? await res.json() : {};
       setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Не удалось получить ответ. Попробуйте ещё раз." }]);
+      // Списываем вопрос после успешного ответа
+      if (res.ok) await consumeQuestion();
     } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения. Попробуйте ещё раз." }]); }
     finally { setAiFillTyping(false); }
   };

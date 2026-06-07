@@ -25,6 +25,11 @@ const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string }>
     plan: "Профи",
     desc: "Анализ документов и файлов доступен с тарифа «Профи» и выше.",
   },
+  ai_fill_chat: {
+    icon: "MessagesSquare",
+    plan: "Профи",
+    desc: "AI-консультант по заполнению реквизитов доступен с тарифа «Профи» и выше.",
+  },
   default: {
     icon: "Lock",
     plan: "Профи",
