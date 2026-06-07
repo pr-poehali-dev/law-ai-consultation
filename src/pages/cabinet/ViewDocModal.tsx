@@ -25,6 +25,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal }: ViewDocM
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [sendingToLawyer, setSendingToLawyer] = useState(false);
   const [sentToLawyer, setSentToLawyer] = useState(false);
+  const [showLawyerSuccess, setShowLawyerSuccess] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
 
   const [liveRecs, setLiveRecs] = useState<DocRecommendationItem[]>(doc.recommendations || []);
@@ -111,6 +112,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal }: ViewDocM
     await lawyerSend({ body: `Прошу проверить документ: ${doc.name}`, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
     setSendingToLawyer(false);
     setSentToLawyer(true);
+    setShowLawyerSuccess(true);
   };
 
   const handleAiEditorClick = async () => {
@@ -181,6 +183,8 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal }: ViewDocM
             currentDocContent={currentDocContent}
             sentToLawyer={sentToLawyer}
             sendingToLawyer={sendingToLawyer}
+            showLawyerSuccess={showLawyerSuccess}
+            onCloseLawyerSuccess={() => setShowLawyerSuccess(false)}
             recsAnalyzing={recsAnalyzing}
             hasRecs={hasRecs}
             liveRecs={liveRecs}

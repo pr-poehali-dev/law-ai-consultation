@@ -7,6 +7,8 @@ interface ViewDocFooterProps {
   currentDocContent: string;
   sentToLawyer: boolean;
   sendingToLawyer: boolean;
+  showLawyerSuccess: boolean;
+  onCloseLawyerSuccess: () => void;
   recsAnalyzing: boolean;
   hasRecs: boolean;
   liveRecs: DocRecommendationItem[];
@@ -30,6 +32,8 @@ export default function ViewDocFooter({
   currentDocContent,
   sentToLawyer,
   sendingToLawyer,
+  showLawyerSuccess,
+  onCloseLawyerSuccess,
   recsAnalyzing,
   hasRecs,
   liveRecs,
@@ -108,6 +112,83 @@ export default function ViewDocFooter({
           </div>
         </div>
       </div>
+
+      {/* Модалка: Документ успешно отправлен юристу */}
+      {showLawyerSuccess && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm" onClick={onCloseLawyerSuccess}>
+          <div
+            className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+            style={{ background: "linear-gradient(160deg,#0a1628 0%,#162d5a 60%,#0d2040 100%)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Декоративные кольца */}
+            <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
+            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e8a820 0%, transparent 70%)", transform: "translate(-40%,40%)" }} />
+
+            <div className="relative px-6 pt-8 pb-6">
+              {/* Иконка успеха */}
+              <div className="flex justify-center mb-5">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                    <Icon name="Send" size={36} color="#f0c060" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}>
+                    <Icon name="Check" size={14} color="white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Заголовок */}
+              <h3 className="text-center font-bold text-xl mb-1.5" style={{ color: "#f0c060" }}>Документ отправлен!</h3>
+              <p className="text-center text-sm mb-5" style={{ color: "rgba(255,255,255,0.65)" }}>
+                Юрист получил ваш документ на проверку
+              </p>
+
+              {/* Карточки времени */}
+              <div className="rounded-2xl mb-5 p-4 space-y-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)" }}>
+                    <Icon name="Clock" size={15} color="#f0c060" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>Среднее время ответа</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>от 1 до 6 часов</p>
+                  </div>
+                </div>
+                <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <Icon name="AlertCircle" size={15} color="rgba(255,255,255,0.4)" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>При высокой загруженности</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>задержка до 12 часов</p>
+                  </div>
+                </div>
+                <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.12)" }}>
+                    <Icon name="MessageSquare" size={15} color="#f0c060" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>Результат проверки</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>юрист ответит в чате по документу</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Кнопка */}
+              <button
+                onClick={onCloseLawyerSuccess}
+                className="w-full py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#e8a820,#f0c060)", color: "#0a1628" }}
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Модалка: Сообщить о проблеме */}
       {reportOpen && (
