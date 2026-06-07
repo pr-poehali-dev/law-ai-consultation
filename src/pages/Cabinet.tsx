@@ -188,6 +188,7 @@ export default function Cabinet() {
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
         onCloseViewDoc={() => setViewDoc(null)}
+        onOpenPlanModal={pay.openPlanModal}
         onClosePlanModal={pay.closePlanModal}
         onSelectPlan={pay.handleSelectPlan}
       />
