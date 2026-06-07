@@ -63,7 +63,7 @@ export default function LandingChatMessages({
                     <Icon name="Banknote" size={12} color="#e8a820" />
                   </div>
                   <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    С пакета «Старт» доступна отправка на проверку <span className="text-white font-medium">живому юристу</span> с доступом к чату.
+                    После создания документа вы сможете направить его на проверку <span className="text-white font-medium">живому юристу-эксперту</span> прямо из предпросмотра.
                   </p>
                 </div>
 
