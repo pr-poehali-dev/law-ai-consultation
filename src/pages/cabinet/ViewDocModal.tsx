@@ -13,6 +13,9 @@ import type { ViewDocModalProps } from "./ViewDocUtils";
 import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
+const GIGACHAT_URL = (func2url as Record<string, string>)["gigachat-proxy"];
+
+interface AiFillMsg { role: "user" | "ai"; text: string; }
 
 export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
@@ -34,6 +37,12 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   const [showRecs, setShowRecs] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [showFillPanel, setShowFillPanel] = useState(false);
+  const [showAiFillChat, setShowAiFillChat] = useState(false);
+  const [aiFillMsgs, setAiFillMsgs] = useState<AiFillMsg[]>([]);
+  const [aiFillInput, setAiFillInput] = useState("");
+  const [aiFillTyping, setAiFillTyping] = useState(false);
+  const aiFillEndRef = useRef<HTMLDivElement>(null);
+  const aiFillInputRef = useRef<HTMLInputElement>(null);
   const [currentDocContent, setCurrentDocContent] = useState(doc.content);
   const [prevDocContent, setPrevDocContent] = useState<string | null>(null);
   const [docFlash, setDocFlash] = useState(false);
@@ -91,6 +100,39 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
     setVisible(false);
     setTimeout(onClose, 250);
   };
+
+  const handleOpenAiFillChat = () => {
+    if (aiFillMsgs.length === 0) {
+      setAiFillMsgs([{ role: "ai", text: `Привет! Помогу разобраться с заполнением «${doc.name}». Задайте любой вопрос по реквизитам.` }]);
+    }
+    setShowAiFillChat(true);
+    setTimeout(() => aiFillInputRef.current?.focus(), 200);
+  };
+
+  const handleAiFillSend = async () => {
+    const text = aiFillInput.trim();
+    if (!text || aiFillTyping) return;
+    if ((paidQuestions ?? 0) <= 0) { onPayForQuestions?.(); return; }
+    setAiFillMsgs(prev => [...prev, { role: "user", text }]);
+    setAiFillInput("");
+    setAiFillTyping(true);
+    try {
+      const token = getToken();
+      const history = [
+        { role: "system", content: `Ты AI-юрист. Документ: "${doc.name}". Отвечай только по заполнению реквизитов. Кратко, по-русски.` },
+        ...aiFillMsgs.map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
+        { role: "user", content: text },
+      ];
+      const res = await fetch(GIGACHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) }, body: JSON.stringify({ mode: "chat", messages: history }) });
+      const data = res.ok ? await res.json() : {};
+      setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Ошибка. Попробуйте ещё раз." }]);
+    } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения." }]); }
+    finally { setAiFillTyping(false); }
+  };
+
+  useEffect(() => {
+    setTimeout(() => aiFillEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+  }, [aiFillMsgs]);
 
   const handleCloseReport = () => { setReportOpen(false); setReportSent(false); setReportText(""); };
 
@@ -160,7 +202,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
           className={`bg-white w-full sm:rounded-3xl flex shadow-2xl transition-all duration-250 ease-out
             ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-[0.97]"}
             max-h-[95dvh] sm:max-h-[90vh] rounded-t-3xl
-            ${hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
+            ${showAiFillChat ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
           onClick={e => e.stopPropagation()}
         >
           {/* ── Левая/основная часть: документ ── */}
@@ -180,7 +222,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
                     onClick={() => setShowFillPanel(v => !v)}
                     className={`h-8 px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors sm:hidden ${showFillPanel ? "bg-navy-100 text-navy-700" : "text-navy-600 hover:bg-slate-100"}`}
                   >
-                    <Icon name="PenLine" size={13} />Реквизиты
+                    <Icon name="PenLine" size={13} />Заполнить
                   </button>
                 )}
                 <button onClick={handleCopy} className="h-8 px-3 rounded-xl text-xs font-medium text-navy-600 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
@@ -254,10 +296,9 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
               reportText={reportText}
               reportLoading={reportLoading}
               reportSent={reportSent}
-              paidQuestions={paidQuestions}
-              onPayForQuestions={onPayForQuestions ?? (() => { if (onOpenPlanModal) onOpenPlanModal(); else setUpgradeFeature("ai_editor"); })}
               onSendToLawyer={handleSendToLawyer}
               onAiEditorClick={handleAiEditorClick}
+              onAiFillChatClick={handleOpenAiFillChat}
               onToggleRecs={() => setShowRecs(v => !v)}
               onClose={handleClose}
               onOpenReport={() => setReportOpen(true)}
@@ -267,9 +308,96 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
             />
           </div>
 
+          {/* ── AI-чат по заполнению (десктоп, колонка) ── */}
+          {showAiFillChat && (
+            <div className={`hidden sm:flex flex-col w-72 shrink-0 border-l border-slate-100 overflow-hidden ${!hasPlaceholders ? "rounded-r-3xl" : ""}`} style={{ background: "#f8fafc" }}>
+              {/* Шапка */}
+              <div className="flex items-center gap-2.5 px-4 py-3.5 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Icon name="Bot" size={14} color="white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white">AI-юрист</p>
+                  <p className="text-[10px] text-white/55 truncate">по заполнению реквизитов</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-white/15">
+                    <Icon name="MessageCircle" size={9} color="white" />
+                    <span className="text-[10px] font-semibold text-white">{paidQuestions ?? 0}</span>
+                  </div>
+                  <button onClick={() => setShowAiFillChat(false)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                    <Icon name="X" size={12} color="white" />
+                  </button>
+                </div>
+              </div>
+              {/* Сообщения */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5" style={{ minHeight: 0 }}>
+                {aiFillMsgs.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-1.5`}>
+                    {msg.role === "ai" && (
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                        <Icon name="Bot" size={10} color="white" />
+                      </div>
+                    )}
+                    <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 bg-white border border-slate-200"}`}
+                      style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {aiFillTyping && (
+                  <div className="flex justify-start gap-1.5">
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                      <Icon name="Bot" size={10} color="white" />
+                    </div>
+                    <div className="px-3 py-2 bg-white border border-slate-200 rounded-xl rounded-tl-sm flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
+                {(paidQuestions ?? 0) <= 0 && (
+                  <div className="rounded-xl p-3 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
+                    <p className="text-[11px] font-bold text-amber-800 mb-1">Вопросы закончились</p>
+                    <button onClick={() => onPayForQuestions?.()} className="w-full py-1.5 rounded-lg text-[11px] font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>
+                      +3 вопроса · 199 ₽
+                    </button>
+                  </div>
+                )}
+                <div ref={aiFillEndRef} />
+              </div>
+              {/* Ввод */}
+              <div className="shrink-0 px-3 py-2.5 border-t border-slate-200 bg-white">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    ref={aiFillInputRef}
+                    type="text"
+                    value={aiFillInput}
+                    onChange={e => setAiFillInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiFillSend()}
+                    placeholder="Спросить по заполнению..."
+                    disabled={(paidQuestions ?? 0) <= 0 || aiFillTyping}
+                    className="flex-1 bg-slate-100 rounded-xl px-3 py-2 text-xs outline-none disabled:opacity-50 transition-colors"
+                    style={{ border: "1.5px solid transparent" }}
+                    onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
+                    onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
+                  />
+                  <button onClick={handleAiFillSend} disabled={!aiFillInput.trim() || aiFillTyping || (paidQuestions ?? 0) <= 0}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-40 shrink-0 transition-all active:scale-95"
+                    style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                    {aiFillTyping
+                      ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <Icon name="Send" size={12} color="white" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Правая панель реквизитов (только десктоп) ── */}
           {hasPlaceholders && (
-            <div className="hidden sm:flex flex-col w-72 shrink-0 border-l border-slate-100 bg-slate-50/60 rounded-r-3xl overflow-hidden">
+            <div className={`hidden sm:flex flex-col w-72 shrink-0 border-l border-slate-100 bg-slate-50/60 overflow-hidden ${!showAiFillChat ? "rounded-r-3xl" : ""}`}>
               <div className="px-5 py-4 border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-navy-800 flex items-center justify-center shrink-0">
@@ -314,6 +442,73 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
           )}
         </div>
       </div>
+
+      {/* ── Мобильный AI-чат по заполнению (шторка снизу) ── */}
+      {showAiFillChat && (
+        <div className="sm:hidden fixed inset-0 z-[85] flex items-end" onClick={() => setShowAiFillChat(false)}>
+          <div className="relative w-full rounded-t-3xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "78dvh", background: "#f8fafc" }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-slate-300" />
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><Icon name="Bot" size={16} color="white" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white">AI-юрист</p>
+                <p className="text-[10px] text-white/60 truncate">По заполнению: {doc.name}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
+                  <Icon name="MessageCircle" size={10} color="white" />
+                  <span className="text-[10px] font-semibold text-white">{paidQuestions ?? 0} вопр.</span>
+                </div>
+                <button onClick={() => setShowAiFillChat(false)} className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center"><Icon name="X" size={14} color="white" /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
+              {aiFillMsgs.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
+                  {msg.role === "ai" && <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>}
+                  <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 bg-white border border-slate-200"}`} style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {aiFillTyping && (
+                <div className="flex justify-start gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>
+                  <div className="px-3.5 py-3 bg-white border border-slate-200 rounded-2xl rounded-tl-sm flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              )}
+              {(paidQuestions ?? 0) <= 0 && (
+                <div className="rounded-2xl p-4 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
+                  <p className="text-xs font-bold text-amber-800 mb-2">Вопросы закончились</p>
+                  <button onClick={() => onPayForQuestions?.()} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>+3 вопроса · 199 ₽</button>
+                </div>
+              )}
+              <div ref={aiFillEndRef} />
+            </div>
+            <div className="shrink-0 px-3 py-3 border-t border-slate-200 bg-white">
+              <div className="flex items-center gap-2">
+                <input ref={aiFillInputRef} type="text" value={aiFillInput} onChange={e => setAiFillInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiFillSend()}
+                  placeholder="Что писать в поле «ФИО»?" disabled={(paidQuestions ?? 0) <= 0 || aiFillTyping}
+                  className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 text-sm outline-none disabled:opacity-50"
+                  style={{ border: "1.5px solid transparent" }}
+                  onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
+                  onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
+                />
+                <button onClick={handleAiFillSend} disabled={!aiFillInput.trim() || aiFillTyping || (paidQuestions ?? 0) <= 0}
+                  className="w-9 h-9 rounded-2xl flex items-center justify-center disabled:opacity-40 shrink-0 active:scale-95" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                  {aiFillTyping ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Icon name="Send" size={14} color="white" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Панель рекомендаций (снаружи оверлея!) ──────────── */}
       {showRecs && (
