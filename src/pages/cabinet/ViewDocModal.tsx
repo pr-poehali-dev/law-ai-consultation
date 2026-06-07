@@ -102,14 +102,17 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal }: ViewDocM
     setReportText("");
   };
 
-  const handleSendToLawyer = async () => {
+  const handleSendToLawyer = async (comment: string) => {
     const user = await getUser();
     if (!user || !user.paidExpert) {
       setUpgradeFeature("lawyer");
       return;
     }
     setSendingToLawyer(true);
-    await lawyerSend({ body: `Прошу проверить документ: ${doc.name}`, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
+    const body = comment.trim()
+      ? `Прошу проверить документ: ${doc.name}\n\nКомментарий клиента: ${comment.trim()}`
+      : `Прошу проверить документ: ${doc.name}`;
+    await lawyerSend({ body, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
     setSendingToLawyer(false);
     setSentToLawyer(true);
     setShowLawyerSuccess(true);

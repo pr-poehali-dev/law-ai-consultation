@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
@@ -17,7 +18,7 @@ interface ViewDocFooterProps {
   reportText: string;
   reportLoading: boolean;
   reportSent: boolean;
-  onSendToLawyer: () => void;
+  onSendToLawyer: (comment: string) => void;
   onAiEditorClick: () => void;
   onToggleRecs: () => void;
   onClose: () => void;
@@ -51,6 +52,19 @@ export default function ViewDocFooter({
   onReportTextChange,
   onSendReport,
 }: ViewDocFooterProps) {
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [lawyerComment, setLawyerComment] = useState("");
+
+  const handleOpenComment = () => {
+    setLawyerComment("");
+    setShowCommentModal(true);
+  };
+
+  const handleSubmitComment = () => {
+    setShowCommentModal(false);
+    onSendToLawyer(lawyerComment);
+  };
+
   return (
     <>
       {/* Нижняя панель */}
@@ -61,7 +75,7 @@ export default function ViewDocFooter({
             <p className="text-xs font-medium text-emerald-700">Отправлен юристу</p>
           </div>
         ) : (
-          <button onClick={onSendToLawyer} disabled={sendingToLawyer}
+          <button onClick={handleOpenComment} disabled={sendingToLawyer}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60"
             style={{ background: "linear-gradient(135deg,#0a1628,#162d5a)", border: "1px solid rgba(232,168,32,0.3)", color: "#f0c060" }}>
             {sendingToLawyer
@@ -112,6 +126,83 @@ export default function ViewDocFooter({
           </div>
         </div>
       </div>
+
+      {/* Модалка: Комментарий для юриста */}
+      {showCommentModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCommentModal(false)}>
+          <div
+            className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+            style={{ background: "linear-gradient(160deg,#0a1628 0%,#162d5a 60%,#0d2040 100%)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Декоративное свечение */}
+            <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(232,168,32,0.12) 0%, transparent 70%)", transform: "translate(20%,-20%)" }} />
+
+            <div className="relative px-6 pt-7 pb-6">
+              {/* Шапка */}
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                    <Icon name="MessageSquare" size={18} color="#f0c060" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: "#f0c060" }}>Юрист-эксперт</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>Проверка документа</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowCommentModal(false)} className="w-7 h-7 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10">
+                  <Icon name="X" size={15} color="rgba(255,255,255,0.4)" />
+                </button>
+              </div>
+
+              {/* Подпись */}
+              <p className="text-sm font-semibold mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
+                Укажите комментарии для юриста-эксперта по ситуации:
+              </p>
+
+              {/* Textarea */}
+              <textarea
+                value={lawyerComment}
+                onChange={e => setLawyerComment(e.target.value)}
+                placeholder="Например: хочу понять, насколько документ защищает мои интересы, или есть ли риски при подписании..."
+                rows={5}
+                autoFocus
+                className="w-full text-sm outline-none resize-none rounded-2xl px-4 py-3 transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.85)",
+                  caretColor: "#f0c060",
+                }}
+                onFocus={e => { e.target.style.borderColor = "rgba(232,168,32,0.4)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
+              />
+              <p className="text-[10px] mt-1.5 mb-5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Комментарий необязателен — можно оставить пустым
+              </p>
+
+              {/* Кнопки */}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setShowCommentModal(false)}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-medium transition-all"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleSubmitComment}
+                  className="flex-[2] py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg,#e8a820,#f0c060)", color: "#0a1628" }}
+                >
+                  <Icon name="Send" size={14} color="#0a1628" />
+                  Отправить юристу
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Модалка: Документ успешно отправлен юристу */}
       {showLawyerSuccess && (
