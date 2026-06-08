@@ -3,7 +3,7 @@
 export const CHAT_HISTORY_KEY = "landing_chat_history";
 export const CHAT_MESSAGES_KEY = "landing_chat_messages"; // UI-сообщения
 export const CHAT_MESSAGES_TS_KEY = "landing_chat_messages_ts";
-export const CHAT_MESSAGES_TTL = 24 * 60 * 60 * 1000; // 24 часа
+export const CHAT_MESSAGES_TTL = 60 * 60 * 1000; // 1 час
 export const PENDING_DOC_KEY = "landing_pending_doc";
 export const PENDING_SERVICE_KEY = "landing_pending_service";
 export const PENDING_TIMESTAMP_KEY = "landing_pending_ts";

@@ -40,7 +40,14 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
-  const [showUpsell, setShowUpsell] = useState(() => getDailyFreeLeft() === 0);
+  // Upsell показываем если лимит исчерпан ИЛИ был показан в прошлой сессии (история > 1 сообщения)
+  const [showUpsell, setShowUpsell] = useState(() => {
+    if (getDailyFreeLeft() === 0) {
+      const saved = loadChatMessages();
+      return saved != null && saved.length > 2;
+    }
+    return false;
+  });
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -57,12 +64,17 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Восстанавливаем API-историю из сохранённых UI-сообщений
-  const _savedMsgs = loadChatMessages();
-  const _initHistory = _savedMsgs && _savedMsgs.length > 1
-    ? _savedMsgs.filter(m => !m.typing).slice(1).map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }))
-    : [];
-  const history = useRef<{ role: string; content: string }[]>(_initHistory);
+  // Восстанавливаем API-историю один раз при маунте
+  const history = useRef<{ role: string; content: string }[]>(
+    (() => {
+      const saved = loadChatMessages();
+      if (!saved || saved.length <= 1) return [];
+      return saved
+        .filter(m => !m.typing)
+        .slice(1)
+        .map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }));
+    })()
+  );
   const isFirstRender = useRef(true);
 
   // При маунте — чистим устаревший pending если прошло > 30 мин / 24 часа
