@@ -327,7 +327,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onInputChange={setInput}
           onSend={() => sendMessage()}
           onKeyDown={handleKeyDown}
-          onAttachClick={() => fileInputRef.current?.click()}
+          onAttachClick={() => setShowDocAnalysisPaywall(true)}
           onToggleDocMenu={() => setShowDocMenu(v => !v)}
           onCreateDoc={handleCreateDoc}
           onFileSelect={handleFileSelect}
@@ -457,9 +457,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         />
       )}
 
-      {showDocAnalysisPaywall && attachedFile && (
+      {showDocAnalysisPaywall && (
         <DocAnalysisPaywall
-          fileName={attachedFile.name}
           onChoosePro={() => openDocAnalysisPayment("plan_pro", "Тариф «Профи»")}
           onChooseMax={() => openDocAnalysisPayment("plan_max", "Тариф «Максимум»")}
           onClose={() => setShowDocAnalysisPaywall(false)}
