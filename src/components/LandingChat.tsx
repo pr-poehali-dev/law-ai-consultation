@@ -460,8 +460,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       {showDocAnalysisPaywall && attachedFile && (
         <DocAnalysisPaywall
           fileName={attachedFile.name}
-          onChooseSingle={() => openDocAnalysisPayment("doc_analysis", "Разовый анализ документа")}
           onChoosePro={() => openDocAnalysisPayment("plan_pro", "Тариф «Профи»")}
+          onChooseMax={() => openDocAnalysisPayment("plan_max", "Тариф «Максимум»")}
           onClose={() => setShowDocAnalysisPaywall(false)}
         />
       )}
