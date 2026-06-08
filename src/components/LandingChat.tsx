@@ -40,14 +40,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
-  // Upsell показываем если лимит исчерпан ИЛИ был показан в прошлой сессии (история > 1 сообщения)
-  const [showUpsell, setShowUpsell] = useState(() => {
-    if (getDailyFreeLeft() === 0) {
-      const saved = loadChatMessages();
-      return saved != null && saved.length > 2;
-    }
-    return false;
-  });
+  const [showUpsell, setShowUpsell] = useState(false);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
