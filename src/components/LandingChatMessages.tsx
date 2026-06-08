@@ -148,32 +148,33 @@ export default function LandingChatMessages({
 
           {/* ── Кнопки под ответом AI ── */}
           {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
-            <div className="ml-9 mt-2 flex flex-wrap gap-1.5">
+            <div className="ml-9 mt-2 flex flex-wrap gap-2">
               {msg.suggestDocType && (
                 <button
                   onClick={() => onCreateDoc(msg.suggestDocType!)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all active:scale-[0.97] hover:shadow-md"
                   style={{
-                    background: "rgba(232,168,32,0.08)",
-                    border: "1px solid rgba(232,168,32,0.22)",
-                    color: "#92400e",
+                    background: "linear-gradient(135deg, #e8a820, #f0c060)",
+                    color: "#0a1628",
+                    boxShadow: "0 2px 8px rgba(232,168,32,0.25)",
                   }}
                 >
-                  <Icon name="FileText" size={11} color="#92400e" />
+                  <Icon name="FileText" size={12} color="#0a1628" />
                   Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
                 </button>
               )}
               {onSendToLawyer && (
                 <button
                   onClick={() => onSendToLawyer(msg.text)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all active:scale-[0.97]"
                   style={{
-                    background: "#f1f5f9",
-                    border: "1px solid #e2e8f0",
-                    color: "#64748b",
+                    background: "#ffffff",
+                    border: "1px solid #dde3ed",
+                    color: "#475569",
+                    boxShadow: "0 1px 4px rgba(10,22,40,0.06)",
                   }}
                 >
-                  <Icon name="UserCheck" size={11} color="#64748b" />
+                  <Icon name="UserCheck" size={12} color="#64748b" />
                   Проверить юристу
                 </button>
               )}
