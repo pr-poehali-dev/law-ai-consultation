@@ -270,12 +270,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           }}>
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
-              <div className="w-9 h-9 rounded-xl overflow-hidden"
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{
+                  background: "linear-gradient(145deg, #1a3a6b, #0c1f40)",
                   border: "1px solid rgba(232,168,32,0.35)",
-                  boxShadow: "0 0 16px rgba(232,168,32,0.12)",
+                  boxShadow: "0 0 16px rgba(232,168,32,0.12), inset 0 1px 0 rgba(255,255,255,0.08)",
                 }}>
-                <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/ba938739-47ef-4325-996a-bc02ef327720.jpg" alt="AI-юрист" className="w-full h-full object-cover" />
+                <Icon name="Scale" size={15} color="#e8a820" />
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
                 style={{ background: "#22c55e", border: "2px solid #060e1f", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }} />

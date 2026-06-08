@@ -15,9 +15,12 @@ export function UpsellBlock({
     <div className="flex gap-2.5 items-start">
       {/* Аватар AI */}
       <div className="shrink-0 mt-0.5">
-        <div className="w-7 h-7 rounded-xl overflow-hidden"
-          style={{ boxShadow: "0 2px 8px rgba(10,22,40,0.25)" }}>
-          <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/ba938739-47ef-4325-996a-bc02ef327720.jpg" alt="AI" className="w-full h-full object-cover" />
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+          style={{
+            background: "linear-gradient(145deg, #0d2040, #162d5a)",
+            boxShadow: "0 2px 8px rgba(10,22,40,0.25), inset 0 1px 0 rgba(255,255,255,0.06)",
+          }}>
+          <Icon name="Scale" size={12} color="#e8a820" />
         </div>
       </div>
 
