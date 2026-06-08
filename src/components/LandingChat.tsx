@@ -10,6 +10,7 @@ import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSe
 import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
+import DocDetailsModal from "@/components/DocDetailsModal";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
@@ -43,6 +44,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showUpsell, setShowUpsell] = useState(false);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
+  const [showDocDetails, setShowDocDetails] = useState<{ docTypeId: string; docLabel: string; query: string } | null>(null);
+  const [docDetailsData, setDocDetailsData] = useState<{ query: string; comment: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
@@ -98,11 +101,18 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowPayment(true);
   }, []);
 
-  const openDocPayment = useCallback((docTypeId?: string) => {
+  const openDocPayment = useCallback((docTypeId?: string, details?: { query: string; comment: string }) => {
     const dt = docTypeId || "claim";
     saveHistoryToStorage(history.current);
     localStorage.setItem(PENDING_DOC_KEY, dt);
     localStorage.setItem(PENDING_SERVICE_KEY, "doc");
+    if (details) {
+      const combined = details.comment
+        ? `${details.query}\n\n[Дополнения от пользователя]:\n${details.comment}`
+        : details.query;
+      localStorage.setItem("landing_pending_doc_details", combined);
+    }
+    localStorage.setItem("landing_pending_ts", String(Date.now()));
     setPaymentService({ type: "document", name: "Юридический документ" });
     setPendingDocType(dt);
     setShowPayment(true);
@@ -247,7 +257,21 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
-    setShowDocChoice({ docTypeId, docLabel: DOC_LABELS_MAP[docTypeId] || "документ" });
+    // Берём последний вопрос пользователя из истории как начальный запрос
+    const lastUserMsg = [...history.current].reverse().find(m => m.role === "user")?.content || input.trim();
+    setShowDocDetails({
+      docTypeId,
+      docLabel: DOC_LABELS_MAP[docTypeId] || "документ",
+      query: lastUserMsg,
+    });
+  };
+
+  const handleDocDetailsProceed = (query: string, comment: string) => {
+    if (!showDocDetails) return;
+    const { docTypeId, docLabel } = showDocDetails;
+    setDocDetailsData({ query, comment });
+    setShowDocDetails(null);
+    setShowDocChoice({ docTypeId, docLabel });
   };
 
   // Запускает оплату анализа документа (разовый 99₽ или Профи)
@@ -309,17 +333,15 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.01em" }}>законодательство РФ · онлайн</p>
             </div>
           </div>
-          {questionsLeft > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-              style={{
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.18)",
-              }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
-              <span className="text-[10px] font-semibold" style={{ color: "#4ade80" }}>1 вопрос бесплатно</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{
+              background: "rgba(34,197,94,0.1)",
+              border: "1px solid rgba(34,197,94,0.18)",
+            }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
+            <span className="text-[10px] font-semibold" style={{ color: "#4ade80" }}>онлайн</span>
+          </div>
         </div>
 
         {/* Сообщения */}
@@ -410,7 +432,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         </div>
       </div>
 
-      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>3 вопроса бесплатно каждый день · Документ 990 ₽ · Пакет 30 вопросов + 5 документов за 1490 ₽</p>
+      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>Документ 990 ₽ · Пакет 30 вопросов + 5 документов за 1490 ₽</p>
 
       {/* Модалки */}
       {showLogin && (
@@ -442,13 +464,24 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         />
       )}
 
+      {showDocDetails && (
+        <DocDetailsModal
+          docTypeId={showDocDetails.docTypeId}
+          docLabel={showDocDetails.docLabel}
+          initialQuery={showDocDetails.query}
+          onProceed={handleDocDetailsProceed}
+          onClose={() => setShowDocDetails(null)}
+        />
+      )}
+
       {showDocChoice && (
         <DocChoiceModal
           docLabel={showDocChoice.docLabel}
           onChooseDoc={() => {
             const dtId = showDocChoice.docTypeId;
+            const det = docDetailsData;
             setShowDocChoice(null);
-            openDocPayment(dtId);
+            openDocPayment(dtId, det || undefined);
           }}
           onChoosePlan={(planId) => {
             const dtId = showDocChoice.docTypeId;
@@ -456,6 +489,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             saveHistoryToStorage(history.current);
             localStorage.setItem(PENDING_DOC_KEY, dtId);
             localStorage.setItem(PENDING_SERVICE_KEY, "plan");
+            if (docDetailsData) {
+              const combined = docDetailsData.comment
+                ? `${docDetailsData.query}\n\n[Дополнения от пользователя]:\n${docDetailsData.comment}`
+                : docDetailsData.query;
+              localStorage.setItem("landing_pending_doc_details", combined);
+            }
+            localStorage.setItem("landing_pending_ts", String(Date.now()));
             const id = (planId || "plan_starter") as ServiceType;
             const nameMap: Record<string, string> = {
               plan_starter: "Тариф «Старт»",
@@ -466,7 +506,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
             setPendingDocType(dtId);
             setShowPayment(true);
           }}
-          onClose={() => setShowDocChoice(null)}
+          onClose={() => { setShowDocChoice(null); setDocDetailsData(null); }}
           onLoginClick={() => { setShowDocChoice(null); setShowLogin(true); }}
         />
       )}
