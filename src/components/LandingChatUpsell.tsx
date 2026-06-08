@@ -38,8 +38,8 @@ export function UpsellBlock({
 
           {/* Заголовок */}
           <div>
-            <p className="text-[13px] font-bold text-white leading-snug">Хотите получить полный ответ?</p>
-            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
+            <p className="text-[13px] font-semibold text-white leading-snug">Хотите получить полный ответ?</p>
+            <p className="text-[11px] mt-1 leading-relaxed font-normal" style={{ color: "rgba(255,255,255,0.38)" }}>
               Продолжите диалог — детали, стратегия и готовый документ.
             </p>
           </div>
@@ -48,24 +48,24 @@ export function UpsellBlock({
           <button onClick={onBuyPlan}
             className="w-full rounded-2xl transition-all active:scale-[0.98]"
             style={{
-              padding: "12px 14px",
+              padding: "11px 14px",
               background: "linear-gradient(135deg, #d4920f, #e8a820, #f5d060)",
-              boxShadow: "0 6px 20px rgba(232,168,32,0.4), inset 0 1px 0 rgba(255,255,255,0.25)",
+              boxShadow: "0 4px 16px rgba(232,168,32,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
             }}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(10,22,40,0.18)", backdropFilter: "blur(4px)" }}>
-                  <Icon name="Crown" size={13} color="#0a1628" />
+                  style={{ background: "rgba(10,22,40,0.15)" }}>
+                  <Icon name="Crown" size={12} color="#0a1628" />
                 </div>
                 <div className="text-left">
-                  <p className="text-[12px] font-black leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
-                  <p className="text-[10px] font-medium leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.5)" }}>30 вопросов · 5 документов · .docx</p>
-                  <p className="text-[10px] font-semibold leading-tight" style={{ color: "rgba(10,22,40,0.65)" }}>+ проверка документов юристом</p>
+                  <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
+                  <p className="text-[10px] font-normal leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .docx</p>
+                  <p className="text-[10px] font-normal leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ проверка документов юристом</p>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[15px] font-black leading-tight" style={{ color: "#0a1628" }}>1 490 ₽</p>
+                <p className="text-[14px] font-semibold leading-tight" style={{ color: "#0a1628" }}>1 490 ₽</p>
               </div>
             </div>
           </button>
@@ -73,7 +73,7 @@ export function UpsellBlock({
           {/* Разделитель */}
           <div className="flex items-center gap-2.5">
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.2)", letterSpacing: "0.02em" }}>или быстрее</span>
+            <span className="text-[10px] font-normal" style={{ color: "rgba(255,255,255,0.2)" }}>или быстрее</span>
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
           </div>
 
@@ -82,21 +82,21 @@ export function UpsellBlock({
             className="w-full rounded-xl transition-all active:scale-[0.98]"
             style={{
               padding: "10px 14px",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.09)",
             }}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
+                  style={{ background: "rgba(232,168,32,0.1)", border: "1px solid rgba(232,168,32,0.18)" }}>
                   <Icon name="MessageCircle" size={11} color="#f0c060" />
                 </div>
                 <div className="text-left">
-                  <p className="text-[12px] font-semibold text-white leading-tight">Ещё 3 вопроса сейчас</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>диалог продолжится в кабинете</p>
+                  <p className="text-[12px] font-medium text-white leading-tight">Ещё 3 вопроса сейчас</p>
+                  <p className="text-[10px] font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.28)" }}>диалог продолжится в кабинете</p>
                 </div>
               </div>
-              <p className="text-[13px] font-bold shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
+              <p className="text-[13px] font-medium shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
             </div>
           </button>
 
