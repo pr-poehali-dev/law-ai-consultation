@@ -371,25 +371,41 @@ def handler(event: dict, context) -> dict:
             answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=1800, fast=True, temperature=0.2)
 
         else:
-            # Параллельно загружаем кодексы и разъяснения если они релевантны
+            # Параллельно ищем по всем категориям правовой базы
             _extra_ctx_parts: list = []
-            if _is_codex or _is_definitions:
-                _codex_result: list = []
-                _def_result: list = []
-                def _fetch_codex():
-                    if _is_codex:
-                        ctx = get_legal_context_for_ai("codex", max_files=3, max_chars=4000, query=_last_user_q)
-                        if ctx: _codex_result.append(ctx)
-                def _fetch_def():
-                    if _is_definitions:
-                        ctx = get_legal_context_for_ai("court_definitions", max_files=2, max_chars=4000, query=_last_user_q)
-                        if ctx: _def_result.append(ctx)
-                _t_codex = threading.Thread(target=_fetch_codex, daemon=True)
-                _t_def = threading.Thread(target=_fetch_def, daemon=True)
-                _t_codex.start(); _t_def.start()
-                _t_codex.join(timeout=6); _t_def.join(timeout=6)
-                if _codex_result: _extra_ctx_parts.append(_codex_result[0])
-                if _def_result: _extra_ctx_parts.append(_def_result[0])
+            _codex_result: list = []
+            _def_result: list = []
+            _case_law_result: list = []
+            _duty_result2: list = []
+
+            def _fetch_codex():
+                ctx = get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=_last_user_q)
+                if ctx: _codex_result.append(ctx)
+            def _fetch_def():
+                ctx = get_legal_context_for_ai("court_definitions", max_files=2, max_chars=3000, query=_last_user_q)
+                if ctx: _def_result.append(ctx)
+            def _fetch_case_law():
+                if not _is_simple:
+                    ctx = get_legal_context_for_ai("case_law", max_files=2, max_chars=2500, query=_last_user_q)
+                    if ctx: _case_law_result.append(ctx)
+            def _fetch_duty2():
+                if not _is_simple:
+                    ctx = get_legal_context_for_ai("state_duty", max_files=1, max_chars=1500, query=_last_user_q)
+                    if ctx: _duty_result2.append(ctx)
+
+            _t_codex = threading.Thread(target=_fetch_codex, daemon=True)
+            _t_def = threading.Thread(target=_fetch_def, daemon=True)
+            _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
+            _t_duty2 = threading.Thread(target=_fetch_duty2, daemon=True)
+            for _t in (_t_codex, _t_def, _t_case, _t_duty2):
+                _t.start()
+            for _t in (_t_codex, _t_def, _t_case, _t_duty2):
+                _t.join(timeout=6)
+
+            if _codex_result: _extra_ctx_parts.append(_codex_result[0])
+            if _def_result: _extra_ctx_parts.append(_def_result[0])
+            if _case_law_result: _extra_ctx_parts.append(_case_law_result[0])
+            if _duty_result2: _extra_ctx_parts.append(_duty_result2[0])
 
             if _extra_ctx_parts:
                 extra_ctx = "".join(_extra_ctx_parts)
@@ -399,8 +415,8 @@ def handler(event: dict, context) -> dict:
                 if _lu_idx2 is not None:
                     enriched_msgs[_lu_idx2] = {**enriched_msgs[_lu_idx2],
                                                "content": enriched_msgs[_lu_idx2].get("content", "") + extra_ctx}
-                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2000, fast=True, temperature=0.2)
-                print(f"[AI_CHAT] extra_ctx: codex={_is_codex}, definitions={_is_definitions}, chars={len(extra_ctx)}")
+                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2500, fast=True, temperature=0.2)
+                print(f"[AI_CHAT] universal_ctx: chars={len(extra_ctx)}, simple={_is_simple}")
             elif _is_simple:
                 answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
             else:

@@ -42,6 +42,7 @@ from state_duty import (
     is_duty_query, get_duty_context_for_chat, get_duty_context_for_doc,
     DUTY_DOC_TYPES,
 )
+from legal_docs_handler import get_legal_context_for_ai
 
 # Типы документов, для которых ораторский финал (не "подпись/реквизиты")
 SPEECH_DOC_TYPES = {"court_speech"}
@@ -1284,7 +1285,52 @@ def handler(event: dict, context) -> dict:
                 print(f"[ROUTER] Запрос о госпошлине → справочник инжектирован, файлы из БД: {bool(duty_db_ctx)}")
 
             else:
-                if _is_simple:
+                # Параллельно ищем по всем категориям правовой базы
+                _extra_ctx_parts: list = []
+                _codex_r: list = []
+                _def_r: list = []
+                _cl_r: list = []
+                _duty_r: list = []
+                _last_user_q2 = next((m.get("content", "") for m in reversed(clean_messages) if m.get("role") == "user"), "")
+
+                def _fetch_codex2():
+                    ctx = get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=_last_user_q2)
+                    if ctx: _codex_r.append(ctx)
+                def _fetch_def2():
+                    ctx = get_legal_context_for_ai("court_definitions", max_files=2, max_chars=3000, query=_last_user_q2)
+                    if ctx: _def_r.append(ctx)
+                def _fetch_cl2():
+                    if not _is_simple:
+                        ctx = get_legal_context_for_ai("case_law", max_files=2, max_chars=2500, query=_last_user_q2)
+                        if ctx: _cl_r.append(ctx)
+                def _fetch_duty3():
+                    if not _is_simple:
+                        ctx = get_legal_context_for_ai("state_duty", max_files=1, max_chars=1500, query=_last_user_q2)
+                        if ctx: _duty_r.append(ctx)
+
+                _threads = [
+                    threading.Thread(target=_fetch_codex2, daemon=True),
+                    threading.Thread(target=_fetch_def2, daemon=True),
+                    threading.Thread(target=_fetch_cl2, daemon=True),
+                    threading.Thread(target=_fetch_duty3, daemon=True),
+                ]
+                for _t in _threads: _t.start()
+                for _t in _threads: _t.join(timeout=6)
+
+                if _codex_r: _extra_ctx_parts.append(_codex_r[0])
+                if _def_r: _extra_ctx_parts.append(_def_r[0])
+                if _cl_r: _extra_ctx_parts.append(_cl_r[0])
+                if _duty_r: _extra_ctx_parts.append(_duty_r[0])
+
+                if _extra_ctx_parts:
+                    _extra_ctx = "".join(_extra_ctx_parts)
+                    _enriched = list(clean_messages)
+                    _lu3 = next((i for i in range(len(_enriched) - 1, -1, -1) if _enriched[i].get("role") == "user"), None)
+                    if _lu3 is not None:
+                        _enriched[_lu3] = {**_enriched[_lu3], "content": _enriched[_lu3].get("content", "") + _extra_ctx}
+                    answer = call_yandex(SYSTEM_CHAT, _enriched, max_tokens=2500, fast=True, temperature=0.2)
+                    print(f"[ROUTER] universal_ctx: chars={len(_extra_ctx)}, simple={_is_simple}")
+                elif _is_simple:
                     answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
                 else:
                     answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2500, fast=True, temperature=0.3)
