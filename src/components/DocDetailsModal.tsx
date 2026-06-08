@@ -59,7 +59,7 @@ export default function DocDetailsModal({
         className="relative w-full sm:max-w-lg sm:mx-4 sm:rounded-3xl rounded-t-3xl flex flex-col"
         style={{
           background: "#0a1628",
-          maxHeight: "92dvh",
+          maxHeight: "88dvh",
           boxShadow: "0 -8px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)",
         }}
       >
@@ -102,7 +102,7 @@ export default function DocDetailsModal({
         </div>
 
         {/* Скролл-зона */}
-        <div className="overflow-y-auto flex-1 px-5 space-y-4 pb-4">
+        <div className="overflow-y-auto flex-1 px-4 sm:px-5 space-y-3.5 pb-3">
 
           {/* Блок запроса */}
           <div>
@@ -190,10 +190,10 @@ export default function DocDetailsModal({
                 ref={commentRef}
                 value={comment}
                 onChange={e => { setComment(e.target.value); autoResize(e.target); }}
-                placeholder="Если требуются дополнения — укажите детали: ФИО сторон, суммы, даты, адреса, нарушенные права..."
+                placeholder="ФИО сторон, суммы, даты, адреса, обстоятельства…"
                 rows={3}
                 className="w-full bg-transparent outline-none resize-none px-4 py-3 text-[13px] leading-relaxed placeholder:text-[rgba(255,255,255,0.22)]"
-                style={{ color: "rgba(255,255,255,0.85)", minHeight: "80px", maxHeight: "160px" }}
+                style={{ color: "rgba(255,255,255,0.85)", minHeight: "72px", maxHeight: "140px" }}
                 onFocus={e => {
                   (e.target.closest("div") as HTMLElement).style.borderColor = "rgba(232,168,32,0.35)";
                   (e.target.closest("div") as HTMLElement).style.background = "rgba(255,255,255,0.06)";
@@ -213,17 +213,17 @@ export default function DocDetailsModal({
 
         {/* Липкий футер */}
         <div
-          className="shrink-0 px-5 pt-3 pb-5"
+          className="shrink-0 px-4 sm:px-5 pt-3"
           style={{
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            paddingBottom: `max(20px, env(safe-area-inset-bottom, 20px))`,
+            paddingBottom: `max(16px, env(safe-area-inset-bottom, 16px))`,
             background: "#0a1628",
           }}
         >
           <button
             onClick={handleProceed}
             disabled={!query.trim()}
-            className="w-full py-3.5 rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
+            className="w-full py-3.5 rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             style={{
               background: query.trim()
                 ? "linear-gradient(135deg, #c97d10, #e8a820, #f5d060)"
@@ -233,8 +233,8 @@ export default function DocDetailsModal({
               transition: "all 0.2s",
             }}
           >
-            <Icon name="CreditCard" size={16} color={query.trim() ? "#0a1628" : "rgba(255,255,255,0.2)"} />
-            Оплатить и создать · 990 ₽
+            <Icon name="ArrowRight" size={17} color={query.trim() ? "#0a1628" : "rgba(255,255,255,0.2)"} />
+            Выбрать способ оплаты
           </button>
         </div>
       </div>
