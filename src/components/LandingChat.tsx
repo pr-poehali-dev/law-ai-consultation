@@ -141,7 +141,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setMessages(p => [...p, { role: "ai", text: "", typing: true }]);
 
     // Ограничиваем историю последними 10 сообщениями чтобы не переполнять запрос
-    const trimmedHist = history.current.slice(-10);
+    const trimmedHist = history.current.slice(-3);
     const newHist = [...trimmedHist, { role: "user", content: msgText }];
     history.current = [...history.current, { role: "user", content: msgText }];
 
@@ -167,7 +167,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       }
 
       history.current = [...history.current, { role: "assistant", content: aiText }];
-      saveHistoryToStorage(history.current.slice(-20));
+      saveHistoryToStorage(history.current.slice(-6));
 
       const suggestDocType = detectDocSuggestion(aiText);
       setMessages(p => {
