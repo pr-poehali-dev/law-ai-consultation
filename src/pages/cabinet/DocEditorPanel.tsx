@@ -6,6 +6,7 @@ interface DocEditorPanelProps {
   content: string;
   onApply: (newContent: string) => void;
   onClose: () => void;
+  onOpenAiChat?: () => void;
 }
 
 // Преобразовать HTML-элемент в plain-text, сохраняя переносы строк
@@ -157,7 +158,7 @@ function Sep() {
 
 // ── Основной компонент ─────────────────────────────────────────────────────
 
-export default function DocEditorPanel({ content, onApply, onClose }: DocEditorPanelProps) {
+export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat }: DocEditorPanelProps) {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -180,6 +181,15 @@ export default function DocEditorPanel({ content, onApply, onClose }: DocEditorP
     <div className="flex flex-col h-full min-h-0">
       {/* Тулбар */}
       <div className="shrink-0 px-3 py-2 border-b border-slate-100 bg-slate-50/80 flex items-center gap-1 flex-wrap">
+        {onOpenAiChat && (
+          <button
+            onMouseDown={e => { e.preventDefault(); onOpenAiChat(); }}
+            className="sm:hidden ml-auto flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-semibold text-white shrink-0"
+            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
+          >
+            <Icon name="Bot" size={12} color="white" />AI-юрист
+          </button>
+        )}
         <ToolBtn title="Жирный (Ctrl+B)" onClick={() => exec("bold")} className="font-bold">B</ToolBtn>
         <ToolBtn title="Курсив (Ctrl+I)" onClick={() => exec("italic")} className="italic">I</ToolBtn>
         <ToolBtn title="Подчёркивание (Ctrl+U)" onClick={() => exec("underline")} className="underline">U</ToolBtn>
