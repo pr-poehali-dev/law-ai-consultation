@@ -224,6 +224,7 @@ def grant_service(conn, user_id: int, service_type: str):
                     SET paid_questions = paid_questions + 100,
                         paid_docs = paid_docs + 20,
                         paid_expert = TRUE,
+                        has_file_analysis = TRUE,
                         lawyer_questions_left = lawyer_questions_left + 5
                     WHERE id = %s""",
                 (user_id,)
@@ -234,6 +235,7 @@ def grant_service(conn, user_id: int, service_type: str):
                     SET paid_questions = paid_questions + 300,
                         paid_docs = paid_docs + 50,
                         paid_expert = TRUE,
+                        has_file_analysis = TRUE,
                         lawyer_questions_left = lawyer_questions_left + 30
                     WHERE id = %s""",
                 (user_id,)
