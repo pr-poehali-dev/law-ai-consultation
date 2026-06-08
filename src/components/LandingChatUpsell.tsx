@@ -22,90 +22,95 @@ export function UpsellBlock({
 
       <div
         className="flex-1 rounded-2xl rounded-tl-sm overflow-hidden"
-        style={{ background: "linear-gradient(150deg, #0a1628 0%, #0e2040 100%)", border: "1px solid rgba(232,168,32,0.25)" }}
+        style={{ background: "linear-gradient(150deg, #0a1628 0%, #0e2040 100%)", border: "1px solid rgba(232,168,32,0.3)" }}
       >
         {/* Золотая линия */}
         <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #e8a820 30%, #f0c060 50%, #e8a820 70%, transparent)" }} />
 
         <div className="p-4">
           {/* Шапка */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)" }}>
-              <Icon name="Zap" size={13} color="#e8a820" />
-            </div>
-            <p className="text-sm font-bold text-white">Бесплатные вопросы использованы</p>
+          <div className="mb-3">
+            <p className="text-sm font-bold text-white leading-snug mb-1">
+              Хотите получить полный ответ?
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+              AI разобрал вашу ситуацию. Продолжите диалог — уточните детали, получите стратегию и готовый документ.
+            </p>
           </div>
 
-          <p className="text-xs mb-4 leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Продолжите работу с AI-юристом — выберите удобный вариант:
-          </p>
-
-          {/* Пакет Старт */}
+          {/* Пакет Старт — главный CTA */}
           <button
             onClick={onBuyPlan}
-            className="w-full rounded-xl mb-2 transition-all active:scale-[0.98]"
-            style={{ padding: "11px 14px", background: "linear-gradient(135deg, #e8a820, #f0c060)" }}
+            className="w-full rounded-xl mb-2 transition-all active:scale-[0.98] hover:brightness-105"
+            style={{ padding: "12px 14px", background: "linear-gradient(135deg, #e8a820, #f0c060)", boxShadow: "0 4px 20px rgba(232,168,32,0.3)" }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.2)" }}>
-                  <Icon name="Crown" size={12} color="#0a1628" />
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.18)" }}>
+                  <Icon name="Crown" size={13} color="#0a1628" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
-                  <p className="text-[10px]" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
+                  <p className="text-xs font-black text-navy-900 leading-tight">30 вопросов + 5 документов</p>
+                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>скачивание .docx · без ограничений</p>
                 </div>
               </div>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-lg font-black text-navy-900">1 490</span>
-                <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
+              <div className="text-right">
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-lg font-black text-navy-900">1 490</span>
+                  <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.65)" }}>₽</span>
+                </div>
+                <p className="text-[9px] font-semibold" style={{ color: "rgba(10,22,40,0.45)" }}>≈ 50 ₽ / вопрос</p>
               </div>
             </div>
           </button>
 
-          {/* +3 вопроса к AI */}
+          {/* Разделитель */}
+          <div className="flex items-center gap-2 my-2.5">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.25)" }}>или</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+          </div>
+
+          {/* +3 вопроса — быстрый старт */}
           <button
             onClick={onBuyQuickQuestions}
-            className="w-full rounded-xl mb-2 transition-all active:scale-[0.98]"
+            className="w-full rounded-xl mb-3 transition-all active:scale-[0.98] hover:brightness-110"
             style={{
               padding: "10px 14px",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.07)",
+              border: "1px solid rgba(255,255,255,0.13)",
             }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
-                  <Icon name="MessageCircle" size={12} color="#a0b4cc" />
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
+                  <Icon name="MessageCircle" size={11} color="#e8a820" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Докупить 3 вопроса AI-юристу</p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Диалог продолжится в личном кабинете</p>
+                  <p className="text-xs font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Ещё 3 вопроса прямо сейчас</p>
+                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.38)" }}>диалог продолжится в кабинете</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-base font-bold" style={{ color: "#f0c060" }}>199</span>
-                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>₽</span>
+                <span className="text-sm font-bold" style={{ color: "#f0c060" }}>199</span>
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>₽</span>
               </div>
             </div>
           </button>
 
-          {/* Войти */}
-          <button
-            onClick={onLogin}
-            className="w-full rounded-xl text-xs font-semibold py-2 transition-all"
-            style={{ color: "rgba(255,255,255,0.5)" }}
-          >
-            Уже есть аккаунт? Войти →
-          </button>
-
-          <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
-            Защищённая оплата · ЮКасса · Доступ сразу после оплаты
-          </p>
-          <p className="text-center text-[11px] mt-2">
-            <span style={{ color: "rgba(255,255,255,0.35)" }}>Уже есть подписка? </span>
-            <a href="/cabinet" className="underline underline-offset-2" style={{ color: "rgba(255,255,255,0.55)" }}>Войдите в личный кабинет</a>
-          </p>
+          {/* Войти + гарантия */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onLogin}
+              className="text-xs font-semibold transition-all hover:opacity-80"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              Есть аккаунт? Войти →
+            </button>
+            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+              ЮКасса · сразу после оплаты
+            </p>
+          </div>
         </div>
       </div>
     </div>
