@@ -129,8 +129,65 @@ export interface Message {
   suggestDocType?: string;
 }
 
-export function formatMessage(text: string) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br/>');
+export function formatMessage(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let inList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const line = raw
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;font-size:0.9em;font-family:monospace">$1</code>');
+
+    const trimmed = raw.trim();
+
+    // Горизонтальная линия
+    if (/^---+$/.test(trimmed)) {
+      if (inList) { result.push('</ul>'); inList = false; }
+      result.push('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:10px 0"/>');
+      continue;
+    }
+
+    // Заголовок ## или ###
+    if (/^#{1,3}\s+/.test(trimmed)) {
+      if (inList) { result.push('</ul>'); inList = false; }
+      const headText = line.replace(/^#+\s+/, '');
+      result.push(`<p style="font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.5);margin:10px 0 4px">${headText}</p>`);
+      continue;
+    }
+
+    // Пункт списка — • / - / *
+    if (/^[-*•]\s+/.test(trimmed)) {
+      if (!inList) { result.push('<ul style="margin:6px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px">'); inList = true; }
+      const itemText = line.replace(/^[-*•]\s+/, '');
+      result.push(`<li style="display:flex;gap:8px;align-items:flex-start"><span style="color:#f0c060;font-size:0.65rem;margin-top:0.35em;flex-shrink:0">▸</span><span>${itemText}</span></li>`);
+      continue;
+    }
+
+    // Нумерованный пункт 1. / 2.
+    if (/^\d+\.\s+/.test(trimmed)) {
+      if (!inList) { result.push('<ul style="margin:6px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px">'); inList = true; }
+      const num = trimmed.match(/^(\d+)\./)?.[1] ?? '';
+      const itemText = line.replace(/^\d+\.\s+/, '');
+      result.push(`<li style="display:flex;gap:8px;align-items:flex-start"><span style="color:#f0c060;font-size:0.7rem;font-weight:700;min-width:16px;flex-shrink:0">${num}.</span><span>${itemText}</span></li>`);
+      continue;
+    }
+
+    // Пустая строка
+    if (!trimmed) {
+      if (inList) { result.push('</ul>'); inList = false; }
+      result.push('<br/>');
+      continue;
+    }
+
+    // Обычный абзац
+    if (inList) { result.push('</ul>'); inList = false; }
+    result.push(`<span>${line}</span><br/>`);
+  }
+
+  if (inList) result.push('</ul>');
+
+  return result.join('');
 }

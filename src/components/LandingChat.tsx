@@ -258,33 +258,43 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       <div
         className="rounded-2xl overflow-hidden"
         style={{
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          backdropFilter: "blur(20px)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.04) 100%)",
+          border: "1px solid rgba(255,255,255,0.11)",
+          backdropFilter: "blur(24px)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)",
         }}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)" }}>
-              <Icon name="Scale" size={14} color="#e8a820" />
+        <div className="flex items-center justify-between px-4 py-3 border-b"
+          style={{
+            borderColor: "rgba(255,255,255,0.07)",
+            background: "linear-gradient(90deg, rgba(10,22,40,0.5) 0%, rgba(22,45,90,0.35) 100%)",
+          }}>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #0a1628, #1a3a6b)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 12px rgba(232,168,32,0.15)" }}>
+                <Icon name="Scale" size={15} color="#e8a820" />
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                style={{ background: "#22c55e", borderColor: "rgba(10,22,40,0.9)" }} />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-tight">AI-юрист</p>
-              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Отвечает мгновенно · на основе законодательства РФ</p>
+              <p className="text-sm font-bold text-white leading-tight tracking-tight">AI-юрист</p>
+              <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>на основе законодательства РФ</p>
             </div>
           </div>
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide"
             style={{
-              background: questionsLeft > 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+              background: questionsLeft > 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
               color: questionsLeft > 0 ? "#4ade80" : "#f87171",
-              border: `1px solid ${questionsLeft > 0 ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+              border: `1px solid ${questionsLeft > 0 ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+              letterSpacing: "0.03em",
             }}
           >
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }} />
-            {questionsLeft > 0 ? `${questionsLeft} из 3 вопросов` : "Лимит исчерпан"}
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }} />
+            {questionsLeft > 0 ? `${questionsLeft} / 3 бесплатно` : "Лимит исчерпан"}
           </div>
         </div>
 

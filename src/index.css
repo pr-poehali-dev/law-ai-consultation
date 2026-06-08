@@ -415,4 +415,47 @@
     pointer-events: none;
     z-index: 0;
   }
+
+  /* ── AI-сообщения: богатая типографика ──────────────────────────────── */
+  .ai-message-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ai-message-body strong {
+    color: #fff;
+    font-weight: 650;
+  }
+
+  .ai-message-body em {
+    color: rgba(255, 255, 255, 0.75);
+    font-style: italic;
+  }
+
+  .ai-message-body br {
+    line-height: 0.5;
+  }
+
+  .ai-message-body ul {
+    margin: 6px 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ai-message-body li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .ai-message-body hr {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 8px 0;
+  }
 }

@@ -28,8 +28,8 @@ export default function LandingChatMessages({
   return (
     <div
       ref={chatBoxRef}
-      className="overflow-y-auto px-4 py-4 space-y-3"
-      style={{ height: "clamp(280px, 38vh, 440px)" }}
+      className="overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide"
+      style={{ height: "clamp(300px, 42vh, 480px)" }}
     >
       {messages.map((msg, i) => (
         <div key={i}>
@@ -83,30 +83,47 @@ export default function LandingChatMessages({
               </div>
             </div>
           ) : (
-          <div className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+          <div className={`flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             {msg.role === "ai" && (
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mb-0.5"
+                style={{ background: "linear-gradient(135deg, #0a1628, #1a3a6b)", border: "1px solid rgba(232,168,32,0.35)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
                 <Icon name="Scale" size={11} color="#e8a820" />
               </div>
             )}
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm"}`}
+            <div className={`max-w-[84%] ${msg.role === "user" ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"}`}
               style={
                 msg.role === "user"
-                  ? { background: "linear-gradient(135deg, #162d5a, #0a1e3f)", border: "1px solid rgba(232,168,32,0.2)" }
-                  : { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.9)" }
+                  ? {
+                      background: "linear-gradient(135deg, #1e3f7a, #0f2650)",
+                      border: "1px solid rgba(232,168,32,0.22)",
+                      padding: "10px 14px",
+                      color: "rgba(255,255,255,0.93)",
+                      fontSize: "0.82rem",
+                      lineHeight: "1.6",
+                    }
+                  : {
+                      background: "linear-gradient(160deg, rgba(255,255,255,0.095) 0%, rgba(255,255,255,0.06) 100%)",
+                      border: "1px solid rgba(255,255,255,0.11)",
+                      backdropFilter: "blur(8px)",
+                      padding: "12px 15px",
+                      color: "rgba(255,255,255,0.92)",
+                      fontSize: "0.82rem",
+                      lineHeight: "1.7",
+                    }
               }
             >
               {msg.typing ? (
-                <div className="flex items-center gap-1 py-1">
-                  {[0, 150, 300].map(d => (
+                <div className="flex items-center gap-1 py-0.5">
+                  {[0, 160, 320].map(d => (
                     <div key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
                       style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
                   ))}
                 </div>
               ) : (
-                <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
+                <div
+                  className="ai-message-body"
+                  dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }}
+                />
               )}
             </div>
           </div>
@@ -114,33 +131,34 @@ export default function LandingChatMessages({
 
           {/* Кнопки под ответом AI — только не под приветствием (i > 0) */}
           {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
-            <div className="ml-9 mt-2 flex flex-wrap gap-2">
+            <div className="ml-9 mt-2 flex flex-wrap gap-1.5">
               {msg.suggestDocType && (
                 <button
                   onClick={() => onCreateDoc(msg.suggestDocType!)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 hover:brightness-110"
                   style={{
-                    background: "linear-gradient(135deg, rgba(232,168,32,0.18), rgba(232,168,32,0.08))",
-                    border: "1px solid rgba(232,168,32,0.3)",
+                    background: "linear-gradient(135deg, rgba(232,168,32,0.2), rgba(232,168,32,0.1))",
+                    border: "1px solid rgba(232,168,32,0.35)",
                     color: "#f0c060",
+                    boxShadow: "0 2px 8px rgba(232,168,32,0.1)",
                   }}
                 >
-                  <Icon name="FileText" size={13} color="#f0c060" />
+                  <Icon name="FileText" size={11} color="#f0c060" />
                   Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
                 </button>
               )}
               {onSendToLawyer && (
                 <button
                   onClick={() => onSendToLawyer(msg.text)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 hover:brightness-110"
                   style={{
-                    background: "rgba(255,255,255,0.07)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "rgba(255,255,255,0.65)",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "rgba(255,255,255,0.55)",
                   }}
                 >
-                  <Icon name="UserCheck" size={13} color="rgba(255,255,255,0.65)" />
-                  Отправить юристу
+                  <Icon name="UserCheck" size={11} color="rgba(255,255,255,0.55)" />
+                  Проверить юристу
                 </button>
               )}
             </div>
