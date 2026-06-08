@@ -39,8 +39,8 @@ export default function Header({ activeSection, onNavigate, onLoginClick, onTryC
           onClick={() => onNavigate("home")}
           className="flex items-center gap-3 group"
         >
-          <div className="w-9 h-9 rounded-xl gradient-navy flex items-center justify-center shadow-lg group-hover:shadow-navy-700/40 transition-all duration-300 border border-white/20">
-            <Icon name="Scale" size={18} className="text-gold-400" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg group-hover:shadow-navy-700/40 transition-all duration-300 border border-white/20">
+            <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/ba938739-47ef-4325-996a-bc02ef327720.jpg" alt="AI-юрист" className="w-full h-full object-cover" />
           </div>
           <div className="flex flex-col leading-none">
             <span className={`font-cormorant font-bold text-xl tracking-tight transition-colors ${scrolled ? "text-navy-700" : "text-white"}`}>
