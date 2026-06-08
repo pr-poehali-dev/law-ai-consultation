@@ -67,18 +67,7 @@ export default function LandingChatMessages({
                   </p>
                 </div>
 
-                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
 
-                {/* Строка 3 */}
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.25)" }}>
-                    <Icon name="Gift" size={12} color="#4ade80" />
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    <span style={{ color: "#4ade80" }} className="font-semibold">1 вопрос — бесплатно</span>, без регистрации. Для продолжения — выберите тариф.
-                  </p>
-                </div>
 
               </div>
             </div>
