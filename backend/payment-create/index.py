@@ -17,7 +17,7 @@ PRICES = {
     "consultation":         "990.00",
     "document":             "990.00",
     "doc_analysis":         "99.00",
-    "quick_questions":      "199.00",
+    "quick_questions":      "35.00",
     "expert":               "990.00",
     "business":             "1000.00",
     "subscription_consult": "1990.00",

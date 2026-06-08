@@ -92,7 +92,7 @@ export function UpsellBlock({
                 </div>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-sm font-bold" style={{ color: "#f0c060" }}>199</span>
+                <span className="text-sm font-bold" style={{ color: "#f0c060" }}>35</span>
                 <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>₽</span>
               </div>
             </div>

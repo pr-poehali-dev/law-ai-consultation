@@ -429,7 +429,7 @@ ${docTextClean}
                   <div className="rounded-xl p-3 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
                     <p className="text-[11px] font-bold text-amber-800 mb-1">Вопросы закончились</p>
                     <button onClick={() => onPayForQuestions?.()} className="w-full py-1.5 rounded-lg text-[11px] font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>
-                      +3 вопроса · 199 ₽
+                      +3 вопроса · 35 ₽
                     </button>
                   </div>
                 )}
@@ -560,7 +560,7 @@ ${docTextClean}
               {(paidQuestions ?? 0) <= 0 && (
                 <div className="rounded-2xl p-4 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
                   <p className="text-xs font-bold text-amber-800 mb-2">Вопросы закончились</p>
-                  <button onClick={() => onPayForQuestions?.()} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>+3 вопроса · 199 ₽</button>
+                  <button onClick={() => onPayForQuestions?.()} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>+3 вопроса · 35 ₽</button>
                 </div>
               )}
               <div ref={aiFillEndRef} />
