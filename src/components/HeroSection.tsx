@@ -77,18 +77,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             Наш AI обучен на судебной практике и актуальной редакции законов РФ. Он мгновенно структурирует хаос: составит иск, ответит на вопросы или напомнит о сроках давности. Ручная проверка сложных кейсов живым юристом доступна на сайте.
           </p>
 
-          {/* Бесплатный лимит */}
-          <div className={`flex justify-center mb-6 transition-all duration-600 delay-200 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
-              style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}
-            >
-              <Icon name="Gift" size={13} color="#4ade80" />
-              <span className="text-xs font-semibold" style={{ color: "#4ade80" }}>
-                3 бесплатных вопроса в день — без регистрации
-              </span>
-            </div>
-          </div>
+
 
           {/* ── Главный чат ─────────────────────────────────────── */}
           <div className={`transition-all duration-600 delay-250 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
