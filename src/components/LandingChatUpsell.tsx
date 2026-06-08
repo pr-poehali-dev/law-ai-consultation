@@ -50,16 +50,16 @@ export function UpsellBlock({
                   <Icon name="Crown" size={13} color="#0a1628" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-black text-navy-900 leading-tight">30 вопросов + 5 документов</p>
-                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>скачивание .docx · без ограничений</p>
+                  <p className="text-xs font-black text-navy-900 leading-tight">Пакет «Старт»</p>
+                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.6)" }}>30 вопросов · 5 документов · скачивание .docx</p>
+                  <p className="text-[10px] font-semibold" style={{ color: "rgba(10,22,40,0.75)" }}>+ проверка документов юристом</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <div className="flex items-baseline gap-0.5">
                   <span className="text-lg font-black text-navy-900">1 490</span>
                   <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.65)" }}>₽</span>
                 </div>
-                <p className="text-[9px] font-semibold" style={{ color: "rgba(10,22,40,0.45)" }}>≈ 50 ₽ / вопрос</p>
               </div>
             </div>
           </button>
