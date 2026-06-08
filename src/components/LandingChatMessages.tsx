@@ -29,45 +29,41 @@ export default function LandingChatMessages({
     <div
       ref={chatBoxRef}
       className="overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide"
-      style={{ height: "clamp(300px, 42vh, 480px)" }}
+      style={{ height: "clamp(300px, 42vh, 480px)", background: "#f4f6fb" }}
     >
       {messages.map((msg, i) => (
         <div key={i}>
           {/* Приветственный блок (первое сообщение AI) */}
           {i === 0 && msg.role === "ai" ? (
-            <div className="flex gap-2 items-start">
+            <div className="flex gap-2.5 items-start">
               <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}>
+                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}>
                 <Icon name="Scale" size={11} color="#e8a820" />
               </div>
               <div className="rounded-2xl rounded-tl-sm px-4 py-3.5 space-y-3"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)", maxWidth: "85%" }}>
+                style={{ background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "85%", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
-                {/* Строка 1 */}
                 <div className="flex gap-2.5 items-start">
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: "linear-gradient(135deg, #e8a820cc, #c97d10cc)" }}>
+                    style={{ background: "linear-gradient(135deg, #e8a820, #c97d10)" }}>
                     <Icon name="FileText" size={12} color="#fff" />
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    Укажите, какой документ нужен — <span className="text-white font-medium">иск, претензия, договор, возражение</span> и т.п. AI подготовит его за <span className="text-white font-medium">5 минут</span>. Чем детальнее опишете ситуацию, тем качественнее результат.
+                  <p className="text-xs leading-relaxed text-slate-700">
+                    Укажите, какой документ нужен — <span className="text-slate-900 font-semibold">иск, претензия, договор, возражение</span> и т.п. AI подготовит его за <span className="text-slate-900 font-semibold">5 минут</span>. Чем детальнее опишете ситуацию, тем качественнее результат.
                   </p>
                 </div>
 
-                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+                <div style={{ borderTop: "1px solid #f1f5f9" }} />
 
-                {/* Строка 2 */}
                 <div className="flex gap-2.5 items-start">
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: "rgba(232,168,32,0.18)", border: "1px solid rgba(232,168,32,0.3)" }}>
-                    <Icon name="Banknote" size={12} color="#e8a820" />
+                    style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                    <Icon name="UserCheck" size={12} color="#c97d10" />
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.92)" }}>
-                    После создания документа вы сможете направить его на проверку <span className="text-white font-medium">живому юристу-эксперту</span> прямо из предпросмотра.
+                  <p className="text-xs leading-relaxed text-slate-700">
+                    После создания документа направьте его на проверку <span className="text-slate-900 font-semibold">живому юристу-эксперту</span> прямо из предпросмотра.
                   </p>
                 </div>
-
-
 
               </div>
             </div>
@@ -75,7 +71,7 @@ export default function LandingChatMessages({
           <div className={`flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             {msg.role === "ai" && (
               <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mb-0.5"
-                style={{ background: "linear-gradient(135deg, #0a1628, #1a3a6b)", border: "1px solid rgba(232,168,32,0.35)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}>
                 <Icon name="Scale" size={11} color="#e8a820" />
               </div>
             )}
@@ -83,21 +79,21 @@ export default function LandingChatMessages({
               style={
                 msg.role === "user"
                   ? {
-                      background: "linear-gradient(135deg, #1e3f7a, #0f2650)",
-                      border: "1px solid rgba(232,168,32,0.22)",
+                      background: "linear-gradient(135deg, #0f2650, #162d5a)",
                       padding: "10px 14px",
-                      color: "rgba(255,255,255,0.93)",
+                      color: "rgba(255,255,255,0.95)",
                       fontSize: "0.82rem",
                       lineHeight: "1.6",
+                      boxShadow: "0 2px 8px rgba(10,22,40,0.25)",
                     }
                   : {
-                      background: "linear-gradient(160deg, rgba(255,255,255,0.095) 0%, rgba(255,255,255,0.06) 100%)",
-                      border: "1px solid rgba(255,255,255,0.11)",
-                      backdropFilter: "blur(8px)",
+                      background: "#ffffff",
+                      border: "1px solid #e2e8f0",
                       padding: "12px 15px",
-                      color: "rgba(255,255,255,0.92)",
+                      color: "#1e293b",
                       fontSize: "0.82rem",
                       lineHeight: "1.7",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
                     }
               }
             >
@@ -105,7 +101,7 @@ export default function LandingChatMessages({
                 <div className="flex items-center gap-1 py-0.5">
                   {[0, 160, 320].map(d => (
                     <div key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                      style={{ background: "#e8a820", animationDelay: `${d}ms` }} />
+                      style={{ background: "#94a3b8", animationDelay: `${d}ms` }} />
                   ))}
                 </div>
               ) : (
@@ -124,29 +120,28 @@ export default function LandingChatMessages({
               {msg.suggestDocType && (
                 <button
                   onClick={() => onCreateDoc(msg.suggestDocType!)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 hover:brightness-110"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95"
                   style={{
-                    background: "linear-gradient(135deg, rgba(232,168,32,0.2), rgba(232,168,32,0.1))",
-                    border: "1px solid rgba(232,168,32,0.35)",
-                    color: "#f0c060",
-                    boxShadow: "0 2px 8px rgba(232,168,32,0.1)",
+                    background: "rgba(232,168,32,0.1)",
+                    border: "1px solid rgba(232,168,32,0.3)",
+                    color: "#b45309",
                   }}
                 >
-                  <Icon name="FileText" size={11} color="#f0c060" />
+                  <Icon name="FileText" size={11} color="#b45309" />
                   Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
                 </button>
               )}
               {onSendToLawyer && (
                 <button
                   onClick={() => onSendToLawyer(msg.text)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 hover:brightness-110"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95"
                   style={{
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "rgba(255,255,255,0.55)",
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    color: "#64748b",
                   }}
                 >
-                  <Icon name="UserCheck" size={11} color="rgba(255,255,255,0.55)" />
+                  <Icon name="UserCheck" size={11} color="#64748b" />
                   Проверить юристу
                 </button>
               )}

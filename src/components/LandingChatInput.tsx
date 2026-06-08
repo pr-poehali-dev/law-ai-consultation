@@ -51,26 +51,26 @@ export default function LandingChatInput({
     <>
       {/* Индикатор прикреплённого файла */}
       {attachedFile && (
-        <div className="px-3 pt-2.5 pb-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl" style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.3)" }}>
-            <Icon name="Paperclip" size={12} color="#f0c060" className="shrink-0" />
-            <span className="flex-1 text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.75)" }}>{attachedFile.name}</span>
-            <span className="text-[10px] shrink-0" style={{ color: "rgba(232,168,32,0.7)" }}>Нажмите «Отправить»</span>
+        <div className="px-3 pt-2.5 pb-0" style={{ borderTop: "1px solid #e8edf5" }}>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl" style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.25)" }}>
+            <Icon name="Paperclip" size={12} color="#c97d10" className="shrink-0" />
+            <span className="flex-1 text-[11px] font-medium truncate" style={{ color: "#6b7280" }}>{attachedFile.name}</span>
+            <span className="text-[10px] shrink-0 font-medium" style={{ color: "#c97d10" }}>Отправить</span>
             {onRemoveFile && (
-              <button onClick={onRemoveFile} className="shrink-0 ml-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <button onClick={onRemoveFile} className="shrink-0 ml-1" style={{ color: "#9ca3af" }}>
                 <Icon name="X" size={11} />
               </button>
             )}
           </div>
         </div>
       )}
-      <div className="border-t px-3 py-2.5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <div className="border-t px-3 py-2.5" style={{ borderColor: "#e8edf5", background: "#f8fafc" }}>
         <div className="flex items-end gap-2">
           {/* Скрепка */}
           <button
             onClick={onAttachClick}
             className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
+            style={{ background: "#eef1f6", color: "#94a3b8" }}
             title="Анализ документа — тариф «Профи»"
           >
             <Icon name="Paperclip" size={15} />
@@ -81,8 +81,8 @@ export default function LandingChatInput({
             <button
               onClick={onToggleDocMenu}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-              style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
-              title="Создать документ — 990 ₽"
+              style={{ background: "#eef1f6", color: "#94a3b8" }}
+              title="Создать документ"
             >
               <Icon name="FileText" size={15} />
             </button>
@@ -98,7 +98,7 @@ export default function LandingChatInput({
                     key={dt.id}
                     onClick={() => onCreateDoc(dt.id)}
                     className="w-full text-left px-3 py-2.5 text-sm transition-colors"
-                    style={{ color: "rgba(255,255,255,0.8)" }}
+                    style={{ color: "rgba(255,255,255,0.85)" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
@@ -119,7 +119,7 @@ export default function LandingChatInput({
             disabled={showUpsell || (questionsLeft === 0 && messagesLength > 1)}
             rows={1}
             className="flex-1 bg-transparent outline-none resize-none py-2.5 text-sm font-golos leading-snug"
-            style={{ color: "rgba(255,255,255,0.9)", minHeight: "40px", maxHeight: "120px" }}
+            style={{ color: "#1e293b", minHeight: "40px", maxHeight: "120px" }}
           />
 
           {/* Отправить */}
@@ -130,8 +130,8 @@ export default function LandingChatInput({
             style={{
               background: input.trim() && !typing && !showUpsell
                 ? "linear-gradient(135deg, #e8a820, #f0c060)"
-                : "rgba(255,255,255,0.06)",
-              color: input.trim() && !typing && !showUpsell ? "#0a1628" : "rgba(255,255,255,0.3)",
+                : "#eef1f6",
+              color: input.trim() && !typing && !showUpsell ? "#0a1628" : "#c4ced9",
             }}
           >
             <Icon name="Send" size={15} />

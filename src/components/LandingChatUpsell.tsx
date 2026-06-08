@@ -12,104 +12,85 @@ export function UpsellBlock({
   onLogin: () => void;
 }) {
   return (
-    <div className="flex gap-2 items-start mt-1">
+    <div className="flex gap-2.5 items-start mt-1">
       <div
         className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)" }}
+        style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}
       >
         <Icon name="Scale" size={11} color="#e8a820" />
       </div>
 
-      <div
-        className="flex-1 rounded-2xl rounded-tl-sm overflow-hidden"
-        style={{ background: "linear-gradient(150deg, #0a1628 0%, #0e2040 100%)", border: "1px solid rgba(232,168,32,0.3)" }}
-      >
-        {/* Золотая линия */}
-        <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #e8a820 30%, #f0c060 50%, #e8a820 70%, transparent)" }} />
+      <div className="flex-1 rounded-2xl rounded-tl-sm overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #0c1e3d 0%, #0f2550 100%)", boxShadow: "0 4px 24px rgba(10,22,40,0.3), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
 
-        <div className="p-4">
-          {/* Шапка */}
-          <div className="mb-3">
-            <p className="text-sm font-bold text-white leading-snug mb-1">
-              Хотите получить полный ответ?
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-              AI разобрал вашу ситуацию. Продолжите диалог — уточните детали, получите стратегию и готовый документ.
+        {/* Золотая линия */}
+        <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #e8a820 25%, #f0c060 50%, #e8a820 75%, transparent)" }} />
+
+        <div className="p-4 space-y-3">
+          {/* Заголовок */}
+          <div>
+            <p className="text-sm font-bold text-white leading-snug">Хотите получить полный ответ?</p>
+            <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Продолжите диалог — уточните детали, получите стратегию и готовый документ.
             </p>
           </div>
 
-          {/* Пакет Старт — главный CTA */}
+          {/* Пакет Старт */}
           <button
             onClick={onBuyPlan}
-            className="w-full rounded-xl mb-2 transition-all active:scale-[0.98] hover:brightness-105"
-            style={{ padding: "12px 14px", background: "linear-gradient(135deg, #e8a820, #f0c060)", boxShadow: "0 4px 20px rgba(232,168,32,0.3)" }}
+            className="w-full rounded-2xl transition-all active:scale-[0.98]"
+            style={{ padding: "11px 14px", background: "linear-gradient(135deg, #e8a820, #f0c060)", boxShadow: "0 4px 16px rgba(232,168,32,0.35)" }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.18)" }}>
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.15)" }}>
                   <Icon name="Crown" size={13} color="#0a1628" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-black text-navy-900 leading-tight">Пакет «Старт»</p>
-                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.6)" }}>30 вопросов · 5 документов · скачивание .docx</p>
-                  <p className="text-[10px] font-semibold" style={{ color: "rgba(10,22,40,0.75)" }}>+ проверка документов юристом</p>
+                  <p className="text-xs font-black leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
+                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .docx</p>
+                  <p className="text-[10px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>+ проверка документов юристом</p>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-lg font-black text-navy-900">1 490</span>
-                  <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.65)" }}>₽</span>
-                </div>
+              <div className="shrink-0 text-right">
+                <p className="text-base font-black" style={{ color: "#0a1628" }}>1 490 ₽</p>
               </div>
             </div>
           </button>
 
           {/* Разделитель */}
-          <div className="flex items-center gap-2 my-2.5">
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.25)" }}>или</span>
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>или быстрее</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
           </div>
 
-          {/* +3 вопроса — быстрый старт */}
+          {/* +3 вопроса */}
           <button
             onClick={onBuyQuickQuestions}
-            className="w-full rounded-xl mb-3 transition-all active:scale-[0.98] hover:brightness-110"
-            style={{
-              padding: "10px 14px",
-              background: "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.13)",
-            }}
+            className="w-full rounded-2xl transition-all active:scale-[0.98]"
+            style={{ padding: "10px 14px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
-                  <Icon name="MessageCircle" size={11} color="#e8a820" />
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                  <Icon name="MessageCircle" size={11} color="#f0c060" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.9)" }}>Ещё 3 вопроса прямо сейчас</p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.38)" }}>диалог продолжится в кабинете</p>
+                  <p className="text-xs font-semibold text-white leading-tight">Ещё 3 вопроса сейчас</p>
+                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>диалог продолжится в кабинете</p>
                 </div>
               </div>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-sm font-bold" style={{ color: "#f0c060" }}>35</span>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>₽</span>
-              </div>
+              <p className="text-sm font-bold shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
             </div>
           </button>
 
-          {/* Войти + гарантия */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onLogin}
-              className="text-xs font-semibold transition-all hover:opacity-80"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
+          {/* Футер */}
+          <div className="flex items-center justify-between pt-0.5">
+            <button onClick={onLogin} className="text-[11px] font-medium transition-all hover:opacity-80" style={{ color: "rgba(255,255,255,0.35)" }}>
               Есть аккаунт? Войти →
             </button>
-            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-              ЮКасса · сразу после оплаты
-            </p>
+            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.18)" }}>ЮКасса · сразу</p>
           </div>
         </div>
       </div>

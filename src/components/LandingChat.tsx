@@ -258,17 +258,16 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       <div
         className="rounded-2xl overflow-hidden"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.04) 100%)",
-          border: "1px solid rgba(255,255,255,0.11)",
-          backdropFilter: "blur(24px)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)",
+          background: "#ffffff",
+          border: "1px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 8px 48px rgba(0,0,0,0.4), 0 2px 0 rgba(255,255,255,0.08)",
         }}
       >
         {/* Шапка */}
         <div className="flex items-center justify-between px-4 py-3 border-b"
           style={{
-            borderColor: "rgba(255,255,255,0.07)",
-            background: "linear-gradient(90deg, rgba(10,22,40,0.5) 0%, rgba(22,45,90,0.35) 100%)",
+            borderColor: "rgba(255,255,255,0.1)",
+            background: "linear-gradient(135deg, #0a1628 0%, #162d5a 100%)",
           }}>
           <div className="flex items-center gap-3">
             <div className="relative">
