@@ -66,9 +66,9 @@ _RE_TRUNCATED = re.compile(r'[.!?»\d]\s*$')
 
 # ── IP rate-limit для анонимного чата ──────────────────────────────────────
 # In-memory: {ip: [timestamp, ...]} — сбрасывается при перезапуске контейнера
-# Лимит: 5 запросов в 24 часа с одного IP (localStorage даёт 3, но там легко обойти)
+# Лимит: 1 запрос в 24 часа с одного IP (localStorage даёт 1, совпадает с фронтом)
 _ANON_IP_CACHE: dict = {}
-_ANON_IP_LIMIT = 5
+_ANON_IP_LIMIT = 1
 _ANON_IP_WINDOW = 86400  # 24 часа в секундах
 _anon_ip_lock = threading.Lock()
 

@@ -27,7 +27,7 @@ CORS = {
 
 # ── IP rate-limit ───────────────────────────────────────────────────────────
 _ANON_IP_CACHE: dict = {}
-_ANON_IP_LIMIT = 5
+_ANON_IP_LIMIT = 1
 _ANON_IP_WINDOW = 86400
 _anon_ip_lock = threading.Lock()
 

@@ -284,18 +284,20 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
               <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>на основе законодательства РФ</p>
             </div>
           </div>
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide"
-            style={{
-              background: questionsLeft > 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-              color: questionsLeft > 0 ? "#4ade80" : "#f87171",
-              border: `1px solid ${questionsLeft > 0 ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
-              letterSpacing: "0.03em",
-            }}
-          >
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: questionsLeft > 0 ? "#4ade80" : "#f87171" }} />
-            {questionsLeft > 0 ? `${questionsLeft} / 3 бесплатно` : "Лимит исчерпан"}
-          </div>
+          {questionsLeft > 0 && (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide"
+              style={{
+                background: "rgba(34,197,94,0.12)",
+                color: "#4ade80",
+                border: "1px solid rgba(34,197,94,0.2)",
+                letterSpacing: "0.03em",
+              }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
+              1 вопрос бесплатно
+            </div>
+          )}
         </div>
 
         {/* Сообщения */}
