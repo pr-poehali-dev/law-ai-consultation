@@ -121,7 +121,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
 
-    // Если есть прикреплённый файл — показываем paywall анализа
     if (attachedFile) {
       setShowDocAnalysisPaywall(true);
       return;
@@ -141,11 +140,12 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setTyping(true);
     setMessages(p => [...p, { role: "ai", text: "", typing: true }]);
 
-    const newHist = [...history.current, { role: "user", content: msgText }];
-    history.current = newHist;
+    // Ограничиваем историю последними 10 сообщениями чтобы не переполнять запрос
+    const trimmedHist = history.current.slice(-10);
+    const newHist = [...trimmedHist, { role: "user", content: msgText }];
+    history.current = [...history.current, { role: "user", content: msgText }];
 
     try {
-      // Проверяем кэш перед запросом к AI (5 минут TTL)
       const cached = getCachedAnswer(newHist);
       let aiText: string;
       if (cached) {
@@ -156,17 +156,20 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mode: "chat", messages: newHist }),
         }, 90_000, 1);
+        if (!res.ok) {
+          let errMsg = "Ошибка сервера";
+          try { const d = await res.json(); errMsg = d.error || errMsg; } catch { /* ignore */ }
+          throw new Error(errMsg);
+        }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Ошибка");
         aiText = data.answer as string;
         setCachedAnswer(newHist, aiText, !!(data.truncated), !!(data.needs_expert));
       }
-      const updatedHist = [...newHist, { role: "assistant", content: aiText }];
-      history.current = updatedHist;
-      saveHistoryToStorage(updatedHist);
+
+      history.current = [...history.current, { role: "assistant", content: aiText }];
+      saveHistoryToStorage(history.current.slice(-20));
 
       const suggestDocType = detectDocSuggestion(aiText);
-
       setMessages(p => {
         const next = p.filter(m => !m.typing);
         return [...next, { role: "ai", text: aiText, suggestDocType: suggestDocType ?? undefined }];
@@ -175,15 +178,16 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       if (getDailyFreeLeft() === 0) {
         setTimeout(() => setShowUpsell(true), 800);
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Произошла ошибка";
       setMessages(p => {
         const next = p.filter(m => !m.typing);
-        return [...next, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }];
+        return [...next, { role: "ai", text: `${msg}. Попробуйте ещё раз.` }];
       });
     } finally {
       setTyping(false);
     }
-  }, [input, typing]);
+  }, [input, typing, attachedFile]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
