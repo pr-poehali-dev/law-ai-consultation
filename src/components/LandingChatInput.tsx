@@ -112,7 +112,7 @@ export default function LandingChatInput({
             value={input}
             onChange={e => { onInputChange(e.target.value); autoResize(); }}
             onKeyDown={onKeyDown}
-            placeholder={questionsLeft > 0 ? "Опишите вашу ситуацию…" : "Выберите вариант продолжения"}
+            placeholder="Опишите вашу ситуацию…"
             disabled={showUpsell || (questionsLeft === 0 && messagesLength > 1)}
             rows={1}
             className="flex-1 bg-transparent outline-none resize-none py-2 text-[13px] font-golos leading-snug placeholder:text-slate-400"

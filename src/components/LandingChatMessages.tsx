@@ -129,6 +129,8 @@ export default function LandingChatMessages({
                         fontSize: "13px",
                         lineHeight: "1.7",
                         boxShadow: "0 2px 12px rgba(10,22,40,0.07), 0 0 0 1px rgba(226,232,240,0.8)",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
                       }
                 }
               >
