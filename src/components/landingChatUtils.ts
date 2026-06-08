@@ -1,6 +1,9 @@
 // ── Константы и утилиты для LandingChat ──────────────────────────────────────
 
 export const CHAT_HISTORY_KEY = "landing_chat_history";
+export const CHAT_MESSAGES_KEY = "landing_chat_messages"; // UI-сообщения
+export const CHAT_MESSAGES_TS_KEY = "landing_chat_messages_ts";
+export const CHAT_MESSAGES_TTL = 24 * 60 * 60 * 1000; // 24 часа
 export const PENDING_DOC_KEY = "landing_pending_doc";
 export const PENDING_SERVICE_KEY = "landing_pending_service";
 export const PENDING_TIMESTAMP_KEY = "landing_pending_ts";
@@ -15,11 +18,21 @@ export function clearLandingPending() {
   localStorage.removeItem(PENDING_FILE_KEY);
 }
 
+export function clearChatMessages() {
+  localStorage.removeItem(CHAT_MESSAGES_KEY);
+  localStorage.removeItem(CHAT_MESSAGES_TS_KEY);
+}
+
 export function checkAndClearExpiredPending() {
   const ts = localStorage.getItem(PENDING_TIMESTAMP_KEY);
   if (!ts) return;
   if (Date.now() - parseInt(ts, 10) > PENDING_TTL_MS) {
     clearLandingPending();
+  }
+  // Чистим UI-сообщения если прошло 24 часа
+  const mts = localStorage.getItem(CHAT_MESSAGES_TS_KEY);
+  if (mts && Date.now() - parseInt(mts, 10) > CHAT_MESSAGES_TTL) {
+    clearChatMessages();
   }
 }
 
@@ -28,6 +41,30 @@ export function saveHistoryToStorage(hist: { role: string; content: string }[]) 
     localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist));
     localStorage.setItem(PENDING_TIMESTAMP_KEY, String(Date.now()));
   } catch { /* ignore */ }
+}
+
+export function saveChatMessages(messages: Message[]) {
+  try {
+    // Не сохраняем typing-заглушки
+    const toSave = messages.filter(m => !m.typing);
+    localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(toSave));
+    localStorage.setItem(CHAT_MESSAGES_TS_KEY, String(Date.now()));
+  } catch { /* ignore */ }
+}
+
+export function loadChatMessages(): Message[] | null {
+  try {
+    const ts = localStorage.getItem(CHAT_MESSAGES_TS_KEY);
+    if (!ts || Date.now() - parseInt(ts, 10) > CHAT_MESSAGES_TTL) {
+      clearChatMessages();
+      return null;
+    }
+    const raw = localStorage.getItem(CHAT_MESSAGES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed as Message[];
+  } catch { return null; }
 }
 
 export function detectDocSuggestion(text: string): string | null {

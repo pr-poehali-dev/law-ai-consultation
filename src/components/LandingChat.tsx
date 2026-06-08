@@ -13,6 +13,7 @@ import DocChoiceModal from "@/components/DocChoiceModal";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
+  saveChatMessages, loadChatMessages,
   detectDocSuggestion, DOC_LABELS_MAP, type Message,
 } from "@/components/landingChatUtils";
 import LandingChatMessages from "@/components/LandingChatMessages";
@@ -25,18 +26,21 @@ interface LandingChatProps {
   onOpenLogin: (opts?: { freeTrial?: boolean; pendingTab?: string }) => void;
 }
 
+const WELCOME_MESSAGE: Message = {
+  role: "ai",
+  text: "Укажите, какой документ нужен (иск, претензия, договор, возражение и т.п.), и искусственный интеллект подготовит его за 5 минут.\n\nСтоимость создания 1 документа — **990 рублей**.\n\nНачиная с пакета «Старт» доступна отправка сгенерированного документа на проверку живому юристу с доступом к чату.\n\nЧем детальнее вы опишете ситуацию — тем качественнее получится документ.\n\n**3 вопроса в день к AI-юристу — бесплатно** для всех!",
+};
+
 export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "ai",
-      text: "Укажите, какой документ нужен (иск, претензия, договор, возражение и т.п.), и искусственный интеллект подготовит его за 5 минут.\n\nСтоимость создания 1 документа — **990 рублей**.\n\nНачиная с пакета «Старт» доступна отправка сгенерированного документа на проверку живому юристу с доступом к чату.\n\nЧем детальнее вы опишете ситуацию — тем качественнее получится документ.\n\n**3 вопроса в день к AI-юристу — бесплатно** для всех!",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = loadChatMessages();
+    return saved ?? [WELCOME_MESSAGE];
+  });
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
-  const [showUpsell, setShowUpsell] = useState(getDailyFreeLeft() === 0);
+  const [showUpsell, setShowUpsell] = useState(() => getDailyFreeLeft() === 0);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -53,15 +57,25 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const history = useRef<{ role: string; content: string }[]>([]);
+  // Восстанавливаем API-историю из сохранённых UI-сообщений
+  const _savedMsgs = loadChatMessages();
+  const _initHistory = _savedMsgs && _savedMsgs.length > 1
+    ? _savedMsgs.filter(m => !m.typing).slice(1).map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }))
+    : [];
+  const history = useRef<{ role: string; content: string }[]>(_initHistory);
   const isFirstRender = useRef(true);
 
-  // При маунте — чистим устаревший pending если прошло > 30 мин
+  // При маунте — чистим устаревший pending если прошло > 30 мин / 24 часа
   useEffect(() => {
     checkAndClearExpiredPending();
     const timer = setTimeout(() => clearLandingPending(), PENDING_TTL_MS);
     return () => clearTimeout(timer);
   }, []);
+
+  // Автосохранение UI-сообщений при каждом изменении (24ч TTL)
+  useEffect(() => {
+    if (messages.length > 1) saveChatMessages(messages);
+  }, [messages]);
 
   // Скролл только внутри чат-бокса
   useEffect(() => {
