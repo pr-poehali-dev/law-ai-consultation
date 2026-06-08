@@ -47,61 +47,58 @@ export default function LandingChatInput({
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  const canSend = input.trim() && !typing && !showUpsell;
+
   return (
     <>
-      {/* Индикатор прикреплённого файла */}
+      {/* Файл прикреплён */}
       {attachedFile && (
-        <div className="px-3 pt-2.5 pb-0" style={{ borderTop: "1px solid #e8edf5" }}>
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl" style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.25)" }}>
-            <Icon name="Paperclip" size={12} color="#c97d10" className="shrink-0" />
+        <div className="px-4 pt-2 pb-0" style={{ borderTop: "1px solid #edf0f7" }}>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
+            style={{ background: "rgba(232,168,32,0.07)", border: "1px solid rgba(232,168,32,0.2)" }}>
+            <Icon name="Paperclip" size={11} color="#b45309" className="shrink-0" />
             <span className="flex-1 text-[11px] font-medium truncate" style={{ color: "#6b7280" }}>{attachedFile.name}</span>
-            <span className="text-[10px] shrink-0 font-medium" style={{ color: "#c97d10" }}>Отправить</span>
+            <span className="text-[10px] font-semibold shrink-0" style={{ color: "#b45309" }}>Отправить</span>
             {onRemoveFile && (
-              <button onClick={onRemoveFile} className="shrink-0 ml-1" style={{ color: "#9ca3af" }}>
-                <Icon name="X" size={11} />
+              <button onClick={onRemoveFile} className="shrink-0 ml-0.5 w-4 h-4 flex items-center justify-center rounded" style={{ color: "#9ca3af" }}>
+                <Icon name="X" size={10} />
               </button>
             )}
           </div>
         </div>
       )}
-      <div className="border-t px-3 py-2.5" style={{ borderColor: "#e8edf5", background: "#f8fafc" }}>
+
+      {/* Инпут */}
+      <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
         <div className="flex items-end gap-2">
-          {/* Скрепка */}
-          <button
-            onClick={onAttachClick}
-            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{ background: "#eef1f6", color: "#94a3b8" }}
-            title="Анализ документа — тариф «Профи»"
-          >
-            <Icon name="Paperclip" size={15} />
+
+          {/* Иконки-кнопки */}
+          <button onClick={onAttachClick}
+            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
+            style={{ background: "#f1f4f9", color: "#94a3b8" }}
+            title="Анализ документа — тариф Профи">
+            <Icon name="Paperclip" size={14} />
           </button>
 
-          {/* Меню документов */}
           <div className="relative shrink-0">
-            <button
-              onClick={onToggleDocMenu}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-              style={{ background: "#eef1f6", color: "#94a3b8" }}
-              title="Создать документ"
-            >
-              <Icon name="FileText" size={15} />
+            <button onClick={onToggleDocMenu}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
+              style={{ background: "#f1f4f9", color: "#94a3b8" }}
+              title="Создать документ">
+              <Icon name="FileText" size={14} />
             </button>
             {showDocMenu && (
-              <div
-                className="absolute bottom-12 left-0 rounded-2xl overflow-hidden shadow-2xl z-50 w-52"
-                style={{ background: "#0f1f3d", border: "1px solid rgba(255,255,255,0.1)" }}
-              >
-                <p className="text-[10px] font-bold uppercase tracking-widest px-3 pt-3 pb-1"
-                  style={{ color: "rgba(255,255,255,0.35)" }}>Создать документ · 990 ₽</p>
+              <div className="absolute bottom-11 left-0 rounded-2xl overflow-hidden shadow-2xl z-50 w-56"
+                style={{ background: "#0d1e3c", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(10,22,40,0.5)" }}>
+                <div className="px-3 pt-3 pb-1.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.28)" }}>Создать документ · 990 ₽</p>
+                </div>
                 {DOC_TYPES.map(dt => (
-                  <button
-                    key={dt.id}
-                    onClick={() => onCreateDoc(dt.id)}
-                    className="w-full text-left px-3 py-2.5 text-sm transition-colors"
-                    style={{ color: "rgba(255,255,255,0.85)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                  >
+                  <button key={dt.id} onClick={() => onCreateDoc(dt.id)}
+                    className="w-full text-left px-3 py-2.5 text-[13px] transition-colors"
+                    style={{ color: "rgba(255,255,255,0.8)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                     {dt.label}
                   </button>
                 ))}
@@ -115,23 +112,23 @@ export default function LandingChatInput({
             value={input}
             onChange={e => { onInputChange(e.target.value); autoResize(); }}
             onKeyDown={onKeyDown}
-            placeholder={questionsLeft > 0 ? "Опишите вашу ситуацию..." : "Выберите вариант продолжения выше"}
+            placeholder={questionsLeft > 0 ? "Опишите вашу ситуацию…" : "Выберите вариант продолжения"}
             disabled={showUpsell || (questionsLeft === 0 && messagesLength > 1)}
             rows={1}
-            className="flex-1 bg-transparent outline-none resize-none py-2.5 text-sm font-golos leading-snug"
-            style={{ color: "#1e293b", minHeight: "40px", maxHeight: "120px" }}
+            className="flex-1 bg-transparent outline-none resize-none py-2 text-[13px] font-golos leading-snug placeholder:text-slate-400"
+            style={{ color: "#1e293b", minHeight: "38px", maxHeight: "120px" }}
           />
 
-          {/* Отправить */}
+          {/* Кнопка отправки */}
           <button
             onClick={onSend}
-            disabled={!input.trim() || typing || showUpsell}
+            disabled={!canSend}
             className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
             style={{
-              background: input.trim() && !typing && !showUpsell
-                ? "linear-gradient(135deg, #e8a820, #f0c060)"
-                : "#eef1f6",
-              color: input.trim() && !typing && !showUpsell ? "#0a1628" : "#c4ced9",
+              background: canSend ? "linear-gradient(135deg, #e8a820, #f0c060)" : "#f1f4f9",
+              boxShadow: canSend ? "0 4px 14px rgba(232,168,32,0.4)" : "none",
+              color: canSend ? "#0a1628" : "#c4ced9",
+              transition: "all 0.2s ease",
             }}
           >
             <Icon name="Send" size={15} />
@@ -139,13 +136,9 @@ export default function LandingChatInput({
         </div>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
+      <input ref={fileInputRef} type="file"
         accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.heic,.webp"
-        className="hidden"
-        onChange={onFileSelect}
-      />
+        className="hidden" onChange={onFileSelect} />
     </>
   );
 }

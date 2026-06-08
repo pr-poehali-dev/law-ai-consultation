@@ -12,85 +12,102 @@ export function UpsellBlock({
   onLogin: () => void;
 }) {
   return (
-    <div className="flex gap-2.5 items-start mt-1">
-      <div
-        className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}
-      >
-        <Icon name="Scale" size={11} color="#e8a820" />
+    <div className="flex gap-2.5 items-start">
+      {/* Аватар AI */}
+      <div className="shrink-0 mt-0.5">
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+          style={{
+            background: "linear-gradient(145deg, #0d2040, #162d5a)",
+            boxShadow: "0 2px 8px rgba(10,22,40,0.25), inset 0 1px 0 rgba(255,255,255,0.06)",
+          }}>
+          <Icon name="Scale" size={12} color="#e8a820" />
+        </div>
       </div>
 
-      <div className="flex-1 rounded-2xl rounded-tl-sm overflow-hidden"
-        style={{ background: "linear-gradient(145deg, #0c1e3d 0%, #0f2550 100%)", boxShadow: "0 4px 24px rgba(10,22,40,0.3), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
+      {/* Карточка upsell */}
+      <div className="flex-1 rounded-2xl rounded-tl-md overflow-hidden"
+        style={{
+          background: "linear-gradient(150deg, #091b38 0%, #0d2448 60%, #0f2a55 100%)",
+          boxShadow: "0 8px 32px rgba(10,22,40,0.45), inset 0 1px 0 rgba(255,255,255,0.05)",
+        }}>
 
-        {/* Золотая линия */}
-        <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #e8a820 25%, #f0c060 50%, #e8a820 75%, transparent)" }} />
+        {/* Акцентная линия */}
+        <div style={{ height: 2, background: "linear-gradient(90deg, #c97d10 0%, #e8a820 30%, #f5d060 50%, #e8a820 70%, #c97d10 100%)" }} />
 
-        <div className="p-4 space-y-3">
+        <div className="px-4 py-4 space-y-3.5">
+
           {/* Заголовок */}
           <div>
-            <p className="text-sm font-bold text-white leading-snug">Хотите получить полный ответ?</p>
-            <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Продолжите диалог — уточните детали, получите стратегию и готовый документ.
+            <p className="text-[13px] font-bold text-white leading-snug">Хотите получить полный ответ?</p>
+            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
+              Продолжите диалог — детали, стратегия и готовый документ.
             </p>
           </div>
 
-          {/* Пакет Старт */}
-          <button
-            onClick={onBuyPlan}
+          {/* Пакет Старт — главный CTA */}
+          <button onClick={onBuyPlan}
             className="w-full rounded-2xl transition-all active:scale-[0.98]"
-            style={{ padding: "11px 14px", background: "linear-gradient(135deg, #e8a820, #f0c060)", boxShadow: "0 4px 16px rgba(232,168,32,0.35)" }}
-          >
-            <div className="flex items-center justify-between gap-2">
+            style={{
+              padding: "12px 14px",
+              background: "linear-gradient(135deg, #d4920f, #e8a820, #f5d060)",
+              boxShadow: "0 6px 20px rgba(232,168,32,0.4), inset 0 1px 0 rgba(255,255,255,0.25)",
+            }}>
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.15)" }}>
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(10,22,40,0.18)", backdropFilter: "blur(4px)" }}>
                   <Icon name="Crown" size={13} color="#0a1628" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-black leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
-                  <p className="text-[10px] font-medium" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .docx</p>
-                  <p className="text-[10px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>+ проверка документов юристом</p>
+                  <p className="text-[12px] font-black leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
+                  <p className="text-[10px] font-medium leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.5)" }}>30 вопросов · 5 документов · .docx</p>
+                  <p className="text-[10px] font-semibold leading-tight" style={{ color: "rgba(10,22,40,0.65)" }}>+ проверка документов юристом</p>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-base font-black" style={{ color: "#0a1628" }}>1 490 ₽</p>
+                <p className="text-[15px] font-black leading-tight" style={{ color: "#0a1628" }}>1 490 ₽</p>
               </div>
             </div>
           </button>
 
           {/* Разделитель */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>или быстрее</span>
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.2)", letterSpacing: "0.02em" }}>или быстрее</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
           </div>
 
           {/* +3 вопроса */}
-          <button
-            onClick={onBuyQuickQuestions}
-            className="w-full rounded-2xl transition-all active:scale-[0.98]"
-            style={{ padding: "10px 14px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
-          >
+          <button onClick={onBuyQuickQuestions}
+            className="w-full rounded-xl transition-all active:scale-[0.98]"
+            style={{
+              padding: "10px 14px",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.2)" }}>
                   <Icon name="MessageCircle" size={11} color="#f0c060" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-semibold text-white leading-tight">Ещё 3 вопроса сейчас</p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>диалог продолжится в кабинете</p>
+                  <p className="text-[12px] font-semibold text-white leading-tight">Ещё 3 вопроса сейчас</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>диалог продолжится в кабинете</p>
                 </div>
               </div>
-              <p className="text-sm font-bold shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
+              <p className="text-[13px] font-bold shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
             </div>
           </button>
 
           {/* Футер */}
-          <div className="flex items-center justify-between pt-0.5">
-            <button onClick={onLogin} className="text-[11px] font-medium transition-all hover:opacity-80" style={{ color: "rgba(255,255,255,0.35)" }}>
+          <div className="flex items-center justify-between">
+            <button onClick={onLogin}
+              className="text-[11px] font-medium transition-opacity hover:opacity-70"
+              style={{ color: "rgba(255,255,255,0.3)" }}>
               Есть аккаунт? Войти →
             </button>
-            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.18)" }}>ЮКасса · сразу</p>
+            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.15)" }}>🔒 ЮКасса</p>
           </div>
         </div>
       </div>

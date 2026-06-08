@@ -28,93 +28,125 @@ export default function LandingChatMessages({
   return (
     <div
       ref={chatBoxRef}
-      className="overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide"
-      style={{ height: "clamp(300px, 42vh, 480px)", background: "#f4f6fb" }}
+      className="overflow-y-auto scrollbar-hide"
+      style={{
+        height: "clamp(300px, 42vh, 480px)",
+        background: "linear-gradient(180deg, #f8fafd 0%, #f2f5fb 100%)",
+        padding: "20px 16px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "14px",
+      }}
     >
       {messages.map((msg, i) => (
         <div key={i}>
-          {/* Приветственный блок (первое сообщение AI) */}
+
+          {/* ── Приветственный блок ── */}
           {i === 0 && msg.role === "ai" ? (
             <div className="flex gap-2.5 items-start">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}>
-                <Icon name="Scale" size={11} color="#e8a820" />
+              {/* Аватар */}
+              <div className="shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(145deg, #0d2040, #162d5a)",
+                    boxShadow: "0 2px 8px rgba(10,22,40,0.25), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  }}>
+                  <Icon name="Scale" size={12} color="#e8a820" />
+                </div>
               </div>
-              <div className="rounded-2xl rounded-tl-sm px-4 py-3.5 space-y-3"
-                style={{ background: "#ffffff", border: "1px solid #e2e8f0", maxWidth: "85%", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: "linear-gradient(135deg, #e8a820, #c97d10)" }}>
-                    <Icon name="FileText" size={12} color="#fff" />
+              {/* Карточка */}
+              <div className="rounded-2xl rounded-tl-md overflow-hidden"
+                style={{
+                  maxWidth: "86%",
+                  background: "#ffffff",
+                  boxShadow: "0 2px 12px rgba(10,22,40,0.08), 0 0 0 1px rgba(226,232,240,0.8)",
+                }}>
+                {/* Цветная полоска сверху */}
+                <div style={{ height: 2, background: "linear-gradient(90deg, #e8a820, #f0c060 50%, #e8a820)" }} />
+
+                <div className="px-4 py-3.5 space-y-3">
+                  <div className="flex gap-2.5 items-start">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: "linear-gradient(135deg, #e8a820, #c97d10)", boxShadow: "0 2px 6px rgba(232,168,32,0.3)" }}>
+                      <Icon name="FileText" size={11} color="#fff" />
+                    </div>
+                    <p className="text-[12.5px] leading-relaxed" style={{ color: "#374151" }}>
+                      Укажите, какой документ нужен —{" "}
+                      <span className="font-semibold" style={{ color: "#111827" }}>иск, претензия, договор, возражение</span>{" "}
+                      и т.п. AI подготовит его за{" "}
+                      <span className="font-semibold" style={{ color: "#111827" }}>5 минут</span>.
+                    </p>
                   </div>
-                  <p className="text-xs leading-relaxed text-slate-700">
-                    Укажите, какой документ нужен — <span className="text-slate-900 font-semibold">иск, претензия, договор, возражение</span> и т.п. AI подготовит его за <span className="text-slate-900 font-semibold">5 минут</span>. Чем детальнее опишете ситуацию, тем качественнее результат.
-                  </p>
-                </div>
 
-                <div style={{ borderTop: "1px solid #f1f5f9" }} />
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #e5e9f0, transparent)" }} />
 
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.25)" }}>
-                    <Icon name="UserCheck" size={12} color="#c97d10" />
+                  <div className="flex gap-2.5 items-start">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: "rgba(232,168,32,0.1)", border: "1px solid rgba(232,168,32,0.2)" }}>
+                      <Icon name="UserCheck" size={11} color="#b45309" />
+                    </div>
+                    <p className="text-[12.5px] leading-relaxed" style={{ color: "#374151" }}>
+                      После создания — проверка{" "}
+                      <span className="font-semibold" style={{ color: "#111827" }}>живым юристом-экспертом</span>{" "}
+                      прямо из предпросмотра.
+                    </p>
                   </div>
-                  <p className="text-xs leading-relaxed text-slate-700">
-                    После создания документа направьте его на проверку <span className="text-slate-900 font-semibold">живому юристу-эксперту</span> прямо из предпросмотра.
-                  </p>
                 </div>
-
               </div>
             </div>
+
           ) : (
-          <div className={`flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-            {msg.role === "ai" && (
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mb-0.5"
-                style={{ background: "linear-gradient(135deg, #0a1628, #162d5a)", border: "1px solid rgba(232,168,32,0.3)", boxShadow: "0 2px 8px rgba(10,22,40,0.2)" }}>
-                <Icon name="Scale" size={11} color="#e8a820" />
-              </div>
-            )}
-            <div className={`max-w-[84%] ${msg.role === "user" ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"}`}
-              style={
-                msg.role === "user"
-                  ? {
-                      background: "linear-gradient(135deg, #0f2650, #162d5a)",
-                      padding: "10px 14px",
-                      color: "rgba(255,255,255,0.95)",
-                      fontSize: "0.82rem",
-                      lineHeight: "1.6",
-                      boxShadow: "0 2px 8px rgba(10,22,40,0.25)",
-                    }
-                  : {
-                      background: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      padding: "12px 15px",
-                      color: "#1e293b",
-                      fontSize: "0.82rem",
-                      lineHeight: "1.7",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                    }
-              }
-            >
-              {msg.typing ? (
-                <div className="flex items-center gap-1 py-0.5">
-                  {[0, 160, 320].map(d => (
-                    <div key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                      style={{ background: "#94a3b8", animationDelay: `${d}ms` }} />
-                  ))}
+            /* ── Обычные сообщения ── */
+            <div className={`flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              {msg.role === "ai" && (
+                <div className="shrink-0 mb-0.5">
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+                    style={{
+                      background: "linear-gradient(145deg, #0d2040, #162d5a)",
+                      boxShadow: "0 2px 8px rgba(10,22,40,0.25), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    }}>
+                    <Icon name="Scale" size={12} color="#e8a820" />
+                  </div>
                 </div>
-              ) : (
-                <div
-                  className="ai-message-body"
-                  dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }}
-                />
               )}
+
+              <div className={`max-w-[82%] ${msg.role === "user" ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md"}`}
+                style={
+                  msg.role === "user"
+                    ? {
+                        background: "linear-gradient(145deg, #0f2855, #162d5a)",
+                        padding: "10px 15px",
+                        color: "rgba(255,255,255,0.95)",
+                        fontSize: "13px",
+                        lineHeight: "1.65",
+                        boxShadow: "0 3px 14px rgba(10,22,40,0.3)",
+                      }
+                    : {
+                        background: "#ffffff",
+                        padding: "12px 15px",
+                        color: "#1e293b",
+                        fontSize: "13px",
+                        lineHeight: "1.7",
+                        boxShadow: "0 2px 12px rgba(10,22,40,0.07), 0 0 0 1px rgba(226,232,240,0.8)",
+                      }
+                }
+              >
+                {msg.typing ? (
+                  <div className="flex items-center gap-1.5 py-0.5">
+                    {[0, 180, 360].map(d => (
+                      <div key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                        style={{ background: msg.role === "user" ? "rgba(255,255,255,0.5)" : "#94a3b8", animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="ai-message-body" dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
+                )}
+              </div>
             </div>
-          </div>
           )}
 
-          {/* Кнопки под ответом AI — только не под приветствием (i > 0) */}
+          {/* ── Кнопки под ответом AI ── */}
           {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
             <div className="ml-9 mt-2 flex flex-wrap gap-1.5">
               {msg.suggestDocType && (
@@ -122,12 +154,12 @@ export default function LandingChatMessages({
                   onClick={() => onCreateDoc(msg.suggestDocType!)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95"
                   style={{
-                    background: "rgba(232,168,32,0.1)",
-                    border: "1px solid rgba(232,168,32,0.3)",
-                    color: "#b45309",
+                    background: "rgba(232,168,32,0.08)",
+                    border: "1px solid rgba(232,168,32,0.22)",
+                    color: "#92400e",
                   }}
                 >
-                  <Icon name="FileText" size={11} color="#b45309" />
+                  <Icon name="FileText" size={11} color="#92400e" />
                   Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
                 </button>
               )}
@@ -150,7 +182,7 @@ export default function LandingChatMessages({
         </div>
       ))}
 
-      {/* Upsell-блок после исчерпания лимита */}
+      {/* Upsell */}
       {showUpsell && (
         <UpsellBlock
           onBuyPlan={onBuyPlan}
