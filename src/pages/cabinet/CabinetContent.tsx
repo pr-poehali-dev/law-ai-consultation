@@ -157,6 +157,8 @@ export default function CabinetContent({
             currentDoc={docs.currentDoc}
             fillValues={docs.fillValues}
             genDocs={docs.genDocs}
+            attachedFiles={docs.docAttachedFiles}
+            onAttachedFilesChange={docs.setDocAttachedFiles}
             onDocTypeChange={(dt) => { docs.setDocType(dt); docs.setDocErr(""); }}
             onDocDetailsChange={docs.setDocDetails}
             onGenerate={docs.generateDoc}
@@ -166,7 +168,7 @@ export default function CabinetContent({
             onSetPhase={docs.setDocPhase}
             onSetCurrentDoc={docs.setCurrentDoc}
             onSetFillValues={docs.setFillValues}
-            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); }}
+            onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); docs.setDocAttachedFiles([]); }}
             onGoToChat={() => setTab("chat")}
             onDownload={downloadDoc}
             onOpenDoc={setViewDoc}

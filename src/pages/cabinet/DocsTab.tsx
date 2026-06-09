@@ -47,6 +47,8 @@ interface DocsTabProps {
   currentDoc: GenDoc | null;
   fillValues: Record<string, string>;
   genDocs: GenDoc[];
+  attachedFiles?: { name: string; b64: string }[];
+  onAttachedFilesChange?: (files: { name: string; b64: string }[]) => void;
   onDocTypeChange: (dt: DocType) => void;
   onDocDetailsChange: (v: string) => void;
   onGenerate: () => void;
@@ -76,6 +78,8 @@ export default function DocsTab({
   currentDoc,
   fillValues,
   genDocs,
+  attachedFiles = [],
+  onAttachedFilesChange,
   onDocTypeChange,
   onDocDetailsChange,
   onGenerate,
@@ -128,6 +132,8 @@ export default function DocsTab({
           docGenerating={docGenerating}
           docErr={docErr}
           genDocs={genDocs}
+          attachedFiles={attachedFiles}
+          onAttachedFilesChange={onAttachedFilesChange ?? (() => {})}
           onDocTypeChange={onDocTypeChange}
           onDocDetailsChange={onDocDetailsChange}
           onGenerate={onGenerate}
