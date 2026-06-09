@@ -79,7 +79,7 @@ export default function LandingChatInput({
           <button
             onClick={() => setShowPicker(true)}
             className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{ background: "#f1f4f9", color: "#94a3b8" }}
+            style={{ background: "#f1f4f9", color: "#64748b", border: "1.5px solid #cbd5e1" }}
             title="Создать документ · 290 ₽"
           >
             <Icon name="FileText" size={14} />
