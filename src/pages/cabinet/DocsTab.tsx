@@ -140,9 +140,6 @@ export default function DocsTab({
           onGoToChat={onGoToChat}
           onOpenDoc={onOpenDoc}
           onDownload={onDownload}
-          onSetCurrentDoc={onSetCurrentDoc}
-          onSetFillValues={onSetFillValues}
-          onSetPhase={onSetPhase}
           onSelectPlan={onSelectPlan}
         />
       )}

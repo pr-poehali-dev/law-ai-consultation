@@ -30,9 +30,6 @@ interface DocsFormPhaseProps {
   onGoToChat: () => void;
   onOpenDoc: (doc: GenDoc) => void;
   onDownload: (name: string, content: string) => void;
-  onSetCurrentDoc: (doc: GenDoc) => void;
-  onSetFillValues: (vals: Record<string, string>) => void;
-  onSetPhase: (phase: "form" | "generating" | "filling" | "done") => void;
   onSelectPlan: () => void;
 }
 
@@ -51,9 +48,6 @@ export default function DocsFormPhase({
   onGoToChat,
   onOpenDoc,
   onDownload,
-  onSetCurrentDoc,
-  onSetFillValues,
-  onSetPhase,
   onSelectPlan,
 }: DocsFormPhaseProps) {
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,15 +124,12 @@ export default function DocsFormPhase({
                       <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
                       <div className="text-xs text-muted-foreground">{doc.date}</div>
                     </div>
-                    <button onClick={() => onOpenDoc(doc)} className="shrink-0 p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
-                      <Icon name="Eye" size={14} />
-                    </button>
                   </div>
                   <div className="flex gap-1.5">
                     <button
-                      onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors border border-border text-center"
-                    >Реквизиты</button>
+                      onClick={() => onOpenDoc(doc)}
+                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
+                    ><Icon name="Eye" size={12} />Предпросмотр</button>
                     <button
                       onClick={() => onDownload(doc.name, doc.filled)}
                       className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
@@ -338,16 +329,13 @@ export default function DocsFormPhase({
                       <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
                       <div className="text-xs text-muted-foreground">{doc.date}</div>
                     </div>
-                    <button onClick={() => onOpenDoc(doc)} className="shrink-0 p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
-                      <Icon name="Eye" size={14} />
-                    </button>
                   </div>
                   <div className="flex gap-1.5">
                     <button
-                      onClick={() => { onSetCurrentDoc(doc); onSetFillValues(Object.fromEntries(doc.placeholders.map((p) => [p, ""]))); onSetPhase("filling"); }}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors border border-border text-center"
+                      onClick={() => onOpenDoc(doc)}
+                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
                     >
-                      Реквизиты
+                      <Icon name="Eye" size={12} />Предпросмотр
                     </button>
                     <button
                       onClick={() => onDownload(doc.name, doc.filled)}

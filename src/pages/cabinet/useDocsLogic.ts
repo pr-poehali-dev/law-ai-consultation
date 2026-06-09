@@ -224,7 +224,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     const updated = { ...currentDoc, filled };
     setCurrentDoc(updated);
     saveGenDocs(genDocs.map((d) => d.id === updated.id ? updated : d));
-    setDocPhase("done");
+    // Не меняем фазу — реквизиты заполняются в предпросмотре, не должны менять фазу
   };
 
   return {
