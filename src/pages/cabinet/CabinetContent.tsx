@@ -171,7 +171,11 @@ export default function CabinetContent({
             onResetForm={() => { docs.setDocPhase("form"); docs.setDocDetails(""); docs.setCurrentDoc(null); docs.setDocAttachedFiles([]); }}
             onGoToChat={() => setTab("chat")}
             onDownload={downloadDoc}
-            onOpenDoc={setViewDoc}
+            onOpenDoc={(doc) => {
+              docs.setCurrentDoc(doc);
+              docs.setFillValues(Object.fromEntries(doc.placeholders.map(p => [p, ""])));
+              setViewDoc(doc);
+            }}
             onPayForDoc={(dt) => {
               savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: docs.docDetails });
               openDocChoice(dt.id, dt.label);
