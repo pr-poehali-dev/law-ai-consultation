@@ -16,13 +16,10 @@ from prompts import (
     SYSTEM_DOC_GENERATE, SYSTEM_FILE_ANALYZE_PROMPT, SYSTEM_FILE_QA_PROMPT,
     SYSTEM_DOC_BY_TYPE, REFUSAL_MARKERS, LEGAL_QUALITY_ADDON,
 )
-try:
-    from prompts.block_router import get_system_prompt_for_doc, get_doc_label
-    _BLOCK_ROUTER_OK = True
-    print("[INIT] block_router OK")
-except Exception as _br_err:
-    _BLOCK_ROUTER_OK = False
-    print(f"[INIT] block_router FAILED: {_br_err}")
+# doc_blocks.py — промты прямо в ai-docs, без зависимости от gigachat-proxy/prompts (пакет vs файл)
+from doc_blocks import get_system_prompt, get_doc_label, BLOCK_BY_DOC_TYPE
+_BLOCK_ROUTER_OK = True
+print("[INIT] doc_blocks OK")
 from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
 from legal_docs_handler import get_legal_context_for_ai
 from penalty_prompt import PENALTY_CALC_SYSTEM, PENALTY_CALC_PROMPT
@@ -408,7 +405,8 @@ def handler(event: dict, context) -> dict:
             partial = body.get("partial", "").strip()
             if not partial:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "partial required"})}
-            system_prompt = get_system_prompt_for_doc(doc_type) if _BLOCK_ROUTER_OK else SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+            sp_cont = get_system_prompt(doc_type, LEGAL_QUALITY_ADDON)
+            system_prompt = sp_cont if sp_cont else SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
             context_tail = partial[-800:]
             prompt = (
                 f"Документ был обрезан. Продолжи с того места, где остановился, без повторения уже написанного.\n\n"
@@ -435,27 +433,15 @@ def handler(event: dict, context) -> dict:
             if not details:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
 
-            if _BLOCK_ROUTER_OK:
-                label = get_doc_label(doc_type)
-                system_prompt = get_system_prompt_for_doc(doc_type)
-                print(f"[DOC_GEN] block_router system_prompt len={len(system_prompt)} doc_type={doc_type}")
-                if doc_type in DUTY_DOC_TYPES:
-                    system_prompt = system_prompt + (
-                        "\n\n[ВАЖНО О ГОСПОШЛИНЕ] Используй ТОЛЬКО ставки и льготы из правовой базы, "
-                        "которые будут переданы в пользовательском сообщении. "
-                        "НЕ выдумывай суммы из памяти. Если данных недостаточно — указывай метку {{ЦЕНА_ИСКА}}."
-                    )
-            else:
-                doc_labels = {
-                    "claim": "исковое заявление", "pretension": "досудебную претензию",
-                    "complaint": "жалобу", "application": "заявление/ходатайство",
-                    "notification": "уведомление", "contract": "договор ГПХ",
-                    "court_speech": "судебную речь", "response_to_claim": "отзыв на иск",
-                    "objection": "возражение", "appeal": "апелляционную жалобу",
-                    "cassation": "кассационную жалобу", "supervisory": "надзорную жалобу",
-                }
-                label = doc_labels.get(doc_type, "документ")
-                system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+            label = get_doc_label(doc_type)
+            sp = get_system_prompt(doc_type, LEGAL_QUALITY_ADDON)
+            system_prompt = sp if sp else SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
+            print(f"[DOC_GEN] system_prompt len={len(system_prompt)} doc_type={doc_type} has_block={'YES' if sp else 'FALLBACK'}")
+            if doc_type in DUTY_DOC_TYPES:
+                system_prompt = system_prompt + (
+                    "\n\n[ВАЖНО О ГОСПОШЛИНЕ] Используй ТОЛЬКО ставки из правовой базы. "
+                    "НЕ выдумывай суммы из памяти."
+                )
 
             # ── Извлечение текста из файлов (старый формат: file+filename, новый: files[]) ──
             file_context = ""
