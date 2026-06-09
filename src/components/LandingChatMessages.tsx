@@ -97,7 +97,7 @@ export default function LandingChatMessages({
                   <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #e5e9f0, transparent)" }} />
 
                   <div className="flex gap-2 items-center px-3 py-2 rounded-xl" style={{ background: "rgba(232,168,32,0.06)", border: "1px solid rgba(232,168,32,0.15)" }}>
-                    <p className="text-[11px] leading-snug" style={{ color: "#6b7280" }}>
+                    <p className="text-[12px] leading-snug" style={{ color: "#374151" }}>
                       Для быстрой подготовки нажмите{" "}
                       <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded mx-0.5 font-medium" style={{ background: "rgba(232,168,32,0.15)", color: "#b45309" }}>
                         <Icon name="FileText" size={9} color="#b45309" />
