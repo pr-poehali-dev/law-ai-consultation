@@ -13,7 +13,8 @@ const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string; m
   lawyer: {
     icon: "UserCheck",
     plan: "Старт",
-    desc: "Отправка документа живому юристу доступна с тарифа «Старт» и выше.",
+    desc: "Вы приобрели подготовку 1 документа. Чтобы отправить его на проверку живому юристу — повысьте тариф до «Старт» или выше.",
+    minPlanId: "plan_starter",
   },
   ai_editor: {
     icon: "BrainCircuit",
@@ -79,7 +80,9 @@ export default function UpgradeNoticeModal({
               <Icon name={info.icon as Parameters<typeof Icon>[0]["name"]} size={22} color="#e8a820" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-navy-800 text-base leading-tight">Требуется тариф</p>
+              <p className="font-bold text-navy-800 text-base leading-tight">
+                {feature === "lawyer" ? "Нужен тариф выше" : "Требуется тариф"}
+              </p>
               <p className="text-sm text-muted-foreground mt-0.5">{info.desc}</p>
             </div>
           </div>
@@ -89,8 +92,15 @@ export default function UpgradeNoticeModal({
             style={{ background: "linear-gradient(135deg,rgba(232,168,32,0.08),rgba(232,168,32,0.04))", border: "1px solid rgba(232,168,32,0.3)" }}>
             <Icon name="Zap" size={16} color="#e8a820" />
             <div>
-              <p className="text-xs font-semibold text-navy-700">Минимальный тариф: <span className="text-gold-600">«{info.plan}»</span></p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Вопросы юристу · Документы · AI-функции</p>
+              <p className="text-xs font-semibold text-navy-700">
+                {feature === "lawyer" ? "Доступно с тарифа:" : "Минимальный тариф:"}{" "}
+                <span className="text-gold-600">«{info.plan}»</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {feature === "lawyer"
+                  ? "1 консультация юриста · 30 вопросов AI · 5 документов"
+                  : "Вопросы юристу · Документы · AI-функции"}
+              </p>
             </div>
           </div>
 
@@ -100,7 +110,7 @@ export default function UpgradeNoticeModal({
             className="w-full py-3 rounded-2xl text-sm font-bold mb-2.5 transition-all active:scale-[0.98]"
             style={{ background: "linear-gradient(135deg,#e8a820,#f0c060)", color: "#0a1628" }}
           >
-            Посмотреть тарифы
+            {feature === "lawyer" ? "Ознакомиться с тарифами" : "Посмотреть тарифы"}
           </button>
           <button
             onClick={handleClose}
