@@ -585,10 +585,22 @@ def handler(event: dict, context) -> dict:
             extra_context = duty_block + case_law_block + definitions_block + codex_block
             print(f"[DOC_GEN] Правовая база: duty={bool(duty_block)}, case_law={bool(case_law_block)}, definitions={bool(definitions_block)}, codex={bool(codex_block)}")
 
+            # Блок файлов идёт ПЕРВЫМ — до описания, чтобы модель точно его учла
+            file_block = ""
+            if file_context:
+                file_block = (
+                    "=== ПРИКРЕПЛЁННЫЕ ДОКУМЕНТЫ (ОБЯЗАТЕЛЬНО ИСПОЛЬЗУЙ) ===\n"
+                    "Ниже — текст из документов, которые предоставил пользователь.\n"
+                    "ТРЕБОВАНИЕ: подставь все конкретные данные (стороны, ФИО, адреса, суммы, даты, реквизиты, предмет договора, условия) из этих документов напрямую в генерируемый документ. "
+                    "Не используй метки-заглушки там, где данные есть в тексте ниже.\n\n"
+                    f"{file_context}\n"
+                    "=== КОНЕЦ ПРИКРЕПЛЁННЫХ ДОКУМЕНТОВ ===\n\n"
+                )
+
             prompt = (
-                history_context + speech_style
+                file_block
+                + history_context + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
-                + (f"Дополнительные материалы из прикреплённых документов (извлечённый текст — используй все факты, стороны, суммы, даты):\n{file_context}\n\n" if file_context else "")
                 + LEGAL_QUALITY_ADDON + extra_context
                 + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
