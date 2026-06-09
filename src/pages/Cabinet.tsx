@@ -7,13 +7,10 @@ import { type DocType } from "@/pages/cabinet/docBlocks";
 import CabinetHeader from "@/pages/cabinet/CabinetHeader";
 import { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
-import {
-  useCabinetPayment,
-  savePendingAction,
-} from "@/pages/cabinet/useCabinetPayment";
+import { useCabinetPayment } from "@/pages/cabinet/useCabinetPayment";
 import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
-import { useExitIntent } from "@/pages/cabinet/ExitIntentPopup";
+
 import { shouldShowWelcomeTutorials } from "@/components/WelcomeTutorialsModal";
 
 import { useCabinetInit } from "@/pages/cabinet/useCabinetInit";
@@ -31,7 +28,7 @@ export default function Cabinet() {
   const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
-  const [showExitIntent, setShowExitIntent] = useState(false);
+
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showWelcomeTutorials, setShowWelcomeTutorials] = useState(false);
@@ -107,14 +104,6 @@ export default function Cabinet() {
     pollPaymentStatus: pay.pollPaymentStatus,
   });
 
-  const hasNoPurchase = user
-    ? (!user.isAdmin &&
-       (user.paidQuestions ?? 0) === 0 &&
-       (user.paidDocs ?? 0) === 0 &&
-       !user.subscriptionConsultUntil &&
-       !user.subscriptionDocsUntil)
-    : false;
-
   useEffect(() => {
     if (!user || !shouldShowWelcomeTutorials()) return;
     const params = new URLSearchParams(window.location.search);
@@ -128,10 +117,6 @@ export default function Cabinet() {
     return () => clearTimeout(t);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useExitIntent({
-    enabled: hasNoPurchase,
-    onShow: () => setShowExitIntent(true),
-  });
 
   if (!authChecked || !user) {
     return <CabinetLoadingScreen timeout={authTimeout} />;
@@ -196,17 +181,13 @@ export default function Cabinet() {
       />
 
       <CabinetOverlays
-        showExitIntent={showExitIntent}
+        showExitIntent={false}
         docSavedToast={docSavedToast}
         showDocChoice={showDocChoice}
         showWelcomeTutorials={showWelcomeTutorials}
         docDetails={docs.docDetails}
-        onCloseExitIntent={() => setShowExitIntent(false)}
-        onAcceptExitIntent={() => {
-          setShowExitIntent(false);
-          savePendingAction({ tab: "chat" });
-          pay.setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
-        }}
+        onCloseExitIntent={() => {}}
+        onAcceptExitIntent={() => {}}
         onCloseDocSavedToast={() => setDocSavedToast(null)}
         onCloseDocChoice={() => setShowDocChoice(null)}
         onCloseWelcomeTutorials={() => setShowWelcomeTutorials(false)}

@@ -3,8 +3,8 @@ import Icon from "@/components/ui/icon";
 import { adminSearchUser, adminGrant, type AdminUserFull } from "@/lib/auth";
 
 const SERVICE_LABELS: Record<string, string> = {
-  plan_starter:          "Тариф Старт (+30 вопр AI / +5 докум / +3 вопр юристу)",
-  plan_starter_discount: "Тариф Старт скидка (+30 вопр AI / +5 докум / +3 вопр юристу)",
+  plan_starter:          "Тариф Старт (+30 вопр AI / +5 докум / +1 конс юриста)",
+  plan_starter_discount: "Тариф Старт скидка (+30 вопр AI / +5 докум / +1 конс юриста)",
   plan_pro:              "Тариф Профи (+100 вопр AI / +20 докум / +5 вопр юристу)",
   plan_max:              "Тариф Максимум (+300 вопр AI / +50 докум / +30 вопр юристу)",
   document:              "+1 документ",

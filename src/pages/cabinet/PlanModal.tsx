@@ -24,7 +24,7 @@ export const PLANS: Plan[] = [
     oldPrice: "1 490",
     questions: 30,
     docs: 5,
-    lawyerFeature: "3 вопроса живому юристу",
+    lawyerFeature: "1 консультация живого юриста",
     features: [
       "30 вопросов AI-юристу",
       "До 5 документов через систему",

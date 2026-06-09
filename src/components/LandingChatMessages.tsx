@@ -84,12 +84,13 @@ export default function LandingChatMessages({
                   <div className="flex gap-2.5 items-start">
                     <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: "rgba(232,168,32,0.1)", border: "1px solid rgba(232,168,32,0.2)" }}>
-                      <Icon name="UserCheck" size={11} color="#b45309" />
+                      <Icon name="Download" size={11} color="#b45309" />
                     </div>
                     <p className="text-[12.5px] leading-relaxed" style={{ color: "#374151" }}>
-                      После создания — проверка{" "}
-                      <span className="font-semibold" style={{ color: "#111827" }}>живым юристом-экспертом</span>{" "}
-                      прямо из предпросмотра.
+                      Готовый документ скачивается в формате{" "}
+                      <span className="font-semibold" style={{ color: "#111827" }}>.doc</span>.{" "}
+                      Проверка юристом доступна с тарифа{" "}
+                      <span className="font-semibold" style={{ color: "#111827" }}>«Старт»</span>.
                     </p>
                   </div>
                 </div>

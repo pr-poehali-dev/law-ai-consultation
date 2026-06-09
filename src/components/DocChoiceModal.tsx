@@ -79,7 +79,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             {/* Юрист */}
             <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-2.5" style={{ background: "rgba(232,168,32,0.15)", border: "1px solid rgba(232,168,32,0.3)" }}>
               <Icon name="User" size={12} color={GOLD} />
-              <span className="text-[11px] font-semibold" style={{ color: GOLD_LIGHT }}>3 вопроса живому юристу</span>
+              <span className="text-[11px] font-semibold" style={{ color: GOLD_LIGHT }}>1 консультация живого юриста</span>
             </div>
 
             {/* Фичи — 2 колонки на мобиле */}
@@ -133,7 +133,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
               <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>290 ₽</span>
             </div>
-            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>+ проверка живым юристом-экспертом</span>
+            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>AI-генерация · скачивание .doc</span>
           </button>
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
