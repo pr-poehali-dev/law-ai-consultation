@@ -93,6 +93,22 @@ export default function LandingChatMessages({
                       <span className="font-semibold" style={{ color: "#111827" }}>«Старт»</span>.
                     </p>
                   </div>
+
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #e5e9f0, transparent)" }} />
+
+                  <div className="flex gap-2 items-center px-3 py-2 rounded-xl" style={{ background: "rgba(232,168,32,0.06)", border: "1px solid rgba(232,168,32,0.15)" }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(232,168,32,0.15)" }}>
+                      <Icon name="FileText" size={10} color="#b45309" />
+                    </div>
+                    <p className="text-[11px] leading-snug" style={{ color: "#6b7280" }}>
+                      Для быстрой подготовки нажмите{" "}
+                      <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded mx-0.5 font-medium" style={{ background: "rgba(232,168,32,0.15)", color: "#b45309" }}>
+                        <Icon name="FileText" size={9} color="#b45309" />
+                      </span>
+                      {" "}снизу, выберите документ и опишите задачу.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
