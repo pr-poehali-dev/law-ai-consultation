@@ -75,16 +75,6 @@ export default function LandingChatInput({
       <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
         <div className="flex items-end gap-2">
 
-          {/* Прикрепить файл */}
-          <button
-            onClick={onAttachClick}
-            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{ background: "#f1f4f9", color: "#94a3b8" }}
-            title="Анализ документа — тариф Профи"
-          >
-            <Icon name="Paperclip" size={14} />
-          </button>
-
           {/* Кнопка выбора документа */}
           <button
             onClick={() => setShowPicker(true)}
