@@ -1,5 +1,6 @@
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { DOC_TYPES } from "@/components/landingChatUtils";
+import DocPickerSheet from "@/components/DocPickerSheet";
 
 interface LandingChatInputProps {
   input: string;
@@ -26,7 +27,7 @@ export default function LandingChatInput({
   typing,
   showUpsell,
   questionsLeft,
-  showDocMenu,
+  showDocMenu: _showDocMenu,
   fileInputRef,
   textareaRef,
   messagesLength,
@@ -35,11 +36,13 @@ export default function LandingChatInput({
   onSend,
   onKeyDown,
   onAttachClick,
-  onToggleDocMenu,
+  onToggleDocMenu: _onToggleDocMenu,
   onCreateDoc,
   onFileSelect,
   onRemoveFile,
 }: LandingChatInputProps) {
+  const [showPicker, setShowPicker] = useState(false);
+
   const autoResize = () => {
     const el = textareaRef.current;
     if (!el) return;
@@ -72,39 +75,25 @@ export default function LandingChatInput({
       <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
         <div className="flex items-end gap-2">
 
-          {/* Иконки-кнопки */}
-          <button onClick={onAttachClick}
+          {/* Прикрепить файл */}
+          <button
+            onClick={onAttachClick}
             className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
             style={{ background: "#f1f4f9", color: "#94a3b8" }}
-            title="Анализ документа — тариф Профи">
+            title="Анализ документа — тариф Профи"
+          >
             <Icon name="Paperclip" size={14} />
           </button>
 
-          <div className="relative shrink-0">
-            <button onClick={onToggleDocMenu}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-              style={{ background: "#f1f4f9", color: "#94a3b8" }}
-              title="Создать документ">
-              <Icon name="FileText" size={14} />
-            </button>
-            {showDocMenu && (
-              <div className="absolute bottom-11 left-0 rounded-2xl overflow-hidden shadow-2xl z-50 w-56"
-                style={{ background: "#0d1e3c", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(10,22,40,0.5)" }}>
-                <div className="px-3 pt-3 pb-1.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.28)" }}>Создать документ · 290 ₽</p>
-                </div>
-                {DOC_TYPES.map(dt => (
-                  <button key={dt.id} onClick={() => onCreateDoc(dt.id)}
-                    className="w-full text-left px-3 py-2.5 text-[13px] transition-colors"
-                    style={{ color: "rgba(255,255,255,0.8)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                    {dt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Кнопка выбора документа */}
+          <button
+            onClick={() => setShowPicker(true)}
+            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
+            style={{ background: "#f1f4f9", color: "#94a3b8" }}
+            title="Создать документ · 290 ₽"
+          >
+            <Icon name="FileText" size={14} />
+          </button>
 
           {/* Textarea */}
           <textarea
@@ -139,6 +128,14 @@ export default function LandingChatInput({
       <input ref={fileInputRef} type="file"
         accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.heic,.webp"
         className="hidden" onChange={onFileSelect} />
+
+      {/* DocPickerSheet */}
+      {showPicker && (
+        <DocPickerSheet
+          onSelect={id => { setShowPicker(false); onCreateDoc(id); }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </>
   );
 }
