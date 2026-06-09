@@ -32,10 +32,10 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
         if (numMatch) return (
           <div key={i} className="flex gap-2 mb-2 items-start pl-2">
             <span className="font-bold text-navy-700 shrink-0">{numMatch[1]}.</span>
-            <p className="text-navy-700 leading-relaxed">{numMatch[2]}</p>
+            <p className="text-navy-700 leading-relaxed" style={{ textAlign: "justify" }}>{numMatch[2]}</p>
           </div>
         );
-        return <p key={i} className="text-navy-700 mb-1 pl-4">{l.trim()}</p>;
+        return <p key={i} className="text-navy-700 mb-1 pl-4" style={{ textAlign: "justify" }}>{l.trim()}</p>;
       })}
     </div>
   );
@@ -81,7 +81,7 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
             <span className="font-semibold text-navy-600">{subMatch[1]}</span> {subMatch[2]}
           </p>
         );
-        return <p key={i} className="text-navy-700 leading-relaxed indent-8">{l.trim()}</p>;
+        return <p key={i} className="text-navy-700 leading-relaxed" style={{ textIndent: "1.25cm", textAlign: "justify" }}>{l.trim()}</p>;
       })}
     </div>
   );
@@ -166,7 +166,8 @@ export default function ViewDocContent({
                           {line.trim()}
                         </p>
                       : <p key={i} {...(isFirst ? { "data-changed": "1" } : {})}
-                          className={`text-navy-700 leading-relaxed ${isChanged ? "pl-3" : "indent-8"} ${changedClass}`}>
+                          className={`text-navy-700 leading-relaxed ${changedClass}`}
+                          style={isChanged ? {} : { textIndent: "1.25cm", textAlign: "justify" }}>
                           {line.trim()}
                         </p>;
                   })}

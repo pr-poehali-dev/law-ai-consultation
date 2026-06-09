@@ -5,10 +5,11 @@ import {
 import { saveAs } from "file-saver";
 
 const FONT = "Times New Roman";
-const SIZE_NORMAL = 24; // 12pt — основной текст
-const SIZE_SMALL = 22;  // 11pt — подписи, приложения
-const SIZE_HEADER = 28; // 14pt — заголовок документа
-const LINE_SPACING = 360; // 1.5 интервал
+const SIZE_NORMAL = 24; // 12pt — весь текст (шапка, тело, подпись, заголовок)
+const SIZE_SMALL = 24;  // 12pt — подписи, приложения (по стандарту тот же)
+const SIZE_HEADER = 24; // 12pt жирный — заголовок документа
+const LINE_SPACING = 360; // 1.5 интервал (276 = single, 360 = 1.5, 480 = double)
+const FIRST_LINE_INDENT = 709; // 1.25 см в twips (1.25 × 567 = 708.75 ≈ 709)
 
 const spacer = (pt = 80) => new Paragraph({ text: "", spacing: { after: pt } });
 
@@ -32,7 +33,7 @@ const centerPara = (text: string, bold = false, size = SIZE_NORMAL) => new Parag
 
 const bodyPara = (text: string, opts?: { bold?: boolean; indent?: boolean; size?: number }) => new Paragraph({
   alignment: AlignmentType.BOTH,
-  indent: opts?.indent !== false ? { firstLine: 720 } : undefined,
+  indent: opts?.indent !== false ? { firstLine: FIRST_LINE_INDENT } : undefined,
   spacing: { after: 100, line: LINE_SPACING },
   children: [new TextRun({
     text: text.trim(),
