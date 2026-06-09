@@ -34,6 +34,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
   const [currentDoc, setCurrentDoc] = useState<GenDoc | null>(null);
   const [fillValues, setFillValues] = useState<Record<string, string>>({});
   const [docAttachedFile, setDocAttachedFile] = useState<{ name: string; b64: string } | null>(null);
+  const [docAttachedFiles, setDocAttachedFiles] = useState<{ name: string; b64: string }[]>([]);
   const [genDocs, setGenDocs] = useState<GenDoc[]>(() => {
     try {
       const saved = localStorage.getItem("cabinet_docs");
@@ -46,7 +47,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     localStorage.setItem("cabinet_docs", JSON.stringify(docs));
   };
 
-  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string, fromChat = false) => {
+  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string, fromChat = false, overrideFiles?: { name: string; b64: string }[]) => {
     const activeType = overrideType ?? docType;
     const activeDetails = overrideDetails ?? docDetails;
 
@@ -83,9 +84,12 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         doc_type: activeType.id,
         details: activeDetails,
       };
-      if (docAttachedFile) {
-        reqBody.file = docAttachedFile.b64;
-        reqBody.filename = docAttachedFile.name;
+      // Файлы: overrideFiles (из лендинга/кабинета) или docAttachedFiles (из UI кабинета) или одиночный docAttachedFile
+      const activeFiles = overrideFiles ?? (docAttachedFiles.length > 0 ? docAttachedFiles : null);
+      if (activeFiles && activeFiles.length > 0) {
+        reqBody.files = activeFiles.map(f => ({ b64: f.b64, name: f.name }));
+      } else if (docAttachedFile) {
+        reqBody.files = [{ b64: docAttachedFile.b64, name: docAttachedFile.name }];
       }
       // История чата передаётся ТОЛЬКО при генерации из чата (fromChat=true)
       // Из раздела Документы — пользователь сам вводит задание, история не нужна
@@ -125,6 +129,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       localStorage.setItem("cabinet_docs", JSON.stringify(updatedDocs));
 
       setDocAttachedFile(null);
+      setDocAttachedFiles([]);
       setCurrentDoc(newDoc);
       setGenDocs(updatedDocs);
       setFillValues(Object.fromEntries(placeholders.map((p) => [p, ""])));
@@ -154,7 +159,8 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
   const generateDoc = () => _runGenerate();
 
   // fromChat=true — передаём историю чата как контекст (вызов из чата AI)
-  const generateDocWith = (dt: DocType, details: string) => _runGenerate(dt, details, true);
+  const generateDocWith = (dt: DocType, details: string, files?: { name: string; b64: string }[]) =>
+    _runGenerate(dt, details, true, files);
 
   const continueDoc = async () => {
     if (!currentDoc) return;
@@ -236,5 +242,6 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     continueDoc,
     applyFillValues,
     docAttachedFile, setDocAttachedFile,
+    docAttachedFiles, setDocAttachedFiles,
   };
 }

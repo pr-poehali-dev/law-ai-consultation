@@ -58,11 +58,11 @@ interface UseCabinetPaymentParams {
   chatSendMessage: (text: string) => void;
   chatRemoveUpsell: () => void;
   chatRevealFunnel: () => void;
-  docsGenerateRef: React.MutableRefObject<((dt: DocType, details: string) => void) | null>;
+  docsGenerateRef: React.MutableRefObject<((dt: DocType, details: string, files?: { name: string; b64: string }[]) => void) | null>;
   docsGenerateDoc: () => void;
   docsSetDocType: (dt: DocType) => void;
   docsSetDocDetails: (v: string) => void;
-  docsGenerateDocWith: (dt: DocType, details: string) => void;
+  docsGenerateDocWith: (dt: DocType, details: string, files?: { name: string; b64: string }[]) => void;
 }
 
 export function useCabinetPayment({

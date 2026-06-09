@@ -60,12 +60,13 @@ export default function Cabinet() {
     getChatHistory: () => chat.history,
   });
 
-  docsGenerateRef.current = (dt, details) => {
+  docsGenerateRef.current = (dt, details, files) => {
     docs.setDocType(dt);
     docs.setDocDetails(details);
     docs.setDocPhase("form");
     docs.setDocErr("");
-    setTimeout(() => docs.generateDocWith(dt, details), 200);
+    if (files?.length) docs.setDocAttachedFiles(files);
+    setTimeout(() => docs.generateDocWith(dt, details, files), 200);
   };
 
   const pay = useCabinetPayment({

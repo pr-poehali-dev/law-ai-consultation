@@ -1,12 +1,28 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
+export interface DocAttachedFile {
+  name: string;
+  b64: string;
+  size: string;
+}
+
 interface DocDetailsModalProps {
   docTypeId: string;
   docLabel: string;
   initialQuery: string;
-  onProceed: (query: string, comment: string) => void;
+  onProceed: (query: string, comment: string, files: DocAttachedFile[]) => void;
   onClose: () => void;
+}
+
+const MAX_FILES = 3;
+const MAX_FILE_MB = 10;
+const ALLOWED_EXTS = ["pdf", "doc", "docx"];
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
 export default function DocDetailsModal({
@@ -19,8 +35,11 @@ export default function DocDetailsModal({
   const [query, setQuery] = useState(initialQuery);
   const [comment, setComment] = useState("");
   const [editingQuery, setEditingQuery] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<DocAttachedFile[]>([]);
+  const [fileError, setFileError] = useState("");
   const queryRef = useRef<HTMLTextAreaElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingQuery && queryRef.current) {
@@ -30,21 +49,54 @@ export default function DocDetailsModal({
     }
   }, [editingQuery]);
 
-  useEffect(() => {
-    if (commentRef.current) {
-      setTimeout(() => commentRef.current?.focus(), 300);
-    }
-  }, []);
-
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    setFileError("");
+
+    const remaining = MAX_FILES - attachedFiles.length;
+    if (remaining <= 0) {
+      setFileError(`Максимум ${MAX_FILES} файла`);
+      return;
+    }
+
+    const toAdd = files.slice(0, remaining);
+    toAdd.forEach(file => {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!ALLOWED_EXTS.includes(ext)) {
+        setFileError("Только PDF, DOC, DOCX");
+        return;
+      }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        setFileError(`Файл слишком большой (макс. ${MAX_FILE_MB} МБ)`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = (reader.result as string).split(",")[1];
+        setAttachedFiles(prev => {
+          if (prev.length >= MAX_FILES) return prev;
+          return [...prev, { name: file.name, b64, size: formatSize(file.size) }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeFile = (idx: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
+    setFileError("");
+  };
+
   const handleProceed = () => {
     const q = query.trim();
     if (!q) return;
-    onProceed(q, comment.trim());
+    onProceed(q, comment.trim(), attachedFiles);
   };
 
   return (
@@ -59,7 +111,7 @@ export default function DocDetailsModal({
         className="relative w-full sm:max-w-lg sm:mx-4 sm:rounded-3xl rounded-t-3xl flex flex-col"
         style={{
           background: "#0a1628",
-          maxHeight: "88dvh",
+          maxHeight: "92dvh",
           boxShadow: "0 -8px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)",
         }}
       >
@@ -84,7 +136,7 @@ export default function DocDetailsModal({
         </button>
 
         {/* Заголовок */}
-        <div className="flex items-center gap-3 px-5 pt-1 pb-4 shrink-0">
+        <div className="flex items-center gap-3 px-5 pt-1 pb-3 shrink-0">
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
             style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.25)" }}
@@ -92,9 +144,7 @@ export default function DocDetailsModal({
             <Icon name="FileText" size={18} color="#e8a820" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-[15px] leading-tight">
-              {docLabel}
-            </h3>
+            <h3 className="font-bold text-white text-[15px] leading-tight">{docLabel}</h3>
             <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
               Уточните детали для точной генерации
             </p>
@@ -110,7 +160,7 @@ export default function DocDetailsModal({
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>
                 Ваш запрос
               </span>
-              {!editingQuery && (
+              {!editingQuery ? (
                 <button
                   onClick={() => setEditingQuery(true)}
                   className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-70"
@@ -119,8 +169,7 @@ export default function DocDetailsModal({
                   <Icon name="Pencil" size={10} color="#e8a820" />
                   Изменить
                 </button>
-              )}
-              {editingQuery && (
+              ) : (
                 <button
                   onClick={() => setEditingQuery(false)}
                   className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-70"
@@ -136,9 +185,7 @@ export default function DocDetailsModal({
               className="rounded-2xl overflow-hidden"
               style={{
                 background: editingQuery ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.04)",
-                border: editingQuery
-                  ? "1.5px solid rgba(232,168,32,0.35)"
-                  : "1px solid rgba(255,255,255,0.08)",
+                border: editingQuery ? "1.5px solid rgba(232,168,32,0.35)" : "1px solid rgba(255,255,255,0.08)",
                 transition: "border-color 0.2s, background 0.2s",
               }}
             >
@@ -154,11 +201,7 @@ export default function DocDetailsModal({
               ) : (
                 <p
                   className="px-4 py-3 text-[13px] leading-relaxed"
-                  style={{
-                    color: query ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.3)",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
+                  style={{ color: query ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.3)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                 >
                   {query || "Запрос не указан"}
                 </p>
@@ -172,19 +215,12 @@ export default function DocDetailsModal({
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>
                 Дополнения
               </span>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                необязательно
-              </span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>необязательно</span>
             </div>
 
             <div
               className="rounded-2xl overflow-hidden"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={() => {}}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", transition: "border-color 0.2s" }}
             >
               <textarea
                 ref={commentRef}
@@ -204,10 +240,86 @@ export default function DocDetailsModal({
                 }}
               />
             </div>
+          </div>
 
-            <p className="mt-2 text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.25)" }}>
-              Чем подробнее — тем точнее документ. AI использует эти данные при генерации.
-            </p>
+          {/* Блок документов */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  Документы
+                </span>
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>до {MAX_FILES} файлов · PDF, DOC, DOCX</span>
+              </div>
+              {attachedFiles.length < MAX_FILES && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-70"
+                  style={{ color: "#e8a820" }}
+                >
+                  <Icon name="Paperclip" size={10} color="#e8a820" />
+                  Прикрепить
+                </button>
+              )}
+            </div>
+
+            {/* Прикреплённые файлы */}
+            {attachedFiles.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {attachedFiles.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                    style={{ background: "rgba(232,168,32,0.07)", border: "1px solid rgba(232,168,32,0.18)" }}
+                  >
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.15)" }}>
+                      <Icon name="FileText" size={11} color="#e8a820" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-medium truncate" style={{ color: "rgba(255,255,255,0.85)" }}>{f.name}</p>
+                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{f.size} · AI прочитает и учтёт</p>
+                    </div>
+                    <button
+                      onClick={() => removeFile(i)}
+                      className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+                      style={{ background: "rgba(255,255,255,0.08)" }}
+                    >
+                      <Icon name="X" size={10} color="rgba(255,255,255,0.5)" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Зона добавления если файлов нет */}
+            {attachedFiles.length === 0 && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.99]"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}
+              >
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <Icon name="Upload" size={13} color="rgba(255,255,255,0.4)" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Прикрепить документ</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }}>PDF, DOC, DOCX · до 10 МБ · AI учтёт при генерации</p>
+                </div>
+              </button>
+            )}
+
+            {fileError && (
+              <p className="mt-1.5 text-[11px]" style={{ color: "#f87171" }}>{fileError}</p>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
           </div>
         </div>
 
@@ -225,9 +337,7 @@ export default function DocDetailsModal({
             disabled={!query.trim()}
             className="w-full py-3.5 rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             style={{
-              background: query.trim()
-                ? "linear-gradient(135deg, #c97d10, #e8a820, #f5d060)"
-                : "rgba(255,255,255,0.07)",
+              background: query.trim() ? "linear-gradient(135deg, #c97d10, #e8a820, #f5d060)" : "rgba(255,255,255,0.07)",
               color: query.trim() ? "#0a1628" : "rgba(255,255,255,0.2)",
               boxShadow: query.trim() ? "0 4px 20px rgba(232,168,32,0.35)" : "none",
               transition: "all 0.2s",
@@ -235,6 +345,14 @@ export default function DocDetailsModal({
           >
             <Icon name="ArrowRight" size={17} color={query.trim() ? "#0a1628" : "rgba(255,255,255,0.2)"} />
             Выбрать способ оплаты
+            {attachedFiles.length > 0 && (
+              <span
+                className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: "rgba(10,22,40,0.2)", color: "#0a1628" }}
+              >
+                +{attachedFiles.length} файл{attachedFiles.length > 1 ? "а" : ""}
+              </span>
+            )}
           </button>
         </div>
       </div>

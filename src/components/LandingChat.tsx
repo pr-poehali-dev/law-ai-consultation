@@ -10,7 +10,7 @@ import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSe
 import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
-import DocDetailsModal from "@/components/DocDetailsModal";
+import DocDetailsModal, { type DocAttachedFile } from "@/components/DocDetailsModal";
 import { DOC_BLOCKS } from "@/pages/cabinet/docBlocks";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
@@ -46,7 +46,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showDocDetails, setShowDocDetails] = useState<{ docTypeId: string; docLabel: string; query: string } | null>(null);
-  const [docDetailsData, setDocDetailsData] = useState<{ query: string; comment: string } | null>(null);
+  const [docDetailsData, setDocDetailsData] = useState<{ query: string; comment: string; files: DocAttachedFile[] } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
@@ -102,7 +102,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowPayment(true);
   }, []);
 
-  const openDocPayment = useCallback((docTypeId?: string, details?: { query: string; comment: string }) => {
+  const openDocPayment = useCallback((docTypeId?: string, details?: { query: string; comment: string; files?: DocAttachedFile[] }) => {
     const dt = docTypeId || "claim";
     saveHistoryToStorage(history.current);
     localStorage.setItem(PENDING_DOC_KEY, dt);
@@ -112,6 +112,16 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         ? `${details.query}\n\n[Дополнения от пользователя]:\n${details.comment}`
         : details.query;
       localStorage.setItem("landing_pending_doc_details", combined);
+      // Сохраняем файлы (без b64 — слишком тяжёлые для localStorage, передаём отдельно)
+      if (details.files && details.files.length > 0) {
+        try {
+          localStorage.setItem("landing_pending_doc_files", JSON.stringify(
+            details.files.map(f => ({ name: f.name, b64: f.b64 }))
+          ));
+        } catch { /* quota — игнорируем */ }
+      } else {
+        localStorage.removeItem("landing_pending_doc_files");
+      }
     }
     localStorage.setItem("landing_pending_ts", String(Date.now()));
     setPaymentService({ type: "document", name: "Юридический документ" });
@@ -272,10 +282,10 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     });
   };
 
-  const handleDocDetailsProceed = (query: string, comment: string) => {
+  const handleDocDetailsProceed = (query: string, comment: string, files: DocAttachedFile[]) => {
     if (!showDocDetails) return;
     const { docTypeId, docLabel } = showDocDetails;
-    setDocDetailsData({ query, comment });
+    setDocDetailsData({ query, comment, files });
     setShowDocDetails(null);
     setShowDocChoice({ docTypeId, docLabel });
   };
@@ -500,6 +510,15 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
                 ? `${docDetailsData.query}\n\n[Дополнения от пользователя]:\n${docDetailsData.comment}`
                 : docDetailsData.query;
               localStorage.setItem("landing_pending_doc_details", combined);
+              if (docDetailsData.files?.length) {
+                try {
+                  localStorage.setItem("landing_pending_doc_files", JSON.stringify(
+                    docDetailsData.files.map(f => ({ name: f.name, b64: f.b64 }))
+                  ));
+                } catch { /* quota */ }
+              } else {
+                localStorage.removeItem("landing_pending_doc_files");
+              }
             }
             localStorage.setItem("landing_pending_ts", String(Date.now()));
             const id = (planId || "plan_starter") as ServiceType;

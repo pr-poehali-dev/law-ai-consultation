@@ -455,19 +455,42 @@ def handler(event: dict, context) -> dict:
                 label = doc_labels.get(doc_type, "документ")
                 system_prompt = SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
 
+            # ── Извлечение текста из файлов (старый формат: file+filename, новый: files[]) ──
             file_context = ""
-            if file_b64 and filename:
-                try:
-                    file_data = base64.b64decode(file_b64)
-                    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-                    if ext == "pdf":
-                        file_context = extract_pdf_text(file_data)[:4000]
-                    elif ext in ("docx", "doc"):
-                        file_context = extract_docx_text(file_data)[:4000]
-                    elif ext in ("jpg", "jpeg", "png"):
-                        file_context = extract_image_text_ocr(file_data, ext)[:3000]
-                except Exception:
-                    file_context = ""
+
+            # Новый формат: files = [{b64, name}, ...] до 3 шт
+            files_list = body.get("files", [])
+            # Обратная совместимость: одиночный file
+            if not files_list and file_b64 and filename:
+                files_list = [{"b64": file_b64, "name": filename}]
+
+            if files_list:
+                extracted_parts = []
+                for idx, fobj in enumerate(files_list[:3]):
+                    fb64 = fobj.get("b64", "")
+                    fname = fobj.get("name", f"file{idx+1}")
+                    if not fb64:
+                        continue
+                    try:
+                        file_data = base64.b64decode(fb64)
+                        ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+                        # Лимит на файл: 3000 симв чтобы суммарно не перегружать промт
+                        if ext == "pdf":
+                            text = extract_pdf_text(file_data)[:3000]
+                        elif ext in ("docx", "doc"):
+                            text = extract_docx_text(file_data)[:3000]
+                        elif ext in ("jpg", "jpeg", "png"):
+                            text = extract_image_text_ocr(file_data, ext)[:2000]
+                        else:
+                            text = ""
+                        if text.strip():
+                            extracted_parts.append(f"[Файл {idx+1}: {fname}]\n{text.strip()}")
+                            print(f"[DOC_GEN] файл {idx+1} ({fname}): извлечено {len(text)} симв")
+                    except Exception as ex:
+                        print(f"[DOC_GEN] файл {idx+1} ({fname}) ошибка: {ex}")
+
+                if extracted_parts:
+                    file_context = "\n\n---\n".join(extracted_parts)
 
             chat_history = body.get("chat_history", [])
             history_context = ""
@@ -565,7 +588,7 @@ def handler(event: dict, context) -> dict:
             prompt = (
                 history_context + speech_style
                 + f"Составь {label} на основании следующего описания ситуации:\n\n{details}\n\n"
-                + (f"Дополнительные материалы из загруженного файла ({filename}):\n{file_context}\n\n" if file_context else "")
+                + (f"Дополнительные материалы из прикреплённых документов (извлечённый текст — используй все факты, стороны, суммы, даты):\n{file_context}\n\n" if file_context else "")
                 + LEGAL_QUALITY_ADDON + extra_context
                 + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "

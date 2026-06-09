@@ -23,7 +23,7 @@ interface UseCabinetInitOptions {
   analyzeFileDirectly: (file: { name: string; b64: string }, comment: string) => void;
   setDocDetails: (v: string) => void;
   setDocPhase: (v: string) => void;
-  docsGenerateRef: React.MutableRefObject<((dt: ReturnType<typeof findDocType>, details: string) => void) | null>;
+  docsGenerateRef: React.MutableRefObject<((dt: ReturnType<typeof findDocType>, details: string, files?: { name: string; b64: string }[]) => void) | null>;
   pollPaymentStatus: (invId: string, action: ReturnType<typeof loadPendingAction>) => void;
 }
 
@@ -123,11 +123,13 @@ export function useCabinetInit({
       const pendingDocType = localStorage.getItem("landing_pending_doc");
       const pendingServiceType = localStorage.getItem("landing_pending_service");
       const pendingDocDetails = localStorage.getItem("landing_pending_doc_details");
+      const pendingDocFilesRaw = localStorage.getItem("landing_pending_doc_files");
       const rawHist = localStorage.getItem("landing_chat_history");
       localStorage.removeItem("landing_chat_history");
       localStorage.removeItem("landing_pending_doc");
       localStorage.removeItem("landing_pending_service");
       localStorage.removeItem("landing_pending_doc_details");
+      localStorage.removeItem("landing_pending_doc_files");
 
       if (pendingServiceType === "quick_questions") {
         setTab("chat");
@@ -143,12 +145,20 @@ export function useCabinetInit({
             details = userMsgs.slice(0, 2000);
           }
 
+          // Файлы из DocDetailsModal
+          let pendingFiles: { name: string; b64: string }[] | undefined;
+          if (pendingDocFilesRaw) {
+            try {
+              pendingFiles = JSON.parse(pendingDocFilesRaw);
+            } catch { /* ignore */ }
+          }
+
           if (pendingDocType) {
             const dt = findDocType(pendingDocType);
             setTab("docs");
             setTimeout(() => {
               savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails: details });
-              docsGenerateRef.current?.(dt, details);
+              docsGenerateRef.current?.(dt, details, pendingFiles);
             }, 800);
           } else if (details.trim()) {
             setTab("docs");
