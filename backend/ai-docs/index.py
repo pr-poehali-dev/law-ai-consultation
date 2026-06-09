@@ -19,8 +19,10 @@ from prompts import (
 try:
     from prompts.block_router import get_system_prompt_for_doc, get_doc_label
     _BLOCK_ROUTER_OK = True
-except Exception:
+    print("[INIT] block_router OK")
+except Exception as _br_err:
     _BLOCK_ROUTER_OK = False
+    print(f"[INIT] block_router FAILED: {_br_err}")
 from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
 from legal_docs_handler import get_legal_context_for_ai
 from penalty_prompt import PENALTY_CALC_SYSTEM, PENALTY_CALC_PROMPT
@@ -436,7 +438,7 @@ def handler(event: dict, context) -> dict:
             if _BLOCK_ROUTER_OK:
                 label = get_doc_label(doc_type)
                 system_prompt = get_system_prompt_for_doc(doc_type)
-                # Госпошлина передаётся через duty_block из правовой базы (ниже), не из памяти модели
+                print(f"[DOC_GEN] block_router system_prompt len={len(system_prompt)} doc_type={doc_type}")
                 if doc_type in DUTY_DOC_TYPES:
                     system_prompt = system_prompt + (
                         "\n\n[ВАЖНО О ГОСПОШЛИНЕ] Используй ТОЛЬКО ставки и льготы из правовой базы, "
@@ -615,7 +617,9 @@ def handler(event: dict, context) -> dict:
                 + LEGAL_QUALITY_ADDON + extra_context
                 + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
                 f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
-                f"Запрещены [...] и ___."
+                f"Запрещены [...] и ___.\n\n"
+                f"ОБЯЗАТЕЛЬНО: структурируй документ блоками — каждый маркер ([ШАПКА], [ЗАГОЛОВОК], [ТЕЛО], [ТРЕБОВАНИЯ], [ПРИЛОЖЕНИЯ], [ПОДПИСЬ]) на ОТДЕЛЬНОЙ строке. "
+                f"НЕ добавляй блоки [ОБОСНОВАНИЕ] и [ПРИМЕЧАНИЯ] — они не нужны."
             )
             # DeepSeek fallback использует тот же prompt что и Яндекс
             raw_prompt = prompt
@@ -633,14 +637,16 @@ def handler(event: dict, context) -> dict:
             # Если есть файлы — промт длиннее, ограничиваем его чтобы не съел токены генерации
             has_files = bool(file_context)
             if has_files:
-                # Обрезаем весь промт до 6000 симв — оставляем место для генерации
-                MAX_PROMPT_CHARS = 6000
+                # Обрезаем до 20000 симв — оставляем место для генерации (DeepSeek 128k контекст)
+                MAX_PROMPT_CHARS = 20000
                 if len(raw_prompt) > MAX_PROMPT_CHARS:
-                    # Обрезаем file_note — это менее важно чем системный контекст
+                    # Обрезаем extra_context (правовая база) — менее критично чем файл
                     overflow = len(raw_prompt) - MAX_PROMPT_CHARS
-                    if file_note and len(file_note) > overflow + 200:
+                    if extra_context and len(extra_context) > overflow + 500:
+                        extra_context = extra_context[:len(extra_context) - overflow - 500] + "\n..."
+                    elif file_note and len(file_note) > overflow + 200:
                         file_note = file_note[:len(file_note) - overflow - 200] + "\n..."
-                        raw_prompt = (
+                    raw_prompt = (
                             history_context + speech_style
                             + f"Составь {label} на основании следующего описания ситуации:\n\n{details}"
                             + file_note + "\n\n"
