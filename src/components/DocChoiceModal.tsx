@@ -71,8 +71,8 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5 shrink-0">
-                <span className="text-lg font-black leading-none" style={{ color: GOLD_LIGHT }}>1 490 ₽</span>
-                <span className="text-[11px] line-through" style={{ color: "rgba(255,255,255,0.3)" }}>2 490 ₽</span>
+                <span className="text-lg font-black leading-none" style={{ color: GOLD_LIGHT }}>990 ₽</span>
+                <span className="text-[11px] line-through" style={{ color: "rgba(255,255,255,0.3)" }}>1 490 ₽</span>
               </div>
             </div>
 
@@ -100,8 +100,8 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <div className="flex items-center justify-between pt-2 mb-2.5" style={{ borderTop: "1px solid rgba(232,168,32,0.2)" }}>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 990 ₽</span>
-              <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Экономия 3 460 ₽</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 290 ₽</span>
+              <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Выгоднее в 1.5 раза</span>
             </div>
 
             <button
@@ -109,7 +109,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               className="w-full py-2.5 rounded-xl text-sm font-bold"
               style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }}
             >
-              Выбрать «Старт» · 1 490 ₽
+              Выбрать «Старт» · 990 ₽
             </button>
           </div>
 
@@ -131,7 +131,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
           >
             <div className="flex items-center justify-between w-full">
               <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
-              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>990 ₽</span>
+              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>290 ₽</span>
             </div>
             <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>+ проверка живым юристом-экспертом</span>
           </button>

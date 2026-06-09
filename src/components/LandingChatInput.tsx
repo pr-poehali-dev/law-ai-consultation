@@ -91,7 +91,7 @@ export default function LandingChatInput({
               <div className="absolute bottom-11 left-0 rounded-2xl overflow-hidden shadow-2xl z-50 w-56"
                 style={{ background: "#0d1e3c", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 20px 60px rgba(10,22,40,0.5)" }}>
                 <div className="px-3 pt-3 pb-1.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.28)" }}>Создать документ · 990 ₽</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.28)" }}>Создать документ · 290 ₽</p>
                 </div>
                 {DOC_TYPES.map(dt => (
                   <button key={dt.id} onClick={() => onCreateDoc(dt.id)}

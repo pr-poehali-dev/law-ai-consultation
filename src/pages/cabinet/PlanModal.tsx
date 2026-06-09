@@ -20,8 +20,8 @@ export const PLANS: Plan[] = [
   {
     id: "plan_starter",
     name: "Старт",
-    price: "1 490",
-    oldPrice: "2 490",
+    price: "990",
+    oldPrice: "1 490",
     questions: 30,
     docs: 5,
     lawyerFeature: "3 вопроса живому юристу",

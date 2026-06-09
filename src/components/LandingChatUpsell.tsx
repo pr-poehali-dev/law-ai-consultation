@@ -60,12 +60,12 @@ export function UpsellBlock({
                 </div>
                 <div className="text-left">
                   <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
-                  <p className="text-[10px] font-normal leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .docx</p>
+                  <p className="text-[10px] font-normal leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .doc</p>
                   <p className="text-[10px] font-normal leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ проверка документов юристом</p>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[14px] font-semibold leading-tight" style={{ color: "#0a1628" }}>1 490 ₽</p>
+                <p className="text-[14px] font-semibold leading-tight" style={{ color: "#0a1628" }}>990 ₽</p>
               </div>
             </div>
           </button>

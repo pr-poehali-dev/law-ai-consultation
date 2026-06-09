@@ -62,8 +62,8 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
         </p>
         <p className="text-[11px] text-white/60 mt-0.5">
           {mode === "chat"
-            ? `Доступно ${questions} вопрос${questions === 1 ? "" : questions < 5 ? "а" : "ов"} · Тарифы от 1 490 ₽`
-            : `Документов: ${docs} · Тарифы от 1 490 ₽`}
+            ? `Доступно ${questions} вопрос${questions === 1 ? "" : questions < 5 ? "а" : "ов"} · Тарифы от 990 ₽`
+            : `Документов: ${docs} · Тарифы от 990 ₽`}
         </p>
       </div>
       <div className="flex items-center gap-1.5 bg-gold-500 hover:bg-gold-400 text-navy-900 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shrink-0">
