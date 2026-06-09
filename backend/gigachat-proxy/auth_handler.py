@@ -19,7 +19,7 @@ _SELECT_COLS = (
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
-    "lawyer_questions_left, has_file_analysis"
+    "lawyer_questions_left, has_file_analysis, purchased_plan"
 )
 
 MAX_LOGIN_ATTEMPTS = 10
@@ -1191,6 +1191,7 @@ def _format_user(row) -> dict:
         "referralCode": row[15] if len(row) > 15 else "",
         "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
         "hasFileAnalysis": bool(row[17]) if len(row) > 17 else False,
+        "purchasedPlan": row[18] if len(row) > 18 else None,
     }
 
 

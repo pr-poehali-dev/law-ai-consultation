@@ -40,6 +40,19 @@ export interface User {
   referralCode: string;
   lawyerQuestionsLeft: number;
   hasFileAnalysis: boolean;
+  purchasedPlan: "starter" | "pro" | "max" | null;
+}
+
+/** Купил ли пользователь хотя бы тариф Старт или выше (независимо от остатков) */
+export function hasPurchasedPlan(user: User): boolean {
+  return !!user.purchasedPlan;
+}
+
+/** Оба счётчика на нуле — функции недоступны, нужно продление */
+export function isPlanExhausted(user: User): boolean {
+  if (user.isAdmin) return false;
+  if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return false;
+  return user.paidQuestions <= 0 && user.paidDocs <= 0;
 }
 
 export function getToken(): string {
@@ -326,14 +339,17 @@ export async function consumeDoc(): Promise<boolean> {
   return res.ok;
 }
 
-/** Проверить тариф Профи+ для открытия AI-редактора (без списания ресурсов) */
+/** Проверить доступ к AI-функциям (Старт и выше, независимо от остатков) */
 export async function checkProAccess(): Promise<{ ok: boolean; reason?: string }> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
-  const isPro = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs") || user.paidQuestions >= 30 || user.paidDocs >= 10;
-  if (!isPro) return { ok: false, reason: "not_pro" };
+  // Купленный тариф — доступ сохраняется даже при нулевых счётчиках
+  if (user.purchasedPlan) return { ok: true };
+  const isActive = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")
+    || user.paidQuestions >= 30 || user.paidDocs >= 5;
+  if (!isActive) return { ok: false, reason: "not_pro" };
   return { ok: true };
 }
 

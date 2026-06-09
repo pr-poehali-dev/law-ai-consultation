@@ -128,8 +128,8 @@ export default function Cabinet() {
   const totalLeft = user.isAdmin || isPremium
     ? 999
     : getDailyFreeLeft() + (user.paidQuestions ?? 0);
-  // Старт: ≥30 вопросов ИЛИ ≥5 документов
-  const hasPaidStarterPlan = (user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5;
+  // Купленный тариф Старт+ или активные счётчики
+  const hasPaidStarterPlan = !!user.purchasedPlan || (user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5;
   const canUploadFiles = user.isAdmin || isProOrAbove || hasPaidStarterPlan || user.hasFileAnalysis === true;
 
   return (

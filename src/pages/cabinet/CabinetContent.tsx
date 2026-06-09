@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { downloadDoc } from "@/lib/docUtils";
-import { logout, lawyerSend } from "@/lib/auth";
+import { logout, lawyerSend, isPlanExhausted } from "@/lib/auth";
 import type { User } from "@/lib/auth";
+import Icon from "@/components/ui/icon";
 import { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
@@ -89,12 +90,39 @@ export default function CabinetContent({
     setTab("expert");
   }, [pendingLawyerMsg, setTab]);
 
+  const planExhausted = isPlanExhausted(user);
+
   return (
     <main className={
       isFlex
         ? "flex-1 flex flex-col min-h-0 overflow-hidden px-3 sm:px-4 md:px-6 pt-3 sm:pt-4"
         : "flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-tab-bar md:pb-8"
     }>
+      {/* Баннер исчерпанного тарифа */}
+      {planExhausted && (
+        <div className="w-full max-w-4xl mx-auto mb-3 mt-1">
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
+            style={{ background: "linear-gradient(135deg,#fff1f1,#fff8f8)", borderColor: "#fca5a5" }}
+            onClick={openPlanModal}
+          >
+            <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+              <Icon name="AlertCircle" size={16} className="text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-red-700 leading-tight">Ресурсы тарифа исчерпаны</p>
+              <p className="text-xs text-red-500 mt-0.5">Вопросы и документы закончились — обновите тариф, остатки прибавятся</p>
+            </div>
+            <button
+              className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+              style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)" }}
+            >
+              Продлить
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={
         isFlex
           ? "flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto"

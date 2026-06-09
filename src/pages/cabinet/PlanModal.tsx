@@ -82,9 +82,14 @@ export const PLANS: Plan[] = [
 ];
 
 export function getActivePlan(user: User): string | null {
+  // Сначала смотрим на остатки (активный тариф)
   if ((user.paidQuestions ?? 0) >= 300 || (user.paidDocs ?? 0) >= 50) return "plan_max";
   if ((user.paidQuestions ?? 0) >= 100 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
   if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
+  // Если остатки = 0, но тариф был куплен — показываем его (для продления)
+  if (user.purchasedPlan === "max") return "plan_max";
+  if (user.purchasedPlan === "pro") return "plan_pro";
+  if (user.purchasedPlan === "starter") return "plan_starter";
   return null;
 }
 

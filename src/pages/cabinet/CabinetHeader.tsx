@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
-import { logout, sendReport, type User } from "@/lib/auth";
+import { logout, sendReport, isPlanExhausted, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
@@ -104,6 +104,7 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
   const navigate = useNavigate();
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
+  const exhausted = isPlanExhausted(user);
   const [showReport, setShowReport] = useState(false);
 
   return (
@@ -162,17 +163,24 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
               <button
                 onClick={onSelectPlan}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                  activePlan
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                    : "bg-gold-500 border-gold-400 text-navy-900 hover:bg-gold-400"
+                  exhausted
+                    ? "bg-red-50 border-red-300 text-red-600 hover:bg-red-100 animate-pulse"
+                    : activePlan
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                      : "bg-gold-500 border-gold-400 text-navy-900 hover:bg-gold-400"
                 }`}
               >
-                <Icon name="Zap" size={11} className={activePlan ? "text-emerald-600" : "text-navy-800"} />
+                <Icon name={exhausted ? "AlertCircle" : "Zap"} size={11}
+                  className={exhausted ? "text-red-500" : activePlan ? "text-emerald-600" : "text-navy-800"} />
                 <span className="hidden sm:inline">
-                  {activePlan ? `${activePlan.name} · ${totalLeft} вопр.` : "Подключить тариф"}
+                  {exhausted
+                    ? `${activePlan?.name ?? "Тариф"} · продлить`
+                    : activePlan
+                      ? `${activePlan.name} · ${totalLeft} вопр.`
+                      : "Подключить тариф"}
                 </span>
                 <span className="sm:hidden">
-                  {activePlan ? activePlan.name : "Тариф"}
+                  {exhausted ? "Продлить" : activePlan ? activePlan.name : "Тариф"}
                 </span>
               </button>
             )}

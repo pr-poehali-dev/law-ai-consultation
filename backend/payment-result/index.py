@@ -214,7 +214,11 @@ def grant_service(conn, user_id: int, service_type: str):
                     SET paid_questions = paid_questions + 30,
                         paid_docs = paid_docs + 5,
                         paid_expert = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 1
+                        lawyer_questions_left = lawyer_questions_left + 1,
+                        purchased_plan = CASE
+                            WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
+                            ELSE 'starter'
+                        END
                     WHERE id = %s""",
                 (user_id,)
             )
@@ -225,7 +229,11 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 20,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 5
+                        lawyer_questions_left = lawyer_questions_left + 5,
+                        purchased_plan = CASE
+                            WHEN purchased_plan = 'max' THEN purchased_plan
+                            ELSE 'pro'
+                        END
                     WHERE id = %s""",
                 (user_id,)
             )
@@ -236,7 +244,8 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 50,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 30
+                        lawyer_questions_left = lawyer_questions_left + 30,
+                        purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
             )

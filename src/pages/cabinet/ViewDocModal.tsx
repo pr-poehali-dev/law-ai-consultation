@@ -105,8 +105,9 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
 
   const handleOpenAiFillChat = async () => {
     const user = await getUser();
-    // Доступно с тарифа Старт: ≥30 вопросов ИЛИ ≥5 документов ИЛИ подписка
+    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
     const hasAccess = user?.isAdmin
+      || !!user?.purchasedPlan
       || (user?.paidQuestions ?? 0) >= 30
       || (user?.paidDocs ?? 0) >= 5
       || hasActiveSubscription(user!, "consult")
@@ -205,8 +206,9 @@ ${docTextClean}
 
   const handleAiEditorClick = async () => {
     const user = await getUser();
-    // Доступно с тарифа Старт: ≥30 вопросов ИЛИ ≥5 документов ИЛИ подписка
+    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
     const hasAccess = user?.isAdmin
+      || !!user?.purchasedPlan
       || (user?.paidQuestions ?? 0) >= 30
       || (user?.paidDocs ?? 0) >= 5
       || hasActiveSubscription(user!, "consult")
