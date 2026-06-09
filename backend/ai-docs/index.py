@@ -474,23 +474,24 @@ def handler(event: dict, context) -> dict:
                     try:
                         file_data = base64.b64decode(fb64)
                         ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
-                        # Лимит на файл: 3000 симв чтобы суммарно не перегружать промт
+                        # Лимит 1800 симв на файл — не перегружаем промт, сохраняем токены генерации
                         if ext == "pdf":
-                            text = extract_pdf_text(file_data)[:3000]
+                            text = extract_pdf_text(file_data)[:1800]
                         elif ext in ("docx", "doc"):
-                            text = extract_docx_text(file_data)[:3000]
+                            text = extract_docx_text(file_data)[:1800]
                         elif ext in ("jpg", "jpeg", "png"):
-                            text = extract_image_text_ocr(file_data, ext)[:2000]
+                            text = extract_image_text_ocr(file_data, ext)[:1400]
                         else:
                             text = ""
                         if text.strip():
-                            extracted_parts.append(f"[Файл {idx+1}: {fname}]\n{text.strip()}")
+                            # Без квадратных скобок — иначе модель путает с маркерами блоков документа
+                            extracted_parts.append(f"Документ {idx+1} ({fname}):\n{text.strip()}")
                             print(f"[DOC_GEN] файл {idx+1} ({fname}): извлечено {len(text)} симв")
                     except Exception as ex:
                         print(f"[DOC_GEN] файл {idx+1} ({fname}) ошибка: {ex}")
 
                 if extracted_parts:
-                    file_context = "\n\n---\n".join(extracted_parts)
+                    file_context = "\n\n".join(extracted_parts)
 
             chat_history = body.get("chat_history", [])
             history_context = ""
@@ -585,16 +586,13 @@ def handler(event: dict, context) -> dict:
             extra_context = duty_block + case_law_block + definitions_block + codex_block
             print(f"[DOC_GEN] Правовая база: duty={bool(duty_block)}, case_law={bool(case_law_block)}, definitions={bool(definitions_block)}, codex={bool(codex_block)}")
 
-            # Блок файлов — извлечённые данные, вставляются В ОПИСАНИЕ, не нарушая структуру
+            # Данные из файлов встраиваются прямо в описание ситуации — без маркеров-скобок
             file_note = ""
             if file_context:
                 file_note = (
-                    "\n\n[ДАННЫЕ ИЗ ПРИКРЕПЛЁННЫХ ДОКУМЕНТОВ]\n"
-                    "Используй ВСЕ конкретные данные ниже (стороны, ФИО, адреса, суммы, даты, реквизиты) — "
-                    "подставляй их напрямую в нужные поля документа. "
-                    "Где данные есть — НЕ ставь метки-заглушки:\n\n"
-                    f"{file_context}\n"
-                    "[КОНЕЦ ДАННЫХ]"
+                    "\n\nДополнительные данные из прикреплённых документов "
+                    "(используй ФИО, адреса, суммы, даты, реквизиты напрямую — не ставь заглушки там где данные есть):\n"
+                    f"{file_context}"
                 )
 
             prompt = (
