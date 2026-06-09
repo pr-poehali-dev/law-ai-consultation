@@ -11,6 +11,7 @@ import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import DocDetailsModal from "@/components/DocDetailsModal";
+import { DOC_BLOCKS } from "@/pages/cabinet/docBlocks";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
@@ -257,11 +258,16 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
-    // Берём последний вопрос пользователя из истории как начальный запрос
-    const lastUserMsg = [...history.current].reverse().find(m => m.role === "user")?.content || input.trim();
+    // Ищем label сначала в полном списке docBlocks, затем в краткой карте
+    const fullLabel = DOC_BLOCKS.flatMap(b => b.types).find(t => t.id === docTypeId)?.label;
+    const docLabel = fullLabel || DOC_LABELS_MAP[docTypeId] || "документ";
+    // Берём последний вопрос из истории, иначе — название документа как начальный запрос
+    const lastUserMsg = [...history.current].reverse().find(m => m.role === "user")?.content
+      || input.trim()
+      || docLabel;
     setShowDocDetails({
       docTypeId,
-      docLabel: DOC_LABELS_MAP[docTypeId] || "документ",
+      docLabel,
       query: lastUserMsg,
     });
   };
