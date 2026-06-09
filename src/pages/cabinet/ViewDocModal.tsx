@@ -105,9 +105,12 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
 
   const handleOpenAiFillChat = async () => {
     const user = await getUser();
+    // Доступно с тарифа Старт: ≥30 вопросов ИЛИ ≥5 документов ИЛИ подписка
     const hasAccess = user?.isAdmin
-      || (user?.paidQuestions ?? 0) >= 100
-      || hasActiveSubscription(user!, "consult");
+      || (user?.paidQuestions ?? 0) >= 30
+      || (user?.paidDocs ?? 0) >= 5
+      || hasActiveSubscription(user!, "consult")
+      || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
       setUpgradeFeature("ai_fill_chat");
       return;
@@ -202,7 +205,12 @@ ${docTextClean}
 
   const handleAiEditorClick = async () => {
     const user = await getUser();
-    const hasAccess = user?.isAdmin || (user?.paidQuestions ?? 0) >= 100 || user?.subscriptionConsultUntil;
+    // Доступно с тарифа Старт: ≥30 вопросов ИЛИ ≥5 документов ИЛИ подписка
+    const hasAccess = user?.isAdmin
+      || (user?.paidQuestions ?? 0) >= 30
+      || (user?.paidDocs ?? 0) >= 5
+      || hasActiveSubscription(user!, "consult")
+      || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
       setUpgradeFeature("ai_editor");
       return;

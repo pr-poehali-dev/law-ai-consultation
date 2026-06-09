@@ -221,7 +221,7 @@ export default function ChatInputBar({
             onClick={canUploadFiles ? onAttachClick : onUpgradeClick}
             disabled={typing || fileUploading || (!canUploadFiles && !onUpgradeClick) || (canUploadFiles && !canAddMore)}
             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 active:bg-slate-100 transition-colors ${canUploadFiles ? "text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"}`}
-            title={canUploadFiles ? `Прикрепить до ${MAX_FILES} файлов (PDF, DOCX, фото) или перетащите` : "Анализ документов — тариф «Профи» и выше"}
+            title={canUploadFiles ? `Прикрепить до ${MAX_FILES} файлов (PDF, DOCX, фото) или перетащите` : "Анализ документов — доступен с тарифа «Старт»"}
           >
             {fileUploading
               ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />

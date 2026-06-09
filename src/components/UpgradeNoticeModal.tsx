@@ -18,26 +18,27 @@ const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string; m
   },
   ai_editor: {
     icon: "BrainCircuit",
-    plan: "Профи",
-    desc: "Редактирование документов с помощью AI доступно с тарифа «Профи» и выше.",
-    minPlanId: "plan_pro",
+    plan: "Старт",
+    desc: "Редактирование документов с помощью AI доступно с тарифа «Старт» и выше.",
+    minPlanId: "plan_starter",
   },
   file_analysis: {
     icon: "FileSearch",
-    plan: "Профи",
-    desc: "Анализ документов и файлов доступен с тарифа «Профи» и выше.",
-    minPlanId: "plan_pro",
+    plan: "Старт",
+    desc: "Анализ документов и файлов (PDF, DOCX, фото) доступен с тарифа «Старт» и выше.",
+    minPlanId: "plan_starter",
   },
   ai_fill_chat: {
     icon: "MessagesSquare",
-    plan: "Профи",
-    desc: "AI-консультант по заполнению реквизитов доступен с тарифа «Профи» и выше.",
-    minPlanId: "plan_pro",
+    plan: "Старт",
+    desc: "AI-юрист по заполнению документа доступен с тарифа «Старт» и выше.",
+    minPlanId: "plan_starter",
   },
   default: {
     icon: "Lock",
-    plan: "Профи",
-    desc: "Эта функция доступна с более высокого тарифа.",
+    plan: "Старт",
+    desc: "Эта функция доступна с тарифа «Старт» и выше.",
+    minPlanId: "plan_starter",
   },
 };
 
@@ -97,9 +98,7 @@ export default function UpgradeNoticeModal({
                 <span className="text-gold-600">«{info.plan}»</span>
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {feature === "lawyer"
-                  ? "1 консультация юриста · 30 вопросов AI · 5 документов"
-                  : "Вопросы юристу · Документы · AI-функции"}
+                30 вопросов AI · 5 документов · анализ файлов · AI-редактор
               </p>
             </div>
           </div>

@@ -113,7 +113,7 @@ export default function CabinetContent({
             fileUploading={chat.fileUploading}
             totalLeft={totalLeft}
             canUploadFiles={canUploadFiles}
-            onUpgradeClick={() => setShowProOffer(true)}
+            onUpgradeClick={() => openPlanModal()}
             onInputChange={chat.setInput}
             onSend={chat.sendMessage}
             onSendFile={chat.sendFileAnalysis}
