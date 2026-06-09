@@ -5,10 +5,10 @@ import {
 import { saveAs } from "file-saver";
 
 const FONT = "Times New Roman";
-const SIZE_NORMAL = 28; // 14pt
-const SIZE_SMALL = 24;  // 12pt
-const SIZE_HEADER = 32; // 16pt
-const LINE_SPACING = 414; // ~1.8 интервал (как в предпросмотре)
+const SIZE_NORMAL = 24; // 12pt — основной текст
+const SIZE_SMALL = 22;  // 11pt — подписи, приложения
+const SIZE_HEADER = 28; // 14pt — заголовок документа
+const LINE_SPACING = 360; // 1.5 интервал
 
 const spacer = (pt = 80) => new Paragraph({ text: "", spacing: { after: pt } });
 
@@ -233,23 +233,7 @@ export async function downloadDoc(name: string, content: string): Promise<void> 
       }
     }
 
-    // ── ПРИМЕЧАНИЯ ────────────────────────────────────
-    if (blocks["ПРИМЕЧАНИЯ"]) {
-      children.push(spacer(120));
-      children.push(new Paragraph({
-        alignment: AlignmentType.LEFT,
-        spacing: { before: 160, after: 80 },
-        children: [new TextRun({ text: "ПРИМЕЧАНИЯ", bold: true, size: SIZE_SMALL, font: FONT, color: "7B6B3A" })],
-      }));
-      children.push(hrLine("7B6B3A"));
-      for (const line of blocks["ПРИМЕЧАНИЯ"].filter(l => l.trim())) {
-        children.push(new Paragraph({
-          alignment: AlignmentType.BOTH,
-          spacing: { after: 60, line: 300 },
-          children: [new TextRun({ text: line.trim(), size: SIZE_SMALL - 2, font: FONT, color: "555555", italics: true })],
-        }));
-      }
-    }
+    // ПРИМЕЧАНИЯ — не включаем в скачиваемый документ
 
   } else {
     // ── Fallback: нет блоков — форматируем по смыслу строк ─────────
