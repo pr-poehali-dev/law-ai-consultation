@@ -617,6 +617,27 @@ def handler(event: dict, context) -> dict:
             else:
                 _max_tokens = 3500
 
+            # Если есть файлы — промт длиннее, ограничиваем его чтобы не съел токены генерации
+            has_files = bool(file_context)
+            if has_files:
+                # Обрезаем весь промт до 6000 симв — оставляем место для генерации
+                MAX_PROMPT_CHARS = 6000
+                if len(raw_prompt) > MAX_PROMPT_CHARS:
+                    # Обрезаем file_note — это менее важно чем системный контекст
+                    overflow = len(raw_prompt) - MAX_PROMPT_CHARS
+                    if file_note and len(file_note) > overflow + 200:
+                        file_note = file_note[:len(file_note) - overflow - 200] + "\n..."
+                        raw_prompt = (
+                            history_context + speech_style
+                            + f"Составь {label} на основании следующего описания ситуации:\n\n{details}"
+                            + file_note + "\n\n"
+                            + LEGAL_QUALITY_ADDON + extra_context
+                            + f"\nТам где не хватает конкретных данных (ФИО, адрес, номер дела и т.д.) — "
+                            f"используй метки-заглушки {{{{ПОЛЕ_НАЗВАНИЕ}}}} (русский язык, подчёркивание). "
+                            f"Запрещены [...] и ___."
+                        )
+                print(f"[DOC_GEN] промт с файлами: {len(raw_prompt)} симв")
+
             # Генерация только через DeepSeek (deepseek-v32 на Yandex Cloud)
             # Таймаут функции должен быть 120с — DeepSeek берёт 60-90с на большой документ
             answer = ""
@@ -628,7 +649,7 @@ def handler(event: dict, context) -> dict:
                     temperature=0.15,
                     timeout=110,  # 110с < таймаут функции 120с
                 )
-                print(f"[DOC_GEN] DeepSeek OK симв={len(answer)} was_cut={was_cut}")
+                print(f"[DOC_GEN] DeepSeek OK симв={len(answer)} was_cut={was_cut} has_files={has_files}")
             except Exception as e:
                 print(f"[DOC_GEN] DeepSeek упал: {e}")
 
