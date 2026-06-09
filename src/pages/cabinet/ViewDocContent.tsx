@@ -1,17 +1,42 @@
 import Icon from "@/components/ui/icon";
 import { parseDocBlocks } from "./ViewDocUtils";
 
+// Рендер строки основного текста (тело, доводы, описательная часть)
+function BodyLine({ line, i }: { line: string; i: number }) {
+  if (!line.trim()) return <div key={i} className="h-3" />;
+  // Раздел с нумерацией "1. НАЗВАНИЕ РАЗДЕЛА"
+  const sectionMatch = line.trim().match(/^(\d+)\.\s+([А-ЯЁ][А-ЯЁA-Z\s,./]{3,})$/);
+  if (sectionMatch) return (
+    <p key={i} className="font-bold text-navy-800 mt-5 mb-1 uppercase tracking-wide">{line.trim()}</p>
+  );
+  // Подпункт "1.1. текст"
+  const subMatch = line.trim().match(/^(\d+\.\d+\.?)\s+(.+)/);
+  if (subMatch) return (
+    <p key={i} className="text-navy-700 leading-relaxed pl-5">
+      <span className="font-semibold text-navy-600">{subMatch[1]}</span> {subMatch[2]}
+    </p>
+  );
+  // Тире/маркер списка
+  if (/^[-•–—]\s/.test(line.trim())) return (
+    <p key={i} className="text-navy-700 leading-relaxed pl-5" style={{ textAlign: "justify" }}>{line.trim()}</p>
+  );
+  // Обычный абзац — отступ 1.25 см, по ширине
+  return (
+    <p key={i} className="text-navy-700 leading-relaxed" style={{ textIndent: "1.25cm", textAlign: "justify" }}>{line.trim()}</p>
+  );
+}
+
 function DocBlock({ type, lines }: { type: string; lines: string[] }) {
   const text = lines.join("\n").trim();
   if (!text) return null;
 
-  // ПРИМЕЧАНИЯ — не показываем
-  if (type === "ПРИМЕЧАНИЯ") return null;
+  // Не показываем служебные блоки
+  if (type === "ПРИМЕЧАНИЯ" || type === "ОБОСНОВАНИЕ") return null;
 
   if (type === "ШАПКА") return (
-    <div className="text-right mb-6 space-y-0.5">
+    <div className="text-right mb-6 space-y-0.5 border-b border-slate-100 pb-4">
       {lines.filter(l => l.trim()).map((l, i) => (
-        <p key={i} className="text-navy-700 leading-relaxed">{l.trim()}</p>
+        <p key={i} className="text-navy-700 leading-snug text-sm">{l.trim()}</p>
       ))}
     </div>
   );
@@ -23,12 +48,21 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
     </div>
   );
 
+  // ТЕЛО — основной текст документа (описательная часть, доводы, доказательства и т.д.)
+  if (type === "ТЕЛО") return (
+    <div className="my-4 space-y-1">
+      {lines.map((l, i) => <BodyLine key={i} line={l} i={i} />)}
+    </div>
+  );
+
   if (type === "ТРЕБОВАНИЯ") return (
     <div className="my-4">
       {lines.filter(l => l.trim()).map((l, i) => {
-        const isHeader = /^(ПРОШУ|НА ОСНОВАНИИ|ТРЕБУЮ)/i.test(l.trim());
-        if (isHeader) return <p key={i} className="font-bold text-navy-800 uppercase tracking-wide mb-2">{l.trim()}</p>;
-        const numMatch = l.trim().match(/^(\d+)\.\s+(.+)/);
+        const isHeader = /^(ПРОШУ|НА ОСНОВАНИИ|ТРЕБУЮ|ОБЯЗАТЬ|ПРОШУ СУД)/i.test(l.trim());
+        if (isHeader) return (
+          <p key={i} className="font-bold text-navy-800 uppercase tracking-wide mt-4 mb-2">{l.trim()}</p>
+        );
+        const numMatch = l.trim().match(/^(\d+)[.)]\s+(.+)/);
         if (numMatch) return (
           <div key={i} className="flex gap-2 mb-2 items-start pl-2">
             <span className="font-bold text-navy-700 shrink-0">{numMatch[1]}.</span>
@@ -43,11 +77,18 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
   if (type === "ПРИЛОЖЕНИЯ") return (
     <div className="my-4 pt-3 border-t border-slate-200">
       <p className="font-semibold text-navy-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-        <Icon name="Paperclip" size={12} />Приложения:
+        <Icon name="Paperclip" size={13} />Приложения:
       </p>
-      {lines.filter(l => l.trim()).map((l, i) => (
-        <p key={i} className="text-navy-700 py-0.5 pl-4">{l.trim()}</p>
-      ))}
+      {lines.filter(l => l.trim()).map((l, i) => {
+        const numMatch = l.trim().match(/^(\d+)[.)]\s+(.+)/);
+        if (numMatch) return (
+          <div key={i} className="flex gap-2 py-0.5 pl-2 items-start">
+            <span className="text-navy-500 shrink-0 text-sm">{numMatch[1]}.</span>
+            <p className="text-navy-700 text-sm">{numMatch[2]}</p>
+          </div>
+        );
+        return <p key={i} className="text-navy-700 text-sm py-0.5 pl-4">{l.trim()}</p>;
+      })}
     </div>
   );
 
@@ -55,34 +96,16 @@ function DocBlock({ type, lines }: { type: string; lines: string[] }) {
     <div className="mt-8 pt-4 border-t border-slate-200">
       <div className="flex flex-col items-end gap-1">
         {lines.filter(l => l.trim()).map((l, i) => (
-          <p key={i} className="text-navy-700">{l.trim()}</p>
+          <p key={i} className="text-navy-700 text-sm">{l.trim()}</p>
         ))}
       </div>
     </div>
   );
 
-  if (type === "ОБОСНОВАНИЕ") return (
-    <div className="mt-4 pt-3 border-t border-slate-100">
-      {lines.filter(l => l.trim()).map((l, i) => (
-        <p key={i} className="text-navy-600 leading-relaxed">{l.trim()}</p>
-      ))}
-    </div>
-  );
-
+  // Любой неизвестный блок — рендерим как ТЕЛО
   return (
-    <div className="my-3 space-y-1.5">
-      {lines.map((l, i) => {
-        if (!l.trim()) return <div key={i} className="h-2" />;
-        const sectionMatch = l.trim().match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s,/]{3,})$/);
-        if (sectionMatch) return <p key={i} className="font-bold text-navy-800 mt-4 mb-1 uppercase tracking-wide">{l.trim()}</p>;
-        const subMatch = l.trim().match(/^(\d+\.\d+\.?)\s+(.+)/);
-        if (subMatch) return (
-          <p key={i} className="text-navy-700 leading-relaxed pl-4">
-            <span className="font-semibold text-navy-600">{subMatch[1]}</span> {subMatch[2]}
-          </p>
-        );
-        return <p key={i} className="text-navy-700 leading-relaxed" style={{ textIndent: "1.25cm", textAlign: "justify" }}>{l.trim()}</p>;
-      })}
+    <div className="my-3 space-y-1">
+      {lines.map((l, i) => <BodyLine key={i} line={l} i={i} />)}
     </div>
   );
 }

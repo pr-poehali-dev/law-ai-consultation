@@ -66,10 +66,18 @@ export async function downloadDoc(name: string, content: string): Promise<void> 
   let currentBlock = "INTRO";
   blocks[currentBlock] = [];
 
+  const DOC_BLOCK_ALIASES: Record<string, string> = {
+    "ПРОСИТЕЛЬНАЯ ЧАСТЬ": "ТРЕБОВАНИЯ",
+    "ПРАВОВОЕ ОБОСНОВАНИЕ": "ОБОСНОВАНИЕ",
+    "ОПИСАТЕЛЬНАЯ ЧАСТЬ": "ТЕЛО",
+    "ДОВОДЫ": "ТЕЛО",
+    "ДОКАЗАТЕЛЬСТВА": "ТЕЛО",
+  };
   for (const line of content.split("\n")) {
-    const match = line.match(/^\[([А-ЯA-Z_]+)\]$/);
+    const match = line.trim().match(/^\[([А-ЯЁA-Z][А-ЯЁA-Za-zа-яё0-9\s_]*)\]$/);
     if (match) {
-      currentBlock = match[1];
+      const raw = match[1].trim().toUpperCase();
+      currentBlock = DOC_BLOCK_ALIASES[raw] ?? raw;
       if (!blocks[currentBlock]) {
         blocks[currentBlock] = [];
         blockOrder.push(currentBlock);

@@ -7,7 +7,7 @@ _PROXY_DIR = os.path.realpath(os.path.join(_DIR, "..", "gigachat-proxy"))
 if _PROXY_DIR not in sys.path:
     sys.path.insert(0, _PROXY_DIR)
 
-from prompts import BLOCK_BY_DOC_TYPE, ALL_SUBTYPES
+from prompts import BLOCK_BY_DOC_TYPE, ALL_SUBTYPES, BLOCK_FORMAT_RULE
 from prompts import (
     SYSTEM_DOC_BY_TYPE, SYSTEM_DOC_GENERATE, LEGAL_QUALITY_ADDON
 )
@@ -21,9 +21,11 @@ def get_system_prompt_for_doc(doc_type: str) -> str:
             BLOCK_BY_DOC_TYPE[doc_type]
             + f"\n\nТип документа: {subtype_hint}"
             + "\n\n"
+            + BLOCK_FORMAT_RULE
+            + "\n\n"
             + LEGAL_QUALITY_ADDON
         )
-    return SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE) + "\n\n" + LEGAL_QUALITY_ADDON
+    return SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE) + "\n\n" + BLOCK_FORMAT_RULE + "\n\n" + LEGAL_QUALITY_ADDON
 
 
 def get_doc_label(doc_type: str) -> str:

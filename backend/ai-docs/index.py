@@ -518,15 +518,28 @@ def handler(event: dict, context) -> dict:
             # ── Типы документов по длине — ДОЛЖНЫ БЫТЬ ОБЪЯВЛЕНЫ ДО THREADS ──────
             _SHORT_DOC_TYPES = {
                 "contract_receipt", "special_pd_consent", "special_medical_consent",
+                "labor_hire_app", "labor_quit_app", "labor_vacation_app",
+                "labor_vacation_exit", "labor_quit_withdraw",
             }
             _MEDIUM_DOC_TYPES = {
                 "labor_order_hire", "labor_order_dismiss",
                 "labor_order_bonus", "labor_order_discipline",
+                "petition_postpone", "petition_absence", "petition_attach",
+                "application_writ", "application_clarify",
             }
             _LONG_DOC_TYPES = {
+                # Исковые и жалобы — нужен большой объём
+                "claim", "claim_debt", "claim_divorce", "claim_property",
+                "claim_consumer", "claim_damage", "claim_ownership",
+                "claim_paternity", "claim_eviction", "claim_alimony",
+                "claim_admin", "claim_order", "claim_counter", "claim_interim",
+                "appeal", "cassation", "supervisory",
+                "criminal_cassation", "criminal_appeal",
+                # Договоры сложные
                 "corporate_charter", "corporate_collective", "corporate_rules",
                 "contract_gov", "website_terms", "website_privacy", "website_eula",
                 "contract_marriage", "special_will", "special_inheritance_contract",
+                "labor_contract", "contract_sale", "contract_rent", "contract_work",
             }
 
             # Параллельно запрашиваем все 4 категории правовой базы
@@ -609,13 +622,13 @@ def handler(event: dict, context) -> dict:
 
             # Лимиты токенов (типы уже объявлены выше перед threads)
             if doc_type in _SHORT_DOC_TYPES:
-                _max_tokens = 400
+                _max_tokens = 600
             elif doc_type in _MEDIUM_DOC_TYPES:
-                _max_tokens = 1800
+                _max_tokens = 2000
             elif doc_type in _LONG_DOC_TYPES:
-                _max_tokens = 4500
+                _max_tokens = 5000
             else:
-                _max_tokens = 3500
+                _max_tokens = 4000
 
             # Если есть файлы — промт длиннее, ограничиваем его чтобы не съел токены генерации
             has_files = bool(file_context)

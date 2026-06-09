@@ -25,6 +25,14 @@ from .block12_special import BLOCK12_SYSTEM, BLOCK12_SUBTYPES
 from .block13_decisions import BLOCK13_SYSTEM, BLOCK13_SUBTYPES
 from .block14_speech import BLOCK14_SYSTEM, BLOCK14_SUBTYPES
 
+# Обязательное правило форматирования блоков — используется во всех BLOCK*_SYSTEM
+BLOCK_FORMAT_RULE = (
+    "⚠ КРИТИЧЕСКИ ВАЖНО: каждый маркер блока ([ШАПКА], [ЗАГОЛОВОК], [ТЕЛО], [ТРЕБОВАНИЯ], "
+    "[ПРИЛОЖЕНИЯ], [ПОДПИСЬ]) ДОЛЖЕН стоять на ОТДЕЛЬНОЙ строке — без текста до или после него на той же строке. "
+    "Формат: строка содержит ТОЛЬКО маркер, например:\n[ШАПКА]\nтекст шапки...\n[ЗАГОЛОВОК]\nназвание...\n"
+    "Нарушение этого правила делает документ нечитаемым."
+)
+
 # Единая таблица маппинга: doc_type → человекочитаемое название
 ALL_SUBTYPES = {
     **BLOCK1_SUBTYPES, **BLOCK2_SUBTYPES, **BLOCK3_SUBTYPES,

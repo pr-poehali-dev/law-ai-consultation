@@ -11,14 +11,29 @@ export interface ViewDocModalProps {
   onPayForQuestions?: () => void;
 }
 
+// Все возможные блоки из промтов (с пробелами, ё, цифрами)
+const BLOCK_ALIASES: Record<string, string> = {
+  "ПРОСИТЕЛЬНАЯ ЧАСТЬ": "ТРЕБОВАНИЯ",
+  "ПРАВОВОЕ ОБОСНОВАНИЕ": "ТЕЛО",
+  "ОПИСАТЕЛЬНАЯ ЧАСТЬ": "ТЕЛО",
+  "ДОВОДЫ": "ТЕЛО",
+  "ДОКАЗАТЕЛЬСТВА": "ТЕЛО",
+};
+
+function normalizeBlockType(raw: string): string {
+  const up = raw.trim().toUpperCase();
+  return BLOCK_ALIASES[up] ?? up;
+}
+
 export function parseDocBlocks(content: string): { type: string; lines: string[] }[] {
   const result: { type: string; lines: string[] }[] = [];
   let current: { type: string; lines: string[] } = { type: "ТЕЛО", lines: [] };
   for (const raw of content.split("\n")) {
-    const match = raw.match(/^\[([А-ЯA-Z_]+)\]$/);
+    // Матчим [ЛЮБОЙ ТЕКСТ] — с пробелами, ё, цифрами
+    const match = raw.trim().match(/^\[([А-ЯЁA-Z][А-ЯЁA-Za-zа-яё0-9\s_]*)\]$/);
     if (match) {
       if (current.lines.some(l => l.trim())) result.push(current);
-      current = { type: match[1], lines: [] };
+      current = { type: normalizeBlockType(match[1]), lines: [] };
     } else {
       current.lines.push(raw);
     }
