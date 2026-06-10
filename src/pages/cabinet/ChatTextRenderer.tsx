@@ -23,7 +23,7 @@ export function LegalText({ text }: { text: string }) {
   const safeText = typeof text === "string" ? text : String(text ?? "");
 
   return (
-    <div className="space-y-2.5 font-golos text-[13.5px] text-slate-700 leading-[1.75]">
+    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "15px", lineHeight: "1.9", color: "#1e293b" }}>
       {safeText.split(/\n{2,}/).map((para, pi) => {
         const lines = para.split("\n").filter(Boolean);
         if (!lines.length) return null;
@@ -31,51 +31,50 @@ export function LegalText({ text }: { text: string }) {
         // Секция с номером и заголовком (1. ЗАГОЛОВОК)
         const sec = lines[0].match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s/]{3,})(.*)/);
         if (sec) return (
-          <div key={pi} className="mt-3 first:mt-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-5 h-5 rounded-lg text-white text-[10px] font-bold flex items-center justify-center shrink-0"
-                style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                {sec[1]}
-              </span>
-              <span className="text-[11.5px] font-bold text-navy-800 uppercase tracking-wide">{sec[2]}{sec[3]}</span>
-            </div>
+          <div key={pi} style={{ marginTop: pi === 0 ? 0 : "1em" }}>
+            <p style={{ fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em", color: "#0f4c81", textTransform: "uppercase", marginBottom: "0.35em", fontFamily: "inherit" }}>
+              {sec[1]}. {sec[2]}{sec[3]}
+            </p>
             {lines.slice(1).map((l, li) => (
-              <p key={li} className="pl-7 text-slate-600">{renderInline(l)}</p>
+              <p key={li} style={{ textIndent: "2em", margin: "0.2em 0" }}>{renderInline(l)}</p>
             ))}
           </div>
         );
 
-        // Маркированный список
-        if (lines.every(l => /^[-•·–]\s/.test(l))) return (
-          <ul key={pi} className="space-y-1.5 pl-0.5">
+        // Маркированный список (* - • · –)
+        if (lines.every(l => /^[*\-•·–]\s/.test(l))) return (
+          <ul key={pi} style={{ margin: "0.5em 0", padding: 0, listStyle: "none" }}>
             {lines.map((l, li) => (
-              <li key={li} className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0 mt-[7px]" />
-                <span className="text-slate-600 leading-relaxed">{renderInline(l.replace(/^[-•·–]\s/, ""))}</span>
+              <li key={li} style={{ display: "flex", alignItems: "baseline", gap: "0.7em", margin: "0.3em 0", paddingLeft: "0.8em" }}>
+                <span style={{ color: "#0f4c81", fontWeight: 700, flexShrink: 0 }}>—</span>
+                <span>{renderInline(l.replace(/^[*\-•·–]\s/, ""))}</span>
               </li>
             ))}
           </ul>
         );
 
-        // Нумерованный список (1. 2. 3.)
+        // Нумерованный список
         if (lines.every(l => /^\d+\.\s/.test(l))) return (
-          <ol key={pi} className="space-y-1.5 pl-0.5">
+          <ol key={pi} style={{ margin: "0.5em 0", padding: 0, listStyle: "none" }}>
             {lines.map((l, li) => {
               const match = l.match(/^(\d+)\.\s+(.*)/);
               if (!match) return <p key={li}>{renderInline(l)}</p>;
               return (
-                <li key={li} className="flex items-start gap-2.5">
-                  <span className="text-[11px] font-bold text-blue-500 shrink-0 mt-0.5 w-4 text-right">{match[1]}.</span>
-                  <span className="text-slate-600 leading-relaxed">{renderInline(match[2])}</span>
+                <li key={li} style={{ display: "flex", alignItems: "baseline", gap: "0.5em", margin: "0.3em 0", paddingLeft: "0.8em" }}>
+                  <span style={{ color: "#0f4c81", fontWeight: 700, minWidth: "1.5em", flexShrink: 0 }}>{match[1]}.</span>
+                  <span>{renderInline(match[2])}</span>
                 </li>
               );
             })}
           </ol>
         );
 
+        // Обычный абзац с красной строкой
         return (
-          <div key={pi} className="space-y-0.5">
-            {lines.map((l, li) => <p key={li} className="text-slate-700">{renderInline(l)}</p>)}
+          <div key={pi} style={{ marginTop: pi === 0 ? 0 : "0.7em" }}>
+            {lines.map((l, li) => (
+              <p key={li} style={{ textIndent: li === 0 ? "2em" : 0, margin: "0.1em 0" }}>{renderInline(l)}</p>
+            ))}
           </div>
         );
       })}
@@ -108,7 +107,7 @@ export function AnimatedMessage({ text, animate }: { text: string; animate: bool
 
   if (done) return <LegalText text={safeInput} />;
   return (
-    <p className="text-[13.5px] text-slate-700 leading-[1.75] whitespace-pre-wrap font-golos">
+    <p style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "15px", lineHeight: "1.9", color: "#1e293b", whiteSpace: "pre-wrap" }}>
       {shown}
       <span className="inline-block w-0.5 h-[15px] ml-0.5 align-middle rounded-full animate-pulse"
         style={{ background: "linear-gradient(#3b82f6,#1d4ed8)" }} />
