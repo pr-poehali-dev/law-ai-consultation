@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import { sendReport, consumeQuestion, hasPurchasedPlan } from "@/lib/auth";
+import OrganizerPanel from "@/pages/cabinet/OrganizerPanel";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -112,7 +113,7 @@ export default function ChatTab({
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex">
+    <div className="max-w-5xl w-full mx-auto flex-1 min-h-0 flex gap-3">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
 
       {/* Попап: требуется тариф Старт */}
@@ -288,6 +289,9 @@ export default function ChatTab({
       />
 
       </div>{/* конец основной колонки */}
+
+      {/* Органайзер — боковая панель (только десктоп) */}
+      <OrganizerPanel user={user} />
 
       {/* Всплывающее облачко калькулятора */}
       {(activeTool === "penalty" || activeTool === "duty" || activeTool === "case_law" || activeTool === "jurisdiction") && (
