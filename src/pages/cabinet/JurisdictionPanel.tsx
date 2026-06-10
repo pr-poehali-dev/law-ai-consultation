@@ -335,25 +335,46 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
     const defendantAddr = s2.defendantAddress;
 
     try {
-      // Используем YandexGPT для точного определения суда по адресу
       const courtTypeLabel = jr.courtType === "arbitration"
         ? "арбитражный суд субъекта РФ"
         : jr.courtType === "ip"
         ? "Суд по интеллектуальным правам"
         : "районный или городской суд общей юрисдикции";
 
+      const plaintiffLabels: Record<string, string> = { individual: "физическое лицо", ip: "ИП/самозанятый", org: "организация" };
+      const defendantLabels: Record<string, string> = { individual: "физическое лицо", ip: "ИП/самозанятый", org: "организация" };
+      const categoryLabels: Record<string, string> = {
+        consumer: "защита прав потребителей", labor: "трудовой спор", children: "алименты/дети",
+        divorce: "расторжение брака", harm: "возмещение вреда", realestate: "спор о недвижимости",
+        inheritance: "наследство", ip_rights: "интеллектуальная собственность", general: "общий спор",
+      };
+
       const systemPrompt = `Ты — справочная система судов РФ. Отвечай ТОЛЬКО в формате JSON. Никакого другого текста.
 
-По заданному адресу определи ${courtTypeLabel} и верни данные строго в формате:
-{"name":"полное официальное наименование суда","address":"почтовый адрес суда","phone":"телефон приёмной","website":"https://..."}
+По данным о споре определи конкретный ${courtTypeLabel} и верни строго в формате:
+{"name":"полное официальное наименование суда","address":"почтовый адрес суда с индексом","phone":"телефон приёмной или пустая строка","website":"https://официальный сайт суда"}
 
-Правила:
-- name: официальное название (например "Бахчисарайский районный суд Республики Крым")
-- address: реальный почтовый адрес суда с индексом
-- phone: телефон канцелярии или приёмной (если не знаешь — пустая строка)
-- website: официальный сайт (для арбитражных — arbitr.ru, для общих — sudrf.ru или региональный сайт)
-- Если адрес в Москве — Московский городской суд / районный суд по округу
-- Если не можешь определить точный суд — укажи наиболее вероятный по региону`;
+Правила определения суда:
+- Для судов общей юрисдикции — районный или городской суд по адресу ответчика (или по адресу истца если применима альтернативная подсудность)
+- Для арбитражных — арбитражный суд субъекта РФ по адресу ответчика
+- name: полное официальное название (например "Бахчисарайский районный суд Республики Крым" или "Арбитражный суд Краснодарского края")
+- address: реальный почтовый адрес суда с индексом (не адрес ответчика!)
+- website: для арбитражных — https://[регион].arbitr.ru, для общих — региональный сайт sudrf.ru
+- В Москве: для районных дел указывай конкретный районный суд по адресу
+- Если не знаешь точный телефон — верни пустую строку ""`;
+
+      // Передаём все данные пользователя для точного определения
+      const userMessage = [
+        `Истец: ${plaintiffLabels[s1.plaintiff]}`,
+        `Ответчик: ${defendantLabels[s1.defendant]}`,
+        `Бизнес-спор: ${s1.isBusiness ? "да" : "нет"}`,
+        `Категория спора: ${categoryLabels[s2.caseCategory] || s2.caseCategory}`,
+        `Адрес ответчика: ${s2.defendantAddress}`,
+        s2.plaintiffAddress ? `Адрес истца: ${s2.plaintiffAddress}` : "",
+        s2.realEstateAddress ? `Адрес недвижимости: ${s2.realEstateAddress}` : "",
+        `Применимое правило: ${jr.rule}`,
+        `Основание: ${jr.article}`,
+      ].filter(Boolean).join("\n");
 
       const res = await fetch(AI_CHAT_URL, {
         method: "POST",
@@ -361,7 +382,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
         body: JSON.stringify({
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: `Адрес ответчика: ${defendantAddr}` },
+            { role: "user", content: userMessage },
           ],
         }),
       });
