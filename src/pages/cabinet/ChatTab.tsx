@@ -133,9 +133,7 @@ export default function ChatTab({
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-colors"
             >
               <Icon name="Zap" size={11} className="text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-700">{activePlan.name}</span>
-              <span className="text-[10px] text-emerald-500">·</span>
-              <span className="text-xs font-medium text-emerald-700">{user.paidQuestions} вопр.</span>
+              <span className="text-xs font-semibold text-emerald-700">{user.paidQuestions} вопр.</span>
             </button>
           ) : totalLeft === 0 ? (
             <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
