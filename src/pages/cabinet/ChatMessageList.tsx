@@ -153,9 +153,11 @@ export default function ChatMessageList({
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
-    // Небольшая задержка чтобы DOM успел обновиться (кнопка "Читать дальше" рендерится после typing=false)
+    // Не скроллим если пользователь сам прокрутил вверх (читает историю)
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+    if (!isNearBottom && !typing) return;
     const raf = requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     });
     return () => cancelAnimationFrame(raf);
   }, [messages, typing]);
