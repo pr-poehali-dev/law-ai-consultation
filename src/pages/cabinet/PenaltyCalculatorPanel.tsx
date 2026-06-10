@@ -215,18 +215,61 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     setResult({ total: totalPenalty, capped, capApplied, periods });
   }, [debt, dateStart, dateEnd, mode, ratePercent, cbrRate, cbrFraction, fixedDay, changes, capEnabled, capMode, capAmount, capPercent]);
 
-  const sendToChat = () => {
+  const buildHeader = () => {
+    const final = result ? (result.capApplied && result.capped !== null ? result.capped : result.total) : 0;
+    const debtVal = parseFloat(debt.replace(/\s/g, "").replace(",", ".") || "0");
+    let h = `📊 Расчёт неустойки:\n`;
+    h += `• Период: ${dateStart} — ${dateEnd}\n`;
+    h += `• Сумма долга: ${fmt(debtVal)} руб.\n`;
+    if (mode === "percent") h += `• Ставка: ${ratePercent}% в день\n`;
+    else if (mode === "cbr") h += `• Ставка: 1/${cbrFraction} от ставки ЦБ (${cbrRate}%)\n`;
+    else h += `• Фикс. сумма: ${fixedDay} руб./день\n`;
+    h += `• Итого: ${fmt(final)} руб. (${numToWords(final)})\n`;
+    if (result?.capApplied) h += `• Ограничение применено, расчётная: ${fmt(result.total)} руб.\n`;
+    return h;
+  };
+
+  const buildPeriodTable = () => {
+    if (!result) return "";
+    let t = `\nДетализация по периодам:\n`;
+    t += `Период | Долг (₽) | Дней | Пени (₽)\n`;
+    for (const p of result.periods) {
+      t += `${p.from.slice(5)} – ${p.to.slice(5)} | ${fmt(p.debt)} | ${p.days} | ${fmt(p.penalty)}\n`;
+    }
+    t += `Итого: ${fmt(result.total)} руб.\n`;
+    return t;
+  };
+
+  const buildDayTable = () => {
+    if (!result) return "";
+    let acc = 0;
+    let t = `\nДетализация по дням:\n`;
+    t += `Дата | Долг (₽) | За день (₽) | Накоплено (₽)\n`;
+    for (const p of result.periods) {
+      const dayPenalty = p.penalty / p.days;
+      for (let d = 0; d < p.days; d++) {
+        const date = addDays(p.from, d);
+        acc += dayPenalty;
+        t += `${date.slice(5)} | ${fmt(p.debt)} | ${fmt(dayPenalty)} | ${fmt(acc)}\n`;
+      }
+    }
+    return t;
+  };
+
+  const [copied, setCopied] = useState<"periods" | "days" | null>(null);
+
+  const copyText = async (kind: "periods" | "days") => {
+    const text = buildHeader() + (kind === "periods" ? buildPeriodTable() : buildDayTable());
+    await navigator.clipboard.writeText(text);
+    setCopied(kind);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const sendToChat = (kind: "periods" | "days") => {
     if (!result) return;
-    const final = result.capApplied && result.capped !== null ? result.capped : result.total;
-    let text = `📊 Расчёт неустойки:\n`;
-    text += `• Период: ${dateStart} — ${dateEnd}\n`;
-    text += `• Сумма долга: ${fmt(parseFloat(debt.replace(/\s/g, "").replace(",", ".") || "0"))} руб.\n`;
-    if (mode === "percent") text += `• Ставка: ${ratePercent}% в день\n`;
-    else if (mode === "cbr") text += `• Ставка: 1/${cbrFraction} от ключевой ставки ЦБ (${cbrRate}%)\n`;
-    else text += `• Фикс. сумма: ${fixedDay} руб./день\n`;
-    text += `• Итоговая неустойка: ${fmt(final)} руб. (${numToWords(final)})\n`;
-    if (result.capApplied) text += `• Применено ограничение: расчётная сумма ${fmt(result.total)} руб.\n`;
-    text += `\nУчти этот расчёт неустойки в своих ответах. Помоги мне: проверь корректность применённой ставки и формулы по нормам ГК РФ, и подскажи — как использовать эту сумму при составлении претензии или искового заявления.`;
+    const detail = kind === "periods" ? buildPeriodTable() : buildDayTable();
+    const text = buildHeader() + detail
+      + `\nУчти этот расчёт неустойки. Проверь корректность ставки и формулы по нормам ГК РФ, и подскажи как использовать эту сумму при составлении претензии или искового заявления.`;
     onSendToChat(text);
     onClose();
   };
@@ -504,12 +547,37 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
 
             <p className="text-[10px] text-slate-400 text-center">Справочный расчёт · не юридическое заключение</p>
 
-            <button onClick={sendToChat}
-              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-              style={{ background: "rgba(15,76,129,0.07)", color: "#0f4c81", border: "1.5px solid rgba(15,76,129,0.2)" }}>
-              <Icon name="Send" size={12} color="#0f4c81" />
-              Отправить в чат AI-юристу
-            </button>
+            {/* Действия: отправить / скопировать × по периодам / по дням */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-slate-500 text-center">Отправить или скопировать</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* По периодам */}
+                <button onClick={() => sendToChat("periods")}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }}>
+                  <Icon name="Send" size={11} color="#fff" />
+                  В чат · периоды
+                </button>
+                <button onClick={() => sendToChat("days")}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }}>
+                  <Icon name="Send" size={11} color="#fff" />
+                  В чат · по дням
+                </button>
+                <button onClick={() => copyText("periods")}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
+                  style={{ background: copied === "periods" ? "rgba(16,185,129,0.1)" : "rgba(15,76,129,0.07)", color: copied === "periods" ? "#059669" : "#0f4c81", border: `1.5px solid ${copied === "periods" ? "rgba(16,185,129,0.3)" : "rgba(15,76,129,0.2)"}` }}>
+                  <Icon name={copied === "periods" ? "Check" : "Copy"} size={11} color={copied === "periods" ? "#059669" : "#0f4c81"} />
+                  {copied === "periods" ? "Скопировано!" : "Копировать · периоды"}
+                </button>
+                <button onClick={() => copyText("days")}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
+                  style={{ background: copied === "days" ? "rgba(16,185,129,0.1)" : "rgba(15,76,129,0.07)", color: copied === "days" ? "#059669" : "#0f4c81", border: `1.5px solid ${copied === "days" ? "rgba(16,185,129,0.3)" : "rgba(15,76,129,0.2)"}` }}>
+                  <Icon name={copied === "days" ? "Check" : "Copy"} size={11} color={copied === "days" ? "#059669" : "#0f4c81"} />
+                  {copied === "days" ? "Скопировано!" : "Копировать · по дням"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
