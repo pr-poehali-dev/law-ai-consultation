@@ -916,8 +916,8 @@ function SelectedCaseDetail({
 
 // ─── OrganizerPanel ───────────────────────────────────────────────────────────
 
-export default function OrganizerPanel({ user: _user }: { user: User }) {
-  const [panelOpen, setPanelOpen] = useState(false);
+export default function OrganizerPanel({ user: _user, mobileMode = false }: { user: User; mobileMode?: boolean }) {
+  const [panelOpen, setPanelOpen] = useState(mobileMode);
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [loadingCases, setLoadingCases] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -980,7 +980,7 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
 
   // ── Open state ────────────────────────────────────────────────────────────────
   return (
-    <div className="hidden lg:flex shrink-0 w-72 flex-col min-h-0 bg-white border-l border-slate-200 shadow-[-4px_0_16px_rgba(0,0,0,0.06)]">
+    <div className={mobileMode ? "flex flex-col w-full min-h-0 bg-white" : "hidden lg:flex shrink-0 w-72 flex-col min-h-0 bg-white border-l border-slate-200 shadow-[-4px_0_16px_rgba(0,0,0,0.06)]"}>
       {/* Panel header */}
       <div className="flex items-center gap-2 px-3 py-3 shrink-0"
         style={{ background: "linear-gradient(135deg,rgba(15,76,129,0.04),rgba(26,107,181,0.02))", borderBottom: "1px solid rgba(15,76,129,0.08)" }}>
@@ -997,13 +997,15 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
         >
           <Icon name="Plus" size={13} color="#fff" />
         </button>
-        <button
-          onClick={() => setPanelOpen(false)}
-          className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
-          title="Свернуть панель"
-        >
-          <Icon name="ChevronRight" size={14} />
-        </button>
+        {!mobileMode && (
+          <button
+            onClick={() => setPanelOpen(false)}
+            className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+            title="Свернуть панель"
+          >
+            <Icon name="ChevronRight" size={14} />
+          </button>
+        )}
       </div>
 
       {/* Scrollable content */}

@@ -97,6 +97,7 @@ export default function ChatTab({
   const [showReport, setShowReport] = useState(false);
   const [activeTool, setActiveTool] = useState<"penalty" | "duty" | "case_law" | "jurisdiction" | null>(null);
   const [showPremiumPopup, setShowPremiumPopup] = useState(false);
+  const [showMobileOrganizer, setShowMobileOrganizer] = useState(false);
 
   const handleQuickAction = (text: string) => {
     // Все инструменты требуют тариф «Старт» и выше
@@ -223,6 +224,19 @@ export default function ChatTab({
             <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold">Админ</span>
           )}
 
+          {/* Кнопка «Дела» — только мобиле */}
+          {hasPurchasedPlan(user) && (
+            <button
+              onClick={() => setShowMobileOrganizer(true)}
+              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
+              style={{ background: "rgba(15,76,129,0.07)", border: "1px solid rgba(15,76,129,0.15)" }}
+              title="Органайзер дел"
+            >
+              <Icon name="Scale" size={13} color="#0f4c81" />
+              <span className="text-[11px] font-bold text-navy-700">Дела</span>
+            </button>
+          )}
+
           {/* Кнопка «Проблема» */}
           <div className="relative">
             <button
@@ -346,6 +360,42 @@ export default function ChatTab({
             <div className="flex justify-center mt-1">
               <div className="w-0 h-0"
                 style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "8px solid white", filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.06))" }} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Мобильный органайзер — fullscreen sheet */}
+      {showMobileOrganizer && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+            onClick={() => setShowMobileOrganizer(false)}
+          />
+          <div
+            className="fixed inset-0 z-[61] bg-slate-50 flex flex-col"
+            style={{ animation: "slideUpFull 0.3s cubic-bezier(0.32,0.72,0,1)" }}
+          >
+            <style>{`@keyframes slideUpFull{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+            <div className="flex items-center justify-between px-5 bg-white border-b border-slate-100 shrink-0"
+              style={{ paddingTop: "max(env(safe-area-inset-top,0px), 16px)", paddingBottom: "14px" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                  <Icon name="Scale" size={16} color="#fff" />
+                </div>
+                <p className="text-[17px] font-bold text-navy-900">Мои дела</p>
+              </div>
+              <button
+                onClick={() => setShowMobileOrganizer(false)}
+                className="w-9 h-9 rounded-2xl bg-slate-100 flex items-center justify-center active:bg-slate-200 transition-colors"
+              >
+                <Icon name="X" size={18} color="#64748b" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "env(safe-area-inset-bottom,0px)" }}>
+              <OrganizerPanel user={user} mobileMode />
             </div>
           </div>
         </>
