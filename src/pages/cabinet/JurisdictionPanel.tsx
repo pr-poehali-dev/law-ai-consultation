@@ -4,6 +4,7 @@ import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const WEB_SEARCH_URL = (func2url as Record<string, string>)["web-search"];
+const AI_CHAT_URL    = (func2url as Record<string, string>)["ai-chat"];
 
 interface Props {
   onClose: () => void;
@@ -330,30 +331,74 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
     setSearching(true);
     setResult({ ...jr, court: null });
 
+    const token = getToken();
+    const defendantAddr = s2.defendantAddress;
+
     try {
-      const token = getToken();
-      const res = await fetch(WEB_SEARCH_URL, {
+      // Используем YandexGPT для точного определения суда по адресу
+      const courtTypeLabel = jr.courtType === "arbitration"
+        ? "арбитражный суд субъекта РФ"
+        : jr.courtType === "ip"
+        ? "Суд по интеллектуальным правам"
+        : "районный или городской суд общей юрисдикции";
+
+      const systemPrompt = `Ты — справочная система судов РФ. Отвечай ТОЛЬКО в формате JSON. Никакого другого текста.
+
+По заданному адресу определи ${courtTypeLabel} и верни данные строго в формате:
+{"name":"полное официальное наименование суда","address":"почтовый адрес суда","phone":"телефон приёмной","website":"https://..."}
+
+Правила:
+- name: официальное название (например "Бахчисарайский районный суд Республики Крым")
+- address: реальный почтовый адрес суда с индексом
+- phone: телефон канцелярии или приёмной (если не знаешь — пустая строка)
+- website: официальный сайт (для арбитражных — arbitr.ru, для общих — sudrf.ru или региональный сайт)
+- Если адрес в Москве — Московский городской суд / районный суд по округу
+- Если не можешь определить точный суд — укажи наиболее вероятный по региону`;
+
+      const res = await fetch(AI_CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ query: jr.searchQuery, limit: 5 }),
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Адрес ответчика: ${defendantAddr}` },
+          ],
+        }),
       });
       const data = await res.json();
-      const parsed = parseCourtFromSearch(data.results || []);
-      // Для судов общей юрисдикции — строим умный fallback со ссылкой на поиск суда
-      const generalFallback = jr.courtType === "general" ? {
-        name: `Суд по адресу: ${s2.defendantAddress}`,
-        address: "Определите конкретный суд по адресу ответчика",
-        phone: "",
-        website: `https://sudrf.ru/index.php?id=300&act=go_search&searchtype=fs&court_subj=0&fs_text=${encodeURIComponent(s2.defendantAddress)}`,
-        source: "sudrf.ru",
-      } : null;
-      const court = parsed || jr.court || generalFallback || {
-        name: "Суд не найден автоматически",
-        address: "Уточните суд на сайте",
-        phone: "",
-        website: jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru",
-        source: "справочник",
-      };
+      const answer = (data.answer || "").trim();
+
+      // Парсим JSON из ответа
+      let court: CourtInfo | null = null;
+      try {
+        const jsonMatch = answer.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.name) {
+            court = {
+              name: parsed.name,
+              address: parsed.address || "",
+              phone: parsed.phone || "",
+              website: parsed.website || (jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru"),
+              source: "YandexGPT",
+            };
+          }
+        }
+      } catch { /* ignore parse error */ }
+
+      // Fallback — если GPT не дал JSON
+      if (!court) {
+        court = jr.court || {
+          name: jr.courtType === "general"
+            ? `Районный суд по адресу ответчика`
+            : `Арбитражный суд субъекта РФ`,
+          address: "Уточните адрес на сайте суда",
+          phone: "",
+          website: jr.courtType === "arbitration" ? "https://arbitr.ru" : `https://sudrf.ru/index.php?id=300&act=go_search&searchtype=fs&fs_text=${encodeURIComponent(defendantAddr)}`,
+          source: "справочник",
+        };
+      }
+
       setResult({ ...jr, court });
     } catch {
       setResult({ ...jr, court: jr.court });
@@ -674,7 +719,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                     {!searching && result?.court && (
                       <span className="text-[8px] px-1.5 py-0.5 rounded-full font-semibold"
                         style={{ background: "#dcfce7", color: "#166534" }}>
-                        {result.court.source === "Яндекс" ? "🔍 Яндекс" : "📋 справочник"}
+                        {result.court.source === "YandexGPT" ? "🤖 AI" : "📋 справочник"}
                       </span>
                     )}
                   </div>
@@ -683,7 +728,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                     <div className="px-3 py-3 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="w-3.5 h-3.5 border-2 border-green-200 border-t-green-500 rounded-full animate-spin shrink-0" />
-                        <p className="text-[11px] text-slate-400">Ищу суд через Яндекс...</p>
+                        <p className="text-[11px] text-slate-400">AI определяет суд по адресу ответчика...</p>
                       </div>
                       {[70, 50, 85].map((w, i) => (
                         <div key={i} className="h-2 rounded-full animate-pulse" style={{ width: `${w}%`, background: "#f1f5f9" }} />
