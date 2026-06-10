@@ -27,7 +27,7 @@ const CATEGORIES = [
   { id: "case_law",           label: "Судебная практика", icon: "Scale" },
   { id: "codex",              label: "Кодексы и законы",  icon: "BookMarked" },
   { id: "court_definitions",  label: "Определения судов", icon: "Gavel" },
-  { id: "state_duty",         label: "Госпошлина",        icon: "Landmark" },
+
 ] as const;
 
 type CategoryId = typeof CATEGORIES[number]["id"];
