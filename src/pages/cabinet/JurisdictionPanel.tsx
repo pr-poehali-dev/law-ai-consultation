@@ -398,14 +398,15 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
   const RadioGroup = ({ options, value, onChange }: { options: {id: string; label: string}[]; value: string; onChange: (v: string) => void }) => (
     <div className="flex flex-col gap-2 mt-1">
       {options.map(o => (
-        <label key={o.id} className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all text-[11px]"
+        <div key={o.id} onClick={() => onChange(o.id)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all text-[11px] select-none"
           style={value === o.id ? { background: "rgba(15,76,129,0.08)", border: "1px solid rgba(15,76,129,0.25)", color: "#0f4c81", fontWeight: 600 } : { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#475569" }}>
           <span className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
             style={{ borderColor: value === o.id ? "#0f4c81" : "#cbd5e1" }}>
             {value === o.id && <span className="w-1.5 h-1.5 rounded-full bg-blue-800" />}
           </span>
           {o.label}
-        </label>
+        </div>
       ))}
     </div>
   );
@@ -557,7 +558,8 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
               </div>
               <div className="px-3 py-2 grid grid-cols-1 gap-1.5">
                 {CASE_CATEGORIES.map(c => (
-                  <label key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all text-[10px]"
+                  <div key={c.id} onClick={() => setS2(p => ({ ...p, caseCategory: c.id }))}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all text-[10px] select-none"
                     style={s2.caseCategory === c.id
                       ? { background: "rgba(15,76,129,0.08)", border: "1px solid rgba(15,76,129,0.25)", color: "#0f4c81", fontWeight: 600 }
                       : { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#475569" }}>
@@ -567,7 +569,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                     </span>
                     <Icon name={c.icon as Parameters<typeof Icon>[0]["name"]} size={10} color={s2.caseCategory === c.id ? "#0f4c81" : "#94a3b8"} />
                     {c.label}
-                  </label>
+                  </div>
                 ))}
               </div>
             </div>
