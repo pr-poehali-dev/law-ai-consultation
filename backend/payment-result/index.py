@@ -30,6 +30,7 @@ DESCRIPTIONS = {
     "plan_pro":              "Тариф Профи: +70 вопросов, +20 документов, +20 вопросов юристу",
     "plan_max":              "Тариф Максимум: +150 вопросов, +50 документов, +50 вопросов юристу",
     "plan_max_expert":       "Тариф Максимум: +150 вопросов, +50 документов, +50 вопросов юристу",
+    "plan_corporate":        "Корпоративный тариф: +300 вопросов, +100 документов, +50 вопросов юристу",
     "lawyer_questions":      "+5 вопросов живому юристу",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
@@ -242,6 +243,18 @@ def grant_service(conn, user_id: int, service_type: str):
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 150,
                         paid_docs = paid_docs + 50,
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_questions_left = lawyer_questions_left + 50,
+                        purchased_plan = 'max'
+                    WHERE id = %s""",
+                (user_id,)
+            )
+        elif service_type == "plan_corporate":
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 300,
+                        paid_docs = paid_docs + 100,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_questions_left = lawyer_questions_left + 50,

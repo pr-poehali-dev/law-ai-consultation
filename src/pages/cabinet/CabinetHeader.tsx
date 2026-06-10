@@ -18,7 +18,6 @@ const TABS_DESKTOP = [
   { id: "chat", label: "Чат с AI", icon: "Bot" },
   { id: "docs", label: "Документы", icon: "FileText" },
   { id: "expert", label: "Юрист", icon: "UserCheck" },
-  { id: "business", label: "Бизнес", icon: "Briefcase" },
   { id: "history", label: "История", icon: "Clock" },
   { id: "profile", label: "Профиль", icon: "User" },
 ];
@@ -27,7 +26,7 @@ const TABS_MOBILE = [
   { id: "chat", label: "Чат", icon: "Bot" },
   { id: "docs", label: "Доки", icon: "FileText" },
   { id: "expert", label: "Юрист", icon: "UserCheck" },
-  { id: "business", label: "Бизнес", icon: "Briefcase" },
+  { id: "history", label: "История", icon: "Clock" },
   { id: "profile", label: "Профиль", icon: "User" },
 ];
 

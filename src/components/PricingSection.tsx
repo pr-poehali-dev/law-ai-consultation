@@ -81,15 +81,17 @@ const USER_PLANS = [
   },
 ];
 
-const BIZ_FEATURES = [
-  { icon: "Zap", text: "150 юридических действий/мес" },
-  { icon: "FileSearch", text: "Анализ договоров PDF и DOC" },
-  { icon: "GitCompare", text: "Сравнение документов" },
-  { icon: "Search", text: "Проверка контрагентов (due diligence)" },
-  { icon: "Stamp", text: "Приказы и корпоративные документы" },
-  { icon: "Download", text: "Скачивание договоров в .doc" },
-  { icon: "Clock", text: "История запросов 24 часа" },
-  { icon: "Plus", text: "Возможность докупить действия" },
+const CORP_FEATURES = [
+  { icon: "MessageCircle", text: "300 вопросов AI-юристу" },
+  { icon: "FileText", text: "100 юридических документов" },
+  { icon: "UserCheck", text: "50 вопросов живому юристу" },
+  { icon: "BookOpen", text: "Поиск судебной практики" },
+  { icon: "Calculator", text: "Калькулятор неустойки" },
+  { icon: "MapPin", text: "Определение подсудности" },
+  { icon: "Upload", text: "Загрузка PDF, DOCX, фото для анализа" },
+  { icon: "Shield", text: "Приоритетная поддержка" },
+  { icon: "PenLine", text: "2 документа от живого юриста" },
+  { icon: "Download", text: "Скачивание документов в .doc" },
 ];
 
 export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSectionProps) {
@@ -243,10 +245,10 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
           ))}
         </div>
 
-        {/* Бизнес-тариф */}
+        {/* Корпоративный тариф */}
         <div
           className="biz-card-animate relative rounded-3xl overflow-hidden border border-gold-500/20 cursor-pointer group transition-all duration-300 hover:shadow-2xl hover:shadow-black/40"
-          onClick={() => onSelectPlan("Бизнес-тариф", "4 990", "business_subscription")}
+          onClick={() => onSelectPlan("Корпоративный тариф", "9 990", "plan_corporate")}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700" />
           <div className="absolute top-0 right-0 w-80 h-80 bg-gold-400/8 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
@@ -258,22 +260,21 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
               <div className="flex-shrink-0">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 bg-gold-400/20 rounded-2xl flex items-center justify-center">
-                    <Icon name="Briefcase" size={22} className="text-gold-400" />
+                    <Icon name="Building2" size={22} className="text-gold-400" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold bg-gold-400/20 text-gold-300 px-2.5 py-1 rounded-full uppercase tracking-wider">Для бизнеса</span>
-                    <h3 className="font-cormorant font-bold text-2xl sm:text-3xl text-white mt-1">Бизнес-тариф</h3>
+                    <span className="text-[10px] font-bold bg-gold-400/20 text-gold-300 px-2.5 py-1 rounded-full uppercase tracking-wider">Для компаний</span>
+                    <h3 className="font-cormorant font-bold text-2xl sm:text-3xl text-white mt-1">Корпоративный</h3>
                   </div>
                 </div>
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-cormorant font-bold text-5xl shimmer-gold">4 990 ₽</span>
-                  <span className="text-white/50 text-sm">/ месяц</span>
+                  <span className="font-cormorant font-bold text-5xl shimmer-gold">9 990 ₽</span>
                 </div>
                 <p className="text-white/75 text-sm mb-5 max-w-xs">
-                  Полный юридический инструментарий для вашего бизнеса
+                  Максимальный пакет — всё включено для юридических нужд компании
                 </p>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onSelectPlan("Бизнес-тариф", "4 990", "business_subscription"); }}
+                  onClick={(e) => { e.stopPropagation(); onSelectPlan("Корпоративный тариф", "9 990", "plan_corporate"); }}
                   className="btn-gold px-6 py-3.5 rounded-2xl font-semibold flex items-center gap-2 text-sm group-hover:scale-[1.02] transition-transform"
                 >
                   <Icon name="Zap" size={15} />
@@ -284,34 +285,15 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
               <div className="hidden md:block w-px bg-white/10 self-stretch" />
 
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {BIZ_FEATURES.map((f) => (
+                {CORP_FEATURES.map((f) => (
                   <div key={f.text} className="flex items-center gap-2.5 group/item">
                     <div className="w-7 h-7 bg-white/8 border border-white/10 rounded-xl flex items-center justify-center shrink-0 group-hover/item:bg-gold-400/20 group-hover/item:border-gold-400/20 transition-all">
-                      <Icon name={f.icon} size={13} className="text-gold-400" />
+                      <Icon name={f.icon as Parameters<typeof Icon>[0]["name"]} size={13} className="text-gold-400" />
                     </div>
                     <span className="text-sm text-white/70 group-hover/item:text-white transition-colors">{f.text}</span>
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="mt-6 pt-5 border-t border-white/10 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-white/60 font-medium">Докупить действия:</span>
-              {[
-                { label: "+10", price: "1 000 ₽", id: "business_actions_10" },
-                { label: "+30", price: "3 000 ₽", id: "business_actions_30" },
-                { label: "+50", price: "3 500 ₽", id: "business_actions_50" },
-                { label: "+150", price: "9 000 ₽", id: "business_actions_150" },
-              ].map((a) => (
-                <button
-                  key={a.id}
-                  onClick={(e) => { e.stopPropagation(); onSelectPlan(`${a.label} действий`, a.price, a.id); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/8 hover:bg-white/15 border border-white/10 hover:border-gold-400/30 text-white/60 hover:text-white rounded-xl text-xs font-medium transition-all"
-                >
-                  <Icon name="Plus" size={11} />
-                  {a.label} — {a.price}
-                </button>
-              ))}
             </div>
           </div>
         </div>

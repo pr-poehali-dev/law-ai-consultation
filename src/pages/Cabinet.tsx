@@ -18,7 +18,7 @@ import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
 import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
 import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
 
-type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
+type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
 
 export default function Cabinet() {
   const navigate = useNavigate();

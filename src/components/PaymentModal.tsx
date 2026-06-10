@@ -22,6 +22,7 @@ export type ServiceType =
   | "plan_pro"
   | "plan_max"
   | "plan_max_expert"
+  | "plan_corporate"
   | "business_subscription"
   | "business_actions_10"
   | "business_actions_30"

@@ -12,13 +12,12 @@ import { type DocType } from "@/pages/cabinet/docBlocks";
 import HistoryTab from "@/pages/cabinet/HistoryTab";
 import ProfileTab from "@/pages/cabinet/ProfileTab";
 import ExpertTab from "@/pages/cabinet/ExpertTab";
-import BusinessTab from "@/pages/cabinet/BusinessTab";
 import AdminTab from "@/pages/cabinet/AdminTab";
 import type { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import type { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
 import { savePendingAction } from "@/pages/cabinet/useCabinetPayment";
 
-type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
+type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
 type ChatLogic = ReturnType<typeof useChatLogic>;
 type DocsLogic = ReturnType<typeof useDocsLogic>;
 
@@ -261,13 +260,7 @@ export default function CabinetContent({
           />
         )}
 
-        {tab === "business" && (
-          <BusinessTab
-            user={user}
-            onPayClick={(type, name) => setPayment({ type, name })}
-            onRefreshUser={refreshUser}
-          />
-        )}
+
 
         {tab === "history" && (
           <HistoryTab
