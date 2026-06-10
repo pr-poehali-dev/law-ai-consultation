@@ -334,9 +334,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
         <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl"
           style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)" }}>
           <Icon name="AlertTriangle" size={11} color="#b45309" className="shrink-0 mt-0.5" />
-          <p className="text-[10px] text-amber-800 leading-snug">
-            Поиск по базе ведётся только по документам, загруженным администратором. Результаты носят справочный характер.
-          </p>
+          <p className="text-[10px] text-amber-800 leading-snug">Результаты носят справочный характер.</p>
         </div>
       </div>
     </div>
