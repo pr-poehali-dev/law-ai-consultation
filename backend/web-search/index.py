@@ -75,19 +75,42 @@ def _http_get(url: str, api_key: str, timeout: int = 10) -> dict:
 
 def _parse_xml_results(xml: str) -> list:
     results = []
-    docs = re.findall(r"<doc>(.*?)</doc>", xml, re.DOTALL)
-    for doc in docs:
-        def _tag(name: str) -> str:
-            m = re.search(rf"<{name}[^>]*>(.*?)</{name}>", doc, re.DOTALL)
-            return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else ""
-        url_val  = _tag("url")
-        title    = _tag("title")
+
+    def _tag_from(text: str, name: str) -> str:
+        m = re.search(rf"<{name}[^>]*>(.*?)</{name}>", text, re.DOTALL)
+        return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else ""
+
+    # Пробуем оба варианта тегов: <doc> (старый) и <document> (новый v2)
+    doc_blocks = re.findall(r"<doc>(.*?)</doc>", xml, re.DOTALL)
+    if not doc_blocks:
+        doc_blocks = re.findall(r"<document>(.*?)</document>", xml, re.DOTALL)
+
+    print(f"[WEB_SEARCH] found {len(doc_blocks)} doc blocks in XML")
+
+    for doc in doc_blocks:
+        url_val  = _tag_from(doc, "url")
+        title    = _tag_from(doc, "title")
         passages = re.findall(r"<passage>(.*?)</passage>", doc, re.DOTALL)
-        snippet  = " ".join(re.sub(r"<[^>]+>", "", p).strip() for p in passages) or _tag("headline")
+        snippet  = " ".join(re.sub(r"<[^>]+>", "", p).strip() for p in passages) or _tag_from(doc, "headline")
         if not url_val:
             continue
         source = next((s for s in LEGAL_SITES if s in url_val), "")
         results.append({"url": url_val, "title": title, "snippet": snippet[:500], "source": source})
+
+    # Если блоков нет — ищем <group> обёртки
+    if not results:
+        groups = re.findall(r"<group>(.*?)</group>", xml, re.DOTALL)
+        print(f"[WEB_SEARCH] found {len(groups)} group blocks")
+        for grp in groups:
+            url_val  = _tag_from(grp, "url")
+            title    = _tag_from(grp, "title")
+            passages = re.findall(r"<passage>(.*?)</passage>", grp, re.DOTALL)
+            snippet  = " ".join(re.sub(r"<[^>]+>", "", p).strip() for p in passages) or _tag_from(grp, "headline")
+            if not url_val:
+                continue
+            source = next((s for s in LEGAL_SITES if s in url_val), "")
+            results.append({"url": url_val, "title": title, "snippet": snippet[:500], "source": source})
+
     return results
 
 
