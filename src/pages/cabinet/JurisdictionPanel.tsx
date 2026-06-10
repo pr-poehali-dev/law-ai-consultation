@@ -264,21 +264,32 @@ function determineJurisdiction(s1: Step1, s2: Step2): JurisdictionResult {
     article = "ст. 35 АПК РФ";
     articleFull = "Статья 35 АПК РФ: иск предъявляется в арбитражный суд субъекта РФ по месту нахождения или месту жительства ответчика.";
   } else {
-    courtName = `Районный суд по адресу: ${addr}`;
+    // Для судов общей юрисдикции — строим запрос по полному адресу ответчика
+    // чтобы Яндекс нашёл конкретный районный/городской суд
+    courtName = region ? `районный суд ${region}` : "районный суд";
     article = "ст. 28 ГПК РФ";
     articleFull = "Статья 28 ГПК РФ: иск предъявляется в суд по месту жительства ответчика или по месту нахождения организации-ответчика.";
   }
+
+  // Для судов общей юрисдикции используем полный адрес для точного поиска
+  const searchQuery = ct === "general"
+    ? `site:sudrf.ru районный суд "${addr}" адрес официальный сайт`
+    : buildSearchQuery(courtName, ct);
 
   return {
     rule: "Общее правило — по адресу ответчика",
     article,
     articleFull,
     courtType: ct,
-    searchQuery: buildSearchQuery(courtName, ct),
+    searchQuery,
     court: FALLBACK[courtName] || null,
     nextSteps: ct === "arbitration"
       ? ["Подайте иск в арбитражный суд субъекта РФ по адресу ответчика", "Найдите конкретный суд на сайте arbitr.ru"]
-      : ["Подайте иск в районный суд по адресу ответчика", "Найдите конкретный суд на сайте sudrf.ru"],
+      : [
+          `Найдите суд по адресу ответчика: ${addr}`,
+          "Определите конкретный районный/городской суд на сайте sudrf.ru",
+          "Введите адрес в строку поиска на сайте вашего региона",
+        ],
   };
 }
 
@@ -327,9 +338,18 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
         body: JSON.stringify({ query: jr.searchQuery, limit: 5 }),
       });
       const data = await res.json();
-      const court = parseCourtFromSearch(data.results || []) || jr.court || {
-        name: jr.searchQuery.replace(/site:\S+\s*/, "").replace(/"([^"]+)".*/, "$1"),
-        address: "Уточните адрес на сайте суда",
+      const parsed = parseCourtFromSearch(data.results || []);
+      // Для судов общей юрисдикции — строим умный fallback со ссылкой на поиск суда
+      const generalFallback = jr.courtType === "general" ? {
+        name: `Суд по адресу: ${s2.defendantAddress}`,
+        address: "Определите конкретный суд по адресу ответчика",
+        phone: "",
+        website: `https://sudrf.ru/index.php?id=300&act=go_search&searchtype=fs&court_subj=0&fs_text=${encodeURIComponent(s2.defendantAddress)}`,
+        source: "sudrf.ru",
+      } : null;
+      const court = parsed || jr.court || generalFallback || {
+        name: "Суд не найден автоматически",
+        address: "Уточните суд на сайте",
         phone: "",
         website: jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru",
         source: "справочник",
@@ -690,7 +710,9 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                         <a href={result.court.website} target="_blank" rel="noopener noreferrer"
                           className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
                           <Icon name="ExternalLink" size={10} color="#3b82f6" />
-                          {result.court.website}
+                          {result.court.source === "sudrf.ru" && result.court.website.includes("fs_text")
+                            ? "Найти суд по адресу на sudrf.ru →"
+                            : result.court.website}
                         </a>
                       )}
                     </div>
