@@ -75,12 +75,16 @@ def handler(event: dict, context) -> dict:
         except Exception:
             return _err(400, "Невалидный JSON")
 
-    defendant_address = (body.get("defendant_address") or "").strip()
-    plaintiff_address = (body.get("plaintiff_address") or "").strip()
-    court_type        = (body.get("court_type") or "general").strip()   # general | arbitration | ip
-    case_category     = (body.get("case_category") or "general").strip()
-    jurisdiction_rule = (body.get("jurisdiction_rule") or "").strip()
-    article           = (body.get("article") or "").strip()
+    defendant_address   = (body.get("defendant_address") or "").strip()
+    plaintiff_address   = (body.get("plaintiff_address") or "").strip()
+    court_type          = (body.get("court_type") or "general").strip()
+    case_category       = (body.get("case_category") or "general").strip()
+    jurisdiction_rule   = (body.get("jurisdiction_rule") or "").strip()
+    article             = (body.get("article") or "").strip()
+    plaintiff_type      = (body.get("plaintiff_type") or "individual").strip()
+    defendant_type      = (body.get("defendant_type") or "individual").strip()
+    is_business         = bool(body.get("is_business", False))
+    real_estate_address = (body.get("real_estate_address") or "").strip()
 
     if not defendant_address:
         return _err(400, "Укажите адрес ответчика")
@@ -111,25 +115,28 @@ def handler(event: dict, context) -> dict:
 6. Для крупных городов с несколькими районными судами — выбирай по адресу ответчика
 7. Для малых городов и районов — городской или районный суд того муниципального района"""
 
+    plaintiff_labels = {"individual": "физическое лицо", "ip": "ИП/самозанятый", "org": "организация"}
+    defendant_labels = {"individual": "физическое лицо", "ip": "ИП/самозанятый", "org": "организация"}
+    category_map = {
+        "consumer": "защита прав потребителей", "labor": "трудовой спор",
+        "children": "алименты/дети", "divorce": "расторжение брака",
+        "harm": "возмещение вреда", "realestate": "спор о недвижимости",
+        "inheritance": "наследство", "ip_rights": "интеллектуальная собственность",
+        "general": "общий спор",
+    }
+
     user_message_parts = [
         f"Тип суда: {court_type_label}",
+        f"Истец: {plaintiff_labels.get(plaintiff_type, plaintiff_type)}",
+        f"Ответчик: {defendant_labels.get(defendant_type, defendant_type)}",
+        f"Предпринимательский спор: {'да' if is_business else 'нет'}",
+        f"Категория спора: {category_map.get(case_category, case_category)}",
         f"Адрес ответчика: {defendant_address}",
     ]
     if plaintiff_address:
         user_message_parts.append(f"Адрес истца: {plaintiff_address}")
-    if case_category:
-        category_map = {
-            "consumer": "защита прав потребителей",
-            "labor": "трудовой спор",
-            "children": "алименты/дети",
-            "divorce": "расторжение брака",
-            "harm": "возмещение вреда",
-            "realestate": "спор о недвижимости",
-            "inheritance": "наследство",
-            "ip_rights": "интеллектуальная собственность",
-            "general": "общий спор",
-        }
-        user_message_parts.append(f"Категория спора: {category_map.get(case_category, case_category)}")
+    if real_estate_address:
+        user_message_parts.append(f"Адрес недвижимости (спорной): {real_estate_address}")
     if jurisdiction_rule:
         user_message_parts.append(f"Правило подсудности: {jurisdiction_rule}")
     if article:

@@ -73,9 +73,11 @@ function extractRegion(address: string): string {
 
 function getCourtType(s1: Step1, caseCategory: CaseCategory): "arbitration" | "general" | "ip" {
   if (caseCategory === "ip_rights") return "ip";
-  if (s1.isBusiness && (s1.plaintiff !== "individual" || s1.defendant !== "individual")) return "arbitration";
-  if (s1.plaintiff === "org" && s1.defendant === "org") return "arbitration";
-  if ((s1.plaintiff === "ip" || s1.defendant === "ip") && s1.isBusiness) return "arbitration";
+  // Арбитражный суд — только если спор предпринимательский И обе стороны ИП/организации
+  // Физлицо-потребитель против организации → всегда суд общей юрисдикции
+  if (s1.plaintiff === "individual") return "general"; // физлицо всегда идёт в общий суд
+  if (s1.isBusiness && s1.plaintiff !== "individual" && s1.defendant !== "individual") return "arbitration";
+  if (s1.plaintiff === "org" || (s1.plaintiff === "ip" && s1.isBusiness)) return "arbitration";
   return "general";
 }
 
@@ -343,6 +345,10 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
           case_category:     s2.caseCategory,
           jurisdiction_rule: jr.rule,
           article:           jr.article,
+          plaintiff_type:    s1.plaintiff,    // individual | ip | org
+          defendant_type:    s1.defendant,    // individual | ip | org
+          is_business:       s1.isBusiness,
+          real_estate_address: s2.realEstateAddress || "",
         }),
       });
       const data = await res.json();
