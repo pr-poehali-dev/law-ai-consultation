@@ -968,7 +968,7 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
           <Icon name="Scale" size={16} className="text-navy-600 group-hover:text-navy-800 transition-colors" />
           <span
             className="text-[10px] font-bold text-navy-500 tracking-widest group-hover:text-navy-700 transition-colors"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
           >
             ДЕЛА
           </span>
