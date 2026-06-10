@@ -400,6 +400,34 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
           </div>
         </div>
 
+        {/* Примечание ст. 193 ГК РФ — если начало на выходном */}
+        {dateStart && (() => {
+          const d = new Date(dateStart);
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) return null;
+          const dayName = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"][dow];
+          const prev = new Date(d); prev.setDate(prev.getDate() - 1);
+          const prevStr = `${String(prev.getDate()).padStart(2,"0")}.${String(prev.getMonth()+1).padStart(2,"0")}.${prev.getFullYear()}`;
+          const prevDay = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"][prev.getDay()];
+          const nw = new Date(d);
+          while (nw.getDay() === 0 || nw.getDay() === 6) nw.setDate(nw.getDate() + 1);
+          const nwStr = `${String(nw.getDate()).padStart(2,"0")}.${String(nw.getMonth()+1).padStart(2,"0")}.${nw.getFullYear()}`;
+          const fp = new Date(nw); fp.setDate(fp.getDate() + 1);
+          const fpStr = `${String(fp.getDate()).padStart(2,"0")}.${String(fp.getMonth()+1).padStart(2,"0")}.${fp.getFullYear()}`;
+          const startStr = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
+          return (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl"
+              style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.25)" }}>
+              <Icon name="AlertTriangle" size={12} color="#d97706" className="shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-800 leading-snug">
+                <strong>{startStr} ({dayName})</strong> — выходной день. По ст. 193 ГК РФ последним
+                днём оплаты считается <strong>{prevStr} ({prevDay})</strong>, ближайший рабочий
+                день — <strong>{nwStr}</strong>, первый день просрочки — <strong>{fpStr}</strong>.
+              </p>
+            </div>
+          );
+        })()}
+
         {/* Параметры ставки — компактно */}
         {mode === "percent" && (
           <div>
