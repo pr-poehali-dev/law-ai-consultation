@@ -98,14 +98,16 @@ export default function ChatTab({
   const [showPremiumPopup, setShowPremiumPopup] = useState(false);
 
   const handleQuickAction = (text: string) => {
-    if (text === "__penalty__") { setActiveTool("penalty"); return; }
-    if (text === "__duty__")    { setActiveTool("duty");    return; }
-    // Премиум-инструменты: проверяем доступ
-    if (text === "__case_law__" || text === "__jurisdiction__") {
-      if (!user.isAdmin && !hasPurchasedPlan(user)) { setShowPremiumPopup(true); return; }
-      if (text === "__case_law__")    { setActiveTool("case_law");     return; }
-      if (text === "__jurisdiction__") { setActiveTool("jurisdiction"); return; }
+    // Все инструменты требуют тариф «Старт» и выше
+    const premiumTools = ["__penalty__", "__duty__", "__case_law__", "__jurisdiction__"];
+    if (premiumTools.includes(text) && !user.isAdmin && !hasPurchasedPlan(user)) {
+      setShowPremiumPopup(true);
+      return;
     }
+    if (text === "__penalty__")      { setActiveTool("penalty");      return; }
+    if (text === "__duty__")         { setActiveTool("duty");         return; }
+    if (text === "__case_law__")     { setActiveTool("case_law");     return; }
+    if (text === "__jurisdiction__") { setActiveTool("jurisdiction"); return; }
     onSend(text);
   };
 

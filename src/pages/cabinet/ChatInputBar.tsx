@@ -218,10 +218,10 @@ export default function ChatInputBar({
       {!hasFiles && (
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {[
-            { icon: "Calculator", label: "Калькулятор неустойки",       text: "__penalty__",      premium: false },
-            { icon: "Landmark",   label: "Госпошлина",                  text: "__duty__",         premium: false },
-            { icon: "BookOpen",   label: "Судебная практика",           text: "__case_law__",     premium: true  },
-            { icon: "MapPin",     label: "Территориальная подсудность", text: "__jurisdiction__", premium: true  },
+            { icon: "Calculator", label: "Калькулятор неустойки",       text: "__penalty__"      },
+            { icon: "Landmark",   label: "Госпошлина",                  text: "__duty__"          },
+            { icon: "BookOpen",   label: "Судебная практика",           text: "__case_law__"      },
+            { icon: "MapPin",     label: "Территориальная подсудность", text: "__jurisdiction__"  },
           ].map(({ icon, label, text }) => (
             <button
               key={label}
