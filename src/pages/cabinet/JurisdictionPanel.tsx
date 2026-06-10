@@ -3,8 +3,7 @@ import Icon from "@/components/ui/icon";
 import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
-const WEB_SEARCH_URL = (func2url as Record<string, string>)["web-search"];
-const AI_CHAT_URL    = (func2url as Record<string, string>)["ai-chat"];
+const COURT_FINDER_URL = (func2url as Record<string, string>)["court-finder"];
 
 interface Props {
   onClose: () => void;
@@ -332,93 +331,35 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
     setResult({ ...jr, court: null });
 
     const token = getToken();
-    const defendantAddr = s2.defendantAddress;
 
     try {
-      const courtTypeLabel = jr.courtType === "arbitration"
-        ? "арбитражный суд субъекта РФ"
-        : jr.courtType === "ip"
-        ? "Суд по интеллектуальным правам"
-        : "районный или городской суд общей юрисдикции";
-
-      const plaintiffLabels: Record<string, string> = { individual: "физическое лицо", ip: "ИП/самозанятый", org: "организация" };
-      const defendantLabels: Record<string, string> = { individual: "физическое лицо", ip: "ИП/самозанятый", org: "организация" };
-      const categoryLabels: Record<string, string> = {
-        consumer: "защита прав потребителей", labor: "трудовой спор", children: "алименты/дети",
-        divorce: "расторжение брака", harm: "возмещение вреда", realestate: "спор о недвижимости",
-        inheritance: "наследство", ip_rights: "интеллектуальная собственность", general: "общий спор",
-      };
-
-      const systemPrompt = `Ты — справочная система судов РФ. Отвечай ТОЛЬКО в формате JSON. Никакого другого текста.
-
-По данным о споре определи конкретный ${courtTypeLabel} и верни строго в формате:
-{"name":"полное официальное наименование суда","address":"почтовый адрес суда с индексом","phone":"телефон приёмной или пустая строка","website":"https://официальный сайт суда"}
-
-Правила определения суда:
-- Для судов общей юрисдикции — районный или городской суд по адресу ответчика (или по адресу истца если применима альтернативная подсудность)
-- Для арбитражных — арбитражный суд субъекта РФ по адресу ответчика
-- name: полное официальное название (например "Бахчисарайский районный суд Республики Крым" или "Арбитражный суд Краснодарского края")
-- address: реальный почтовый адрес суда с индексом (не адрес ответчика!)
-- website: для арбитражных — https://[регион].arbitr.ru, для общих — региональный сайт sudrf.ru
-- В Москве: для районных дел указывай конкретный районный суд по адресу
-- Если не знаешь точный телефон — верни пустую строку ""`;
-
-      // Передаём все данные пользователя для точного определения
-      const userMessage = [
-        `Истец: ${plaintiffLabels[s1.plaintiff]}`,
-        `Ответчик: ${defendantLabels[s1.defendant]}`,
-        `Бизнес-спор: ${s1.isBusiness ? "да" : "нет"}`,
-        `Категория спора: ${categoryLabels[s2.caseCategory] || s2.caseCategory}`,
-        `Адрес ответчика: ${s2.defendantAddress}`,
-        s2.plaintiffAddress ? `Адрес истца: ${s2.plaintiffAddress}` : "",
-        s2.realEstateAddress ? `Адрес недвижимости: ${s2.realEstateAddress}` : "",
-        `Применимое правило: ${jr.rule}`,
-        `Основание: ${jr.article}`,
-      ].filter(Boolean).join("\n");
-
-      const res = await fetch(AI_CHAT_URL, {
+      const res = await fetch(COURT_FINDER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
+          defendant_address: s2.defendantAddress,
+          plaintiff_address: s2.plaintiffAddress || "",
+          court_type:        jr.courtType,
+          case_category:     s2.caseCategory,
+          jurisdiction_rule: jr.rule,
+          article:           jr.article,
         }),
       });
       const data = await res.json();
-      const answer = (data.answer || "").trim();
 
-      // Парсим JSON из ответа
-      let court: CourtInfo | null = null;
-      try {
-        const jsonMatch = answer.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.name) {
-            court = {
-              name: parsed.name,
-              address: parsed.address || "",
-              phone: parsed.phone || "",
-              website: parsed.website || (jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru"),
-              source: "YandexGPT",
-            };
-          }
-        }
-      } catch { /* ignore parse error */ }
-
-      // Fallback — если GPT не дал JSON
-      if (!court) {
-        court = jr.court || {
-          name: jr.courtType === "general"
-            ? `Районный суд по адресу ответчика`
-            : `Арбитражный суд субъекта РФ`,
-          address: "Уточните адрес на сайте суда",
-          phone: "",
-          website: jr.courtType === "arbitration" ? "https://arbitr.ru" : `https://sudrf.ru/index.php?id=300&act=go_search&searchtype=fs&fs_text=${encodeURIComponent(defendantAddr)}`,
-          source: "справочник",
-        };
-      }
+      const court: CourtInfo = data.name ? {
+        name:    data.name,
+        address: data.address || "",
+        phone:   data.phone   || "",
+        website: data.website || (jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru"),
+        source:  data.source  || "DeepSeek",
+      } : jr.court || {
+        name:    "Уточните суд самостоятельно",
+        address: "",
+        phone:   "",
+        website: jr.courtType === "arbitration" ? "https://arbitr.ru" : "https://sudrf.ru",
+        source:  "справочник",
+      };
 
       setResult({ ...jr, court });
     } catch {
