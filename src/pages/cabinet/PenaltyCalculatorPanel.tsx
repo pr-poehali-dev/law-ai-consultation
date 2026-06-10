@@ -229,28 +229,46 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     return h;
   };
 
+  const getRateDisplay = () => {
+    if (mode === "percent") return `${ratePercent}% в день`;
+    if (mode === "cbr") return `1/${cbrFraction} × ${cbrRate}% ЦБ = ${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}% в день`;
+    return `${fixedDay} ₽/день (фиксировано)`;
+  };
+
+  const getFormula = () => {
+    if (mode === "percent") return `Долг × ${ratePercent}% × Дней ÷ 100`;
+    if (mode === "cbr") return `Долг × (${cbrRate}% ÷ 100) × (1 ÷ ${cbrFraction}) × Дней`;
+    return `${fixedDay} ₽ × Дней`;
+  };
+
   const buildPeriodTable = () => {
     if (!result) return "";
-    let t = `\nДетализация по периодам:\n`;
-    t += `Период | Долг (₽) | Дней | Пени (₽)\n`;
+    const rateD = mode === "percent" ? `${ratePercent}%` : mode === "cbr" ? `${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}%` : `${fixedDay}₽`;
+    let t = `\nФормула: ${getFormula()}\nСтавка: ${getRateDisplay()}\n`;
+    t += `Период просрочки: ${dateStart} — ${dateEnd}\n\n`;
+    t += `Детализация по периодам:\n`;
+    t += `Период | Долг (₽) | Ставка | Дней | Пени (₽)\n`;
     for (const p of result.periods) {
-      t += `${p.from.slice(5)} – ${p.to.slice(5)} | ${fmt(p.debt)} | ${p.days} | ${fmt(p.penalty)}\n`;
+      t += `${p.from.slice(5)} – ${p.to.slice(5)} | ${fmt(p.debt)} | ${rateD} | ${p.days} | ${fmt(p.penalty)}\n`;
     }
-    t += `Итого: ${fmt(result.total)} руб.\n`;
+    t += `\nИтого: ${fmt(result.total)} руб.\n`;
     return t;
   };
 
   const buildDayTable = () => {
     if (!result) return "";
+    const rateD = mode === "percent" ? `${ratePercent}%` : mode === "cbr" ? `${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}%` : `${fixedDay}₽`;
     let acc = 0;
-    let t = `\nДетализация по дням:\n`;
-    t += `Дата | Долг (₽) | За день (₽) | Накоплено (₽)\n`;
+    let t = `\nФормула: ${getFormula()}\nСтавка: ${getRateDisplay()}\n`;
+    t += `Период просрочки: ${dateStart} — ${dateEnd}\n\n`;
+    t += `Детализация по дням:\n`;
+    t += `Дата | Долг (₽) | Ставка | За день (₽) | Накоплено (₽)\n`;
     for (const p of result.periods) {
       const dayPenalty = p.penalty / p.days;
       for (let d = 0; d < p.days; d++) {
         const date = addDays(p.from, d);
         acc += dayPenalty;
-        t += `${date.slice(5)} | ${fmt(p.debt)} | ${fmt(dayPenalty)} | ${fmt(acc)}\n`;
+        t += `${date.slice(5)} | ${fmt(p.debt)} | ${rateD} | ${fmt(dayPenalty)} | ${fmt(acc)}\n`;
       }
     }
     return t;
@@ -480,8 +498,50 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
                 }
               }
 
+              // Формула и ставка для отображения
+              const rateLabel = mode === "percent"
+                ? `${ratePercent}% в день`
+                : mode === "cbr"
+                  ? `1/${cbrFraction} × ${cbrRate}% ЦБ = ${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}% в день`
+                  : `${fixedDay} ₽/день (фиксировано)`;
+
+              const formulaLabel = mode === "percent"
+                ? `Долг × ${ratePercent}% × Дней ÷ 100`
+                : mode === "cbr"
+                  ? `Долг × (${cbrRate}% ÷ 100) × (1 ÷ ${cbrFraction}) × Дней`
+                  : `${fixedDay} ₽ × Дней`;
+
               return (
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                  {/* Параметры расчёта */}
+                  <div className="px-3 py-2.5 border-b border-slate-100 space-y-1.5"
+                    style={{ background: "linear-gradient(135deg,rgba(15,76,129,0.04),rgba(26,107,181,0.02))" }}>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Формула</p>
+                        <p className="text-[11px] font-semibold text-navy-700">{formulaLabel}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ставка</p>
+                        <p className="text-[11px] font-semibold text-blue-700">{rateLabel}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Начало</p>
+                        <p className="text-[11px] font-medium text-slate-700">{dateStart}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Конец (включ.)</p>
+                        <p className="text-[11px] font-medium text-slate-700">{dateEnd}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Всего дней</p>
+                        <p className="text-[11px] font-bold text-blue-700">{dayRows.length}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Шапка с переключателем */}
                   <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50">
                     <p className="text-[10px] font-bold text-slate-600">Детализация</p>
@@ -504,26 +564,35 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
                       <table className="w-full" style={{ fontSize: "11px" }}>
                         <thead className="sticky top-0 bg-white z-10">
                           <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                            <th className="px-2.5 py-1.5 text-left font-semibold text-slate-500">Период</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Дн.</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Пени, ₽</th>
+                            <th className="px-2 py-1.5 text-left font-semibold text-slate-500">Период</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Ставка</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Дн.</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Пени, ₽</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {result.periods.map((p, i) => (
-                            <tr key={i} style={{ borderTop: "1px solid #f8fafc" }}>
-                              <td className="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">{p.from.slice(5)} – {p.to.slice(5)}</td>
-                              <td className="px-2.5 py-1.5 text-right text-slate-700">{fmt(p.debt)}</td>
-                              <td className="px-2.5 py-1.5 text-right text-slate-500">{p.days}</td>
-                              <td className="px-2.5 py-1.5 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
-                            </tr>
-                          ))}
+                          {result.periods.map((p, i) => {
+                            const rateDisplay = mode === "percent"
+                              ? `${ratePercent}%`
+                              : mode === "cbr"
+                                ? `${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}%`
+                                : `${fixedDay}₽`;
+                            return (
+                              <tr key={i} style={{ borderTop: "1px solid #f8fafc" }}>
+                                <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap">{p.from.slice(5)} – {p.to.slice(5)}</td>
+                                <td className="px-2 py-1.5 text-right text-slate-700">{fmt(p.debt)}</td>
+                                <td className="px-2 py-1.5 text-right text-amber-600 font-semibold">{rateDisplay}</td>
+                                <td className="px-2 py-1.5 text-right text-slate-500">{p.days}</td>
+                                <td className="px-2 py-1.5 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                         <tfoot>
                           <tr className="bg-slate-50" style={{ borderTop: "1px solid #e2e8f0" }}>
-                            <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого</td>
-                            <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
+                            <td colSpan={4} className="px-2 py-1.5 font-bold text-slate-700">Итого</td>
+                            <td className="px-2 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
                           </tr>
                         </tfoot>
                       </table>
@@ -531,26 +600,35 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
                       <table className="w-full" style={{ fontSize: "11px" }}>
                         <thead className="sticky top-0 bg-white z-10">
                           <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                            <th className="px-2.5 py-1.5 text-left font-semibold text-slate-500">Дата</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">За день, ₽</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Накоплено, ₽</th>
+                            <th className="px-2 py-1.5 text-left font-semibold text-slate-500">Дата</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Ставка</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">За день, ₽</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-slate-500">Итого, ₽</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {dayRows.map((row, i) => (
-                            <tr key={i} style={{ borderTop: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
-                              <td className="px-2.5 py-1 text-slate-600 whitespace-nowrap font-medium">{row.date.slice(5)}</td>
-                              <td className="px-2.5 py-1 text-right text-slate-600">{fmt(row.debt)}</td>
-                              <td className="px-2.5 py-1 text-right text-blue-600 font-semibold">{fmt(row.penalty)}</td>
-                              <td className="px-2.5 py-1 text-right text-slate-700 font-bold">{fmt(row.accumulated)}</td>
-                            </tr>
-                          ))}
+                          {dayRows.map((row, i) => {
+                            const rateDisplay = mode === "percent"
+                              ? `${ratePercent}%`
+                              : mode === "cbr"
+                                ? `${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}%`
+                                : `${fixedDay}₽`;
+                            return (
+                              <tr key={i} style={{ borderTop: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+                                <td className="px-2 py-1 text-slate-600 whitespace-nowrap font-medium">{row.date.slice(5)}</td>
+                                <td className="px-2 py-1 text-right text-slate-600">{fmt(row.debt)}</td>
+                                <td className="px-2 py-1 text-right text-amber-600 font-semibold">{rateDisplay}</td>
+                                <td className="px-2 py-1 text-right text-blue-600 font-semibold">{fmt(row.penalty)}</td>
+                                <td className="px-2 py-1 text-right text-slate-700 font-bold">{fmt(row.accumulated)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                         <tfoot>
                           <tr className="bg-slate-50" style={{ borderTop: "1px solid #e2e8f0" }}>
-                            <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого ({dayRows.length} дней)</td>
-                            <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
+                            <td colSpan={4} className="px-2 py-1.5 font-bold text-slate-700">Итого ({dayRows.length} дней)</td>
+                            <td className="px-2 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
                           </tr>
                         </tfoot>
                       </table>
