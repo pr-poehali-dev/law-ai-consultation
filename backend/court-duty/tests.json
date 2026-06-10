@@ -1,0 +1,7 @@
+{
+  "tests": [
+    {"name": "OPTIONS preflight", "method": "OPTIONS", "path": "/", "expectedStatus": 200},
+    {"name": "GET rates", "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": {"rates": []}, "bodyMatcher": "partial"},
+    {"name": "POST without auth", "method": "POST", "path": "/", "body": {"id": 1}, "expectedStatus": 403}
+  ]
+}

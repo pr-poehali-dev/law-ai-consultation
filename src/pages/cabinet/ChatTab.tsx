@@ -8,6 +8,7 @@ import PWAInstallButton from "@/components/PWAInstallButton";
 import ChatMessageList from "@/pages/cabinet/ChatMessageList";
 import ChatInputBar from "@/pages/cabinet/ChatInputBar";
 import PenaltyCalculatorPanel from "@/pages/cabinet/PenaltyCalculatorPanel";
+import DutyCalculatorPanel from "@/pages/cabinet/DutyCalculatorPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; }
@@ -91,10 +92,11 @@ export default function ChatTab({
   const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const [showReport, setShowReport] = useState(false);
-  const [activeTool, setActiveTool] = useState<"penalty" | null>(null);
+  const [activeTool, setActiveTool] = useState<"penalty" | "duty" | null>(null);
 
   const handleQuickAction = (text: string) => {
     if (text === "__penalty__") { setActiveTool("penalty"); return; }
+    if (text === "__duty__") { setActiveTool("duty"); return; }
     onSend(text);
   };
 
@@ -245,10 +247,18 @@ export default function ChatTab({
                 boxShadow: "0 8px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)",
               }}
             >
-              <PenaltyCalculatorPanel
-                onClose={() => setActiveTool(null)}
-                onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
-              />
+              {activeTool === "penalty" && (
+                <PenaltyCalculatorPanel
+                  onClose={() => setActiveTool(null)}
+                  onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
+                />
+              )}
+              {activeTool === "duty" && (
+                <DutyCalculatorPanel
+                  onClose={() => setActiveTool(null)}
+                  onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
+                />
+              )}
             </div>
             {/* Хвостик облачка */}
             <div className="flex justify-center mt-1">
