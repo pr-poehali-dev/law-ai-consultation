@@ -400,35 +400,65 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 return _err(400, "Неверная категория")
 
             import re as _re
+
+            # ── Нормализация запроса для кодексов ───────────────────────────
+            # «ст. 333» → «статья 333», «ст.333» → «статья 333»
+            # «ч. 1» → «часть 1», «п. 2» → «пункт 2»
+            normalized_query = query
+            if category == "codex":
+                normalized_query = _re.sub(r"\bст\.\s*(\d)", r"статья \1", normalized_query, flags=_re.IGNORECASE)
+                normalized_query = _re.sub(r"\bч\.\s*(\d)", r"часть \1", normalized_query, flags=_re.IGNORECASE)
+                normalized_query = _re.sub(r"\bп\.\s*(\d)", r"пункт \1", normalized_query, flags=_re.IGNORECASE)
+                normalized_query = _re.sub(r"\bст\b", "статья", normalized_query, flags=_re.IGNORECASE)
+
+            # Извлекаем номера статей для точного поиска (напр. «333», «14.1»)
+            article_numbers = _re.findall(r"\b(\d+(?:\.\d+)?)\b", normalized_query)
+
             stop_words = {
                 "и","в","на","с","по","для","что","как","это","все","или","но","а","у","из","за",
                 "от","до","при","если","то","не","к","о","об","во","со","же","бы","ли","уже",
                 "еще","ещё","мне","мы","вы","он","она","они","был","быть","есть","так","там",
                 "тут","вот","да","нет","я","ты","под","над","без","между",
             }
-            words = _re.sub(r"[^\w\s]", " ", query.lower()).split()
+            words = _re.sub(r"[^\w\s]", " ", normalized_query.lower()).split()
             terms = [w for w in words if len(w) > 2 and w not in stop_words]
+            # Короткие числа (номера статей) НЕ фильтруем по длине
+            short_nums = [w for w in words if _re.match(r"^\d+$", w) and w not in stop_words]
+            terms = list(dict.fromkeys(terms + [n for n in short_nums if n not in terms]))
 
             if not terms:
                 return _ok({"results": [], "total": 0})
 
-            # Два варианта запроса: AND (все слова) и OR (хоть одно)
-            # AND даёт более точные результаты, OR — fallback
+            # AND (все слова) и OR (хоть одно)
             tsquery_and = " & ".join(f"{t}:*" for t in terms[:12])
             tsquery_or  = " | ".join(f"{t}:*" for t in terms[:12])
-            phrase_like = "%" + query.replace("%", "\\%").replace("_", "\\_") + "%"
+
+            # Несколько вариантов ILIKE для точного поиска фраз
+            phrase_orig  = "%" + query.replace("%", "\\%").replace("_", "\\_") + "%"
+            phrase_norm  = "%" + normalized_query.replace("%", "\\%").replace("_", "\\_") + "%"
+
+            # Для кодексов — дополнительный бонус за точный номер статьи
+            article_bonus_sql = "0.0"
+            article_params: list = []
+            if category == "codex" and article_numbers:
+                # Ищем «Статья 333» или «Статья 14.1» в начале абзаца
+                parts_sql = " OR ".join(
+                    f"c.content ~* %s" for _ in article_numbers
+                )
+                article_bonus_sql = f"CASE WHEN ({parts_sql}) THEN 5.0 ELSE 0.0 END"
+                # Паттерн: «Статья 333» с возможными пробелами и точкой
+                for num in article_numbers:
+                    article_params.append(f"(^|\\n)\\s*[Сс]татья\\.?\\s+{_re.escape(num)}[^\\d]")
 
             cur.execute(
                 f"""SELECT
                         c.content,
                         d.title, d.filename, d.doc_year, d.court_name, d.case_number,
                         d.description,
-                        -- базовый ранг по ts_rank
                         ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank_or,
-                        -- бонус: все слова присутствуют
                         CASE WHEN c.content_tsv @@ to_tsquery('russian', %s) THEN 2.0 ELSE 0.0 END AS bonus_and,
-                        -- бонус: точная фраза (ILIKE)
-                        CASE WHEN c.content ILIKE %s THEN 3.0 ELSE 0.0 END AS bonus_phrase
+                        CASE WHEN c.content ILIKE %s OR c.content ILIKE %s THEN 3.0 ELSE 0.0 END AS bonus_phrase,
+                        {article_bonus_sql} AS bonus_article
                     FROM {SCHEMA}.legal_doc_chunks c
                     JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
                     WHERE
@@ -438,24 +468,49 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     ORDER BY (
                         ts_rank(c.content_tsv, to_tsquery('russian', %s))
                         + CASE WHEN c.content_tsv @@ to_tsquery('russian', %s) THEN 2.0 ELSE 0.0 END
-                        + CASE WHEN c.content ILIKE %s THEN 3.0 ELSE 0.0 END
+                        + CASE WHEN c.content ILIKE %s OR c.content ILIKE %s THEN 3.0 ELSE 0.0 END
+                        + {article_bonus_sql}
                     ) DESC
                     LIMIT %s""",
-                (tsquery_or, tsquery_and, phrase_like,
-                 category, tsquery_or,
-                 tsquery_or, tsquery_and, phrase_like,
-                 limit)
+                ([tsquery_or, tsquery_and, phrase_orig, phrase_norm]
+                 + article_params
+                 + [category, tsquery_or,
+                    tsquery_or, tsquery_and, phrase_orig, phrase_norm]
+                 + article_params
+                 + [limit])
             )
             rows = cur.fetchall()
 
+            def _extract_article_snippet(content: str, art_nums: list) -> str:
+                """Для кодексов — вырезает фрагмент с заголовком статьи."""
+                if not art_nums:
+                    return content[:700]
+                for num in art_nums:
+                    pat = _re.compile(
+                        rf"([Сс]татья\.?\s+{_re.escape(num)}\b.*?)(?=[Сс]татья\.?\s+\d|\Z)",
+                        _re.DOTALL
+                    )
+                    m = pat.search(content)
+                    if m:
+                        return m.group(0)[:700]
+                return content[:700]
+
             results = []
-            seen_titles = {}
-            for content, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase in rows:
-                # Берём не более 2 чанков на документ
-                if seen_titles.get(title, 0) >= 2:
+            seen_titles: dict = {}
+            max_per_doc = 3 if category == "codex" else 2
+            for row in rows:
+                content, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase, bonus_article = row
+                if seen_titles.get(title, 0) >= max_per_doc:
                     continue
                 seen_titles[title] = seen_titles.get(title, 0) + 1
-                total_rank = float(rank_or) + float(bonus_and) + float(bonus_phrase)
+                total_rank = float(rank_or) + float(bonus_and) + float(bonus_phrase) + float(bonus_article)
+
+                # Умный сниппет для кодексов
+                if category == "codex" and article_numbers:
+                    snippet = _extract_article_snippet(content, article_numbers)
+                else:
+                    snippet = content[:700]
+
                 results.append({
                     "title": title,
                     "filename": filename or title,
@@ -463,13 +518,14 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     "court_name": court_name or "",
                     "case_number": case_number or "",
                     "description": description or "",
-                    "snippet": content[:600],
+                    "snippet": snippet,
                     "rank": total_rank,
-                    "exact_match": bonus_phrase > 0,
+                    "exact_match": bonus_phrase > 0 or bonus_article > 0,
                     "all_terms": bonus_and > 0,
+                    "article_match": float(bonus_article) > 0,
                 })
 
-            # Если результатов с AND > 0 — скрываем чисто OR-результаты (rank_or только, без бонусов)
+            # Если есть точные совпадения по статье или фразе — скрываем слабые
             has_strong = any(r["all_terms"] or r["exact_match"] for r in results)
             if has_strong:
                 results = [r for r in results if r["all_terms"] or r["exact_match"]]
