@@ -223,7 +223,8 @@ def handler(event: dict, context) -> dict:
         return _err(400, "Укажите поисковый запрос")
 
     folder_id = os.environ.get("YANDEX_FOLDER_ID", "").strip()
-    api_key   = os.environ.get("YANDEX_SEARCH_API_KEY", "").strip()
+    # Пробуем сначала выделенный ключ поиска, fallback — общий ключ YandexGPT
+    api_key   = (os.environ.get("YANDEX_SEARCH_API_KEY") or os.environ.get("YANDEX_IAM_TOKEN") or "").strip()
 
     if not folder_id or not api_key:
         return _err(503, "Yandex Search API не настроен. Добавьте YANDEX_FOLDER_ID и YANDEX_SEARCH_API_KEY в секреты.")
