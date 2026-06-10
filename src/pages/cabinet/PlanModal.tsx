@@ -86,6 +86,29 @@ export const PLANS: Plan[] = [
     badge: "Рекомендуем",
     color: "max",
   },
+  {
+    id: "plan_corporate",
+    name: "Корпоративный",
+    price: "9 990",
+    oldPrice: "",
+    questions: 300,
+    docs: 100,
+    lawyerFeature: "50 вопросов живому юристу + 2 документа от юриста",
+    features: [
+      "Всё из тарифа «Максимум»",
+      "300 вопросов AI-юристу",
+      "До 100 документов через систему",
+      "Анализ нескольких документов одновременно",
+      "Загрузка PDF, DOCX, фото для анализа",
+      "Поиск судебной практики",
+      "Калькулятор неустойки",
+      "Определение подсудности",
+      "Приоритетная поддержка",
+    ],
+    popular: false,
+    badge: "Для компаний",
+    color: "max",
+  },
 ];
 
 export function getActivePlan(user: User): string | null {
@@ -118,6 +141,7 @@ const PLAN_ICONS: Record<string, string> = {
   plan_starter: "Rocket",
   plan_pro: "Zap",
   plan_max: "Crown",
+  plan_corporate: "Building2",
 };
 
 // Ключевые метрики по тарифу (для визуальных пилюль)
@@ -128,14 +152,19 @@ const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
     { icon: "UserCheck", label: "1 юрист" },
   ],
   plan_pro: [
-    { icon: "MessageCircle", label: "100 вопросов" },
+    { icon: "MessageCircle", label: "70 вопросов" },
     { icon: "FileText", label: "20 документов" },
-    { icon: "UserCheck", label: "5 юристов" },
+    { icon: "UserCheck", label: "20 юристу" },
   ],
   plan_max: [
-    { icon: "MessageCircle", label: "300 вопросов" },
+    { icon: "MessageCircle", label: "150 вопросов" },
     { icon: "FileText", label: "50 документов" },
-    { icon: "UserCheck", label: "30 юристов" },
+    { icon: "UserCheck", label: "50 юристу" },
+  ],
+  plan_corporate: [
+    { icon: "MessageCircle", label: "300 вопросов" },
+    { icon: "FileText", label: "100 документов" },
+    { icon: "UserCheck", label: "50 юристу" },
   ],
 };
 
@@ -143,7 +172,7 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
   const [visible, setVisible] = useState(false);
   const activePlanId = getActivePlan(user);
 
-  const planOrder = ["plan_starter", "plan_pro", "plan_max"];
+  const planOrder = ["plan_starter", "plan_pro", "plan_max", "plan_corporate"];
   const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
   const visiblePlans = minIdx > 0 ? PLANS.filter(p => planOrder.indexOf(p.id) >= minIdx) : PLANS;
 
