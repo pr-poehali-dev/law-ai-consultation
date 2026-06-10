@@ -109,37 +109,7 @@ export default function DocsFormPhase({
           </div>
           <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
         </button>
-        {genDocs.length > 0 && (
-          <div className="bg-white rounded-3xl border border-border shadow-sm p-4">
-            <div className="flex items-center gap-1.5 mb-3 text-[11px] text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-              Документы хранятся в вашем браузере — скачайте, чтобы не потерять при очистке
-            </div>
-            <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
-            <div className="space-y-2">
-              {genDocs.map((doc) => (
-                <div key={doc.id} className="py-2.5 border-b border-border/60 last:border-0">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
-                      <div className="text-xs text-muted-foreground">{doc.date}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => onOpenDoc(doc)}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
-                    ><Icon name="Eye" size={12} />Предпросмотр</button>
-                    <button
-                      onClick={() => onDownload(doc.name, doc.filled)}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
-                    ><Icon name="Download" size={12} />Скачать</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Sticky-панель снизу на мобиле */}
@@ -314,41 +284,7 @@ export default function DocsFormPhase({
           <Icon name="ChevronRight" size={16} className="text-white/50 group-hover:text-white transition-colors" />
         </button>
 
-        {genDocs.length > 0 && (
-          <div className="bg-white rounded-3xl border border-border shadow-sm p-5">
-            <div className="flex items-center gap-1.5 mb-3 text-[11px] text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-              Документы хранятся в вашем браузере — скачайте, чтобы не потерять при очистке
-            </div>
-            <h3 className="font-semibold text-navy-800 text-sm mb-3">Созданные документы</h3>
-            <div className="space-y-2">
-              {genDocs.map((doc) => (
-                <div key={doc.id} className="py-2.5 border-b border-border/60 last:border-0">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
-                      <div className="text-xs text-muted-foreground">{doc.date}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => onOpenDoc(doc)}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
-                    >
-                      <Icon name="Eye" size={12} />Предпросмотр
-                    </button>
-                    <button
-                      onClick={() => onDownload(doc.name, doc.filled)}
-                      className="flex-1 text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
-                    >
-                      <Icon name="Download" size={12} />Скачать
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
 

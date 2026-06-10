@@ -266,7 +266,13 @@ export default function CabinetContent({
           <HistoryTab
             user={user}
             messages={chat.messages}
+            genDocs={docs.genDocs}
             onGoToChat={() => setTab("chat")}
+            onOpenDoc={(doc) => {
+              docs.setCurrentDoc(doc);
+              docs.setFillValues(Object.fromEntries(doc.placeholders.map(p => [p, ""])));
+              setViewDoc(doc);
+            }}
             onAskAI={(prompt) => {
               setTab("chat");
               setTimeout(() => chat.sendMessage(prompt), 200);
