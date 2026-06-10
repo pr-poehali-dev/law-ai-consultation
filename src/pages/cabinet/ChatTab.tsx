@@ -224,7 +224,7 @@ export default function ChatTab({
       </div>{/* конец основной колонки */}
 
       {/* Всплывающее облачко калькулятора */}
-      {activeTool === "penalty" && (
+      {(activeTool === "penalty" || activeTool === "duty") && (
         <>
           {/* Backdrop — закрывает по клику вне */}
           <div
