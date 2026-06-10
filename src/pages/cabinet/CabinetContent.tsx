@@ -90,7 +90,7 @@ export default function CabinetContent({
     setTab("expert");
   }, [pendingLawyerMsg, setTab]);
 
-  const planExhausted = isPlanExhausted(user);
+  const planExhausted = isPlanExhausted(user) && !!user.purchasedPlan;
 
   return (
     <main className={
