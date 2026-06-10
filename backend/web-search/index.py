@@ -1,0 +1,191 @@
+"""Поиск судебной практики через Yandex Search API с фильтрацией по юридическим сайтам."""
+import json
+import os
+import re
+import urllib.request
+import urllib.parse
+import urllib.error
+
+CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token",
+}
+
+# Приоритетные источники для каждого типа запроса
+LEGAL_SITES = [
+    "sudact.ru",
+    "kad.arbitr.ru",
+    "sudrf.ru",
+    "ras.arbitr.ru",
+    "vsrf.ru",
+    "ipc.arbitr.ru",
+]
+
+# Паттерны определения типа дела
+PATTERN_ARBITR  = re.compile(r"[АA]\d{2}-\d+/\d{2,4}", re.IGNORECASE)
+PATTERN_CIVIL   = re.compile(r"\b(2-|М-|33-|44-)\d+/\d{2,4}")
+PATTERN_VS      = re.compile(r"\d+-[А-ЯA-Z]{2}\d{2}-\d+")
+PATTERN_IP      = re.compile(r"СИП-\d+/\d{4}", re.IGNORECASE)
+
+
+def _detect_site(query: str) -> str:
+    """Определяет приоритетный сайт по типу запроса."""
+    q = query.strip()
+    if PATTERN_IP.search(q):
+        return "ipc.arbitr.ru"
+    if PATTERN_VS.search(q):
+        return "vsrf.ru"
+    if PATTERN_ARBITR.search(q):
+        return "kad.arbitr.ru"
+    if PATTERN_CIVIL.search(q):
+        return "sudact.ru"
+    # По ключевым словам
+    q_lower = q.lower()
+    if any(w in q_lower for w in ["верховный суд", "вс рф", "кассационное определение вс"]):
+        return "vsrf.ru"
+    if any(w in q_lower for w in ["арбитраж", "арбитражный", "банкротство юридического"]):
+        return "kad.arbitr.ru"
+    if any(w in q_lower for w in ["товарный знак", "патент", "авторское право", "интеллектуальн"]):
+        return "ipc.arbitr.ru"
+    # По умолчанию — sudact.ru (агрегатор всех судов)
+    return "sudact.ru"
+
+
+def _yandex_search(query: str, folder_id: str, api_key: str, max_results: int = 10) -> list:
+    """Выполняет поиск через Yandex Search API (XML)."""
+    url = "https://yandex.ru/search/xml"
+    params = {
+        "folderid": folder_id,
+        "apikey": api_key,
+        "query": query,
+        "lr": "213",        # Москва (для нейтрального регионального поиска)
+        "l10n": "ru",
+        "sortby": "rlv",    # по релевантности
+        "filter": "none",
+        "maxpassages": "3",
+        "groupby": f"attr=d.mode=deep.groups-on-page={max_results}.docs-in-group=1",
+    }
+    full_url = url + "?" + urllib.parse.urlencode(params)
+
+    req = urllib.request.Request(full_url, headers={"User-Agent": "legal-search-bot/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            xml_body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Yandex Search HTTP {e.code}: {err_body[:300]}")
+
+    return _parse_xml_results(xml_body)
+
+
+def _parse_xml_results(xml: str) -> list:
+    """Парсит XML-ответ Yandex Search API."""
+    results = []
+
+    # Извлекаем блоки <doc>
+    docs = re.findall(r"<doc>(.*?)</doc>", xml, re.DOTALL)
+
+    for doc in docs:
+        def _tag(name: str) -> str:
+            m = re.search(rf"<{name}[^>]*>(.*?)</{name}>", doc, re.DOTALL)
+            return re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else ""
+
+        url_val     = _tag("url")
+        title       = _tag("title")
+        headline    = _tag("headline")
+        passages    = re.findall(r"<passage>(.*?)</passage>", doc, re.DOTALL)
+        snippet     = " ".join(re.sub(r"<[^>]+>", "", p).strip() for p in passages) or headline
+
+        if not url_val:
+            continue
+
+        # Определяем источник
+        source = next((s for s in LEGAL_SITES if s in url_val), "")
+
+        results.append({
+            "url":     url_val,
+            "title":   title,
+            "snippet": snippet[:500],
+            "source":  source,
+        })
+
+    return results
+
+
+def _err(code: int, msg: str) -> dict:
+    return {
+        "statusCode": code,
+        "headers": {**CORS, "Content-Type": "application/json"},
+        "body": json.dumps({"error": msg}, ensure_ascii=False),
+    }
+
+
+def _ok(data: dict) -> dict:
+    return {
+        "statusCode": 200,
+        "headers": {**CORS, "Content-Type": "application/json"},
+        "body": json.dumps(data, ensure_ascii=False),
+    }
+
+
+def handler(event: dict, context) -> dict:
+    """Поиск судебной практики через Yandex Search API. Возвращает список реальных ссылок на судебные акты."""
+
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": CORS, "body": ""}
+
+    if event.get("httpMethod") == "GET":
+        return _ok({"ok": True, "service": "web-search"})
+
+    body: dict = {}
+    if event.get("body"):
+        try:
+            body = json.loads(event["body"])
+        except Exception:
+            return _err(400, "Невалидный JSON")
+
+    query      = (body.get("query") or "").strip()
+    site_hint  = (body.get("site") or "").strip()   # опциональный явный сайт
+    max_res    = min(int(body.get("limit", 8)), 20)
+
+    if not query:
+        return _err(400, "Укажите поисковый запрос")
+
+    folder_id = os.environ.get("YANDEX_FOLDER_ID", "").strip()
+    api_key   = os.environ.get("YANDEX_SEARCH_API_KEY", "").strip()
+
+    if not folder_id or not api_key:
+        return _err(503, "Yandex Search API не настроен. Добавьте YANDEX_FOLDER_ID и YANDEX_SEARCH_API_KEY в секреты.")
+
+    # Определяем целевой сайт
+    target_site = site_hint if site_hint in LEGAL_SITES else _detect_site(query)
+
+    # Формируем поисковый запрос с ограничением по сайту
+    search_query = f"site:{target_site} {query}"
+
+    print(f"[WEB_SEARCH] query={search_query!r} max={max_res}")
+
+    try:
+        results = _yandex_search(search_query, folder_id, api_key, max_results=max_res)
+    except RuntimeError as e:
+        print(f"[WEB_SEARCH] ERROR: {e}")
+        return _err(502, f"Ошибка поиска: {e}")
+
+    # Если первый сайт не дал результатов — пробуем sudact.ru как fallback
+    if not results and target_site != "sudact.ru":
+        fallback_query = f"site:sudact.ru {query}"
+        print(f"[WEB_SEARCH] fallback query={fallback_query!r}")
+        try:
+            results = _yandex_search(fallback_query, folder_id, api_key, max_results=max_res)
+            if results:
+                target_site = "sudact.ru"
+        except RuntimeError:
+            pass
+
+    return _ok({
+        "results":      results,
+        "total":        len(results),
+        "query_used":   search_query,
+        "target_site":  target_site,
+    })

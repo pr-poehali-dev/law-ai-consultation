@@ -3,8 +3,8 @@ import Icon from "@/components/ui/icon";
 import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
-const LEGAL_DOCS_URL = (func2url as Record<string, string>)["legal-docs"];
-const AI_CHAT_URL    = (func2url as Record<string, string>)["ai-chat"];
+const LEGAL_DOCS_URL  = (func2url as Record<string, string>)["legal-docs"];
+const WEB_SEARCH_URL  = (func2url as Record<string, string>)["web-search"];
 
 interface SearchResult {
   title: string;
@@ -17,6 +17,13 @@ interface SearchResult {
   rank: number;
   exact_match?: boolean;
   all_terms?: boolean;
+}
+
+interface WebResult {
+  url: string;
+  title: string;
+  snippet: string;
+  source: string;
 }
 
 interface Props {
@@ -57,13 +64,14 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
   const [query, setQuery]           = useState("");
   const [category, setCategory]     = useState<CategoryId>("case_law");
   const [dbResults, setDbResults]   = useState<SearchResult[] | null>(null);
-  const [aiAnswer, setAiAnswer]     = useState<string | null>(null);
+  const [webResults, setWebResults] = useState<WebResult[] | null>(null);
+  const [webSite, setWebSite]       = useState("");
   const [dbLoading, setDbLoading]   = useState(false);
-  const [aiLoading, setAiLoading]   = useState(false);
+  const [webLoading, setWebLoading] = useState(false);
   const [dbError, setDbError]       = useState("");
-  const [aiError, setAiError]       = useState("");
+  const [webError, setWebError]     = useState("");
   const [copied, setCopied]         = useState<number | null>(null);
-  const [aiCopied, setAiCopied]     = useState(false);
+  const [webCopied, setWebCopied]   = useState<number | null>(null);
   const [searched, setSearched]     = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,8 +80,8 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
   const search = async () => {
     const q = query.trim();
     if (!q) { setDbError("Введите поисковый запрос"); return; }
-    setDbError(""); setAiError("");
-    setDbResults(null); setAiAnswer(null);
+    setDbError(""); setWebError("");
+    setDbResults(null); setWebResults(null); setWebSite("");
     setSearched(true);
 
     // ── 1. Поиск по базе документов ──────────────────────────────
@@ -89,74 +97,20 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
       .catch(() => { setDbError("Ошибка поиска по базе"); setDbResults([]); })
       .finally(() => setDbLoading(false));
 
-    // ── 2. AI-поиск в интернете ───────────────────────────────────
-    setAiLoading(true);
-    const systemPrompt = `Ты — юридический ассистент с доступом к web search (поиску в интернете). Твоя задача — находить реальные судебные решения, постановления, определения и другие судебные акты, соответствующие запросу пользователя. Категория запроса: «${catLabel}».
-
-ИСТОЧНИКИ ДЛЯ ПОИСКА (строго определённые):
-- sudact.ru — агрегатор судебных решений (все суды)
-- kad.arbitr.ru — картотека арбитражных дел (арбитражные суды)
-- sudrf.ru — ГАС «Правосудие» (суды общей юрисдикции)
-- ras.arbitr.ru — банк решений арбитражных судов
-- vsrf.ru — Верховный Суд РФ
-- ipc.arbitr.ru — Суд по интеллектуальным правам
-
-АЛГОРИТМ (строгая последовательность):
-1. Определи тип запроса:
-   - Номер арбитражного дела (А40-...) → ищи на kad.arbitr.ru: site:kad.arbitr.ru [номер]
-   - Номер дела общей юрисдикции (2-..., 33-...) → ищи на sudrf.ru: site:sudrf.ru [номер]
-   - Ключевые слова по арбитражному спору → site:kad.arbitr.ru [ключевые слова]
-   - Ключевые слова по спору в общих судах → site:sudact.ru [ключевые слова]
-   - ВС РФ, КС РФ → site:vsrf.ru [запрос]
-   - Интеллектуальная собственность → site:ipc.arbitr.ru [запрос]
-2. Выполни поиск через web_search с оператором site: для ограничения источника
-3. Если результатов нет — попробуй другой источник или расширь запрос
-
-ФОРМАТ ОТВЕТА (обязательная структура для каждого найденного дела):
-## 🔍 РЕЗУЛЬТАТЫ ПОИСКА СУДЕБНОЙ ПРАКТИКИ
-### 📊 Статистика поиска
-- Найдено дел: [N]
-- Источники: [перечень]
----
-### 📌 ДЕЛО № [номер]
-| Поле | Значение |
-|------|----------|
-| **Суд** | [наименование] |
-| **Дата решения** | [ДД.ММ.ГГГГ] |
-| **Суть спора** | [кратко] |
-| **Ключевой вывод** | «[цитата или точный пересказ]» |
-| **Источник** | [сайт] |
-| **Ссылка** | [полный URL] |
----
-### ⚠️ ПРИМЕЧАНИЕ
-Все найденные акты реальны. Рекомендуется ознакомиться с полным текстом по ссылке.
-
-ЕСЛИ НИЧЕГО НЕ НАЙДЕНО — честно сообщи об этом и предложи поискать на sudact.ru, kad.arbitr.ru, sudrf.ru. ЗАПРЕЩЕНО предлагать «похожие дела», которых нет.
-
-ЖЁСТКИЕ ЗАПРЕТЫ:
-- НЕ выдумывай номера дел, даты, судей, цитаты
-- НЕ используй «обычно суды считают» без ссылки на конкретное дело
-- НЕ давай ответ без источника
-- НЕ изменяй смысл найденного судебного акта
-- Если дело старше 3-5 лет — укажи, что практика могла измениться`;
-
-    fetch(AI_CHAT_URL, {
+    // ── 2. Поиск в интернете через Yandex Search API ─────────────
+    setWebLoading(true);
+    fetch(WEB_SEARCH_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user",   content: q },
-        ],
-      }),
+      body: JSON.stringify({ query: q, limit: 8 }),
     })
       .then(r => r.json())
       .then(data => {
-        if (data.answer) setAiAnswer(data.answer);
-        else setAiError(data.error || "AI не ответил");
+        if (data.error) { setWebError(data.error); setWebResults([]); }
+        else { setWebResults(data.results ?? []); setWebSite(data.target_site ?? ""); }
       })
-      .catch(() => setAiError("Ошибка AI-поиска"))
-      .finally(() => setAiLoading(false));
+      .catch(() => { setWebError("Ошибка интернет-поиска"); setWebResults([]); })
+      .finally(() => setWebLoading(false));
   };
 
   const copySnippet = async (idx: number, text: string) => {
@@ -172,12 +126,22 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
     } catch (_e) { /* clipboard недоступен */ }
   };
 
-  const copyAi = async () => {
-    if (!aiAnswer) return;
+  const copyWeb = async (idx: number, text: string) => {
     try {
-      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(aiAnswer);
-      setAiCopied(true); setTimeout(() => setAiCopied(false), 2000);
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else {
+        const t = document.createElement("textarea");
+        t.value = text; t.style.cssText = "position:fixed;opacity:0";
+        document.body.appendChild(t); t.select();
+        document.execCommand("copy"); document.body.removeChild(t);
+      }
+      setWebCopied(idx); setTimeout(() => setWebCopied(null), 2000);
     } catch (_e) { /* ignore */ }
+  };
+
+  const sendWebToChat = (r: WebResult) => {
+    onSendToChat(`🌐 Найдено в интернете по запросу «${query}»:\n\n📌 ${r.title}\n🔗 ${r.url}\n\n${r.snippet}\n\nПроанализируй это применительно к моей ситуации.`);
+    onClose();
   };
 
   const sendDocToChat = (r: SearchResult) => {
@@ -191,15 +155,11 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
     onSendToChat(parts.join("\n")); onClose();
   };
 
-  const sendAiToChat = () => {
-    if (!aiAnswer) return;
-    onSendToChat(`🌐 Результаты поиска по запросу «${query}»:\n\n${aiAnswer}\n\nПрокомментируй это применительно к моей ситуации.`);
-    onClose();
-  };
+
 
   const eq = encodeURIComponent(query || "судебная практика");
   const catInfo = CATEGORIES.find(c => c.id === category)!;
-  const isLoading = dbLoading || aiLoading;
+  const isLoading = dbLoading || webLoading;
 
   return (
     <div className="flex flex-col bg-white" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -229,7 +189,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
           {CATEGORIES.map(c => (
             <button
               key={c.id}
-              onClick={() => { setCategory(c.id); setDbResults(null); setAiAnswer(null); setDbError(""); setAiError(""); setSearched(false); }}
+              onClick={() => { setCategory(c.id); setDbResults(null); setWebResults(null); setWebSite(""); setDbError(""); setWebError(""); setSearched(false); }}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
               style={category === c.id
                 ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }
@@ -360,71 +320,96 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
           </div>
         )}
 
-        {/* ═══ СЕКЦИЯ 2: AI-ПОИСК ═══ */}
+        {/* ═══ СЕКЦИЯ 2: ИНТЕРНЕТ-ПОИСК ═══ */}
         {searched && (
           <div className="rounded-xl border border-slate-200 overflow-hidden">
-            {/* Заголовок секции */}
             <div className="flex items-center gap-2 px-3 py-2"
-              style={{ background: "linear-gradient(135deg,rgba(124,58,237,0.06),rgba(109,40,217,0.03))", borderBottom: "1px solid #e2e8f0" }}>
-              <Icon name="Sparkles" size={11} color="#7c3aed" />
-              <p className="text-[10px] font-bold text-slate-700 flex-1">AI-поиск</p>
-              {aiLoading && <span className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />}
-              {!aiLoading && aiAnswer && (
+              style={{ background: "linear-gradient(135deg,rgba(22,101,52,0.06),rgba(21,128,61,0.03))", borderBottom: "1px solid #e2e8f0" }}>
+              <Icon name="Globe" size={11} color="#166534" />
+              <p className="text-[10px] font-bold text-slate-700 flex-1">Интернет-поиск</p>
+              {webLoading && <span className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />}
+              {!webLoading && webResults && webResults.length > 0 && (
                 <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "#ede9fe", color: "#7c3aed" }}>готово</span>
+                  style={{ background: "#dcfce7", color: "#166534" }}>
+                  {webResults.length} найдено · {webSite}
+                </span>
               )}
             </div>
 
-            {aiLoading && (
+            {webLoading && (
               <div className="px-3 py-3 space-y-1.5">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-3.5 h-3.5 border-2 border-purple-200 border-t-purple-500 rounded-full animate-spin shrink-0" />
-                  <p className="text-[11px] text-slate-400">AI анализирует запрос...</p>
+                  <span className="w-3.5 h-3.5 border-2 border-green-200 border-t-green-500 rounded-full animate-spin shrink-0" />
+                  <p className="text-[11px] text-slate-400">Ищу в интернете через Яндекс...</p>
                 </div>
-                {[70, 90, 55].map((w, i) => (
-                  <div key={i} className="h-2.5 rounded-full animate-pulse" style={{ width: `${w}%`, background: "#f1f5f9" }} />
+                {[80, 60, 75].map((w, i) => (
+                  <div key={i} className="h-2 rounded-full animate-pulse" style={{ width: `${w}%`, background: "#f1f5f9" }} />
                 ))}
               </div>
             )}
 
-            {!aiLoading && aiError && (
-              <div className="px-3 py-3 flex items-center gap-1.5">
-                <Icon name="AlertCircle" size={11} color="#ef4444" />
-                <p className="text-[11px] text-red-500">{aiError}</p>
+            {!webLoading && webError && (
+              <div className="px-3 py-2.5 flex items-start gap-1.5">
+                <Icon name="AlertCircle" size={11} color="#f59e0b" />
+                <p className="text-[11px] text-amber-700 leading-snug">{webError}</p>
               </div>
             )}
 
-            {!aiLoading && aiAnswer && (
-              <div className="px-3 py-3">
-                <div className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap mb-2.5"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}>
-                  {aiAnswer}
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  <button onClick={copyAi}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
-                    style={aiCopied
-                      ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
-                      : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
-                    <Icon name={aiCopied ? "CheckCheck" : "Copy"} size={9} color={aiCopied ? "#059669" : "#64748b"} />
-                    {aiCopied ? "Скопировано" : "Копировать"}
-                  </button>
-                  <button onClick={sendAiToChat}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-white transition-all"
-                    style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}>
-                    <Icon name="Send" size={9} color="#fff" />
-                    В чат AI-юристу
-                  </button>
-                </div>
-                <p className="text-[9px] text-slate-300 mt-2">
-                  ⚠ AI не выдумывает дела — при отсутствии точных данных указывает нормы закона
-                </p>
+            {!webLoading && webResults && webResults.length === 0 && !webError && (
+              <div className="px-3 py-2.5 text-center">
+                <p className="text-[11px] text-slate-400">В интернете ничего не найдено по данному запросу</p>
               </div>
             )}
 
-            {/* Кнопки внешнего поиска */}
+            {!webLoading && webResults && webResults.length > 0 && (
+              <div className="divide-y divide-slate-50">
+                {webResults.map((r, i) => (
+                  <div key={i} className="px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="text-[11px] font-semibold text-slate-800 leading-snug flex-1">{r.title}</p>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[8px] font-bold"
+                        style={{ background: "#dcfce7", color: "#166534" }}>
+                        {r.source || "интернет"}
+                      </span>
+                    </div>
+                    {r.snippet && (
+                      <p className="text-[10px] text-slate-500 leading-snug mb-2">
+                        {highlight(r.snippet.slice(0, 200) + (r.snippet.length > 200 ? "..." : ""), query)}
+                      </p>
+                    )}
+                    <p className="text-[9px] text-blue-500 truncate mb-2">{r.url}</p>
+                    <div className="flex gap-1.5">
+                      <a href={r.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all hover:opacity-80"
+                        style={{ background: "#dcfce7", color: "#166534" }}>
+                        <Icon name="ExternalLink" size={9} color="#166534" />
+                        Открыть
+                      </a>
+                      <button
+                        onClick={() => copyWeb(i, `${r.title}\n${r.url}\n\n${r.snippet}`)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                        style={webCopied === i
+                          ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
+                          : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
+                        <Icon name={webCopied === i ? "CheckCheck" : "Copy"} size={9} color={webCopied === i ? "#059669" : "#64748b"} />
+                        {webCopied === i ? "Скопировано" : "Копировать"}
+                      </button>
+                      <button
+                        onClick={() => sendWebToChat(r)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-white transition-all"
+                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                        <Icon name="Send" size={9} color="#fff" />
+                        В чат
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Кнопки ручного поиска на сайтах */}
             <div className="px-3 pb-2.5 pt-1.5 border-t border-slate-50">
-              <p className="text-[9px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wide">Также поискать на сайтах:</p>
+              <p className="text-[9px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wide">Искать вручную:</p>
               <div className="grid grid-cols-3 gap-1">
                 {EXTERNAL_LINKS.map(({ label, hint, color, bg, url }) => (
                   <a key={label} href={url(eq)} target="_blank" rel="noopener noreferrer"
@@ -456,13 +441,13 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
               <Icon name="Plus" size={12} color="#cbd5e1" />
               <div className="flex flex-col items-center gap-1">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(124,58,237,0.08)" }}>
-                  <Icon name="Sparkles" size={14} color="#7c3aed" />
+                  style={{ background: "rgba(22,101,52,0.08)" }}>
+                  <Icon name="Globe" size={14} color="#166534" />
                 </div>
-                <p className="text-[9px] text-slate-400">AI</p>
+                <p className="text-[9px] text-slate-400">Интернет</p>
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">Поиск ведётся одновременно по базе документов и через AI</p>
+            <p className="text-[11px] text-slate-400">Поиск одновременно по базе документов и в интернете (Яндекс)</p>
             <p className="text-[10px] text-slate-300 mt-1">Например: «неустойка 1/300», «расторжение договора», «банкротство»</p>
           </div>
         )}
@@ -472,7 +457,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
           style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)" }}>
           <Icon name="AlertTriangle" size={11} color="#b45309" className="shrink-0 mt-0.5" />
           <p className="text-[10px] text-amber-800 leading-snug">
-            Результаты носят справочный характер. AI не выдумывает судебные решения.
+            Результаты носят справочный характер. Интернет-поиск ведётся через Яндекс по официальным сайтам судов.
           </p>
         </div>
       </div>
