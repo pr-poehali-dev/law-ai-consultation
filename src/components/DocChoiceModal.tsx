@@ -91,6 +91,9 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
                 "Рекомендации AI-юриста",
                 "Скачивание .doc",
                 "Проверка документа юристом",
+                "Поиск судебной практики",
+                "Калькулятор неустойки",
+                "Определение подсудности",
               ].map((text) => (
                 <div key={text} className="flex items-start gap-1.5">
                   <Icon name="Check" size={10} color={GOLD} className="mt-0.5 shrink-0" />
