@@ -107,6 +107,7 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
   const [fixedDay, setFixedDay] = useState("");
   const [changes, setChanges] = useState<DebtChange[]>([]);
   const [capEnabled, setCapEnabled] = useState(false);
+  const [detailMode, setDetailMode] = useState<"periods" | "days">("periods");
   const [capMode, setCapMode] = useState<CapMode>("amount");
   const [capAmount, setCapAmount] = useState("");
   const [capPercent, setCapPercent] = useState("");
@@ -408,39 +409,98 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
               )}
             </div>
 
-            {result.periods.length > 0 && (
-              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <p className="text-[10px] font-bold text-slate-600 px-3 py-1.5 border-b border-slate-100">Детализация</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full" style={{ fontSize: "11px" }}>
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500">
-                        <th className="px-2.5 py-1.5 text-left font-semibold">Период</th>
-                        <th className="px-2.5 py-1.5 text-right font-semibold">Долг</th>
-                        <th className="px-2.5 py-1.5 text-right font-semibold">Дн.</th>
-                        <th className="px-2.5 py-1.5 text-right font-semibold">Пени</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.periods.map((p, i) => (
-                        <tr key={i} className="border-t border-slate-50">
-                          <td className="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">{p.from.slice(5)} – {p.to.slice(5)}</td>
-                          <td className="px-2.5 py-1.5 text-right text-slate-700">{fmt(p.debt)}</td>
-                          <td className="px-2.5 py-1.5 text-right text-slate-500">{p.days}</td>
-                          <td className="px-2.5 py-1.5 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
-                        </tr>
+            {result.periods.length > 0 && (() => {
+              // Генерируем строки по дням из периодов
+              const dayRows: { date: string; debt: number; penalty: number; accumulated: number }[] = [];
+              let acc = 0;
+              for (const p of result.periods) {
+                for (let d = 0; d < p.days; d++) {
+                  const date = addDays(p.from, d);
+                  const dayPenalty = p.penalty / p.days;
+                  acc += dayPenalty;
+                  dayRows.push({ date, debt: p.debt, penalty: dayPenalty, accumulated: acc });
+                }
+              }
+
+              return (
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                  {/* Шапка с переключателем */}
+                  <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50">
+                    <p className="text-[10px] font-bold text-slate-600">Детализация</p>
+                    <div className="flex gap-1">
+                      {([["periods", "По периодам"], ["days", "По дням"]] as const).map(([v, label]) => (
+                        <button key={v} onClick={() => setDetailMode(v)}
+                          className="px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all"
+                          style={detailMode === v
+                            ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }
+                            : { background: "transparent", color: "#94a3b8" }}>
+                          {label}
+                        </button>
                       ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50 border-t border-slate-100">
-                        <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого</td>
-                        <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                    </div>
+                  </div>
+
+                  {/* Таблица */}
+                  <div className="overflow-auto" style={{ maxHeight: "220px" }}>
+                    {detailMode === "periods" ? (
+                      <table className="w-full" style={{ fontSize: "11px" }}>
+                        <thead className="sticky top-0 bg-white z-10">
+                          <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <th className="px-2.5 py-1.5 text-left font-semibold text-slate-500">Период</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Дн.</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Пени, ₽</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.periods.map((p, i) => (
+                            <tr key={i} style={{ borderTop: "1px solid #f8fafc" }}>
+                              <td className="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">{p.from.slice(5)} – {p.to.slice(5)}</td>
+                              <td className="px-2.5 py-1.5 text-right text-slate-700">{fmt(p.debt)}</td>
+                              <td className="px-2.5 py-1.5 text-right text-slate-500">{p.days}</td>
+                              <td className="px-2.5 py-1.5 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-slate-50" style={{ borderTop: "1px solid #e2e8f0" }}>
+                            <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого</td>
+                            <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    ) : (
+                      <table className="w-full" style={{ fontSize: "11px" }}>
+                        <thead className="sticky top-0 bg-white z-10">
+                          <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <th className="px-2.5 py-1.5 text-left font-semibold text-slate-500">Дата</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Долг, ₽</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">За день, ₽</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-slate-500">Накоплено, ₽</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dayRows.map((row, i) => (
+                            <tr key={i} style={{ borderTop: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+                              <td className="px-2.5 py-1 text-slate-600 whitespace-nowrap font-medium">{row.date.slice(5)}</td>
+                              <td className="px-2.5 py-1 text-right text-slate-600">{fmt(row.debt)}</td>
+                              <td className="px-2.5 py-1 text-right text-blue-600 font-semibold">{fmt(row.penalty)}</td>
+                              <td className="px-2.5 py-1 text-right text-slate-700 font-bold">{fmt(row.accumulated)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-slate-50" style={{ borderTop: "1px solid #e2e8f0" }}>
+                            <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого ({dayRows.length} дней)</td>
+                            <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <p className="text-[10px] text-slate-400 text-center">Справочный расчёт · не юридическое заключение</p>
 
