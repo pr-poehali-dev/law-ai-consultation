@@ -393,20 +393,6 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
     } catch { /* ignore */ }
   };
 
-  const sendToChat = () => {
-    if (!result) return;
-    const parts = [`📍 Территориальная подсудность по моему делу:\n`];
-    parts.push(`• Правило: ${result.rule}`);
-    parts.push(`• Основание: ${result.article}`);
-    if (result.court) {
-      parts.push(`• Суд: ${result.court.name}`);
-      if (result.court.address) parts.push(`• Адрес: ${result.court.address}`);
-    }
-    if (result.alternatives?.length) parts.push(`\nМожно также подать:\n${result.alternatives.map(a => `• ${a}`).join("\n")}`);
-    parts.push(`\nПрокомментируй и уточни детали по моей ситуации.`);
-    onSendToChat(parts.join("\n"));
-    onClose();
-  };
 
   // ── Render helpers ──────────────────────────────────────────
   const RadioGroup = ({ options, value, onChange }: { options: {id: string; label: string}[]; value: string; onChange: (v: string) => void }) => (
@@ -759,11 +745,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                     <Icon name={copied ? "CheckCheck" : "Copy"} size={10} color={copied ? "#059669" : "#64748b"} />
                     {copied ? "Скопировано" : "Копировать"}
                   </button>
-                  <button onClick={sendToChat}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold text-white transition-all"
-                    style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                    <Icon name="Send" size={10} color="#fff" /> В чат AI-юристу
-                  </button>
+
                   <button onClick={() => { setStep(1); setResult(null); }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50">
                     <Icon name="RotateCcw" size={10} /> Заново
