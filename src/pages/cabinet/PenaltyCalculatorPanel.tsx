@@ -334,11 +334,18 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     }
   };
 
-  const sendToChat = (kind: "periods" | "days") => {
+  const sendToChat = (_kind: "periods" | "days") => {
     if (!result) return;
-    const text = buildBody(kind)
-      + `\nУчти этот расчёт неустойки, проверь корректность ставки и формулы по нормам ГК РФ.`;
-    onSendToChat(text);
+    const debtVal = parseFloat(debt.replace(/\s/g, "").replace(",", ".") || "0");
+    const startDow = new Date(dateStart).getDay();
+    const data = {
+      mode, debt: debtVal, dateStart, dateEnd,
+      ratePercent, cbrRate, cbrFraction, fixedDay,
+      total: result.total, capped: result.capped, capApplied: result.capApplied,
+      periods: result.periods,
+      art193: startDow === 0 || startDow === 6,
+    };
+    onSendToChat(`__PENALTY_DATA__:${JSON.stringify(data)}`);
     onClose();
   };
 

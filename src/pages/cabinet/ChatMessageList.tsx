@@ -7,6 +7,7 @@ import { AnimatedMessage, LegalText, TypingIndicator } from "@/pages/cabinet/Cha
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
+import PenaltyResultMessage from "@/pages/cabinet/PenaltyResultMessage";
 
 interface ChatMessageListProps {
   user: User;
@@ -25,6 +26,7 @@ interface ChatMessageListProps {
   onCreateDocFromMsg?: (aiText: string, userText: string, docHint?: DocHint) => void;
   creatingDocFromChat?: boolean;
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
+  onSendMessage?: (text: string) => void;
 }
 
 // Ключевые слова для показа кнопки «Сообщить о проблеме»
@@ -134,6 +136,7 @@ export default function ChatMessageList({
   onCreateDocFromMsg,
   creatingDocFromChat,
   onSendToLawyer,
+  onSendMessage,
 }: ChatMessageListProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -182,24 +185,35 @@ export default function ChatMessageList({
             const isDocRedir = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
             const doAnim = msg.role === "ai" && !typing && shouldAnimate(i);
 
-            if (msg.role === "user") return (
-              <div key={i} className="flex gap-2 justify-end items-end">
-                <div className="max-w-[80%]">
-                  <div className="px-4 py-2.5 shadow-sm"
-                    style={{
-                      background: "linear-gradient(135deg, #0f4c81, #1a6bb5)",
-                      borderRadius: "18px 18px 4px 18px",
-                      boxShadow: "0 2px 12px rgba(15,76,129,0.2)",
-                    }}>
-                    <p className="text-white font-golos leading-relaxed" style={{ fontSize: "14.5px" }}>{msg.text}</p>
+            if (msg.role === "user") {
+              // Расчёт неустойки — отдельный компонент
+              if (msg.penaltyData) return (
+                <div key={i} className="w-full">
+                  <PenaltyResultMessage
+                    data={msg.penaltyData}
+                    onSendToChat={(text) => onSendMessage?.(text)}
+                  />
+                </div>
+              );
+              return (
+                <div key={i} className="flex gap-2 justify-end items-end">
+                  <div className="max-w-[80%]">
+                    <div className="px-4 py-2.5 shadow-sm"
+                      style={{
+                        background: "linear-gradient(135deg, #0f4c81, #1a6bb5)",
+                        borderRadius: "18px 18px 4px 18px",
+                        boxShadow: "0 2px 12px rgba(15,76,129,0.2)",
+                      }}>
+                      <p className="text-white font-golos leading-relaxed" style={{ fontSize: "14.5px" }}>{msg.text}</p>
+                    </div>
+                  </div>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white uppercase shadow-sm"
+                    style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                    {user.name?.[0] ?? "U"}
                   </div>
                 </div>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white uppercase shadow-sm"
-                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                  {user.name?.[0] ?? "U"}
-                </div>
-              </div>
-            );
+              );
+            }
 
             // Находим предшествующее сообщение пользователя
             const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");

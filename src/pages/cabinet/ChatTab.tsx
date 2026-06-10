@@ -11,7 +11,7 @@ import PenaltyCalculatorPanel from "@/pages/cabinet/PenaltyCalculatorPanel";
 import DutyCalculatorPanel from "@/pages/cabinet/DutyCalculatorPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; }
 
 interface ChatTabProps {
   user: User;
@@ -198,6 +198,7 @@ export default function ChatTab({
         onCreateDocFromMsg={onCreateDocFromMsg}
         creatingDocFromChat={creatingDocFromChat}
         onSendToLawyer={onSendToLawyer}
+        onSendMessage={onSend}
       />
 
       {/* Поле ввода + файл */}

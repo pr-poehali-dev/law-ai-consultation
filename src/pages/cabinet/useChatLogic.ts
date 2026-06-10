@@ -128,8 +128,20 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   }, [history]);
 
   const sendMessage = async (overrideText?: string) => {
-    const userMsg = (overrideText || input).trim();
-    if (!userMsg || typing) return;
+    const rawMsg = (overrideText || input).trim();
+    if (!rawMsg || typing) return;
+
+    // Специальный маркер — данные калькулятора неустойки
+    if (rawMsg.startsWith("__PENALTY_DATA__:")) {
+      try {
+        const penaltyData = JSON.parse(rawMsg.slice("__PENALTY_DATA__:".length));
+        setMessages(p => [...p, { role: "user", text: "📊 Расчёт неустойки из калькулятора", penaltyData }]);
+        setInput("");
+        return;
+      } catch (e) { console.error("penalty parse", e); }
+    }
+
+    const userMsg = rawMsg;
 
     // Один свежий запрос — проверяем баланс
     invalidateUserCache();
