@@ -8,12 +8,7 @@ export function renderInline(text: string): React.ReactNode {
     if (part.startsWith("**") && part.endsWith("**"))
       return <strong key={i} className="font-semibold text-navy-800">{part.slice(2, -2)}</strong>;
     if (/^(ст\.|статьи?)\s*\d+/i.test(part))
-      return (
-        <span key={i} className="inline-flex items-center font-semibold text-navy-700 px-1.5 py-0.5 rounded-md text-[12px]"
-          style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.25)" }}>
-          {part}
-        </span>
-      );
+      return <strong key={i} style={{ fontWeight: 700, color: "#0f4c81" }}>{part}</strong>;
     return part;
   });
 }
