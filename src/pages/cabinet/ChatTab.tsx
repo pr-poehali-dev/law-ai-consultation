@@ -7,6 +7,7 @@ import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import ChatMessageList from "@/pages/cabinet/ChatMessageList";
 import ChatInputBar from "@/pages/cabinet/ChatInputBar";
+import PenaltyCalculatorPanel from "@/pages/cabinet/PenaltyCalculatorPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; }
@@ -90,10 +91,19 @@ export default function ChatTab({
   const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const [showReport, setShowReport] = useState(false);
+  const [activeTool, setActiveTool] = useState<"penalty" | null>(null);
+
+  const handleQuickAction = (text: string) => {
+    if (text === "__penalty__") { setActiveTool("penalty"); return; }
+    onSend(text);
+  };
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col gap-2">
+    <div className="max-w-5xl w-full mx-auto flex-1 min-h-0 flex gap-3">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
+
+      {/* Основная колонка чата */}
+      <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0">
 
       {/* Шапка — современная карточка */}
       <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
@@ -206,8 +216,37 @@ export default function ChatTab({
         onRemoveFile={onRemoveFile}
         onFileSelect={onFileSelect}
         onFileDrop={onFileDrop}
-        onQuickAction={(text) => onSend(text)}
+        onQuickAction={handleQuickAction}
       />
+
+      </div>{/* конец основной колонки */}
+
+      {/* Боковая панель на ПК */}
+      {activeTool === "penalty" && (
+        <>
+          {/* Мобиле: full-screen снизу */}
+          <div className="md:hidden fixed inset-0 z-50 flex flex-col">
+            <div className="flex-1 bg-black/40" onClick={() => setActiveTool(null)} />
+            <div className="bg-white rounded-t-3xl shadow-2xl flex flex-col" style={{ maxHeight: "85dvh" }}>
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-slate-200" />
+              </div>
+              <PenaltyCalculatorPanel
+                onClose={() => setActiveTool(null)}
+                onSendToChat={(text) => onSend(text)}
+              />
+            </div>
+          </div>
+
+          {/* ПК: боковая панель */}
+          <div className="hidden md:flex flex-col w-96 shrink-0 min-h-0 rounded-2xl border border-slate-200 shadow-lg overflow-hidden bg-white">
+            <PenaltyCalculatorPanel
+              onClose={() => setActiveTool(null)}
+              onSendToChat={(text) => onSend(text)}
+            />
+          </div>
+        </>
+      )}
 
     </div>
   );

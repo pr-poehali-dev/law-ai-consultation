@@ -218,7 +218,7 @@ export default function ChatInputBar({
       {!hasFiles && (
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {[
-            { icon: "Calculator", label: "Калькулятор неустойки", text: "Рассчитай неустойку по договору" },
+            { icon: "Calculator", label: "Калькулятор неустойки", text: "__penalty__" },
             { icon: "Landmark", label: "Госпошлина", text: "Рассчитай госпошлину для подачи иска" },
             { icon: "BookOpen", label: "Судебная практика", text: "Найди судебную практику по моему вопросу" },
             { icon: "MapPin", label: "Территориальная подсудность", text: "Определи территориальную подсудность по моему делу" },
