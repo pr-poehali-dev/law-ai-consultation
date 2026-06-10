@@ -212,6 +212,68 @@ def _split_by_articles(text: str, max_chars: int = 4000) -> list:
     return [c for c in chunks if len(c.strip()) > 20]
 
 
+def _split_by_positions(text: str, max_chars: int = 3000) -> list:
+    """
+    Нарезает обзоры ВС РФ по правовым позициям.
+    Граница — строки-заголовки (номер определения/постановления, заголовок раздела).
+    Паттерны:
+      - «Определение № 5-КГ23-12»
+      - «Постановление Президиума»
+      - «СУДЕБНАЯ КОЛЛЕГИЯ»
+      - Строка из ЗАГЛАВНЫХ БУКВ длиной > 15 символов (заголовок раздела)
+    """
+    # Паттерн для границ правовых позиций
+    boundary = re.compile(
+        r"(?:^|\n)("
+        r"(?:Определение|Постановление|Решение)\s+(?:№|N)\s*\S+"
+        r"|(?:СУДЕБНАЯ\s+КОЛЛЕГИЯ|ПРЕЗИДИУМ|ПЛЕНУМ)[^\n]*"
+        r"|[А-ЯЁ\s]{15,}(?:\n|$)"   # строка из заглавных > 15 символов
+        r")",
+        re.MULTILINE
+    )
+
+    positions_idx = [m.start() for m in boundary.finditer(text)]
+
+    if len(positions_idx) < 3:
+        # Fallback: нарезка по двойному переносу (абзацы)
+        paragraphs = re.split(r"\n{3,}", text)
+        chunks = []
+        current = ""
+        for para in paragraphs:
+            if len(current) + len(para) > max_chars and current:
+                chunks.append(current.strip())
+                current = para
+            else:
+                current = (current + "\n\n" + para).strip() if current else para
+        if current.strip():
+            chunks.append(current.strip())
+        return [c for c in chunks if len(c) > 50]
+
+    chunks = []
+    for i, pos in enumerate(positions_idx):
+        end = positions_idx[i + 1] if i + 1 < len(positions_idx) else len(text)
+        block = text[pos:end].strip()
+        if not block or len(block) < 50:
+            continue
+        # Если блок слишком большой — бьём по границам абзацев
+        if len(block) > max_chars:
+            sub_chunks = []
+            current = ""
+            for para in re.split(r"\n{2,}", block):
+                if len(current) + len(para) > max_chars and current:
+                    sub_chunks.append(current.strip())
+                    current = para
+                else:
+                    current = (current + "\n\n" + para).strip() if current else para
+            if current.strip():
+                sub_chunks.append(current.strip())
+            chunks.extend(sub_chunks)
+        else:
+            chunks.append(block)
+
+    return [c for c in chunks if len(c) > 50]
+
+
 def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
     """Нарезает текст и сохраняет чанки в БД с tsvector-индексом."""
     cur = conn.cursor()
@@ -220,10 +282,13 @@ def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
         f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
         (doc_id,)
     )
-    # Для кодексов — нарезка по статьям, для остальных — по словам
-    if category in ("codex",):
+    # Для кодексов — нарезка по статьям, для определений — по правовым позициям
+    if category == "codex":
         chunks = _split_by_articles(text)
         print(f"[CHUNKS] doc_id={doc_id} category={category} article_chunks={len(chunks)}")
+    elif category == "court_definitions":
+        chunks = _split_by_positions(text)
+        print(f"[CHUNKS] doc_id={doc_id} category={category} position_chunks={len(chunks)}")
     else:
         chunks = _split_into_chunks(text)
     for idx, chunk in enumerate(chunks):
@@ -545,7 +610,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             results = []
             seen_titles: dict = {}
-            max_per_doc = 3 if category == "codex" else 2
+            max_per_doc = 3 if category == "codex" else (2 if category == "court_definitions" else 2)
             for row in rows:
                 content, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase, bonus_article = row
                 if seen_titles.get(title, 0) >= max_per_doc:
