@@ -367,9 +367,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
           <span
             className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
             style={{ background: "rgba(245,158,11,0.1)", color: "#b45309", border: "1px solid rgba(245,158,11,0.25)" }}
-          >
-            тест
-          </span>
+          >тестовый режим</span>
         </div>
         <button
           onClick={onClose}
