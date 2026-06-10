@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken } from "@/lib/auth";
+import { getToken, consumeQuestion } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const COURT_FINDER_URL = (func2url as Record<string, string>)["court-finder"];
@@ -349,6 +349,8 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
   ];
 
   const runSearch = async () => {
+    // Списываем 1 вопрос за каждый поиск суда
+    consumeQuestion();
     setStep(3);
     const jr = determineJurisdiction(s1, s2);
     if (jr.error) { setResult(jr); return; }

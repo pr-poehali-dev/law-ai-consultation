@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import { hasPurchasedPlan } from "@/lib/auth";
 
 interface ChatInputBarProps {
   user: User;
@@ -223,28 +222,24 @@ export default function ChatInputBar({
             { icon: "Landmark",   label: "Госпошлина",                  text: "__duty__",         premium: false },
             { icon: "BookOpen",   label: "Судебная практика",           text: "__case_law__",     premium: true  },
             { icon: "MapPin",     label: "Территориальная подсудность", text: "__jurisdiction__", premium: true  },
-          ].map(({ icon, label, text, premium }) => {
-            const locked = premium && !user.isAdmin && !hasPurchasedPlan(user);
-            return (
-              <button
-                key={label}
-                onClick={() => locked ? onUpgradeClick?.() : onQuickAction?.(text)}
-                disabled={typing}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all active:scale-95 disabled:opacity-40 hover:shadow-sm relative"
-                style={{
-                  background: locked ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.95)",
-                  border: locked ? "1.5px solid rgba(245,158,11,0.35)" : "1.5px solid rgba(203,213,225,0.8)",
-                  color: locked ? "#92400e" : "#475569",
-                  backdropFilter: "blur(8px)",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                }}
-              >
-                <Icon name={icon as Parameters<typeof Icon>[0]["name"]} size={12} color={locked ? "#d97706" : "#64748b"} />
-                {label}
-                {locked && <Icon name="Lock" size={10} color="#d97706" />}
-              </button>
-            );
-          })}
+          ].map(({ icon, label, text }) => (
+            <button
+              key={label}
+              onClick={() => onQuickAction?.(text)}
+              disabled={typing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all active:scale-95 disabled:opacity-40 hover:shadow-sm"
+              style={{
+                background: "rgba(255,255,255,0.95)",
+                border: "1.5px solid rgba(203,213,225,0.8)",
+                color: "#475569",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}
+            >
+              <Icon name={icon as Parameters<typeof Icon>[0]["name"]} size={12} color="#64748b" />
+              {label}
+            </button>
+          ))}
         </div>
       )}
 

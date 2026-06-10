@@ -95,15 +95,14 @@ export default function ChatTab({
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const [showReport, setShowReport] = useState(false);
   const [activeTool, setActiveTool] = useState<"penalty" | "duty" | "case_law" | "jurisdiction" | null>(null);
+  const [showPremiumPopup, setShowPremiumPopup] = useState(false);
 
   const handleQuickAction = (text: string) => {
     if (text === "__penalty__") { setActiveTool("penalty"); return; }
     if (text === "__duty__")    { setActiveTool("duty");    return; }
-    // Премиум-инструменты: проверяем доступ и списываем вопрос
+    // Премиум-инструменты: проверяем доступ
     if (text === "__case_law__" || text === "__jurisdiction__") {
-      if (!user.isAdmin && !hasPurchasedPlan(user)) { onUpgradeClick?.(); return; }
-      // Списываем 1 вопрос за использование
-      consumeQuestion();
+      if (!user.isAdmin && !hasPurchasedPlan(user)) { setShowPremiumPopup(true); return; }
       if (text === "__case_law__")    { setActiveTool("case_law");     return; }
       if (text === "__jurisdiction__") { setActiveTool("jurisdiction"); return; }
     }
@@ -113,6 +112,58 @@ export default function ChatTab({
   return (
     <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
+
+      {/* Попап: требуется тариф Старт */}
+      {showPremiumPopup && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setShowPremiumPopup(false)} />
+          <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(420px,calc(100vw-32px))]">
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden"
+              style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)" }}>
+              {/* Шапка с градиентом */}
+              <div className="px-6 pt-6 pb-4 text-center"
+                style={{ background: "linear-gradient(135deg,#0f4c81 0%,#1a6bb5 50%,#2563eb 100%)" }}>
+                <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-3">
+                  <Icon name="Sparkles" size={26} color="#fff" />
+                </div>
+                <p className="text-white font-bold text-lg leading-tight">Доступно с тарифа «Старт»</p>
+                <p className="text-white/75 text-sm mt-1">Судебная практика и подсудность — премиум-инструменты</p>
+              </div>
+              {/* Список фич */}
+              <div className="px-6 py-4 space-y-2.5">
+                {[
+                  { icon: "BookOpen",  text: "Поиск судебной практики по базе и интернету" },
+                  { icon: "MapPin",    text: "Определение территориальной подсудности" },
+                  { icon: "Zap",       text: "Списание 1 вопроса за каждый поиск" },
+                  { icon: "Scale",     text: "Доступ к обзорам ВС РФ и кодексам" },
+                ].map((f, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(15,76,129,0.08)" }}>
+                      <Icon name={f.icon as Parameters<typeof Icon>[0]["name"]} size={13} color="#0f4c81" />
+                    </div>
+                    <p className="text-[13px] text-slate-700">{f.text}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Кнопки */}
+              <div className="px-6 pb-6 space-y-2">
+                <button
+                  onClick={() => { setShowPremiumPopup(false); onSelectPlan(); }}
+                  className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-all active:scale-95 hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                  Выбрать тариф
+                </button>
+                <button
+                  onClick={() => setShowPremiumPopup(false)}
+                  className="w-full py-2.5 rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all">
+                  Позже
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Основная колонка чата */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0 w-full">

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken } from "@/lib/auth";
+import { getToken, consumeQuestion } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const WEB_SEARCH_URL  = (func2url as Record<string, string>)["web-search"];
@@ -79,6 +79,8 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
     setWebError(""); setDbError("");
     setWebResults(null); setDbResults(null); setWebSite("");
     setSearched(true);
+    // Списываем 1 вопрос за каждый поиск
+    consumeQuestion();
     const token = getToken();
 
     if (isCodex) {
