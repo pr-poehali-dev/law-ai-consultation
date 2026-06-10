@@ -27,9 +27,9 @@ DESCRIPTIONS = {
     "subscription_docs":     "Подписка: документы на 31 день",
     "plan_starter":          "Тариф Старт: +30 вопросов, +5 документов",
     "plan_starter_discount": "Тариф Старт со скидкой 50%: +30 вопросов, +5 документов",
-    "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов, +20 вопросов юристу",
-    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов, +50 вопросов юристу",
-    "plan_max_expert":       "Тариф Максимум: +300 вопросов, +50 документов, +50 вопросов юристу",
+    "plan_pro":              "Тариф Профи: +70 вопросов, +20 документов, +20 вопросов юристу",
+    "plan_max":              "Тариф Максимум: +150 вопросов, +50 документов, +50 вопросов юристу",
+    "plan_max_expert":       "Тариф Максимум: +150 вопросов, +50 документов, +50 вопросов юристу",
     "lawyer_questions":      "+5 вопросов живому юристу",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
@@ -225,7 +225,7 @@ def grant_service(conn, user_id: int, service_type: str):
         elif service_type == "plan_pro":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 100,
+                    SET paid_questions = paid_questions + 70,
                         paid_docs = paid_docs + 20,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
@@ -240,7 +240,7 @@ def grant_service(conn, user_id: int, service_type: str):
         elif service_type in ("plan_max", "plan_max_expert"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 300,
+                    SET paid_questions = paid_questions + 150,
                         paid_docs = paid_docs + 50,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,

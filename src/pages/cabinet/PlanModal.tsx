@@ -46,12 +46,12 @@ export const PLANS: Plan[] = [
     name: "Профи",
     price: "3 990",
     oldPrice: "5 990",
-    questions: 100,
+    questions: 70,
     docs: 20,
     lawyerFeature: "20 вопросов живому юристу",
     features: [
       "Всё из тарифа «Старт»",
-      "100 вопросов AI-юристу",
+      "70 вопросов AI-юристу",
       "До 20 документов через систему",
       "Консультация юриста с анализом документов",
       "Поиск судебной практики",
@@ -67,12 +67,12 @@ export const PLANS: Plan[] = [
     name: "Максимум",
     price: "5 990",
     oldPrice: "8 990",
-    questions: 300,
+    questions: 150,
     docs: 50,
     lawyerFeature: "50 вопросов живому юристу + 2 документа от юриста",
     features: [
       "Всё из тарифа «Профи»",
-      "300 вопросов AI-юристу",
+      "150 вопросов AI-юристу",
       "До 50 документов через систему",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
@@ -89,8 +89,8 @@ export const PLANS: Plan[] = [
 ];
 
 export function getActivePlan(user: User): string | null {
-  if ((user.paidQuestions ?? 0) >= 300 || (user.paidDocs ?? 0) >= 50) return "plan_max";
-  if ((user.paidQuestions ?? 0) >= 100 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
+  if ((user.paidQuestions ?? 0) >= 150 || (user.paidDocs ?? 0) >= 50) return "plan_max";
+  if ((user.paidQuestions ?? 0) >= 70 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
   if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
