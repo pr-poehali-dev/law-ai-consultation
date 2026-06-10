@@ -412,33 +412,50 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             if not terms:
                 return _ok({"results": [], "total": 0})
 
-            tsquery = " | ".join(f"{t}:*" for t in terms[:12])
+            # Два варианта запроса: AND (все слова) и OR (хоть одно)
+            # AND даёт более точные результаты, OR — fallback
+            tsquery_and = " & ".join(f"{t}:*" for t in terms[:12])
+            tsquery_or  = " | ".join(f"{t}:*" for t in terms[:12])
+            phrase_like = "%" + query.replace("%", "\\%").replace("_", "\\_") + "%"
 
             cur.execute(
                 f"""SELECT
                         c.content,
                         d.title, d.filename, d.doc_year, d.court_name, d.case_number,
                         d.description,
-                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank
+                        -- базовый ранг по ts_rank
+                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank_or,
+                        -- бонус: все слова присутствуют
+                        CASE WHEN c.content_tsv @@ to_tsquery('russian', %s) THEN 2.0 ELSE 0.0 END AS bonus_and,
+                        -- бонус: точная фраза (ILIKE)
+                        CASE WHEN c.content ILIKE %s THEN 3.0 ELSE 0.0 END AS bonus_phrase
                     FROM {SCHEMA}.legal_doc_chunks c
                     JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
                     WHERE
                         d.category = %s AND d.is_active = TRUE
                         AND c.content != ''
                         AND c.content_tsv @@ to_tsquery('russian', %s)
-                    ORDER BY rank DESC
+                    ORDER BY (
+                        ts_rank(c.content_tsv, to_tsquery('russian', %s))
+                        + CASE WHEN c.content_tsv @@ to_tsquery('russian', %s) THEN 2.0 ELSE 0.0 END
+                        + CASE WHEN c.content ILIKE %s THEN 3.0 ELSE 0.0 END
+                    ) DESC
                     LIMIT %s""",
-                (tsquery, category, tsquery, limit)
+                (tsquery_or, tsquery_and, phrase_like,
+                 category, tsquery_or,
+                 tsquery_or, tsquery_and, phrase_like,
+                 limit)
             )
             rows = cur.fetchall()
 
             results = []
             seen_titles = {}
-            for content, title, filename, doc_year, court_name, case_number, description, rank in rows:
+            for content, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase in rows:
                 # Берём не более 2 чанков на документ
                 if seen_titles.get(title, 0) >= 2:
                     continue
                 seen_titles[title] = seen_titles.get(title, 0) + 1
+                total_rank = float(rank_or) + float(bonus_and) + float(bonus_phrase)
                 results.append({
                     "title": title,
                     "filename": filename or title,
@@ -447,8 +464,15 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     "case_number": case_number or "",
                     "description": description or "",
                     "snippet": content[:600],
-                    "rank": float(rank),
+                    "rank": total_rank,
+                    "exact_match": bonus_phrase > 0,
+                    "all_terms": bonus_and > 0,
                 })
+
+            # Если результатов с AND > 0 — скрываем чисто OR-результаты (rank_or только, без бонусов)
+            has_strong = any(r["all_terms"] or r["exact_match"] for r in results)
+            if has_strong:
+                results = [r for r in results if r["all_terms"] or r["exact_match"]]
 
             return _ok({"results": results, "total": len(results)})
 
