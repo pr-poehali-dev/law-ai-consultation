@@ -287,15 +287,15 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     else if (discount === "50") discountLine = "• Льгота: скидка 50%";
 
     const text =
-      `⚖️ Расчёт госпошлины:\n` +
+      `⚖️ Расчёт госпошлины по ст. ${articleRef} НК РФ:\n` +
       `• Суд: ${courtLabel}\n` +
       `• Плательщик: ${payerLabel}\n` +
       `• Тип: ${typeLabel}\n` +
       `${claimLine}\n` +
       `${discountLine ? discountLine + "\n" : ""}` +
-      `• Пошлина: ${fmtRub(result.fee)} руб.\n` +
+      `• Размер госпошлины: ${fmtRub(result.fee)} руб.\n` +
       `${result.note ? "• Примечание: " + result.note + "\n" : ""}` +
-      `\nУчти этот расчёт, проверь корректность по ст. ${articleRef} НК РФ.`;
+      `\nПроверь корректность этой госпошлины по ст. ${articleRef} НК РФ, сверив с документами из правовой базы по госпошлинам. Укажи, правильно ли определена ставка, и нет ли применимых льгот.`;
 
     onSendToChat(text);
     onClose();
