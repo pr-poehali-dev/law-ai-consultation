@@ -230,92 +230,78 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     onClose();
   };
 
-  const inputCls = "w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400";
-  const labelCls = "text-xs font-semibold text-slate-600 mb-1 block";
+  const inp = "w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400";
 
   return (
-    <div className="flex flex-col h-full bg-slate-50" style={{ fontFamily: "system-ui, sans-serif" }}>
+    <div className="flex flex-col bg-white" style={{ fontFamily: "system-ui, sans-serif" }}>
       {/* Шапка */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)" }}>
-            <Icon name="Calculator" size={15} color="#fff" />
+            <Icon name="Calculator" size={12} color="#fff" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800 leading-tight">Калькулятор неустойки</p>
-            <p className="text-[10px] text-slate-400">по ГК РФ · справочный расчёт</p>
-          </div>
+          <p className="text-xs font-bold text-slate-800">Калькулятор неустойки</p>
+          <span className="text-[10px] text-slate-400">· по ГК РФ</span>
         </div>
-        <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
-          <Icon name="X" size={14} />
+        <button onClick={onClose} className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+          <Icon name="X" size={13} />
         </button>
       </div>
 
-      {/* Тело — скролл */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Скроллируемое тело */}
+      <div className="overflow-y-auto px-4 py-3 space-y-3" style={{ maxHeight: "calc(68dvh - 44px)" }}>
 
-        {/* Режим расчёта */}
-        <div>
-          <label className={labelCls}>Тип неустойки</label>
-          <div className="grid grid-cols-3 gap-1.5">
-            {([
-              { v: "percent", label: "% в день" },
-              { v: "cbr", label: "Доля ставки ЦБ" },
-              { v: "fixed", label: "Фикс. сумма/день" },
-            ] as { v: CalcMode; label: string }[]).map(({ v, label }) => (
-              <button key={v} onClick={() => setMode(v)}
-                className="py-2 px-1 rounded-xl text-xs font-semibold border transition-all"
-                style={mode === v
-                  ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff", border: "1.5px solid #0f4c81" }
-                  : { background: "#fff", color: "#475569", border: "1.5px solid #e2e8f0" }
-                }>
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* Тип + основные поля в одной строке */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {([
+            { v: "percent", label: "% в день" },
+            { v: "cbr", label: "Ставка ЦБ" },
+            { v: "fixed", label: "Фикс./день" },
+          ] as { v: CalcMode; label: string }[]).map(({ v, label }) => (
+            <button key={v} onClick={() => setMode(v)}
+              className="py-1.5 rounded-lg text-[11px] font-semibold border transition-all"
+              style={mode === v
+                ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff", border: "1.5px solid #0f4c81" }
+                : { background: "#f8fafc", color: "#64748b", border: "1.5px solid #e2e8f0" }
+              }>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Сумма долга */}
-        <div>
-          <label className={labelCls}>Сумма долга (руб.)</label>
-          <input className={inputCls} placeholder="100 000" value={debt}
-            onChange={e => setDebt(e.target.value)} />
-        </div>
-
-        {/* Период */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelCls}>Начало просрочки</label>
-            <input type="date" className={inputCls} value={dateStart}
-              onChange={e => setDateStart(e.target.value)} />
+        {/* Сумма + период в строку */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-1">
+            <p className="text-[10px] font-semibold text-slate-500 mb-1">Долг, ₽</p>
+            <input className={inp} placeholder="100 000" value={debt} onChange={e => setDebt(e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>Окончание (включ.)</label>
-            <input type="date" className={inputCls} value={dateEnd}
-              onChange={e => setDateEnd(e.target.value)} />
+            <p className="text-[10px] font-semibold text-slate-500 mb-1">Начало</p>
+            <input type="date" className={inp} value={dateStart} onChange={e => setDateStart(e.target.value)} />
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-slate-500 mb-1">Конец</p>
+            <input type="date" className={inp} value={dateEnd} onChange={e => setDateEnd(e.target.value)} />
           </div>
         </div>
 
-        {/* Параметры ставки */}
+        {/* Параметры ставки — компактно */}
         {mode === "percent" && (
           <div>
-            <label className={labelCls}>Ставка неустойки (% в день)</label>
-            <input className={inputCls} placeholder="0.1" value={ratePercent}
-              onChange={e => setRatePercent(e.target.value)} />
+            <p className="text-[10px] font-semibold text-slate-500 mb-1">Ставка (% в день)</p>
+            <input className={inp} placeholder="0.1" value={ratePercent} onChange={e => setRatePercent(e.target.value)} />
           </div>
         )}
         {mode === "cbr" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelCls}>Ключевая ставка ЦБ (%)</label>
-              <input className={inputCls} placeholder="16" value={cbrRate}
-                onChange={e => setCbrRate(e.target.value)} />
+              <p className="text-[10px] font-semibold text-slate-500 mb-1">Ключевая ставка (%)</p>
+              <input className={inp} placeholder="16" value={cbrRate} onChange={e => setCbrRate(e.target.value)} />
             </div>
             <div>
-              <label className={labelCls}>Знаменатель (1/N)</label>
-              <select className={inputCls} value={cbrFraction}
-                onChange={e => setCbrFraction(e.target.value)}>
+              <p className="text-[10px] font-semibold text-slate-500 mb-1">Доля</p>
+              <select className={inp} value={cbrFraction} onChange={e => setCbrFraction(e.target.value)}>
                 <option value="300">1/300</option>
                 <option value="150">1/150</option>
                 <option value="130">1/130</option>
@@ -327,140 +313,126 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
         )}
         {mode === "fixed" && (
           <div>
-            <label className={labelCls}>Фиксированная сумма (руб./день)</label>
-            <input className={inputCls} placeholder="100" value={fixedDay}
-              onChange={e => setFixedDay(e.target.value)} />
+            <p className="text-[10px] font-semibold text-slate-500 mb-1">Сумма в день (₽)</p>
+            <input className={inp} placeholder="100" value={fixedDay} onChange={e => setFixedDay(e.target.value)} />
           </div>
         )}
 
-        {/* Изменения долга */}
+        {/* Частичные оплаты */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className={labelCls + " mb-0"}>Изменения долга</label>
-            <button onClick={addChange}
-              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
-              <Icon name="Plus" size={12} />Добавить
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] font-semibold text-slate-500">Изменения долга</p>
+            <button onClick={addChange} className="flex items-center gap-0.5 text-[11px] font-semibold text-blue-600 hover:text-blue-700">
+              <Icon name="Plus" size={11} />Добавить
             </button>
           </div>
           {changes.length === 0 && (
-            <p className="text-xs text-slate-400 py-2 text-center border border-dashed border-slate-200 rounded-xl">
-              Нет изменений — долг постоянный
+            <p className="text-[10px] text-slate-400 text-center py-1.5 border border-dashed border-slate-200 rounded-lg">
+              Долг постоянный
             </p>
           )}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {changes.map(ch => (
-              <div key={ch.id} className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 rounded-xl">
-                <input type="date" className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 w-32 shrink-0"
+              <div key={ch.id} className="flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <input type="date" className="text-[11px] border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-blue-400 w-28 shrink-0 bg-white"
                   value={ch.date} onChange={e => updateChange(ch.id, "date", e.target.value)} />
-                <select className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 shrink-0"
+                <select className="text-[11px] border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-blue-400 shrink-0 bg-white"
                   value={ch.type} onChange={e => updateChange(ch.id, "type", e.target.value as "payment" | "increase")}>
                   <option value="payment">Оплата</option>
                   <option value="increase">Увеличение</option>
                 </select>
-                <input className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 min-w-0"
-                  placeholder="Сумма" value={ch.amount}
-                  onChange={e => updateChange(ch.id, "amount", e.target.value)} />
+                <input className="flex-1 text-[11px] border border-slate-200 rounded-md px-1.5 py-1 outline-none focus:border-blue-400 min-w-0 bg-white"
+                  placeholder="Сумма" value={ch.amount} onChange={e => updateChange(ch.id, "amount", e.target.value)} />
                 <button onClick={() => removeChange(ch.id)} className="text-slate-400 hover:text-red-500 transition-colors shrink-0">
-                  <Icon name="X" size={13} />
+                  <Icon name="X" size={11} />
                 </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Ограничение */}
-        <div className="bg-white border border-slate-200 rounded-xl p-3">
-          <label className="flex items-center gap-2 cursor-pointer mb-2">
-            <input type="checkbox" checked={capEnabled} onChange={e => setCapEnabled(e.target.checked)}
-              className="w-4 h-4 rounded accent-blue-600" />
-            <span className="text-xs font-semibold text-slate-700">Ограничить неустойку</span>
+        {/* Ограничение — коллапсируемое */}
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <label className="flex items-center gap-2 cursor-pointer px-3 py-2 bg-slate-50">
+            <input type="checkbox" checked={capEnabled} onChange={e => setCapEnabled(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+            <span className="text-[11px] font-semibold text-slate-600">Ограничить неустойку</span>
           </label>
           {capEnabled && (
-            <div className="space-y-2 mt-2">
-              <div className="flex gap-2">
+            <div className="px-3 py-2 space-y-2 bg-white">
+              <div className="flex gap-1.5">
                 {(["amount", "percent"] as CapMode[]).map(m => (
                   <button key={m} onClick={() => setCapMode(m)}
-                    className="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all"
-                    style={capMode === m
-                      ? { background: "#eff6ff", color: "#1d4ed8", border: "1.5px solid #93c5fd" }
-                      : { background: "#fff", color: "#64748b", border: "1.5px solid #e2e8f0" }
-                    }>
-                    {m === "amount" ? "Макс. сумма (руб.)" : "Макс. % от долга"}
+                    className="flex-1 py-1 rounded-md text-[11px] font-semibold border transition-all"
+                    style={capMode === m ? { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #93c5fd" } : { background: "#fff", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                    {m === "amount" ? "Макс. руб." : "Макс. %"}
                   </button>
                 ))}
               </div>
-              {capMode === "amount"
-                ? <input className={inputCls} placeholder="Например: 50000" value={capAmount} onChange={e => setCapAmount(e.target.value)} />
-                : <input className={inputCls} placeholder="Например: 10" value={capPercent} onChange={e => setCapPercent(e.target.value)} />
-              }
+              <input className={inp} placeholder={capMode === "amount" ? "50 000" : "10"} value={capMode === "amount" ? capAmount : capPercent} onChange={e => capMode === "amount" ? setCapAmount(e.target.value) : setCapPercent(e.target.value)} />
             </div>
           )}
         </div>
 
         {/* Ошибка */}
         {error && (
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-            <Icon name="AlertCircle" size={13} color="#ef4444" />{error}
+          <div className="flex items-center gap-1.5 px-2.5 py-2 bg-red-50 border border-red-200 rounded-lg text-[11px] text-red-700">
+            <Icon name="AlertCircle" size={12} color="#ef4444" />{error}
           </div>
         )}
 
-        {/* Кнопка рассчитать */}
+        {/* Кнопка */}
         <button onClick={calculate}
-          className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-[0.98] shadow-sm"
+          className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.98]"
           style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
           Рассчитать
         </button>
 
         {/* Результат */}
         {result && (
-          <div className="space-y-3">
-            {/* Главная сумма */}
-            <div className="rounded-2xl p-4 text-center"
+          <div className="space-y-2">
+            <div className="rounded-xl px-4 py-3 text-center"
               style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-              <p className="text-xs text-blue-200 mb-1">Итоговая неустойка</p>
-              <p className="text-2xl font-black text-white leading-tight">
+              <p className="text-[10px] text-blue-200 mb-0.5">Итоговая неустойка</p>
+              <p className="text-xl font-black text-white leading-tight">
                 {fmt(result.capApplied && result.capped !== null ? result.capped : result.total)} ₽
               </p>
-              <p className="text-[11px] text-blue-200 mt-1 leading-snug">
+              <p className="text-[10px] text-blue-200 mt-0.5 leading-tight">
                 {numToWords(result.capApplied && result.capped !== null ? result.capped : result.total)}
               </p>
               {result.capApplied && (
-                <div className="mt-2 px-3 py-1.5 rounded-lg bg-amber-400/20 text-amber-200 text-[11px] font-medium">
-                  Ограничено · расчётная сумма: {fmt(result.total)} ₽
-                </div>
+                <p className="mt-1.5 text-[10px] text-amber-300">
+                  Ограничено · расчётная: {fmt(result.total)} ₽
+                </p>
               )}
             </div>
 
-            {/* Таблица периодов */}
             {result.periods.length > 0 && (
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-100">
-                  <p className="text-xs font-bold text-slate-700">Детализация по периодам</p>
-                </div>
+                <p className="text-[10px] font-bold text-slate-600 px-3 py-1.5 border-b border-slate-100">Детализация</p>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full" style={{ fontSize: "11px" }}>
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-3 py-2 text-left font-semibold text-slate-500">Период</th>
-                        <th className="px-3 py-2 text-right font-semibold text-slate-500">Долг, ₽</th>
-                        <th className="px-3 py-2 text-right font-semibold text-slate-500">Дн.</th>
-                        <th className="px-3 py-2 text-right font-semibold text-slate-500">Пени, ₽</th>
+                      <tr className="bg-slate-50 text-slate-500">
+                        <th className="px-2.5 py-1.5 text-left font-semibold">Период</th>
+                        <th className="px-2.5 py-1.5 text-right font-semibold">Долг</th>
+                        <th className="px-2.5 py-1.5 text-right font-semibold">Дн.</th>
+                        <th className="px-2.5 py-1.5 text-right font-semibold">Пени</th>
                       </tr>
                     </thead>
                     <tbody>
                       {result.periods.map((p, i) => (
-                        <tr key={i} className="border-b border-slate-50 last:border-0">
-                          <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{p.from.slice(5)} — {p.to.slice(5)}</td>
-                          <td className="px-3 py-2 text-right text-slate-700 font-medium">{fmt(p.debt)}</td>
-                          <td className="px-3 py-2 text-right text-slate-500">{p.days}</td>
-                          <td className="px-3 py-2 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
+                        <tr key={i} className="border-t border-slate-50">
+                          <td className="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">{p.from.slice(5)} – {p.to.slice(5)}</td>
+                          <td className="px-2.5 py-1.5 text-right text-slate-700">{fmt(p.debt)}</td>
+                          <td className="px-2.5 py-1.5 text-right text-slate-500">{p.days}</td>
+                          <td className="px-2.5 py-1.5 text-right font-bold text-blue-700">{fmt(p.penalty)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-slate-50">
-                        <td colSpan={3} className="px-3 py-2 text-xs font-bold text-slate-700">Итого</td>
-                        <td className="px-3 py-2 text-right text-sm font-black text-blue-800">{fmt(result.total)}</td>
+                      <tr className="bg-slate-50 border-t border-slate-100">
+                        <td colSpan={3} className="px-2.5 py-1.5 font-bold text-slate-700">Итого</td>
+                        <td className="px-2.5 py-1.5 text-right font-black text-blue-800">{fmt(result.total)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -468,20 +440,13 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
               </div>
             )}
 
-            {/* Предупреждение */}
-            <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-              <Icon name="Info" size={13} color="#d97706" className="shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-800 leading-snug">
-                Расчёт справочный, не является юридическим заключением. Для официального использования рекомендуется консультация юриста.
-              </p>
-            </div>
+            <p className="text-[10px] text-slate-400 text-center">Справочный расчёт · не юридическое заключение</p>
 
-            {/* Кнопка отправить в чат */}
             <button onClick={sendToChat}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
               style={{ background: "rgba(15,76,129,0.07)", color: "#0f4c81", border: "1.5px solid rgba(15,76,129,0.2)" }}>
-              <Icon name="Send" size={14} color="#0f4c81" />
-              Отправить результат в чат AI-юристу
+              <Icon name="Send" size={12} color="#0f4c81" />
+              Отправить в чат AI-юристу
             </button>
           </div>
         )}

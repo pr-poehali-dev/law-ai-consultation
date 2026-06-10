@@ -221,34 +221,42 @@ export default function ChatTab({
 
       </div>{/* конец основной колонки */}
 
-      {/* Bottom-sheet — поверх чата, не смещает layout */}
+      {/* Всплывающее облачко калькулятора */}
       {activeTool === "penalty" && (
-        <div className="fixed inset-0 z-50 flex flex-col pointer-events-none">
-          {/* Затемнение — только верхняя часть, кликабельна для закрытия */}
+        <>
+          {/* Backdrop — закрывает по клику вне */}
           <div
-            className="flex-1 pointer-events-auto"
-            style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(2px)" }}
+            className="fixed inset-0 z-40"
             onClick={() => setActiveTool(null)}
           />
-          {/* Сама панель */}
+          {/* Само облачко — снизу по центру, над полем ввода */}
           <div
-            className="pointer-events-auto bg-white shadow-2xl flex flex-col"
+            className="fixed z-50 left-1/2 -translate-x-1/2"
             style={{
-              borderRadius: "24px 24px 0 0",
-              maxHeight: "70dvh",
-              // На широких экранах — центрируем и ограничиваем ширину
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)",
+              width: "min(480px, calc(100vw - 24px))",
             }}
           >
-            {/* Drag-handle */}
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-slate-200" />
+            <div
+              className="bg-white rounded-3xl shadow-2xl overflow-hidden"
+              style={{
+                maxHeight: "68dvh",
+                border: "1px solid rgba(226,232,240,0.9)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)",
+              }}
+            >
+              <PenaltyCalculatorPanel
+                onClose={() => setActiveTool(null)}
+                onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
+              />
             </div>
-            <PenaltyCalculatorPanel
-              onClose={() => setActiveTool(null)}
-              onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
-            />
+            {/* Хвостик облачка */}
+            <div className="flex justify-center mt-1">
+              <div className="w-0 h-0"
+                style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "8px solid white", filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.06))" }} />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>
