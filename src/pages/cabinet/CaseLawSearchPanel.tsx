@@ -97,10 +97,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
     } catch (_e) { /* ignore */ }
   };
 
-  const sendWebToChat = (r: WebResult) => {
-    onSendToChat(`🌐 Найдено в интернете по запросу «${query}»:\n\n📌 ${r.title}\n🔗 ${r.url}\n\n${r.snippet}\n\nПроанализируй это применительно к моей ситуации.`);
-    onClose();
-  };
+
 
   const eq = encodeURIComponent(query || "судебная практика");
   const catInfo = CATEGORIES.find(c => c.id === category)!;
@@ -247,13 +244,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                         <Icon name={webCopied === i ? "CheckCheck" : "Copy"} size={9} color={webCopied === i ? "#059669" : "#64748b"} />
                         {webCopied === i ? "Скопировано" : "Копировать"}
                       </button>
-                      <button
-                        onClick={() => sendWebToChat(r)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-white transition-all"
-                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                        <Icon name="Send" size={9} color="#fff" />
-                        В чат
-                      </button>
+
                     </div>
                   </div>
                 ))}
