@@ -388,6 +388,70 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 })
             return _ok({"docs": docs})
 
+        elif action == "search":
+            # Полнотекстовый поиск по чанкам с ранжированием
+            query = (body.get("query") or "").strip()
+            category = body.get("category", "case_law")
+            limit = min(int(body.get("limit", 8)), 20)
+
+            if not query:
+                return _err(400, "Укажите поисковый запрос")
+            if category not in ALLOWED_CATEGORIES:
+                return _err(400, "Неверная категория")
+
+            import re as _re
+            stop_words = {
+                "и","в","на","с","по","для","что","как","это","все","или","но","а","у","из","за",
+                "от","до","при","если","то","не","к","о","об","во","со","же","бы","ли","уже",
+                "еще","ещё","мне","мы","вы","он","она","они","был","быть","есть","так","там",
+                "тут","вот","да","нет","я","ты","под","над","без","между",
+            }
+            words = _re.sub(r"[^\w\s]", " ", query.lower()).split()
+            terms = [w for w in words if len(w) > 2 and w not in stop_words]
+
+            if not terms:
+                return _ok({"results": [], "total": 0})
+
+            tsquery = " | ".join(f"{t}:*" for t in terms[:12])
+
+            cur.execute(
+                f"""SELECT
+                        c.content,
+                        d.title, d.filename, d.doc_year, d.court_name, d.case_number,
+                        d.description,
+                        ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank
+                    FROM {SCHEMA}.legal_doc_chunks c
+                    JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
+                    WHERE
+                        d.category = %s AND d.is_active = TRUE
+                        AND c.content != ''
+                        AND c.content_tsv @@ to_tsquery('russian', %s)
+                    ORDER BY rank DESC
+                    LIMIT %s""",
+                (tsquery, category, tsquery, limit)
+            )
+            rows = cur.fetchall()
+
+            results = []
+            seen_titles = {}
+            for content, title, filename, doc_year, court_name, case_number, description, rank in rows:
+                # Берём не более 2 чанков на документ
+                if seen_titles.get(title, 0) >= 2:
+                    continue
+                seen_titles[title] = seen_titles.get(title, 0) + 1
+                results.append({
+                    "title": title,
+                    "filename": filename or title,
+                    "doc_year": doc_year,
+                    "court_name": court_name or "",
+                    "case_number": case_number or "",
+                    "description": description or "",
+                    "snippet": content[:600],
+                    "rank": float(rank),
+                })
+
+            return _ok({"results": results, "total": len(results)})
+
         elif action == "upload":
             category = body.get("category", "")
             subcategory = (body.get("subcategory") or "").strip()

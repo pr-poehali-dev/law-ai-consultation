@@ -9,6 +9,7 @@ import ChatMessageList from "@/pages/cabinet/ChatMessageList";
 import ChatInputBar from "@/pages/cabinet/ChatInputBar";
 import PenaltyCalculatorPanel from "@/pages/cabinet/PenaltyCalculatorPanel";
 import DutyCalculatorPanel from "@/pages/cabinet/DutyCalculatorPanel";
+import CaseLawSearchPanel from "@/pages/cabinet/CaseLawSearchPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; }
@@ -92,11 +93,12 @@ export default function ChatTab({
   const activePlan = PLANS.find(p => p.id === activePlanId);
   const lastAiIdx = messages.reduce((acc, m, i) => m.role === "ai" ? i : acc, -1);
   const [showReport, setShowReport] = useState(false);
-  const [activeTool, setActiveTool] = useState<"penalty" | "duty" | null>(null);
+  const [activeTool, setActiveTool] = useState<"penalty" | "duty" | "case_law" | null>(null);
 
   const handleQuickAction = (text: string) => {
     if (text === "__penalty__") { setActiveTool("penalty"); return; }
     if (text === "__duty__") { setActiveTool("duty"); return; }
+    if (text === "__case_law__") { setActiveTool("case_law"); return; }
     onSend(text);
   };
 
@@ -225,7 +227,7 @@ export default function ChatTab({
       </div>{/* конец основной колонки */}
 
       {/* Всплывающее облачко калькулятора */}
-      {(activeTool === "penalty" || activeTool === "duty") && (
+      {(activeTool === "penalty" || activeTool === "duty" || activeTool === "case_law") && (
         <>
           {/* Backdrop — закрывает по клику вне */}
           <div
@@ -256,6 +258,12 @@ export default function ChatTab({
               )}
               {activeTool === "duty" && (
                 <DutyCalculatorPanel
+                  onClose={() => setActiveTool(null)}
+                  onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
+                />
+              )}
+              {activeTool === "case_law" && (
+                <CaseLawSearchPanel
                   onClose={() => setActiveTool(null)}
                   onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
                 />

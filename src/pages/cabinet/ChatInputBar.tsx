@@ -220,7 +220,7 @@ export default function ChatInputBar({
           {[
             { icon: "Calculator", label: "Калькулятор неустойки", text: "__penalty__" },
             { icon: "Landmark", label: "Госпошлина", text: "__duty__" },
-            { icon: "BookOpen", label: "Судебная практика", text: "Найди судебную практику по моему вопросу" },
+            { icon: "BookOpen", label: "Судебная практика", text: "__case_law__" },
             { icon: "MapPin", label: "Территориальная подсудность", text: "Определи территориальную подсудность по моему делу" },
           ].map(({ icon, label, text }) => (
             <button
