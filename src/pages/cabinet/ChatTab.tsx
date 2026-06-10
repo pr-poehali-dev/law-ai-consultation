@@ -174,9 +174,11 @@ export default function ChatTab({
       <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
-            <div className="w-9 h-9 gradient-navy rounded-2xl flex items-center justify-center shadow-md">
-              <Icon name="Scale" size={15} className="text-gold-400" />
-            </div>
+            <img
+              src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/8f28f89e-42b3-4a6e-acfb-54b3ac0d4c86.jpg"
+              alt="AI-юрист"
+              className="w-9 h-9 rounded-2xl shadow-md object-cover"
+            />
             <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${typing ? "bg-amber-400" : "bg-emerald-400"}`}
               style={typing ? { animation: "pulse 1s infinite" } : {}} />
           </div>
