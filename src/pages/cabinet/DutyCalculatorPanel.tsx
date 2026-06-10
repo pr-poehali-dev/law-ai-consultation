@@ -596,19 +596,11 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
             {/* Кнопки действий */}
             <div className="flex gap-2 mt-3">
               <button
-                onClick={handleSendToChat}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold text-white transition-all hover:opacity-90"
-                style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
-              >
-                <Icon name="Send" size={11} color="#fff" />
-                Отправить в чат AI-юристу
-              </button>
-              <button
                 onClick={() => setShowRatesModal(true)}
-                className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
               >
                 <Icon name="Table" size={11} />
-                Таблица
+                Таблица ставок
               </button>
             </div>
           </div>
