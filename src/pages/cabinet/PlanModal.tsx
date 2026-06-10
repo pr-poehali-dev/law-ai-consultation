@@ -82,11 +82,9 @@ export const PLANS: Plan[] = [
 ];
 
 export function getActivePlan(user: User): string | null {
-  // Сначала смотрим на остатки (активный тариф)
   if ((user.paidQuestions ?? 0) >= 300 || (user.paidDocs ?? 0) >= 50) return "plan_max";
   if ((user.paidQuestions ?? 0) >= 100 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
   if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
-  // Если остатки = 0, но тариф был куплен — показываем его (для продления)
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
   if (user.purchasedPlan === "starter") return "plan_starter";
@@ -108,9 +106,31 @@ interface PlanModalProps {
   minPlanId?: string;
 }
 
-const BG = "#0a1628";
-const GOLD = "#e8a820";
-const GOLD_LIGHT = "#f0c060";
+// Иконки для каждого тарифа
+const PLAN_ICONS: Record<string, string> = {
+  plan_starter: "Rocket",
+  plan_pro: "Zap",
+  plan_max: "Crown",
+};
+
+// Ключевые метрики по тарифу (для визуальных пилюль)
+const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
+  plan_starter: [
+    { icon: "MessageCircle", label: "30 вопросов" },
+    { icon: "FileText", label: "5 документов" },
+    { icon: "UserCheck", label: "1 юрист" },
+  ],
+  plan_pro: [
+    { icon: "MessageCircle", label: "100 вопросов" },
+    { icon: "FileText", label: "20 документов" },
+    { icon: "UserCheck", label: "5 юристов" },
+  ],
+  plan_max: [
+    { icon: "MessageCircle", label: "300 вопросов" },
+    { icon: "FileText", label: "50 документов" },
+    { icon: "UserCheck", label: "30 юристов" },
+  ],
+};
 
 export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: PlanModalProps) {
   const [visible, setVisible] = useState(false);
@@ -135,180 +155,215 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-250 ${visible ? "bg-black/65 backdrop-blur-sm" : "bg-transparent"}`}
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all duration-250 ${visible ? "bg-black/70 backdrop-blur-md" : "bg-transparent"}`}
       onClick={handleClose}
     >
       <div
-        className={`w-full sm:max-w-xl flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-3xl sm:rounded-3xl overflow-hidden
-          ${visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}
-          max-h-[94dvh] sm:max-h-[90vh]`}
-        style={{ background: BG }}
+        className={`w-full sm:max-w-lg flex flex-col shadow-2xl transition-all duration-250 ease-out rounded-t-[28px] sm:rounded-[28px] overflow-hidden max-h-[94dvh] sm:max-h-[90vh]`}
+        style={{ background: "linear-gradient(170deg, #0d1f3c 0%, #091528 100%)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Золотая линия сверху */}
-        <div className="shrink-0" style={{ height: 3, background: `linear-gradient(90deg, transparent, ${GOLD} 30%, ${GOLD_LIGHT} 50%, ${GOLD} 70%, transparent)` }} />
+        {/* Радужная полоска сверху */}
+        <div className="shrink-0 h-[3px]" style={{ background: "linear-gradient(90deg, #3b82f6 0%, #8b5cf6 30%, #e8a820 60%, #f0c060 80%, #e8a820 100%)" }} />
 
         {/* Свайп-хэндл */}
-        <div className="flex justify-center pt-2.5 pb-1 sm:hidden shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="flex justify-center pt-3 pb-0 sm:hidden shrink-0">
+          <div className="w-10 h-[5px] rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
         </div>
 
         {/* Шапка */}
-        <div className="flex items-center justify-between px-5 pt-3 sm:pt-5 pb-3 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `rgba(232,168,32,0.15)`, border: `1px solid rgba(232,168,32,0.3)` }}>
-              <Icon name="Zap" size={16} color={GOLD} />
-            </div>
-            <div>
-              <h2 className="font-bold text-white text-base leading-tight">Выберите тариф</h2>
-              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>Доступ сразу после оплаты · Нет автосписания</p>
-            </div>
+        <div className="flex items-center justify-between px-5 pt-4 sm:pt-5 pb-4 shrink-0">
+          <div>
+            <h2 className="font-bold text-white text-lg leading-tight tracking-tight">Тарифные планы</h2>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>Доступ сразу · Без автосписания</p>
           </div>
-          <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-white/10">
-            <Icon name="X" size={16} color="rgba(255,255,255,0.6)" />
+          <button
+            onClick={handleClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: "rgba(255,255,255,0.07)" }}
+          >
+            <Icon name="X" size={15} color="rgba(255,255,255,0.6)" />
           </button>
         </div>
 
-        {/* Тарифы */}
-        <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-3 flex-1">
-          {visiblePlans.map((plan) => {
+        {/* Карточки тарифов */}
+        <div className="overflow-y-auto px-4 sm:px-5 pb-4 space-y-3 flex-1">
+          {visiblePlans.map((plan, idx) => {
             const isActive = activePlanId === plan.id;
-            const isDark = plan.color === "dark";   // Профи
-            const isMax = plan.color === "max";      // Максимум
-            const isLight = plan.color === "light";  // Старт
+            const isPro = plan.color === "dark";
+            const isMax = plan.color === "max";
+            const isLight = plan.color === "light";
             const savings = plan.oldPrice ? savingsLabel(plan.price, plan.oldPrice) : "";
+            const pills = PLAN_PILLS[plan.id] ?? [];
+            const planIcon = PLAN_ICONS[plan.id] ?? "Zap";
 
-            // Цвета текста
-            const textPrimary = isActive ? "#059669" : (isLight ? "#1e3a5f" : "#fff");
-            const textSecondary = isActive ? "#10b981" : (isLight ? "#475569" : "rgba(255,255,255,0.65)");
-            const textMuted = isActive ? "#6ee7b7" : (isLight ? "#94a3b8" : "rgba(255,255,255,0.4)");
-
-            // Фон карточки
-            const cardBg = isActive
-              ? "rgba(16,185,129,0.08)"
-              : isLight
-                ? "rgba(255,255,255,0.04)"
-                : "rgba(255,255,255,0.06)";
-
-            // Рамка карточки
-            const cardBorder = isActive
-              ? "1.5px solid rgba(16,185,129,0.5)"
+            // Градиенты и акценты по типу
+            const accentColor = isActive
+              ? "#10b981"
               : isMax
-                ? `1.5px solid ${GOLD}` // золотой ободок для Максимума
-                : isDark
-                  ? "1.5px solid rgba(232,168,32,0.35)"
-                  : "1.5px solid rgba(255,255,255,0.1)";
+                ? "#f0c060"
+                : isPro
+                  ? "#a78bfa"
+                  : "#60a5fa";
+
+            const cardGradient = isActive
+              ? "linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.04) 100%)"
+              : isMax
+                ? "linear-gradient(135deg, rgba(240,192,96,0.1) 0%, rgba(232,168,32,0.04) 100%)"
+                : isPro
+                  ? "linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(109,40,217,0.04) 100%)"
+                  : "linear-gradient(135deg, rgba(96,165,250,0.08) 0%, rgba(59,130,246,0.02) 100%)";
+
+            const cardBorder = isActive
+              ? "1.5px solid rgba(16,185,129,0.45)"
+              : isMax
+                ? "1.5px solid rgba(240,192,96,0.45)"
+                : isPro
+                  ? "1.5px solid rgba(139,92,246,0.35)"
+                  : "1.5px solid rgba(96,165,250,0.2)";
+
+            const btnStyle = isActive
+              ? { background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)", cursor: "default" }
+              : isMax
+                ? { background: "linear-gradient(135deg, #e8a820, #f0c060)", color: "#0a1628" }
+                : isPro
+                  ? { background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff" }
+                  : { background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", color: "#fff" };
 
             return (
               <div
                 key={plan.id}
                 onClick={() => handleSelect(plan)}
-                className="relative rounded-2xl overflow-hidden transition-all duration-200"
+                className={`relative rounded-2xl overflow-hidden transition-all duration-200 ${!isActive ? "hover:scale-[1.01] active:scale-[0.99]" : ""}`}
                 style={{
-                  background: cardBg,
+                  background: cardGradient,
                   border: cardBorder,
                   cursor: isActive ? "default" : "pointer",
-                  ...(isMax && !isActive ? { boxShadow: `0 0 20px rgba(232,168,32,0.15)` } : {}),
+                  ...(isMax && !isActive ? { boxShadow: "0 4px 24px rgba(240,192,96,0.12)" } : {}),
+                  ...(isPro && !isActive ? { boxShadow: "0 4px 24px rgba(139,92,246,0.12)" } : {}),
                 }}
               >
-                {/* Золотая линия для Максимум и Профи */}
-                {(isDark || isMax) && !isActive && (
-                  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${GOLD} 30%, ${GOLD_LIGHT} 50%, ${GOLD} 70%, transparent)` }} />
+                {/* Популярный — тонкая линия акцента сверху */}
+                {(isPro || isMax) && !isActive && (
+                  <div className="h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }} />
                 )}
 
                 <div className="p-4">
-                  {/* Шапка карточки */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="font-bold text-base sm:text-lg leading-tight" style={{ color: textPrimary }}>
-                        {plan.name}
-                      </span>
-                      {isActive && (
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide flex items-center gap-1"
-                          style={{ background: "rgba(16,185,129,0.2)", color: "#34d399" }}>
-                          <Icon name="Check" size={8} color="#34d399" />Активен
-                        </span>
-                      )}
-                      {!isActive && plan.badge && (
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
-                          style={{ background: isMax ? `rgba(232,168,32,0.25)` : isDark ? `rgba(232,168,32,0.2)` : "rgba(255,255,255,0.1)", color: isMax || isDark ? GOLD_LIGHT : "rgba(255,255,255,0.7)" }}>
-                          {plan.badge}
-                        </span>
-                      )}
+                  {/* Верхняя строка: иконка + название + бейдж + цена */}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      {/* Иконка тарифа */}
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}30` }}
+                      >
+                        <Icon name={planIcon as Parameters<typeof Icon>[0]["name"]} size={16} color={accentColor} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white text-base leading-tight">{plan.name}</span>
+                          {isActive && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                              style={{ background: "rgba(16,185,129,0.2)", color: "#34d399" }}>
+                              <Icon name="CheckCircle" size={8} color="#34d399" />Активен
+                            </span>
+                          )}
+                          {!isActive && plan.badge && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                              style={{ background: `${accentColor}25`, color: accentColor }}
+                            >
+                              {isMax && <Icon name="Star" size={7} color={accentColor} />}
+                              {isPro && <Icon name="Flame" size={7} color={accentColor} />}
+                              {plan.badge}
+                            </span>
+                          )}
+                        </div>
+                        {/* Счётчик вопросов/документов — маленький */}
+                        <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                          {plan.questions} вопр. · {plan.docs} докум.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Цена */}
                     <div className="flex flex-col items-end shrink-0">
-                      <div className="flex items-baseline gap-1">
-                        <span className="font-black text-xl leading-none" style={{ color: isActive ? "#34d399" : isLight ? "#1e3a5f" : GOLD_LIGHT }}>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="font-black text-2xl leading-none" style={{ color: isActive ? "#34d399" : accentColor }}>
                           {plan.price}
                         </span>
-                        <span className="text-sm font-normal" style={{ color: textMuted }}>₽</span>
+                        <span className="text-xs font-medium ml-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>₽</span>
                       </div>
                       {plan.oldPrice && !isActive && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[11px] line-through" style={{ color: textMuted }}>{plan.oldPrice} ₽</span>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[10px] line-through" style={{ color: "rgba(255,255,255,0.25)" }}>{plan.oldPrice} ₽</span>
                           {savings && (
-                            <span className="text-[10px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(74,222,128,0.2)", color: "#4ade80" }}>{savings}</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "rgba(74,222,128,0.15)", color: "#4ade80" }}>
+                              {savings}
+                            </span>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Счётчики */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="MessageCircle" size={12} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} />
-                      <span className="text-[12px] font-semibold" style={{ color: isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b" }}>{plan.questions} вопросов AI</span>
-                    </div>
-                    <div className="w-px h-3" style={{ background: "rgba(255,255,255,0.12)" }} />
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="FileText" size={12} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} />
-                      <span className="text-[12px] font-semibold" style={{ color: isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b" }}>{plan.docs} документов</span>
-                    </div>
-                  </div>
-
-                  {/* Блок юриста */}
-                  {plan.lawyerFeature && !isActive && (
-                    <div className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3"
-                      style={{ background: "rgba(232,168,32,0.12)", border: "1px solid rgba(232,168,32,0.3)" }}>
-                      <Icon name="User" size={12} color={GOLD} />
-                      <span className="text-[11px] font-semibold" style={{ color: GOLD_LIGHT }}>{plan.lawyerFeature}</span>
-                    </div>
-                  )}
-
-                  {/* Список фич */}
-                  <div className="space-y-1 mb-3.5">
-                    {plan.features.map((f) => (
-                      <div key={f} className="flex items-start gap-2">
-                        <Icon name="Check" size={10} color={isActive ? "#34d399" : (isDark || isMax) ? GOLD : "#64748b"} className="mt-0.5 shrink-0" />
-                        <span className="text-[11.5px] leading-snug" style={{ color: textSecondary }}>{f}</span>
+                  {/* Пилюли — ключевые параметры */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {pills.map((pill) => (
+                      <div
+                        key={pill.label}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                        style={{ background: `${accentColor}15`, color: accentColor, border: `1px solid ${accentColor}25` }}
+                      >
+                        <Icon name={pill.icon as Parameters<typeof Icon>[0]["name"]} size={10} color={accentColor} />
+                        {pill.label}
                       </div>
                     ))}
                   </div>
 
+                  {/* Разделитель */}
+                  <div className="mb-3" style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
+
+                  {/* Фичи */}
+                  <div className="space-y-1.5 mb-3.5">
+                    {plan.features.map((f) => (
+                      <div key={f} className="flex items-start gap-2">
+                        <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${accentColor}18` }}>
+                          <Icon name="Check" size={9} color={accentColor} />
+                        </div>
+                        <span className="text-[11.5px] leading-snug" style={{ color: "rgba(255,255,255,0.6)" }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Юрист-фича */}
+                  {plan.lawyerFeature && (
+                    <div
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 mb-3"
+                      style={{ background: "rgba(232,168,32,0.08)", border: "1px solid rgba(232,168,32,0.2)" }}
+                    >
+                      <Icon name="Scale" size={12} color="#e8a820" />
+                      <span className="text-[11px] font-medium" style={{ color: "#f0c060" }}>{plan.lawyerFeature}</span>
+                    </div>
+                  )}
+
                   {/* Кнопка */}
                   {isActive ? (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                      style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }}>
-                      <Icon name="CheckCircle" size={13} color="#34d399" className="shrink-0" />
-                      <span className="text-xs font-medium" style={{ color: "#34d399" }}>
-                        Активен · {user.paidQuestions ?? 0} вопр. · {user.paidDocs ?? 0} доку.
+                    <div
+                      className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2"
+                      style={btnStyle}
+                    >
+                      <Icon name="CheckCircle" size={13} color="#34d399" />
+                      <span className="text-xs font-semibold">
+                        Активен · {user.paidQuestions ?? 0} вопр. · {user.paidDocs ?? 0} докум.
                       </span>
                     </div>
                   ) : (
                     <button
-                      className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
-                      style={
-                        isMax
-                          ? { background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }
-                          : isDark
-                            ? { background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG }
-                            : { background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }
-                      }
+                      className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90"
+                      style={btnStyle}
                     >
-                      Выбрать «{plan.name}»
+                      {idx === 0 ? "Начать с тарифа «Старт»" : `Выбрать «${plan.name}»`}
                     </button>
                   )}
                 </div>
@@ -318,10 +373,19 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
         </div>
 
         {/* Футер */}
-        <div className="px-5 py-3 shrink-0 text-center" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-            Защищённая оплата · ЮКасса · Доступ сразу после оплаты · Нет автосписания
-          </p>
+        <div className="px-5 py-3 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center justify-center gap-4">
+            {[
+              { icon: "Lock", text: "Безопасная оплата" },
+              { icon: "Zap", text: "Доступ сразу" },
+              { icon: "ShieldCheck", text: "Без подписки" },
+            ].map(({ icon, text }) => (
+              <div key={text} className="flex items-center gap-1">
+                <Icon name={icon as Parameters<typeof Icon>[0]["name"]} size={10} color="rgba(255,255,255,0.25)" />
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>{text}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
