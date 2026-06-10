@@ -377,14 +377,7 @@ ${art193Block}
 
       {/* Действия */}
       <div className="px-3 py-2.5 border-t border-slate-100 flex gap-1.5 flex-wrap">
-        <button onClick={handleCopy}
-          className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97]"
-          style={copied
-            ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1.5px solid rgba(16,185,129,0.3)" }
-            : { background: "#f8fafc", color: "#475569", border: "1.5px solid #e2e8f0" }}>
-          <Icon name={copied ? "CheckCheck" : "Copy"} size={12} color={copied ? "#059669" : "#64748b"} />
-          {copied ? "Скопировано!" : "Скопировать"}
-        </button>
+
         <button onClick={handleDownloadDoc}
           className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97]"
           style={{ background: "rgba(99,102,241,0.07)", color: "#4338ca", border: "1.5px solid rgba(99,102,241,0.25)" }}>
