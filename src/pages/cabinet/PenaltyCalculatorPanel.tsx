@@ -302,7 +302,7 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     if (!result) return;
     const detail = kind === "periods" ? buildPeriodTable() : buildDayTable();
     const text = buildHeader() + detail
-      + `\nУчти этот расчёт неустойки. Проверь корректность ставки и формулы по нормам ГК РФ, и подскажи как использовать эту сумму при составлении претензии или искового заявления.`;
+      + `\nУчти этот расчёт неустойки, проверь корректность ставки и формулы по нормам ГК РФ, составь детализированную формулу расчёта в таблице.`;
     onSendToChat(text);
     onClose();
   };
