@@ -466,6 +466,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             <Icon name="MapPin" size={12} color="#fff" />
           </div>
           <p className="text-xs font-bold text-slate-800">Территориальная подсудность</p>
+          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: "rgba(245,158,11,0.12)", color: "#b45309", border: "1px solid rgba(245,158,11,0.3)" }}>Тестовый режим</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Переключатель режима */}
