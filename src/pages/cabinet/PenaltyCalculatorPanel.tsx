@@ -260,9 +260,24 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
 
   const copyText = async (kind: "periods" | "days") => {
     const text = buildHeader() + (kind === "periods" ? buildPeriodTable() : buildDayTable());
-    await navigator.clipboard.writeText(text);
-    setCopied(kind);
-    setTimeout(() => setCopied(null), 2000);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2500);
+    } catch (e) {
+      console.error("copy failed", e);
+    }
   };
 
   const sendToChat = (kind: "periods" | "days") => {
@@ -547,35 +562,60 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
 
             <p className="text-[10px] text-slate-400 text-center">Справочный расчёт · не юридическое заключение</p>
 
-            {/* Действия: отправить / скопировать × по периодам / по дням */}
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-slate-500 text-center">Отправить или скопировать</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {/* По периодам */}
-                <button onClick={() => sendToChat("periods")}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }}>
-                  <Icon name="Send" size={11} color="#fff" />
-                  В чат · периоды
-                </button>
-                <button onClick={() => sendToChat("days")}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }}>
-                  <Icon name="Send" size={11} color="#fff" />
-                  В чат · по дням
-                </button>
-                <button onClick={() => copyText("periods")}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
-                  style={{ background: copied === "periods" ? "rgba(16,185,129,0.1)" : "rgba(15,76,129,0.07)", color: copied === "periods" ? "#059669" : "#0f4c81", border: `1.5px solid ${copied === "periods" ? "rgba(16,185,129,0.3)" : "rgba(15,76,129,0.2)"}` }}>
-                  <Icon name={copied === "periods" ? "Check" : "Copy"} size={11} color={copied === "periods" ? "#059669" : "#0f4c81"} />
-                  {copied === "periods" ? "Скопировано!" : "Копировать · периоды"}
-                </button>
-                <button onClick={() => copyText("days")}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.98]"
-                  style={{ background: copied === "days" ? "rgba(16,185,129,0.1)" : "rgba(15,76,129,0.07)", color: copied === "days" ? "#059669" : "#0f4c81", border: `1.5px solid ${copied === "days" ? "rgba(16,185,129,0.3)" : "rgba(15,76,129,0.2)"}` }}>
-                  <Icon name={copied === "days" ? "Check" : "Copy"} size={11} color={copied === "days" ? "#059669" : "#0f4c81"} />
-                  {copied === "days" ? "Скопировано!" : "Копировать · по дням"}
-                </button>
+            {/* Действия */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide text-center">Использовать расчёт</p>
+
+              {/* Карточка — По периодам */}
+              <div className="rounded-2xl overflow-hidden border border-slate-100">
+                <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-blue-100 flex items-center justify-center shrink-0">
+                    <Icon name="BarChart2" size={11} color="#3b82f6" />
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-700">По периодам</p>
+                  <span className="text-[10px] text-slate-400 ml-auto">{result.periods.length} периодов</span>
+                </div>
+                <div className="flex divide-x divide-slate-100">
+                  <button onClick={() => sendToChat("periods")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-blue-50"
+                    style={{ color: "#0f4c81" }}>
+                    <Icon name="Send" size={12} color="#0f4c81" />
+                    Отправить в чат
+                  </button>
+                  <button onClick={() => copyText("periods")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-emerald-50"
+                    style={{ color: copied === "periods" ? "#059669" : "#64748b" }}>
+                    <Icon name={copied === "periods" ? "CheckCheck" : "Copy"} size={12} color={copied === "periods" ? "#059669" : "#64748b"} />
+                    {copied === "periods" ? "Скопировано!" : "Скопировать"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Карточка — По дням */}
+              <div className="rounded-2xl overflow-hidden border border-slate-100">
+                <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-purple-100 flex items-center justify-center shrink-0">
+                    <Icon name="Calendar" size={11} color="#7c3aed" />
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-700">По дням</p>
+                  <span className="text-[10px] text-slate-400 ml-auto">
+                    {result.periods.reduce((s, p) => s + p.days, 0)} дней
+                  </span>
+                </div>
+                <div className="flex divide-x divide-slate-100">
+                  <button onClick={() => sendToChat("days")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-blue-50"
+                    style={{ color: "#0f4c81" }}>
+                    <Icon name="Send" size={12} color="#0f4c81" />
+                    Отправить в чат
+                  </button>
+                  <button onClick={() => copyText("days")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-emerald-50"
+                    style={{ color: copied === "days" ? "#059669" : "#64748b" }}>
+                    <Icon name={copied === "days" ? "CheckCheck" : "Copy"} size={12} color={copied === "days" ? "#059669" : "#64748b"} />
+                    {copied === "days" ? "Скопировано!" : "Скопировать"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
