@@ -228,9 +228,9 @@ export default function ChatTab({
             <button
               onClick={() => setShowReport(v => !v)}
               title="Сообщить о проблеме"
-              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${showReport ? "bg-orange-50 text-orange-500" : "text-slate-400 hover:bg-slate-50 hover:text-orange-400"}`}
+              className={`px-2 py-1 rounded-xl flex items-center justify-center transition-all text-[11px] font-bold tracking-wide ${showReport ? "bg-orange-100 text-orange-600 border border-orange-300" : "bg-slate-100 text-slate-500 hover:bg-orange-50 hover:text-orange-500 border border-transparent"}`}
             >
-              <Icon name="LifeBuoy" size={14} />
+              SOS
             </button>
             {showReport && <ReportPopoverChat onClose={() => setShowReport(false)} />}
           </div>

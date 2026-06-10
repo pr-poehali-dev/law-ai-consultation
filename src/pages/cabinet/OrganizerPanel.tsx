@@ -959,21 +959,20 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
   // ── Closed state ─────────────────────────────────────────────────────────────
   if (!panelOpen) {
     return (
-      <div className="hidden lg:flex shrink-0 items-start pt-2">
+      <div className="hidden lg:flex shrink-0 items-start pt-3">
         <button
           onClick={() => setPanelOpen(true)}
-          className="flex flex-col items-center justify-start gap-1 py-3 px-1.5 rounded-l-lg bg-white border border-r-0 border-border shadow-sm hover:bg-slate-50 transition-colors"
+          className="group flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-l-2xl bg-white/90 border border-r-0 border-slate-200 shadow-md hover:bg-slate-50 hover:shadow-lg transition-all backdrop-blur-sm"
           title="Открыть органайзер дел"
         >
-          <div className="w-5 h-5 rounded-md gradient-navy flex items-center justify-center mb-0.5">
-            <Icon name="Scale" size={11} className="text-gold-400" />
-          </div>
+          <Icon name="Scale" size={16} className="text-navy-600 group-hover:text-navy-800 transition-colors" />
           <span
-            className="text-[9px] font-semibold text-slate-500 tracking-widest"
+            className="text-[10px] font-bold text-navy-500 tracking-widest group-hover:text-navy-700 transition-colors"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
-            Дела
+            ДЕЛА
           </span>
+          <Icon name="ChevronLeft" size={10} className="text-slate-300" />
         </button>
       </div>
     );
@@ -981,22 +980,26 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
 
   // ── Open state ────────────────────────────────────────────────────────────────
   return (
-    <div className="hidden lg:flex shrink-0 w-72 flex-col min-h-0 bg-white border-l border-border">
+    <div className="hidden lg:flex shrink-0 w-72 flex-col min-h-0 bg-white border-l border-slate-200 shadow-[-4px_0_16px_rgba(0,0,0,0.06)]">
       {/* Panel header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
-        <span className="text-[13px] font-bold text-navy-900 flex-1">
-          ⚖️ Дела
-        </span>
+      <div className="flex items-center gap-2 px-3 py-3 shrink-0"
+        style={{ background: "linear-gradient(135deg,rgba(15,76,129,0.04),rgba(26,107,181,0.02))", borderBottom: "1px solid rgba(15,76,129,0.08)" }}>
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+          <Icon name="Scale" size={14} color="#fff" />
+        </div>
+        <span className="text-[13px] font-bold text-navy-900 flex-1">Дела</span>
         <button
           onClick={() => setAddingCase((v) => !v)}
-          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition-colors"
+          className="w-7 h-7 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
           title="Добавить дело"
         >
-          <Icon name="Plus" size={14} />
+          <Icon name="Plus" size={13} color="#fff" />
         </button>
         <button
           onClick={() => setPanelOpen(false)}
-          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+          className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
           title="Свернуть панель"
         >
           <Icon name="ChevronRight" size={14} />
