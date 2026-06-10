@@ -92,74 +92,80 @@ export default function ChatTab({
   const [showReport, setShowReport] = useState(false);
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col">
+    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex flex-col gap-2">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
 
-      {/* Шапка */}
-      <div className="flex items-center justify-between mb-2 px-0.5">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
-              <Icon name="Scale" size={14} className="text-gold-400" />
+      {/* Шапка — современная карточка */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative shrink-0">
+            <div className="w-9 h-9 gradient-navy rounded-2xl flex items-center justify-center shadow-md">
+              <Icon name="Scale" size={15} className="text-gold-400" />
             </div>
-            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${typing ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${typing ? "bg-amber-400" : "bg-emerald-400"}`}
+              style={typing ? { animation: "pulse 1s infinite" } : {}} />
           </div>
           <div>
-            <p className="text-xs font-semibold text-navy-800">AI-юрист</p>
-            <p className="text-[11px] text-muted-foreground">{typing ? (typingStatus || "анализирует...") : "Онлайн · РФ"}</p>
+            <p className="text-sm font-bold text-navy-800 leading-tight">AI-юрист</p>
+            <p className="text-[11px] text-slate-400 leading-tight mt-0.5">
+              {typing ? (typingStatus || "анализирует...") : "Онлайн · Законы РФ"}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1.5">
           <PWAInstallButton />
-          {/* Кнопка «Сообщить о проблеме» */}
+
+          {/* Остаток вопросов / купить */}
+          {!user.isAdmin && (
+            activePlan ? (
+              <button
+                onClick={onSelectPlan}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all hover:bg-slate-50"
+                style={{ background: "rgba(16,185,129,0.07)", color: "#059669", border: "1px solid rgba(16,185,129,0.2)" }}
+              >
+                <Icon name="MessageCircle" size={11} color="#059669" />
+                {user.paidQuestions} вопр.
+              </button>
+            ) : totalLeft === 0 ? (
+              <button onClick={onPayClick}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all active:scale-95"
+                style={{ background: "linear-gradient(135deg,#e8a820,#f0c060)", color: "#0a1628" }}>
+                <Icon name="Plus" size={11} color="#0a1628" />Купить доступ
+              </button>
+            ) : (
+              <button onClick={onSelectPlan}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all hover:bg-slate-50"
+                style={{ background: "rgba(245,158,11,0.08)", color: "#92400e", border: "1px solid rgba(245,158,11,0.2)" }}>
+                <Icon name="Zap" size={11} color="#d97706" />Тарифы
+              </button>
+            )
+          )}
+          {user.isAdmin && (
+            <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold">Админ</span>
+          )}
+
+          {/* Кнопка «Проблема» */}
           <div className="relative">
             <button
               onClick={() => setShowReport(v => !v)}
               title="Сообщить о проблеме"
-              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs transition-colors border ${
-                showReport ? "bg-orange-50 border-orange-200 text-orange-600" : "bg-slate-50 border-border text-muted-foreground hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"
-              }`}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${showReport ? "bg-orange-50 text-orange-500" : "text-slate-400 hover:bg-slate-50 hover:text-orange-400"}`}
             >
-              <Icon name="LifeBuoy" size={13} />
-              <span className="hidden sm:inline font-medium">Проблема?</span>
+              <Icon name="LifeBuoy" size={14} />
             </button>
             {showReport && <ReportPopoverChat onClose={() => setShowReport(false)} />}
           </div>
-          {user.isAdmin ? (
-            <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium">Админ</span>
-          ) : activePlan ? (
-            <button
-              onClick={onSelectPlan}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-colors"
-            >
-              <Icon name="Zap" size={11} className="text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-700">{user.paidQuestions} вопр.</span>
-            </button>
-          ) : totalLeft === 0 ? (
-            <button onClick={onPayClick} className="btn-gold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm">
-              <Icon name="Plus" size={11} />Купить доступ
-            </button>
-          ) : (
-            <button
-              onClick={onSelectPlan}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-xl transition-colors"
-            >
-              <Icon name="Zap" size={11} className="text-amber-500" />
-              <span className="text-xs font-medium text-amber-700">{user.paidQuestions > 0 ? `${user.paidQuestions} вопр. ·` : ""} Тарифы</span>
-            </button>
-          )}
         </div>
       </div>
 
       {/* Баннер тарифа */}
       <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
 
-      {/* Хранение переписки */}
-      <div className="flex items-center gap-2 px-1 mb-1">
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-          Переписка хранится 24 часа и очищается автоматически
-        </div>
+      {/* Дисклеймер */}
+      <div className="flex items-center gap-1.5 px-1">
+        <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+        <p className="text-[11px] text-slate-400">Переписка хранится 24 часа и очищается автоматически</p>
       </div>
 
       {/* Лента сообщений */}

@@ -173,9 +173,10 @@ export default function ChatMessageList({
       <div
         ref={messagesRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 shadow-sm bg-white scrollbar-hide"
+        className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-100 shadow-sm scrollbar-hide"
+        style={{ background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)" }}
       >
-        <div className="p-3 space-y-3">
+        <div className="p-4 space-y-4">
 
           {messages.map((msg, i) => {
             const isDocRedir = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
@@ -183,12 +184,18 @@ export default function ChatMessageList({
 
             if (msg.role === "user") return (
               <div key={i} className="flex gap-2 justify-end items-end">
-                <div className="max-w-[82%]">
-                  <div className="bg-navy-700 text-white rounded-2xl rounded-br-sm px-3 py-2.5 shadow-sm">
-                    <p className="whitespace-pre-wrap font-golos" style={{ fontSize: "15px", lineHeight: "1.5" }}>{msg.text}</p>
+                <div className="max-w-[80%]">
+                  <div className="px-4 py-2.5 shadow-sm"
+                    style={{
+                      background: "linear-gradient(135deg, #0f4c81, #1a6bb5)",
+                      borderRadius: "18px 18px 4px 18px",
+                      boxShadow: "0 2px 12px rgba(15,76,129,0.2)",
+                    }}>
+                    <p className="text-white font-golos leading-relaxed" style={{ fontSize: "14.5px" }}>{msg.text}</p>
                   </div>
                 </div>
-                <div className="w-7 h-7 bg-navy-100 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white uppercase shadow-sm"
+                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                   {user.name?.[0] ?? "U"}
                 </div>
               </div>
@@ -207,73 +214,74 @@ export default function ChatMessageList({
             );
 
             return (
-              <div key={i} className="flex gap-2 items-start">
-                <div className="w-8 h-8 gradient-navy rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+              <div key={i} className="flex gap-2.5 items-start">
+                <div className="w-8 h-8 gradient-navy rounded-2xl flex items-center justify-center shrink-0 mt-0.5 shadow-md">
                   <Icon name="Scale" size={13} className="text-gold-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-3 py-3 shadow-sm">
+                  <div className="bg-white px-4 py-3 shadow-sm"
+                    style={{ borderRadius: "4px 18px 18px 18px", border: "1px solid rgba(226,232,240,0.8)", boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
                     <AnimatedMessage text={msg.text} animate={doAnim} />
                     {isDocRedir && (
-                      <button onClick={onGoToDocs} className="mt-3 flex items-center gap-2 px-3 py-2 bg-navy-700 text-white text-xs font-semibold rounded-xl w-full justify-center">
+                      <button onClick={onGoToDocs} className="mt-3 flex items-center gap-2 px-3 py-2.5 text-white text-xs font-semibold rounded-xl w-full justify-center transition-all active:scale-95"
+                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                         <Icon name="FileText" size={12} />Перейти в «Документы»
                       </button>
                     )}
                     {msg.truncated && i === lastAiIdx && !typing && (
-                      <button onClick={() => onContinueChat(msg.text)} className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl w-full justify-center">
-                        <Icon name="ChevronDown" size={12} />Читать дальше
+                      <button onClick={() => onContinueChat(msg.text)} className="mt-2.5 flex items-center gap-2 px-3 py-2.5 text-xs font-semibold rounded-xl w-full justify-center transition-all active:scale-95"
+                        style={{ background: "rgba(245,158,11,0.08)", color: "#92400e", border: "1px solid rgba(245,158,11,0.2)" }}>
+                        <Icon name="ChevronDown" size={12} color="#d97706" />Читать дальше
                       </button>
                     )}
-                    {/* Плашка + кнопка юриста при персональных данных */}
                     {msg.personalDataRefused && !typing && (
-                      <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                      <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(254,243,199,0.6)", border: "1px solid rgba(252,211,77,0.4)" }}>
                         <p className="text-[12px] text-amber-800 leading-relaxed mb-2">
-                          Укажите ваш вопрос без использования персональных данных, наименования районов, городов, сёл и государственных органов. Либо обратитесь к живому юристу-эксперту.
+                          Укажите вопрос без персональных данных, названий городов и госорганов. Либо обратитесь к живому юристу.
                         </p>
-                        <button
-                          onClick={onExpertClick}
-                          className="flex items-center gap-2 px-3 py-2 bg-navy-700 hover:bg-navy-800 text-white text-[12px] font-semibold rounded-lg w-full justify-center transition-colors"
-                        >
+                        <button onClick={onExpertClick}
+                          className="flex items-center gap-2 px-3 py-2 text-white text-[12px] font-semibold rounded-lg w-full justify-center transition-all active:scale-95"
+                          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                           <Icon name="UserCheck" size={13} />Задать вопрос юристу-эксперту
                         </button>
                       </div>
                     )}
-                    {/* Кнопка живого юриста при отсутствии судебной практики */}
                     {msg.needsExpert && !msg.personalDataRefused && !typing && (
-                      <button
-                        onClick={onExpertClick}
-                        className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-navy-700 hover:bg-navy-800 text-white text-xs font-semibold rounded-xl w-full justify-center transition-colors"
-                      >
+                      <button onClick={onExpertClick}
+                        className="mt-3 flex items-center gap-2 px-3 py-2.5 text-white text-xs font-semibold rounded-xl w-full justify-center transition-all active:scale-95"
+                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                         <Icon name="UserCheck" size={13} />Подключить живого юриста-эксперта
                       </button>
                     )}
-                    {/* Кнопка создания документа — для обычных ответов и после анализа файлов */}
-                    {onCreateDocFromMsg && !typing && !msg.isFile && msg.text.length > 80 && i === lastAiIdx && prevUserMsg && (msg.docHint != null || prevUserMsg.isFile || prevUserMsg.text.trim().length > 10) && (
-                      <button
-                        onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
-                        disabled={creatingDocFromChat}
-                        className="mt-2 flex items-center gap-2 px-3 py-2 bg-gold-400/15 hover:bg-gold-400/25 border border-gold-400/30 text-navy-700 text-xs font-semibold rounded-xl w-full justify-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {creatingDocFromChat
-                          ? <><span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
-                          : <><Icon name="FilePlus" size={12} />Создать документ</>
-                        }
-                      </button>
+                    {/* Кнопки действий под ответом */}
+                    {(!typing && !msg.isFile && i === lastAiIdx) && (
+                      <div className="mt-3 flex flex-col gap-1.5">
+                        {onCreateDocFromMsg && msg.text.length > 80 && prevUserMsg && (msg.docHint != null || prevUserMsg.isFile || prevUserMsg.text.trim().length > 10) && (
+                          <button
+                            onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
+                            disabled={creatingDocFromChat}
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60"
+                            style={{ background: "linear-gradient(135deg,rgba(232,168,32,0.12),rgba(232,168,32,0.06))", border: "1px solid rgba(232,168,32,0.3)", color: "#92400e" }}
+                          >
+                            {creatingDocFromChat
+                              ? <><span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
+                              : <><Icon name="FilePlus" size={12} color="#d97706" />Создать документ</>}
+                          </button>
+                        )}
+                        {onSendToLawyer && !msg.isUpsell && msg.text.length > 30 && i > 0 && (
+                          <button
+                            onClick={() => onSendToLawyer(msg.text, prevUserMsg?.text)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-medium transition-all active:scale-[0.98]"
+                            style={{ background: "rgba(15,76,129,0.05)", border: "1px solid rgba(15,76,129,0.12)", color: "#64748b" }}
+                          >
+                            <Icon name="UserCheck" size={12} color="#94a3b8" />
+                            Отправить на проверку живому юристу
+                          </button>
+                        )}
+                      </div>
                     )}
-                    {/* Кнопка «Сообщить о проблеме» — когда AI упоминает поддержку или ошибку */}
                     {!typing && !msg.isFile && SUPPORT_KEYWORDS.some(k => msg.text.toLowerCase().includes(k)) && (
                       <ReportButton />
-                    )}
-                    {/* Кнопка «Отправить юристу» — только не под первым приветствием */}
-                    {onSendToLawyer && !typing && !msg.isFile && !msg.isUpsell && msg.text.length > 30 && i > 0 && (
-                      <button
-                        onClick={() => onSendToLawyer(msg.text, prevUserMsg?.text)}
-                        className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98]"
-                        style={{ background: "rgba(10,22,40,0.05)", border: "1px solid rgba(10,22,40,0.1)", color: "#4a5568" }}
-                      >
-                        <Icon name="UserCheck" size={13} color="#6b7280" />
-                        Отправить на проверку живому юристу
-                      </button>
                     )}
                   </div>
                 </div>
@@ -297,10 +305,10 @@ export default function ChatMessageList({
       {showScrollBtn && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full gradient-navy shadow-lg flex items-center justify-center"
-          style={{ animation: "bounce 2s infinite" }}
+          className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 12px rgba(15,76,129,0.3)" }}
         >
-          <Icon name="ChevronDown" size={16} className="text-gold-400" />
+          <Icon name="ChevronDown" size={16} className="text-white" />
         </button>
       )}
     </div>
