@@ -26,13 +26,7 @@ const CATEGORIES = [
 
 type CategoryId = typeof CATEGORIES[number]["id"];
 
-const EXTERNAL_LINKS = [
-  { label: "sudact.ru",      hint: "Решения судов РФ",           color: "#1e40af", bg: "#dbeafe",  url: (q: string) => `https://sudact.ru/search/?search_text=${q}` },
-  { label: "kad.arbitr.ru",  hint: "Арбитражные дела",           color: "#166534", bg: "#dcfce7",  url: (q: string) => `https://kad.arbitr.ru/?find=${q}` },
-  { label: "sudrf.ru",       hint: "Суды общей юрисдикции",      color: "#7c3aed", bg: "#ede9fe",  url: (q: string) => `https://sudrf.ru/index.php?id=300&act=go_search&searchtype=fs&fs_text=${q}` },
-  { label: "consultant.ru",  hint: "КонсультантПлюс",            color: "#b45309", bg: "#fef3c7",  url: (q: string) => `https://www.consultant.ru/search/?q=${q}` },
-  { label: "garant.ru",      hint: "Гарант",                     color: "#991b1b", bg: "#fee2e2",  url: (q: string) => `https://www.garant.ru/search/#q=${q}` },
-];
+
 
 function highlight(text: string, query: string): React.ReactNode {
   if (!query.trim()) return text;
@@ -99,7 +93,6 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
 
 
 
-  const eq = encodeURIComponent(query || "судебная практика");
   const catInfo = CATEGORIES.find(c => c.id === category)!;
   const isLoading = webLoading;
 
@@ -251,23 +244,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
               </div>
             )}
 
-            {/* Кнопки ручного поиска на сайтах */}
-            <div className="px-3 pb-2.5 pt-1.5 border-t border-slate-50">
-              <p className="text-[9px] text-slate-400 font-semibold mb-1.5 uppercase tracking-wide">Искать вручную:</p>
-              <div className="grid grid-cols-3 gap-1">
-                {EXTERNAL_LINKS.map(({ label, hint, color, bg, url }) => (
-                  <a key={label} href={url(eq)} target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-start px-2 py-1.5 rounded-lg text-[9px] font-semibold transition-all hover:opacity-80 active:scale-95"
-                    style={{ background: bg, color }}>
-                    <span className="flex items-center gap-0.5">
-                      <Icon name="ExternalLink" size={8} color={color} />
-                      {label}
-                    </span>
-                    <span className="opacity-60 mt-0.5" style={{ fontSize: "8px" }}>{hint}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
+
           </div>
         )}
 
