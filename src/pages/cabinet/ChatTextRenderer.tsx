@@ -31,7 +31,7 @@ export function LegalText({ text }: { text: string }) {
               {sec[1]}. {sec[2]}{sec[3]}
             </p>
             {lines.slice(1).map((l, li) => (
-              <p key={li} style={{ textIndent: "2em", margin: "0.2em 0" }}>{renderInline(l)}</p>
+              <p key={li} style={{ margin: "0.2em 0" }}>{renderInline(l)}</p>
             ))}
           </div>
         );
@@ -68,7 +68,7 @@ export function LegalText({ text }: { text: string }) {
         return (
           <div key={pi} style={{ marginTop: pi === 0 ? 0 : "0.7em" }}>
             {lines.map((l, li) => (
-              <p key={li} style={{ textIndent: li === 0 ? "2em" : 0, margin: "0.1em 0" }}>{renderInline(l)}</p>
+              <p key={li} style={{ margin: "0.1em 0" }}>{renderInline(l)}</p>
             ))}
           </div>
         );
