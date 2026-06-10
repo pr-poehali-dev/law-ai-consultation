@@ -127,6 +127,97 @@ export default function PenaltyResultMessage({ data, onSendToChat }: Props) {
     } catch (e) { console.error("copy", e); }
   };
 
+  const handleDownloadDoc = () => {
+    const tableRowsPeriods = data.periods.map((p, i) => {
+      const formulaStr = data.mode === "percent"
+        ? `${fmt(p.debt)} × ${data.ratePercent}% × ${p.days}`
+        : data.mode === "cbr"
+          ? `${fmt(p.debt)} × ${rateD} × ${p.days}`
+          : `${data.fixedDay} × ${p.days}`;
+      const bg = i === 0 ? "#fff3cd" : i % 2 === 0 ? "#f9f9f9" : "#ffffff";
+      return `<tr style="background:${bg}">
+        <td style="padding:8px;border:1px solid #dee2e6">${fmtDate(p.from)} – ${fmtDate(p.to)}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right">${fmt(p.debt)}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:center">${rateD}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right">${p.days}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right">${formulaStr}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right;font-weight:bold;color:#1565c0">${fmt(p.penalty)}</td>
+      </tr>`;
+    }).join("");
+
+    const tableRowsDays = dayRows.map((row, i) => {
+      const bg = i === 0 ? "#fff3cd" : i % 2 === 0 ? "#f9f9f9" : "#ffffff";
+      return `<tr style="background:${bg};font-weight:${i === 0 ? "bold" : "normal"}">
+        <td style="padding:8px;border:1px solid #dee2e6">${fmtDate(row.date)}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right">${fmt(row.debt)}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:center">${rateD}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right;color:#1565c0;font-weight:bold">${fmt(row.penalty)}</td>
+        <td style="padding:8px;border:1px solid #dee2e6;text-align:right;font-weight:bold">${fmt(row.acc)}</td>
+      </tr>`;
+    }).join("");
+
+    const art193Block = (art193 && art193Note) ? `
+      <div style="margin-top:16px;padding:12px 16px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px">
+        <b>⚠ Ст. 193 ГК РФ</b><br/>
+        ${fmtDate(data.dateStart)} (${getDayName(data.dateStart)}) — выходной.
+        Последний день оплаты: <b>${fmtDate(art193Note.prevIso)}</b> (${getDayName(art193Note.prevIso)}).
+        Рабочий день оплаты: <b>${fmtDate(art193Note.nwIso)}</b>.
+        Первый день просрочки: <b>${fmtDate(art193Note.fpIso)}</b>.
+      </div>` : "";
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  body{font-family:"Times New Roman",serif;font-size:12pt;color:#000;margin:2cm}
+  h1{font-size:14pt;text-align:center;margin-bottom:20px}
+  h2{font-size:12pt;margin-top:22px;margin-bottom:8px}
+  .cards{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .card{border:1px solid #dee2e6;border-radius:4px;padding:10px 14px;min-width:160px}
+  .cl{font-size:9pt;color:#6c757d;text-transform:uppercase;margin-bottom:3px}
+  .cv{font-size:13pt;font-weight:bold;color:#0d2e5a}
+  .row{margin:4px 0;font-size:11pt}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:10.5pt}
+  thead tr{background:#2c3e50;color:#fff}
+  thead th{padding:9px 8px;border:1px solid #2c3e50}
+  tfoot td{padding:8px;border:1px solid #c3e6cb;font-weight:bold;color:#155724;background:#d4edda;border-top:2px solid #c3e6cb}
+  .formula{margin-top:14px;font-size:10pt;color:#555}
+  .disc{margin-top:22px;font-size:9pt;color:#999;font-style:italic}
+</style></head><body>
+<h1>РАСЧЁТ НЕУСТОЙКИ</h1>
+<div class="cards">
+  <div class="card"><div class="cl">Сумма неустойки</div><div class="cv">${fmt(final)} ₽</div></div>
+  <div class="card"><div class="cl">Долг + неустойка</div><div class="cv">${fmt(data.debt + final)} ₽</div><div style="font-size:9pt;color:#888">на ${fmtDate(data.dateEnd)}</div></div>
+  <div class="card"><div class="cl">Ставка</div><div class="cv" style="font-size:11pt;color:#b45309">${rateLabel}</div></div>
+  <div class="card"><div class="cl">Сумма долга</div><div class="cv">${fmt(data.debt)} ₽</div></div>
+</div>
+<div class="row"><b>Период:</b> ${fmtDate(data.dateStart)} – ${fmtDate(data.dateEnd)} (${totalDays} дней)</div>
+<div class="row"><b>Долг на начало:</b> ${fmt(data.debt)} руб.</div>
+${data.capApplied ? `<div class="row" style="color:#b45309"><b>Ограничение:</b> расчётная ${fmt(data.total)} руб., итого ${fmt(final)} руб.</div>` : ""}
+<h2>Детализация по периодам</h2>
+<table><thead><tr>
+  <th>Период</th><th style="text-align:right">Долг, ₽</th><th style="text-align:center">Ставка</th>
+  <th style="text-align:right">Дней</th><th style="text-align:right">Формула</th><th style="text-align:right">Пени, ₽</th>
+</tr></thead><tbody>${tableRowsPeriods}</tbody>
+<tfoot><tr><td colspan="5"><b>Итого</b></td><td style="text-align:right">${fmt(data.total)}</td></tr></tfoot></table>
+<h2>Детализация по дням</h2>
+<table><thead><tr>
+  <th>Дата</th><th style="text-align:right">Долг, ₽</th><th style="text-align:center">Ставка</th>
+  <th style="text-align:right">За день, ₽</th><th style="text-align:right">Накоплено, ₽</th>
+</tr></thead><tbody>${tableRowsDays}</tbody>
+<tfoot><tr><td colspan="4"><b>Итого (${dayRows.length} дней)</b></td><td style="text-align:right">${fmt(data.total)}</td></tr></tfoot></table>
+<div class="formula"><b>Порядок расчёта:</b> ${formulaLabel}</div>
+${art193Block}
+<div class="disc">Расчёт носит справочный характер и не является официальным юридическим документом.</div>
+</body></html>`;
+
+    const blob = new Blob(["\ufeff" + html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `расчет_неустойки_${data.dateStart}_${data.dateEnd}.doc`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white" style={{ fontFamily: "system-ui,sans-serif" }}>
 
@@ -285,18 +376,24 @@ export default function PenaltyResultMessage({ data, onSendToChat }: Props) {
       </div>
 
       {/* Действия */}
-      <div className="px-3 py-2.5 border-t border-slate-100 flex gap-2">
+      <div className="px-3 py-2.5 border-t border-slate-100 flex gap-1.5 flex-wrap">
         <button onClick={handleCopy}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97]"
+          className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97]"
           style={copied
             ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1.5px solid rgba(16,185,129,0.3)" }
             : { background: "#f8fafc", color: "#475569", border: "1.5px solid #e2e8f0" }}>
           <Icon name={copied ? "CheckCheck" : "Copy"} size={12} color={copied ? "#059669" : "#64748b"} />
           {copied ? "Скопировано!" : "Скопировать"}
         </button>
+        <button onClick={handleDownloadDoc}
+          className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97]"
+          style={{ background: "rgba(99,102,241,0.07)", color: "#4338ca", border: "1.5px solid rgba(99,102,241,0.25)" }}>
+          <Icon name="FileDown" size={12} color="#4338ca" />
+          Скачать .doc
+        </button>
         <button
           onClick={() => onSendToChat(`Учти этот расчёт неустойки: сумма ${fmt(final)} руб. за период ${fmtDate(data.dateStart)}–${fmtDate(data.dateEnd)} (${totalDays} дней), ставка ${rateLabel}. Проверь корректность ставки по нормам ГК РФ.${art193 && art193Note ? ` Учти ст. 193 ГК РФ: первый день просрочки — ${fmtDate(art193Note.fpIso)}.` : ""}`)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97] text-white"
+          className="flex-1 min-w-[110px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97] text-white"
           style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
           <Icon name="Send" size={12} color="#fff" />
           Спросить AI-юриста
