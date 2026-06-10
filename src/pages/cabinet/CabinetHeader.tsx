@@ -172,15 +172,8 @@ export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSel
               >
                 <Icon name={exhausted ? "AlertCircle" : "Zap"} size={11}
                   className={exhausted ? "text-red-500" : activePlan ? "text-emerald-600" : "text-navy-800"} />
-                <span className="hidden sm:inline">
-                  {exhausted
-                    ? `${activePlan?.name ?? "Тариф"} · продлить`
-                    : activePlan
-                      ? `${activePlan.name} · ${totalLeft} вопр.`
-                      : "Подключить тариф"}
-                </span>
-                <span className="sm:hidden">
-                  {exhausted ? "Продлить" : activePlan ? activePlan.name : "Тариф"}
+                <span>
+                  {exhausted ? "Продлить тариф" : activePlan ? "Тарифы" : "Подключить тариф"}
                 </span>
               </button>
             )}
