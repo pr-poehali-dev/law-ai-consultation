@@ -181,42 +181,6 @@ function getCats(payer: "individual" | "org", courtType: "gp" | "ap"): NonpropIt
   return AP_ORG_CATS;
 }
 
-// ─── Льготы ст. 333.36 НК РФ ─────────────────────────────────────────────────
-
-interface BenefitItem {
-  id: string;
-  label: string;
-  type: "full" | "partial70";  // full = 0%, partial70 = платят 30%
-  note?: string;
-  forCourt?: "gp";              // только для GP
-}
-
-// Льготы, применимые к физическим лицам (п.1 и п.2 ст.333.36 НК РФ)
-const BENEFITS_INDIVIDUAL: BenefitItem[] = [
-  { id: "labor", label: "Иски о взыскании заработной платы и иные требования из трудовых правоотношений, взыскание пособий (пп.1 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "alimony_exempt", label: "Иски о взыскании алиментов (пп.2 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "health_damage", label: "Иски о возмещении вреда жизни/здоровью, смерти кормильца (пп.3 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "crime_damage", label: "Иски о возмещении вреда, причинённого преступлением (пп.4 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "criminal_pursuit", label: "Иски о возмещении вреда в результате уголовного преследования (пп.10 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "child_rights", label: "Иски о защите прав и законных интересов ребёнка (пп.15 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "consumer", label: "Иски, связанные с нарушением прав потребителей (пп.4 п.2 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "disability12", label: "Инвалиды I или II группы, дети-инвалиды, инвалиды с детства (пп.2 п.2 ст.333.36)", type: "full", note: "При цене иска > 1 000 000 руб. платят пошлину сверх 1 млн", forCourt: "gp" },
-  { id: "veteran", label: "Ветераны боевых действий и военной службы — по защите своих прав (пп.3 п.2 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "pensioner", label: "Пенсионеры — по имущественным искам к ПФР/НПФ/органам пенсионного обеспечения (пп.5 п.2 ст.333.36)", type: "full", note: "При цене иска > 1 000 000 руб. платят пошлину сверх 1 млн", forCourt: "gp" },
-  { id: "housing_only", label: "Иски о защите права на единственное жильё (пп.23 п.1 ст.333.36 ФЗ № 259-ФЗ)", type: "partial70", note: "Платят 30% от пошлины", forCourt: "gp" },
-  { id: "svo_participant", label: "Участники СВО, мобилизованные, члены их семей (пп.24, 26 п.1 ст.333.36 ФЗ № 230-ФЗ 2025)", type: "full", forCourt: "gp" },
-  { id: "adoption", label: "Заявления об усыновлении/удочерении ребёнка (пп.14 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "orphans", label: "Иски по защите прав детей-сирот и лиц, потерявших родителей в период обучения (пп.22 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "disability_neimush", label: "Иски неимущественного характера по защите прав инвалидов (пп.17 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-];
-
-// Льготы для организаций
-const BENEFITS_ORG: BenefitItem[] = [
-  { id: "consumer_org", label: "Иски в защиту потребителей, предъявляемые общественными объединениями потребителей (пп.13 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "disability_org", label: "Общественные организации инвалидов — как истцы или ответчики (пп.1 п.2 ст.333.36)", type: "full", forCourt: "gp" },
-  { id: "state_body", label: "Государственные органы, органы МСУ — как истцы или ответчики (пп.19 п.1 ст.333.36)", type: "full", forCourt: "gp" },
-];
-
 // ─── Интерфейс ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -234,8 +198,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
   const [exempt, setExempt] = useState(false);
   const [discount, setDiscount] = useState<"none" | "30" | "50">("none");
   const [alimonyWithSpouse, setAlimonyWithSpouse] = useState(false);
-  const [selectedBenefit, setSelectedBenefit] = useState<string>("");
-  const [showBenefits, setShowBenefits] = useState(false);
+
   const [amountError, setAmountError] = useState("");
   const [result, setResult] = useState<{ fee: number; percentOfClaim?: number; note?: string } | null>(null);
   const [showRatesModal, setShowRatesModal] = useState(false);
@@ -244,8 +207,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
   useEffect(() => {
     setNonpropCategory("");
     setAlimonyWithSpouse(false);
-    setSelectedBenefit("");
-    setShowBenefits(false);
+
   }, [payer, courtType]);
 
   const calcFee = useCallback((): { fee: number; percentOfClaim?: number; note?: string } | null => {
@@ -357,9 +319,9 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     }
 
     let discountLine = "";
-    const allBenefits = payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG;
-    const activeBenefit = allBenefits.find(b => b.id === selectedBenefit);
-    if (activeBenefit) discountLine = `• Льгота ст. 333.36 НК РФ: ${activeBenefit.label}`;
+    const cats2 = getCats(payer, courtType);
+    const activeCat = cats2.find(c => c.key === nonpropCategory);
+    if (activeCat?.exempt && activeCat.note) discountLine = `• Льгота ст. 333.36 НК РФ: ${activeCat.label}`;
     else if (exempt) discountLine = "• Льгота: освобождение от уплаты";
     else if (discount === "30") discountLine = "• Льгота: скидка 30%";
     else if (discount === "50") discountLine = "• Льгота: скидка 50%";
