@@ -7,9 +7,10 @@
       "expectedStatus": 200
     },
     {
-      "name": "GET cases without auth returns 401",
-      "method": "GET",
+      "name": "POST without auth returns 401",
+      "method": "POST",
       "path": "/",
+      "body": {"action": "cases.list"},
       "expectedStatus": 401,
       "expectedBody": {"error": "Unauthorized"},
       "bodyMatcher": "partial"

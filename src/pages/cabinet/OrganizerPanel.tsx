@@ -37,7 +37,7 @@ interface Task {
   title: string;
   due_date?: string | null;
   is_completed: boolean;
-  reminder?: string | null;
+  reminder?: boolean | null;
 }
 
 interface Document {
@@ -55,44 +55,19 @@ interface FullCase extends CaseListItem {
   documents: Document[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── API ──────────────────────────────────────────────────────────────────────
 
-function fmtDate(d: string) {
-  const [y, m, day] = d.split("-");
-  return `${day}.${m}.${y}`;
-}
-
-function urgency(dateStr?: string | null): "overdue" | "today" | "soon" | "normal" | null {
-  if (!dateStr) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return "overdue";
-  if (diff === 0) return "today";
-  if (diff <= 3) return "soon";
-  return "normal";
-}
-
-function urgencyClasses(u: ReturnType<typeof urgency>): string {
-  if (u === "overdue") return "text-red-600 bg-red-50";
-  if (u === "today") return "text-red-600 bg-red-50";
-  if (u === "soon") return "text-amber-600 bg-amber-50";
-  return "text-slate-500 bg-slate-50";
-}
-
-function authHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    "X-Auth-Token": getToken(),
-  };
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: { ...authHeaders(), ...(init?.headers as Record<string, string> | undefined) },
+async function apiFetch<T>(
+  action: string,
+  params: Record<string, unknown> = {}
+): Promise<T> {
+  const res = await fetch(BASE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Auth-Token": getToken(),
+    },
+    body: JSON.stringify({ action, ...params }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -101,7 +76,43 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDate(d: string): string {
+  const [y, m, day] = d.split("-");
+  return `${day}.${m}.${y}`;
+}
+
+type Urgency = "overdue" | "today" | "soon" | "normal" | null;
+
+function urgency(dateStr?: string | null): Urgency {
+  if (!dateStr) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((d.getTime() - today.getTime()) / 86_400_000);
+  if (diff < 0) return "overdue";
+  if (diff === 0) return "today";
+  if (diff <= 3) return "soon";
+  return "normal";
+}
+
+function urgencyBadgeClasses(u: Urgency): string {
+  if (u === "overdue") return "text-red-600 bg-red-50 border border-red-200";
+  if (u === "today") return "text-red-600 bg-red-50 border border-red-200";
+  if (u === "soon") return "text-amber-600 bg-amber-50 border border-amber-200";
+  return "text-slate-500 bg-slate-50 border border-slate-200";
+}
+
+function urgencyTextClass(u: Urgency): string {
+  if (u === "overdue") return "text-red-600";
+  if (u === "today") return "text-red-600";
+  if (u === "soon") return "text-amber-600";
+  return "text-slate-500";
+}
+
+// ─── SectionHeader ────────────────────────────────────────────────────────────
 
 function SectionHeader({
   label,
@@ -143,6 +154,15 @@ function SectionHeader({
   );
 }
 
+// ─── InlineForm ───────────────────────────────────────────────────────────────
+
+interface FieldDef {
+  name: string;
+  placeholder: string;
+  type?: string;
+  required?: boolean;
+}
+
 function InlineForm({
   fields,
   onSubmit,
@@ -150,7 +170,7 @@ function InlineForm({
   submitLabel = "Добавить",
   loading = false,
 }: {
-  fields: { name: string; placeholder: string; type?: string; required?: boolean }[];
+  fields: FieldDef[];
   onSubmit: (values: Record<string, string>) => void;
   onCancel: () => void;
   submitLabel?: string;
@@ -173,11 +193,13 @@ function InlineForm({
       {fields.map((f) => (
         <input
           key={f.name}
-          type={f.type || "text"}
+          type={f.type ?? "text"}
           placeholder={f.placeholder}
           required={f.required}
           value={vals[f.name]}
-          onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
+          onChange={(e) =>
+            setVals((v) => ({ ...v, [f.name]: e.target.value }))
+          }
           className="w-full bg-white border border-border rounded-md px-2 py-1 text-xs outline-none focus:border-navy-400 placeholder:text-slate-300"
         />
       ))}
@@ -201,7 +223,7 @@ function InlineForm({
   );
 }
 
-// ─── Hearings Section ─────────────────────────────────────────────────────────
+// ─── HearingsSection ──────────────────────────────────────────────────────────
 
 function HearingsSection({
   caseId,
@@ -220,30 +242,28 @@ function HearingsSection({
     if (!vals.hear_date) return;
     setSaving(true);
     try {
-      await apiFetch(`/cases/${caseId}/hearings`, {
-        method: "POST",
-        body: JSON.stringify({
-          hear_date: vals.hear_date,
-          hear_time: vals.hear_time || undefined,
-          room: vals.room || undefined,
-        }),
+      await apiFetch("hearings.create", {
+        case_id: caseId,
+        hear_date: vals.hear_date,
+        hear_time: vals.hear_time || undefined,
+        room: vals.room || undefined,
       });
       setAdding(false);
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (hid: number) => {
+  const handleDelete = async (hearingId: number) => {
     if (!window.confirm("Удалить заседание?")) return;
     try {
-      await apiFetch(`/cases/${caseId}/hearings/${hid}`, { method: "DELETE" });
+      await apiFetch("hearings.delete", { hearing_id: hearingId });
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     }
   };
 
@@ -253,14 +273,22 @@ function HearingsSection({
         label={`Заседания (${hearings.length})`}
         open={open}
         onToggle={() => setOpen((v) => !v)}
-        onAdd={() => setAdding(true)}
+        onAdd={() => {
+          setAdding(true);
+          setOpen(true);
+        }}
       />
       {open && (
         <div>
           {adding && (
             <InlineForm
               fields={[
-                { name: "hear_date", placeholder: "Дата (ГГГГ-ММ-ДД)", type: "date", required: true },
+                {
+                  name: "hear_date",
+                  placeholder: "Дата (ГГГГ-ММ-ДД)",
+                  type: "date",
+                  required: true,
+                },
                 { name: "hear_time", placeholder: "Время (необяз.)", type: "time" },
                 { name: "room", placeholder: "Зал/кабинет (необяз.)" },
               ]}
@@ -280,24 +308,29 @@ function HearingsSection({
                 className="flex items-start gap-2 px-3 py-1.5 border-b border-border/50 group hover:bg-slate-50/80"
               >
                 <span
-                  className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded mt-0.5 ${urgencyClasses(u)}`}
+                  className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded mt-0.5 ${urgencyBadgeClasses(u)}`}
                 >
                   {fmtDate(h.hear_date)}
-                  {h.hear_time ? ` ${h.hear_time.slice(0, 5)}` : ""}
                 </span>
                 <div className="flex-1 min-w-0">
+                  {h.hear_time && (
+                    <span className="text-[11px] text-slate-600">{h.hear_time}</span>
+                  )}
                   {h.room && (
-                    <p className="text-[11px] text-slate-500 truncate">Зал: {h.room}</p>
+                    <span className="text-[11px] text-slate-400 ml-1">· {h.room}</span>
                   )}
                   {h.result && (
-                    <p className="text-[11px] text-slate-600 truncate">{h.result}</p>
+                    <p className="text-[10px] text-emerald-600 truncate mt-0.5">
+                      {h.result}
+                    </p>
                   )}
                 </div>
                 <button
                   onClick={() => handleDelete(h.id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-500"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-500"
+                  title="Удалить"
                 >
-                  <Icon name="Trash2" size={11} />
+                  <Icon name="Trash2" size={12} />
                 </button>
               </div>
             );
@@ -308,7 +341,7 @@ function HearingsSection({
   );
 }
 
-// ─── Tasks Section ────────────────────────────────────────────────────────────
+// ─── TasksSection ─────────────────────────────────────────────────────────────
 
 function TasksSection({
   caseId,
@@ -324,55 +357,70 @@ function TasksSection({
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async (vals: Record<string, string>) => {
-    if (!vals.title.trim()) return;
+    if (!vals.title) return;
     setSaving(true);
     try {
-      await apiFetch(`/cases/${caseId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify({
-          title: vals.title,
-          due_date: vals.due_date || undefined,
-        }),
+      await apiFetch("tasks.create", {
+        case_id: caseId,
+        title: vals.title,
+        due_date: vals.due_date || undefined,
       });
       setAdding(false);
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggle = async (t: Task) => {
+  const handleToggle = async (task: Task) => {
     try {
-      await apiFetch(`/cases/${caseId}/tasks/${t.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ title: t.title, is_completed: !t.is_completed }),
+      await apiFetch("tasks.update", {
+        task_id: task.id,
+        title: task.title,
+        is_completed: !task.is_completed,
+        due_date: task.due_date ?? undefined,
+        reminder: task.reminder ?? undefined,
       });
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     }
   };
 
-  const pending = tasks.filter((t) => !t.is_completed);
-  const done = tasks.filter((t) => t.is_completed);
+  const handleDelete = async (taskId: number) => {
+    if (!window.confirm("Удалить задачу?")) return;
+    try {
+      await apiFetch("tasks.delete", { task_id: taskId });
+      onReload();
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div>
       <SectionHeader
-        label={`Задачи (${pending.length} активных)`}
+        label={`Задачи (${tasks.length})`}
         open={open}
         onToggle={() => setOpen((v) => !v)}
-        onAdd={() => setAdding(true)}
+        onAdd={() => {
+          setAdding(true);
+          setOpen(true);
+        }}
       />
       {open && (
         <div>
           {adding && (
             <InlineForm
               fields={[
-                { name: "title", placeholder: "Название задачи", required: true },
-                { name: "due_date", placeholder: "Срок (необяз.)", type: "date" },
+                {
+                  name: "title",
+                  placeholder: "Название задачи",
+                  required: true,
+                },
+                { name: "due_date", placeholder: "Срок (ГГГГ-ММ-ДД)", type: "date" },
               ]}
               onSubmit={handleAdd}
               onCancel={() => setAdding(false)}
@@ -382,39 +430,44 @@ function TasksSection({
           {tasks.length === 0 && !adding && (
             <p className="px-3 py-2 text-[11px] text-slate-400">Нет задач</p>
           )}
-          {[...pending, ...done].map((t) => {
+          {tasks.map((t) => {
             const u = urgency(t.due_date);
             return (
               <div
                 key={t.id}
                 className="flex items-start gap-2 px-3 py-1.5 border-b border-border/50 group hover:bg-slate-50/80"
               >
-                <button
-                  onClick={() => handleToggle(t)}
-                  className={`shrink-0 w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center transition-colors ${
-                    t.is_completed
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-white border-slate-300 hover:border-navy-400"
-                  }`}
-                >
-                  {t.is_completed && <Icon name="Check" size={9} className="text-white" />}
-                </button>
+                <input
+                  type="checkbox"
+                  checked={t.is_completed}
+                  onChange={() => handleToggle(t)}
+                  className="mt-0.5 shrink-0 accent-navy-800 cursor-pointer"
+                />
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-[12px] leading-snug ${
-                      t.is_completed ? "line-through text-slate-400" : "text-slate-700"
+                    className={`text-[11px] leading-tight break-words ${
+                      t.is_completed
+                        ? "line-through text-slate-400"
+                        : "text-slate-700"
                     }`}
                   >
                     {t.title}
                   </p>
-                  {t.due_date && !t.is_completed && (
+                  {t.due_date && (
                     <span
-                      className={`text-[10px] font-medium px-1 py-0.5 rounded ${urgencyClasses(u)}`}
+                      className={`text-[10px] font-medium ${urgencyTextClass(u)}`}
                     >
                       до {fmtDate(t.due_date)}
                     </span>
                   )}
                 </div>
+                <button
+                  onClick={() => handleDelete(t.id)}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-500"
+                  title="Удалить"
+                >
+                  <Icon name="Trash2" size={12} />
+                </button>
               </div>
             );
           })}
@@ -424,7 +477,7 @@ function TasksSection({
   );
 }
 
-// ─── Documents Section ────────────────────────────────────────────────────────
+// ─── DocumentsSection ─────────────────────────────────────────────────────────
 
 function DocumentsSection({
   caseId,
@@ -440,47 +493,60 @@ function DocumentsSection({
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async (vals: Record<string, string>) => {
-    if (!vals.name.trim()) return;
+    if (!vals.name) return;
     setSaving(true);
     try {
-      await apiFetch(`/cases/${caseId}/documents`, {
-        method: "POST",
-        body: JSON.stringify({
-          name: vals.name,
-          doc_type: vals.doc_type || undefined,
-          deadline: vals.deadline || undefined,
-        }),
+      await apiFetch("documents.create", {
+        case_id: caseId,
+        name: vals.name,
+        doc_type: vals.doc_type || undefined,
+        deadline: vals.deadline || undefined,
       });
       setAdding(false);
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     } finally {
       setSaving(false);
     }
   };
 
-  const handleTogglePrepared = async (doc: Document) => {
+  const handleToggleReady = async (doc: Document) => {
     try {
-      await apiFetch(`/cases/${caseId}/documents/${doc.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ name: doc.name, is_prepared: !doc.is_prepared }),
+      await apiFetch("documents.update", {
+        doc_id: doc.id,
+        name: doc.name,
+        is_prepared: !doc.is_prepared,
+        doc_type: doc.doc_type ?? undefined,
+        deadline: doc.deadline ?? undefined,
+        notes: doc.notes ?? undefined,
       });
       onReload();
     } catch {
-      /* ignore */
+      // ignore
     }
   };
 
-  const ready = documents.filter((d) => d.is_prepared).length;
+  const handleDelete = async (docId: number) => {
+    if (!window.confirm("Удалить документ?")) return;
+    try {
+      await apiFetch("documents.delete", { doc_id: docId });
+      onReload();
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div>
       <SectionHeader
-        label={`Документы (${ready}/${documents.length})`}
+        label={`Документы (${documents.length})`}
         open={open}
         onToggle={() => setOpen((v) => !v)}
-        onAdd={() => setAdding(true)}
+        onAdd={() => {
+          setAdding(true);
+          setOpen(true);
+        }}
       />
       {open && (
         <div>
@@ -489,7 +555,7 @@ function DocumentsSection({
               fields={[
                 { name: "name", placeholder: "Название документа", required: true },
                 { name: "doc_type", placeholder: "Тип (необяз.)" },
-                { name: "deadline", placeholder: "Срок (необяз.)", type: "date" },
+                { name: "deadline", placeholder: "Срок (ГГГГ-ММ-ДД)", type: "date" },
               ]}
               onSubmit={handleAdd}
               onCancel={() => setAdding(false)}
@@ -499,42 +565,50 @@ function DocumentsSection({
           {documents.length === 0 && !adding && (
             <p className="px-3 py-2 text-[11px] text-slate-400">Нет документов</p>
           )}
-          {documents.map((doc) => {
-            const u = urgency(doc.deadline);
+          {documents.map((d) => {
+            const u = urgency(d.deadline);
             return (
               <div
-                key={doc.id}
+                key={d.id}
                 className="flex items-start gap-2 px-3 py-1.5 border-b border-border/50 group hover:bg-slate-50/80"
               >
-                <button
-                  onClick={() => handleTogglePrepared(doc)}
-                  className={`shrink-0 w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center transition-colors ${
-                    doc.is_prepared
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-white border-slate-300 hover:border-navy-400"
-                  }`}
-                >
-                  {doc.is_prepared && <Icon name="Check" size={9} className="text-white" />}
-                </button>
+                <input
+                  type="checkbox"
+                  checked={d.is_prepared}
+                  onChange={() => handleToggleReady(d)}
+                  className="mt-0.5 shrink-0 accent-emerald-600 cursor-pointer"
+                  title={d.is_prepared ? "Готов" : "Не готов"}
+                />
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-[12px] leading-snug truncate ${
-                      doc.is_prepared ? "line-through text-slate-400" : "text-slate-700"
+                    className={`text-[11px] leading-tight break-words ${
+                      d.is_prepared ? "text-slate-400" : "text-slate-700"
                     }`}
                   >
-                    {doc.name}
+                    {d.name}
                   </p>
-                  {doc.doc_type && (
-                    <p className="text-[10px] text-slate-400 truncate">{doc.doc_type}</p>
-                  )}
-                  {doc.deadline && !doc.is_prepared && (
-                    <span
-                      className={`text-[10px] font-medium px-1 py-0.5 rounded ${urgencyClasses(u)}`}
-                    >
-                      до {fmtDate(doc.deadline)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {d.doc_type && (
+                      <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                        {d.doc_type}
+                      </span>
+                    )}
+                    {d.deadline && (
+                      <span
+                        className={`text-[10px] font-medium ${urgencyTextClass(u)}`}
+                      >
+                        до {fmtDate(d.deadline)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                <button
+                  onClick={() => handleDelete(d.id)}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-500"
+                  title="Удалить"
+                >
+                  <Icon name="Trash2" size={12} />
+                </button>
               </div>
             );
           })}
@@ -544,7 +618,121 @@ function DocumentsSection({
   );
 }
 
-// ─── Case Card (collapsed list item) ─────────────────────────────────────────
+// ─── AddCaseForm ──────────────────────────────────────────────────────────────
+
+function AddCaseForm({
+  onSaved,
+  onCancel,
+}: {
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [vals, setVals] = useState({
+    case_number: "",
+    court: "",
+    judge: "",
+    plaintiff: "",
+    defendant: "",
+    status: "active",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: keyof typeof vals) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setVals((v) => ({ ...v, [k]: e.target.value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vals.case_number || !vals.court) return;
+    setSaving(true);
+    try {
+      await apiFetch("cases.create", {
+        case_number: vals.case_number,
+        court: vals.court,
+        judge: vals.judge || undefined,
+        plaintiff: vals.plaintiff || undefined,
+        defendant: vals.defendant || undefined,
+        status: vals.status,
+      });
+      onSaved();
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    "w-full bg-white border border-border rounded-md px-2 py-1 text-xs outline-none focus:border-navy-400 placeholder:text-slate-300";
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mx-3 my-2 bg-slate-50 border border-border rounded-lg p-3 space-y-1.5"
+    >
+      <p className="text-[11px] font-semibold text-slate-600 mb-2">Новое дело</p>
+      <input
+        className={inputCls}
+        placeholder="Номер дела *"
+        required
+        value={vals.case_number}
+        onChange={set("case_number")}
+      />
+      <input
+        className={inputCls}
+        placeholder="Суд *"
+        required
+        value={vals.court}
+        onChange={set("court")}
+      />
+      <input
+        className={inputCls}
+        placeholder="Судья (необяз.)"
+        value={vals.judge}
+        onChange={set("judge")}
+      />
+      <input
+        className={inputCls}
+        placeholder="Истец (необяз.)"
+        value={vals.plaintiff}
+        onChange={set("plaintiff")}
+      />
+      <input
+        className={inputCls}
+        placeholder="Ответчик (необяз.)"
+        value={vals.defendant}
+        onChange={set("defendant")}
+      />
+      <select
+        className={inputCls}
+        value={vals.status}
+        onChange={set("status")}
+      >
+        <option value="active">Активное</option>
+        <option value="pending">На рассмотрении</option>
+        <option value="closed">Закрыто</option>
+        <option value="suspended">Приостановлено</option>
+      </select>
+      <div className="flex gap-1.5 pt-1">
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 py-1 rounded-md text-[11px] font-semibold text-white bg-navy-800 hover:bg-navy-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? "..." : "Создать"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-2 py-1 rounded-md text-[11px] text-slate-500 hover:bg-slate-200 transition-colors"
+        >
+          Отмена
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ─── CaseCard ─────────────────────────────────────────────────────────────────
 
 function CaseCard({
   c,
@@ -556,402 +744,305 @@ function CaseCard({
   onClick: () => void;
 }) {
   const u = urgency(c.next_hearing);
+
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors hover:bg-slate-50 ${
-        selected ? "bg-blue-50/60 border-l-2 border-l-navy-600" : ""
+      className={`w-full text-left px-3 py-2.5 border-b border-border/60 transition-colors ${
+        selected
+          ? "bg-navy-50 border-l-2 border-l-navy-600"
+          : "hover:bg-slate-50/80"
       }`}
     >
-      <div className="flex items-start justify-between gap-1 mb-1">
-        <span className="text-[12px] font-semibold text-navy-800 leading-snug line-clamp-1 flex-1">
+      <div className="flex items-start justify-between gap-1 min-w-0">
+        <span className="text-[12px] font-bold text-slate-800 truncate leading-tight">
           {c.case_number}
         </span>
-        <span
-          className={`shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
-            c.status === "active"
-              ? "bg-emerald-100 text-emerald-700"
-              : c.status === "closed"
-              ? "bg-slate-100 text-slate-500"
-              : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {c.status === "active" ? "Актив." : c.status === "closed" ? "Закрыто" : c.status}
-        </span>
-      </div>
-      <p className="text-[11px] text-slate-500 truncate mb-1.5">{c.court}</p>
-      <div className="flex items-center gap-2 flex-wrap">
-        {c.next_hearing && (
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${urgencyClasses(u)}`}>
-            <Icon name="Calendar" size={9} className="inline mr-0.5 -mt-px" />
-            {fmtDate(c.next_hearing)}
-          </span>
-        )}
         {c.pending_tasks > 0 && (
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
-            <Icon name="ListTodo" size={9} className="inline mr-0.5 -mt-px" />
+          <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
             {c.pending_tasks}
           </span>
         )}
-        <span className="text-[10px] text-slate-400 ml-auto">
-          {c.docs_ready}/{c.docs_total} док.
-        </span>
+      </div>
+      <p className="text-[10px] text-slate-500 truncate mt-0.5">{c.court}</p>
+      <div className="flex items-center gap-2 mt-1 flex-wrap">
+        {c.next_hearing ? (
+          <span
+            className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${urgencyBadgeClasses(u)}`}
+          >
+            {fmtDate(c.next_hearing)}
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-300">нет заседаний</span>
+        )}
+        {c.docs_total > 0 && (
+          <span
+            className={`text-[10px] ${
+              c.docs_ready === c.docs_total
+                ? "text-emerald-600"
+                : "text-slate-400"
+            }`}
+          >
+            {c.docs_ready}/{c.docs_total} докум.
+          </span>
+        )}
       </div>
     </button>
   );
 }
 
-// ─── Add Case Form ────────────────────────────────────────────────────────────
+// ─── SelectedCaseDetail ───────────────────────────────────────────────────────
 
-function AddCaseForm({
-  onSubmit,
-  onCancel,
-  loading,
+function SelectedCaseDetail({
+  caseId,
+  onClose,
+  onDeleteCase,
 }: {
-  onSubmit: (vals: Record<string, string>) => void;
-  onCancel: () => void;
-  loading: boolean;
+  caseId: number;
+  onClose: () => void;
+  onDeleteCase: () => void;
 }) {
-  return (
-    <div className="border-b border-border bg-slate-50/80">
-      <p className="px-3 pt-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-        Новое дело
-      </p>
-      <InlineForm
-        fields={[
-          { name: "case_number", placeholder: "Номер дела", required: true },
-          { name: "court", placeholder: "Суд", required: true },
-          { name: "plaintiff", placeholder: "Истец (необяз.)" },
-          { name: "defendant", placeholder: "Ответчик (необяз.)" },
-          { name: "judge", placeholder: "Судья (необяз.)" },
-        ]}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        submitLabel="Создать дело"
-        loading={loading}
-      />
-    </div>
-  );
-}
-
-// ─── Full Case Detail ─────────────────────────────────────────────────────────
-
-function CaseDetail({
-  fullCase,
-  onReload,
-  onDelete,
-}: {
-  fullCase: FullCase;
-  onReload: () => void;
-  onDelete: () => void;
-}) {
-  const handleDelete = () => {
-    if (window.confirm(`Удалить дело ${fullCase.case_number}?`)) {
-      onDelete();
-    }
-  };
-
-  return (
-    <div className="border-t border-border">
-      {/* Case meta */}
-      <div className="px-3 py-2 bg-slate-50/60 border-b border-border/50">
-        {fullCase.plaintiff && (
-          <p className="text-[11px] text-slate-500 truncate">
-            <span className="text-slate-400">Истец: </span>
-            {fullCase.plaintiff}
-          </p>
-        )}
-        {fullCase.defendant && (
-          <p className="text-[11px] text-slate-500 truncate">
-            <span className="text-slate-400">Ответчик: </span>
-            {fullCase.defendant}
-          </p>
-        )}
-        {fullCase.judge && (
-          <p className="text-[11px] text-slate-500 truncate">
-            <span className="text-slate-400">Судья: </span>
-            {fullCase.judge}
-          </p>
-        )}
-        <button
-          onClick={handleDelete}
-          className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 hover:text-red-500 transition-colors"
-        >
-          <Icon name="Trash2" size={10} />
-          Удалить дело
-        </button>
-      </div>
-
-      <HearingsSection
-        caseId={fullCase.id}
-        hearings={fullCase.hearings}
-        onReload={onReload}
-      />
-      <TasksSection
-        caseId={fullCase.id}
-        tasks={fullCase.tasks}
-        onReload={onReload}
-      />
-      <DocumentsSection
-        caseId={fullCase.id}
-        documents={fullCase.documents}
-        onReload={onReload}
-      />
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-interface OrganizerPanelProps {
-  user: User;
-}
-
-export default function OrganizerPanel({ user: _user }: OrganizerPanelProps) {
-  const [open, setOpen] = useState(false);
-  const [cases, setCases] = useState<CaseListItem[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [fullCase, setFullCase] = useState<FullCase | null>(null);
-  const [loadingList, setLoadingList] = useState(false);
-  const [loadingCase, setLoadingCase] = useState(false);
-  const [addingCase, setAddingCase] = useState(false);
-  const [savingCase, setSavingCase] = useState(false);
+  const [data, setData] = useState<FullCase | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCases = useCallback(async () => {
-    setLoadingList(true);
+  const load = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<{ cases: CaseListItem[] }>("/cases");
-      setCases(data.cases || []);
+      const res = await apiFetch<FullCase>("cases.get", { case_id: caseId });
+      setData(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
-      setLoadingList(false);
+      setLoading(false);
     }
-  }, []);
+  }, [caseId]);
 
-  const loadFullCase = useCallback(async (id: number) => {
-    setLoadingCase(true);
-    try {
-      const data = await apiFetch<FullCase>(`/cases/${id}`);
-      setFullCase(data);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoadingCase(false);
-    }
-  }, []);
-
-  // Load on open
   useEffect(() => {
-    if (open) {
-      loadCases();
-    }
-  }, [open, loadCases]);
-
-  // Load full case when selection changes
-  useEffect(() => {
-    if (selectedId !== null) {
-      loadFullCase(selectedId);
-    } else {
-      setFullCase(null);
-    }
-  }, [selectedId, loadFullCase]);
-
-  const handleSelectCase = (id: number) => {
-    setSelectedId((prev) => (prev === id ? null : id));
-  };
-
-  const handleAddCase = async (vals: Record<string, string>) => {
-    setSavingCase(true);
-    try {
-      await apiFetch<CaseListItem>("/cases", {
-        method: "POST",
-        body: JSON.stringify({
-          case_number: vals.case_number,
-          court: vals.court,
-          judge: vals.judge || undefined,
-          plaintiff: vals.plaintiff || undefined,
-          defendant: vals.defendant || undefined,
-          status: "active",
-        }),
-      });
-      setAddingCase(false);
-      await loadCases();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
-    } finally {
-      setSavingCase(false);
-    }
-  };
+    load();
+  }, [load]);
 
   const handleDeleteCase = async () => {
-    if (!selectedId) return;
+    if (!window.confirm("Удалить дело и все связанные данные?")) return;
     try {
-      await apiFetch(`/cases/${selectedId}`, {
-        method: "PUT",
-        body: JSON.stringify({ status: "deleted" }),
-      });
-      setSelectedId(null);
-      setFullCase(null);
-      await loadCases();
+      await apiFetch("cases.delete", { case_id: caseId });
+      onDeleteCase();
     } catch {
-      /* ignore */
+      // ignore
     }
   };
 
-  const handleReloadCase = useCallback(async () => {
-    if (selectedId !== null) {
-      await Promise.all([loadFullCase(selectedId), loadCases()]);
-    }
-  }, [selectedId, loadFullCase, loadCases]);
-
-  // ── Closed state: show toggle button ───────────────────────────────────────
-  if (!open) {
+  if (loading) {
     return (
-      <div className="hidden lg:flex shrink-0 items-start pt-4">
+      <div className="flex items-center justify-center py-6">
+        <Icon name="Loader2" size={16} className="animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-3 py-3">
+        <p className="text-[11px] text-red-500">{error}</p>
         <button
-          onClick={() => setOpen(true)}
-          className="flex flex-col items-center gap-1 px-1.5 py-2.5 bg-white border border-border rounded-r-xl shadow-sm text-slate-400 hover:text-navy-800 hover:shadow-md transition-all group"
-          title="Органайзер дел"
+          onClick={load}
+          className="mt-1 text-[11px] text-navy-700 underline"
         >
-          <Icon name="Scale" size={16} className="group-hover:text-navy-700 transition-colors" />
-          <span
-            className="text-[9px] font-semibold text-slate-400 group-hover:text-navy-700 transition-colors"
-            style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}
-          >
-            ДЕЛА
-          </span>
-          <Icon name="ChevronRight" size={12} className="text-slate-300 group-hover:text-navy-500 transition-colors" />
+          Повторить
         </button>
       </div>
     );
   }
 
-  // ── Open panel ─────────────────────────────────────────────────────────────
+  if (!data) return null;
+
   return (
-    <div className="hidden lg:flex shrink-0 w-72 flex-col bg-white border-r border-border max-h-full overflow-hidden shadow-sm">
-      {/* Panel header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-white shrink-0">
-        <span className="text-base leading-none">⚖️</span>
-        <h2 className="flex-1 text-[13px] font-bold text-navy-800 tracking-tight">Дела</h2>
+    <div className="border-t border-border bg-white">
+      {/* Case detail header */}
+      <div className="flex items-start gap-2 px-3 py-2.5 bg-navy-50 border-b border-border">
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-bold text-navy-900 leading-tight truncate">
+            {data.case_number}
+          </p>
+          {data.judge && (
+            <p className="text-[10px] text-slate-500 truncate">
+              Судья: {data.judge}
+            </p>
+          )}
+          {(data.plaintiff || data.defendant) && (
+            <p className="text-[10px] text-slate-400 truncate">
+              {[data.plaintiff, data.defendant].filter(Boolean).join(" / ")}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={handleDeleteCase}
+            className="w-6 h-6 rounded flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Удалить дело"
+          >
+            <Icon name="Trash2" size={12} />
+          </button>
+          <button
+            onClick={onClose}
+            className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors"
+            title="Закрыть"
+          >
+            <Icon name="X" size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Sections */}
+      <HearingsSection
+        caseId={data.id}
+        hearings={data.hearings}
+        onReload={load}
+      />
+      <TasksSection
+        caseId={data.id}
+        tasks={data.tasks}
+        onReload={load}
+      />
+      <DocumentsSection
+        caseId={data.id}
+        documents={data.documents}
+        onReload={load}
+      />
+    </div>
+  );
+}
+
+// ─── OrganizerPanel ───────────────────────────────────────────────────────────
+
+export default function OrganizerPanel({ user: _user }: { user: User }) {
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [cases, setCases] = useState<CaseListItem[]>([]);
+  const [loadingCases, setLoadingCases] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [addingCase, setAddingCase] = useState(false);
+
+  const loadCases = useCallback(async () => {
+    setLoadingCases(true);
+    try {
+      const res = await apiFetch<{ cases: CaseListItem[] }>("cases.list");
+      setCases(res.cases ?? []);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingCases(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (panelOpen) {
+      loadCases();
+    }
+  }, [panelOpen, loadCases]);
+
+  const handleSelectCase = (id: number) => {
+    setSelectedId((prev) => (prev === id ? null : id));
+    setAddingCase(false);
+  };
+
+  const handleCaseDeleted = () => {
+    setSelectedId(null);
+    loadCases();
+  };
+
+  const handleCaseSaved = () => {
+    setAddingCase(false);
+    loadCases();
+  };
+
+  // ── Closed state ─────────────────────────────────────────────────────────────
+  if (!panelOpen) {
+    return (
+      <div className="hidden lg:flex shrink-0 items-start pt-2">
         <button
-          onClick={() => {
-            setAddingCase(true);
-          }}
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition-colors"
+          onClick={() => setPanelOpen(true)}
+          className="flex flex-col items-center justify-start gap-1 py-3 px-1.5 rounded-l-lg bg-white border border-r-0 border-border shadow-sm hover:bg-slate-50 transition-colors"
+          title="Открыть органайзер дел"
+        >
+          <Icon name="ChevronLeft" size={14} className="text-slate-400" />
+          <span
+            className="text-[10px] font-semibold text-slate-500 tracking-widest"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            ⚖️ Дела
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Open state ────────────────────────────────────────────────────────────────
+  return (
+    <div className="hidden lg:flex shrink-0 w-72 flex-col min-h-0 bg-white border-l border-border">
+      {/* Panel header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+        <span className="text-[13px] font-bold text-navy-900 flex-1">
+          ⚖️ Дела
+        </span>
+        <button
+          onClick={() => setAddingCase((v) => !v)}
+          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition-colors"
           title="Добавить дело"
         >
           <Icon name="Plus" size={14} />
         </button>
         <button
-          onClick={() => setOpen(false)}
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-navy-800 hover:bg-slate-100 transition-colors"
-          title="Свернуть"
+          onClick={() => setPanelOpen(false)}
+          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+          title="Свернуть панель"
         >
-          <Icon name="ChevronLeft" size={14} />
+          <Icon name="ChevronRight" size={14} />
         </button>
       </div>
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Add case form */}
         {addingCase && (
-          <AddCaseForm
-            onSubmit={handleAddCase}
-            onCancel={() => setAddingCase(false)}
-            loading={savingCase}
-          />
+          <AddCaseForm onSaved={handleCaseSaved} onCancel={() => setAddingCase(false)} />
         )}
 
-        {/* Error banner */}
-        {error && (
-          <div className="mx-3 my-2 flex items-center gap-2 px-2.5 py-2 bg-red-50 border border-red-200 rounded-lg">
-            <Icon name="AlertCircle" size={12} className="text-red-500 shrink-0" />
-            <p className="text-[11px] text-red-600 flex-1">{error}</p>
-            <button
-              onClick={loadCases}
-              className="text-[10px] text-red-500 underline hover:no-underline shrink-0"
-            >
-              Повтор
-            </button>
+        {loadingCases && (
+          <div className="flex items-center justify-center py-8">
+            <Icon name="Loader2" size={18} className="animate-spin text-slate-300" />
           </div>
         )}
 
-        {/* Loading */}
-        {loadingList && cases.length === 0 && (
-          <div className="flex items-center justify-center py-8 gap-2 text-slate-400">
-            <Icon name="Loader" size={14} className="animate-spin" />
-            <span className="text-[12px]">Загрузка...</span>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loadingList && cases.length === 0 && !error && !addingCase && (
+        {!loadingCases && cases.length === 0 && !addingCase && (
           <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-              <Icon name="FolderOpen" size={18} className="text-slate-400" />
-            </div>
-            <p className="text-[12px] font-semibold text-slate-600 mb-1">Нет дел</p>
-            <p className="text-[11px] text-slate-400 mb-3">
-              Добавьте первое дело, чтобы отслеживать заседания, задачи и документы
-            </p>
+            <Icon name="Scale" size={28} className="text-slate-200 mb-2" />
+            <p className="text-[12px] text-slate-400">Дел пока нет</p>
             <button
               onClick={() => setAddingCase(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-navy-800 hover:bg-navy-700 transition-colors"
+              className="mt-2 text-[11px] text-navy-700 underline hover:text-navy-900"
             >
-              <Icon name="Plus" size={12} />
-              Добавить дело
+              Добавить первое дело
             </button>
           </div>
         )}
 
-        {/* Case list */}
-        {cases.map((c) => (
-          <div key={c.id}>
-            <CaseCard
-              c={c}
-              selected={selectedId === c.id}
-              onClick={() => handleSelectCase(c.id)}
-            />
-            {selectedId === c.id && (
-              <div>
-                {loadingCase && !fullCase && (
-                  <div className="flex items-center justify-center py-4 gap-1.5 text-slate-400 border-b border-border/50">
-                    <Icon name="Loader" size={12} className="animate-spin" />
-                    <span className="text-[11px]">Загрузка...</span>
-                  </div>
-                )}
-                {fullCase && fullCase.id === selectedId && (
-                  <CaseDetail
-                    fullCase={fullCase}
-                    onReload={handleReloadCase}
-                    onDelete={handleDeleteCase}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Refresh button when list is populated */}
-        {cases.length > 0 && (
-          <div className="px-3 py-2 flex justify-end">
-            <button
-              onClick={loadCases}
-              disabled={loadingList}
-              className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-40"
-            >
-              <Icon
-                name="RefreshCw"
-                size={10}
-                className={loadingList ? "animate-spin" : ""}
+        {!loadingCases &&
+          cases.map((c) => (
+            <div key={c.id}>
+              <CaseCard
+                c={c}
+                selected={selectedId === c.id}
+                onClick={() => handleSelectCase(c.id)}
               />
-              Обновить
-            </button>
-          </div>
-        )}
+              {selectedId === c.id && (
+                <SelectedCaseDetail
+                  caseId={c.id}
+                  onClose={() => setSelectedId(null)}
+                  onDeleteCase={handleCaseDeleted}
+                />
+              )}
+            </div>
+          ))}
       </div>
     </div>
   );
