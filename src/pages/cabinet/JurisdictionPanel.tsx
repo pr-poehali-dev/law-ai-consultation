@@ -51,6 +51,7 @@ interface JurisdictionResult {
   alternatives?: string[];
   nextSteps: string[];
   error?: string;
+  unknownAddress?: boolean;
 }
 
 // ── Fallback-справочник судов ────────────────────────────────────
@@ -252,8 +253,31 @@ function determineJurisdiction(s1: Step1, s2: Step2): JurisdictionResult {
 
   // Общее правило
   const addr = s2.defendantAddress;
-  if (!addr.trim()) {
-    return { rule: "", article: "", articleFull: "", courtType: ct, searchQuery: "", court: null, nextSteps: [], error: "Укажите адрес ответчика для определения суда" };
+  if (!addr.trim() || s2.unknownDefendant) {
+    // Адрес неизвестен — предлагаем варианты
+    const isOrg = s1.defendant === "org" || s1.defendant === "ip";
+    return {
+      rule: "Адрес ответчика неизвестен",
+      article: isOrg ? "ч. 2 ст. 29 ГПК РФ / ЕГРЮЛ / ЕГРИП" : "ст. 29 ГПК РФ",
+      articleFull: isOrg
+        ? "Адрес организации или ИП можно найти в ЕГРЮЛ/ЕГРИП на сайте ФНС. Иск подаётся по юридическому адресу из реестра."
+        : "При неизвестности места жительства ответчика иск предъявляется по последнему известному месту его жительства или месту нахождения его имущества.",
+      courtType: ct,
+      searchQuery: "",
+      court: null,
+      unknownAddress: true,
+      nextSteps: isOrg
+        ? [
+            "Найдите юридический адрес на сайте ФНС: egrul.nalog.ru",
+            "Введите ИНН или название организации — адрес будет в карточке",
+            "После получения адреса вернитесь и определите суд",
+          ]
+        : [
+            "Подайте иск по последнему известному адресу ответчика",
+            "Одновременно заявите ходатайство об истребовании сведений о месте регистрации",
+            "Суд сделает запрос в органы МВД/ФМС и установит адрес ответчика",
+          ],
+    };
   }
 
   let courtName: string;
