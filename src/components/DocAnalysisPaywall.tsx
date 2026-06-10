@@ -116,7 +116,7 @@ export default function DocAnalysisPaywall({ onChoosePro, onChooseMax, onClose }
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-3">
-                {["100 вопросов AI", "20 документов", "Загрузка PDF / фото", "Анализ документов AI", "5 вопросов юристу", "Редактор документов"].map(t => (
+                {["100 вопросов AI", "20 документов", "Загрузка PDF / фото", "Анализ документов AI", "5 вопросов юристу", "Редактор документов", "Поиск практики", "Калькулятор неустойки", "Подсудность"].map(t => (
                   <div key={t} className="flex items-start gap-1.5">
                     <Icon name="Check" size={11} color={GOLD} className="mt-0.5 shrink-0" />
                     <span className="text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.72)" }}>{t}</span>
@@ -149,7 +149,7 @@ export default function DocAnalysisPaywall({ onChoosePro, onChooseMax, onClose }
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-3">
-                {["300 вопросов AI", "50 документов", "Загрузка PDF / фото", "Анализ нескольких документов", "30 вопросов юристу", "2 документа от юриста"].map(t => (
+                {["300 вопросов AI", "50 документов", "Загрузка PDF / фото", "Анализ нескольких документов", "30 вопросов юристу", "2 документа от юриста", "Поиск практики", "Калькулятор неустойки", "Подсудность"].map(t => (
                   <div key={t} className="flex items-start gap-1.5">
                     <Icon name="Check" size={11} color="rgba(255,255,255,0.5)" className="mt-0.5 shrink-0" />
                     <span className="text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.6)" }}>{t}</span>

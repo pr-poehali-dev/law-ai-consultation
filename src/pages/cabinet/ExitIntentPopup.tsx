@@ -172,6 +172,9 @@ export default function ExitIntentPopup({ onAccept, onClose }: ExitIntentPopupPr
                 "Ответы со ссылками на статьи закона РФ",
                 "Иски, претензии, договоры за 3 минуты",
                 "Генерация документов по вашей ситуации",
+                "Поиск судебной практики",
+                "Калькулятор неустойки",
+                "Определение подсудности",
               ].map((f) => (
                 <div key={f} className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
