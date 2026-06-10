@@ -95,18 +95,29 @@ def _extract_results(data: dict) -> list:
     """Извлекает результаты из ответа операции."""
     import base64
 
-    # Вариант 1: rawData / xmlData (base64 XML)
+    # Вариант 1: rawData / xmlData — может быть base64 или plain XML
     for key in ("rawData", "xmlData", "data"):
         raw = data.get(key)
-        if raw and isinstance(raw, str):
-            try:
-                xml = base64.b64decode(raw).decode("utf-8")
-                r = _parse_xml_results(xml)
-                if r:
-                    print(f"[WEB_SEARCH] {len(r)} results from XML ({key})")
-                    return r
-            except Exception as e:
-                print(f"[WEB_SEARCH] XML parse error ({key}): {e}")
+        if not raw or not isinstance(raw, str):
+            continue
+        # Пробуем как plain XML сначала
+        if raw.strip().startswith("<?xml") or raw.strip().startswith("<yandex"):
+            r = _parse_xml_results(raw)
+            if r:
+                print(f"[WEB_SEARCH] {len(r)} results from plain XML ({key})")
+                return r
+        # Пробуем как base64
+        try:
+            xml = base64.b64decode(raw).decode("utf-8")
+            print(f"[WEB_SEARCH] decoded base64 {key}, first 80: {xml[:80]!r}")
+            r = _parse_xml_results(xml)
+            if r:
+                print(f"[WEB_SEARCH] {len(r)} results from base64 XML ({key})")
+                return r
+            # Если XML распарсился но пустой — покажем начало для отладки
+            print(f"[WEB_SEARCH] XML parsed but 0 docs. XML[:300]={xml[:300]!r}")
+        except Exception as e:
+            print(f"[WEB_SEARCH] not base64 ({key}): {e}. raw[:80]={raw[:80]!r}")
 
     # Вариант 2: структурированный grouping
     results = []
@@ -161,7 +172,9 @@ def _do_search(query: str, folder_id: str, api_key: str, max_results: int = 8) -
         op = _http_get(op_url, api_key, timeout=10)
         print(f"[WEB_SEARCH] poll {attempt+1} done={op.get('done')} keys={list(op.keys())[:5]}")
         if op.get("done"):
-            return _extract_results(op.get("response") or op.get("result") or {})
+            resp_data = op.get("response") or op.get("result") or {}
+            print(f"[WEB_SEARCH] response keys={list(resp_data.keys())} rawData[:100]={str(resp_data.get('rawData',''))[:100]!r}")
+            return _extract_results(resp_data)
 
     raise RuntimeError("Timeout: операция не завершилась за 18 секунд")
 
