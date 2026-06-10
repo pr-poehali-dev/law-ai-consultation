@@ -710,62 +710,12 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
 
             <p className="text-[10px] text-slate-400 text-center">Справочный расчёт · не юридическое заключение</p>
 
-            {/* Действия */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide text-center">Использовать расчёт</p>
-
-              {/* Карточка — По периодам */}
-              <div className="rounded-2xl overflow-hidden border border-slate-100">
-                <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-blue-100 flex items-center justify-center shrink-0">
-                    <Icon name="BarChart2" size={11} color="#3b82f6" />
-                  </div>
-                  <p className="text-[11px] font-bold text-slate-700">По периодам</p>
-                  <span className="text-[10px] text-slate-400 ml-auto">{result.periods.length} периодов</span>
-                </div>
-                <div className="flex divide-x divide-slate-100">
-                  <button onClick={() => sendToChat("periods")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-blue-50"
-                    style={{ color: "#0f4c81" }}>
-                    <Icon name="Send" size={12} color="#0f4c81" />
-                    Отправить в чат
-                  </button>
-                  <button onClick={() => copyText("periods")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-emerald-50"
-                    style={{ color: copied === "periods" ? "#059669" : "#64748b" }}>
-                    <Icon name={copied === "periods" ? "CheckCheck" : "Copy"} size={12} color={copied === "periods" ? "#059669" : "#64748b"} />
-                    {copied === "periods" ? "Скопировано!" : "Скопировать"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Карточка — По дням */}
-              <div className="rounded-2xl overflow-hidden border border-slate-100">
-                <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-purple-100 flex items-center justify-center shrink-0">
-                    <Icon name="Calendar" size={11} color="#7c3aed" />
-                  </div>
-                  <p className="text-[11px] font-bold text-slate-700">По дням</p>
-                  <span className="text-[10px] text-slate-400 ml-auto">
-                    {result.periods.reduce((s, p) => s + p.days, 0)} дней
-                  </span>
-                </div>
-                <div className="flex divide-x divide-slate-100">
-                  <button onClick={() => sendToChat("days")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-blue-50"
-                    style={{ color: "#0f4c81" }}>
-                    <Icon name="Send" size={12} color="#0f4c81" />
-                    Отправить в чат
-                  </button>
-                  <button onClick={() => copyText("days")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-all active:scale-[0.97] hover:bg-emerald-50"
-                    style={{ color: copied === "days" ? "#059669" : "#64748b" }}>
-                    <Icon name={copied === "days" ? "CheckCheck" : "Copy"} size={12} color={copied === "days" ? "#059669" : "#64748b"} />
-                    {copied === "days" ? "Скопировано!" : "Скопировать"}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <button onClick={() => sendToChat("days")}
+              className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+              <Icon name="Send" size={13} color="#fff" />
+              Передать в чат
+            </button>
           </div>
         )}
       </div>
