@@ -1,4 +1,4 @@
-"""Поиск судебной практики через Yandex Search API v2. Требует YANDEX_SEARCH_API_KEY и YANDEX_FOLDER_ID."""
+"""Поиск судебной практики через Yandex Search API v2. Требует YANDEX_SEARCH_API_KEY и YANDEX_FOLDER_ID. v4.1"""
 import json
 import os
 import re
