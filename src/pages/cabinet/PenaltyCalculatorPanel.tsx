@@ -215,69 +215,105 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     setResult({ total: totalPenalty, capped, capApplied, periods });
   }, [debt, dateStart, dateEnd, mode, ratePercent, cbrRate, cbrFraction, fixedDay, changes, capEnabled, capMode, capAmount, capPercent]);
 
-  const buildHeader = () => {
-    const final = result ? (result.capApplied && result.capped !== null ? result.capped : result.total) : 0;
-    const debtVal = parseFloat(debt.replace(/\s/g, "").replace(",", ".") || "0");
-    let h = `📊 Расчёт неустойки:\n`;
-    h += `• Период: ${dateStart} — ${dateEnd}\n`;
-    h += `• Сумма долга: ${fmt(debtVal)} руб.\n`;
-    if (mode === "percent") h += `• Ставка: ${ratePercent}% в день\n`;
-    else if (mode === "cbr") h += `• Ставка: 1/${cbrFraction} от ставки ЦБ (${cbrRate}%)\n`;
-    else h += `• Фикс. сумма: ${fixedDay} руб./день\n`;
-    h += `• Итого: ${fmt(final)} руб. (${numToWords(final)})\n`;
-    if (result?.capApplied) h += `• Ограничение применено, расчётная: ${fmt(result.total)} руб.\n`;
-    return h;
-  };
-
   const getRateDisplay = () => {
     if (mode === "percent") return `${ratePercent}% в день`;
-    if (mode === "cbr") return `1/${cbrFraction} × ${cbrRate}% ЦБ = ${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}% в день`;
-    return `${fixedDay} ₽/день (фиксировано)`;
+    if (mode === "cbr") return `1/${cbrFraction} × ${cbrRate}% (ЦБ РФ) = ${(parseFloat(cbrRate) / parseFloat(cbrFraction)).toFixed(4)}% в день`;
+    return `${fixedDay} ₽/день (фиксированная)`;
   };
 
   const getFormula = () => {
-    if (mode === "percent") return `Долг × ${ratePercent}% × Дней ÷ 100`;
-    if (mode === "cbr") return `Долг × (${cbrRate}% ÷ 100) × (1 ÷ ${cbrFraction}) × Дней`;
-    return `${fixedDay} ₽ × Дней`;
+    if (mode === "percent") return `сумма долга × ${ratePercent}% × количество дней / 100`;
+    if (mode === "cbr") return `сумма долга × (${cbrRate}% / 100) × (1 / ${cbrFraction}) × количество дней`;
+    return `${fixedDay} ₽ × количество дней`;
   };
 
-  const buildPeriodTable = () => {
-    if (!result) return "";
-    const rateD = mode === "percent" ? `${ratePercent}%` : mode === "cbr" ? `${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}%` : `${fixedDay}₽`;
-    let t = `\nФормула: ${getFormula()}\nСтавка: ${getRateDisplay()}\n`;
-    t += `Период просрочки: ${dateStart} — ${dateEnd}\n\n`;
-    t += `Детализация по периодам:\n`;
-    t += `Период | Долг (₽) | Ставка | Дней | Пени (₽)\n`;
-    for (const p of result.periods) {
-      t += `${p.from.slice(5)} – ${p.to.slice(5)} | ${fmt(p.debt)} | ${rateD} | ${p.days} | ${fmt(p.penalty)}\n`;
-    }
-    t += `\nИтого: ${fmt(result.total)} руб.\n`;
-    return t;
+  const fmtDate = (d: string) => {
+    const [y, m, day] = d.split("-");
+    return `${day}.${m}.${y}`;
   };
 
-  const buildDayTable = () => {
+  const getDayName = (d: string) => {
+    const days = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+    return days[new Date(d).getDay()];
+  };
+
+  const buildBody = (kind: "periods" | "days") => {
     if (!result) return "";
-    const rateD = mode === "percent" ? `${ratePercent}%` : mode === "cbr" ? `${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}%` : `${fixedDay}₽`;
-    let acc = 0;
-    let t = `\nФормула: ${getFormula()}\nСтавка: ${getRateDisplay()}\n`;
-    t += `Период просрочки: ${dateStart} — ${dateEnd}\n\n`;
-    t += `Детализация по дням:\n`;
-    t += `Дата | Долг (₽) | Ставка | За день (₽) | Накоплено (₽)\n`;
-    for (const p of result.periods) {
-      const dayPenalty = p.penalty / p.days;
-      for (let d = 0; d < p.days; d++) {
-        const date = addDays(p.from, d);
-        acc += dayPenalty;
-        t += `${date.slice(5)} | ${fmt(p.debt)} | ${rateD} | ${fmt(dayPenalty)} | ${fmt(acc)}\n`;
+    const final = result.capApplied && result.capped !== null ? result.capped : result.total;
+    const debtVal = parseFloat(debt.replace(/\s/g, "").replace(",", ".") || "0");
+    const totalDays = result.periods.reduce((s, p) => s + p.days, 0);
+    const rateD = mode === "percent" ? `${ratePercent}%` : mode === "cbr"
+      ? `${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}%`
+      : `${fixedDay} ₽`;
+
+    let t = `РАСЧЁТ НЕУСТОЙКИ\n`;
+    t += `${"─".repeat(50)}\n`;
+    t += `Сумма неустойки: ${fmt(final)} руб.\n`;
+    t += `Сумма долга и неустойки: ${fmt(debtVal + final)} руб.\n`;
+    t += `(по состоянию на ${fmtDate(dateEnd)})\n`;
+    t += `${"─".repeat(50)}\n`;
+    t += `Ставка по договору: ${getRateDisplay()}\n`;
+    t += `Долг на дату начала начисления (${fmtDate(dateStart)}): ${fmt(debtVal)} руб.\n`;
+    t += `Период начисления: ${fmtDate(dateStart)} – ${fmtDate(dateEnd)} (${totalDays} дней)\n`;
+    if (result.capApplied) t += `Ограничение: расчётная сумма ${fmt(result.total)} руб., применено ограничение до ${fmt(final)} руб.\n`;
+    t += `\n`;
+
+    if (kind === "periods") {
+      t += `период | дней | формула | неустойка\n`;
+      for (const p of result.periods) {
+        const formulaStr = mode === "percent"
+          ? `${fmt(p.debt)} × ${ratePercent}% × ${p.days}`
+          : mode === "cbr"
+            ? `${fmt(p.debt)} × ${(parseFloat(cbrRate)/parseFloat(cbrFraction)).toFixed(4)}% × ${p.days}`
+            : `${fixedDay} ₽ × ${p.days}`;
+        t += `${fmtDate(p.from)} – ${fmtDate(p.to)} | ${p.days} | ${formulaStr} | ${fmt(p.penalty)}\n`;
+      }
+    } else {
+      t += `дата | долг (₽) | ставка | за день (₽) | накоплено (₽)\n`;
+      let acc = 0;
+      for (const p of result.periods) {
+        const dayPenalty = p.penalty / p.days;
+        for (let d = 0; d < p.days; d++) {
+          const date = addDays(p.from, d);
+          acc += dayPenalty;
+          t += `${fmtDate(date)} | ${fmt(p.debt)} | ${rateD} | ${fmt(dayPenalty)} | ${fmt(acc)}\n`;
+        }
       }
     }
+
+    t += `\nСумма неустойки: ${fmt(final)} руб.\n`;
+    t += `Сумма основного долга: ${fmt(debtVal)} руб.\n`;
+    t += `\nПорядок расчёта\n${getFormula()}\n`;
+
+    // Примечание по ст. 193 ГК РФ для расчёта по дням
+    if (kind === "days") {
+      const startDate = new Date(dateStart);
+      const dayName = getDayName(dateStart);
+      const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
+      if (isWeekend) {
+        const prevDay = new Date(startDate);
+        prevDay.setDate(prevDay.getDate() - 1);
+        const prevStr = prevDay.toISOString().slice(0, 10);
+        // следующий рабочий после prevDay
+        const nextWork = new Date(startDate);
+        while (nextWork.getDay() === 0 || nextWork.getDay() === 6) nextWork.setDate(nextWork.getDate() + 1);
+        const nextWorkStr = nextWork.toISOString().slice(0, 10);
+        const firstProsr = new Date(nextWork);
+        firstProsr.setDate(firstProsr.getDate() + 1);
+        t += `\n⚠ Примечание: ${fmtDate(dateStart)} (${dayName}) указано как первый день начисления неустойки. `;
+        t += `Если неустойка рассчитывается с первого дня просрочки, то последним днём оплаты определено ${fmtDate(prevStr)} (${getDayName(prevStr)}). `;
+        t += `По правилам ст. 193 ГК РФ днём оплаты считается ближайший рабочий день — ${fmtDate(nextWorkStr)}, `;
+        t += `а первым днём просрочки — ${fmtDate(firstProsr.toISOString().slice(0, 10))}.\n`;
+      }
+    }
+
     return t;
   };
 
   const [copied, setCopied] = useState<"periods" | "days" | null>(null);
 
   const copyText = async (kind: "periods" | "days") => {
-    const text = buildHeader() + (kind === "periods" ? buildPeriodTable() : buildDayTable());
+    const text = buildBody(kind);
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
@@ -300,9 +336,8 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
 
   const sendToChat = (kind: "periods" | "days") => {
     if (!result) return;
-    const detail = kind === "periods" ? buildPeriodTable() : buildDayTable();
-    const text = buildHeader() + detail
-      + `\nУчти этот расчёт неустойки, проверь корректность ставки и формулы по нормам ГК РФ, составь детализированную формулу расчёта в таблице.`;
+    const text = buildBody(kind)
+      + `\nУчти этот расчёт неустойки, проверь корректность ставки и формулы по нормам ГК РФ.`;
     onSendToChat(text);
     onClose();
   };
