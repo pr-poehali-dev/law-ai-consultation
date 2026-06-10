@@ -13,12 +13,13 @@ interface ChatInputBarProps {
   attachedFiles: { name: string; b64: string; size: string }[];
   fileInputRef: React.RefObject<HTMLInputElement>;
   onInputChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (text?: string) => void;
   onSendFile: (comment: string) => void;
   onAttachClick: () => void;
   onRemoveFile: (idx: number) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileDrop?: (files: FileList) => void;
+  onQuickAction?: (text: string) => void;
 }
 
 export default function ChatInputBar({
@@ -38,6 +39,7 @@ export default function ChatInputBar({
   onRemoveFile,
   onFileSelect,
   onFileDrop,
+  onQuickAction,
 }: ChatInputBarProps) {
   const nativeInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -209,6 +211,34 @@ export default function ChatInputBar({
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
             <p className="text-[11px] text-amber-600 px-1">⚠ Фото должны быть чёткими — плохое качество снизит точность AI</p>
           )}
+        </div>
+      )}
+
+      {/* Быстрые действия — облачки */}
+      {!hasFiles && (
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {[
+            { icon: "Calculator", label: "Калькулятор неустойки", text: "Рассчитай неустойку по договору" },
+            { icon: "Landmark", label: "Госпошлина", text: "Рассчитай госпошлину для подачи иска" },
+            { icon: "BookOpen", label: "Судебная практика", text: "Найди судебную практику по моему вопросу" },
+          ].map(({ icon, label, text }) => (
+            <button
+              key={label}
+              onClick={() => onQuickAction?.(text)}
+              disabled={typing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all active:scale-95 disabled:opacity-40 hover:shadow-sm"
+              style={{
+                background: "rgba(255,255,255,0.95)",
+                border: "1.5px solid rgba(203,213,225,0.8)",
+                color: "#475569",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}
+            >
+              <Icon name={icon as Parameters<typeof Icon>[0]["name"]} size={12} color="#64748b" />
+              {label}
+            </button>
+          ))}
         </div>
       )}
 

@@ -24,7 +24,7 @@ interface ChatTabProps {
   canUploadFiles?: boolean;
   onUpgradeClick?: () => void;
   onInputChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (text?: string) => void;
   onSendFile: (comment: string) => void;
   onContinueChat: (partialText: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -206,6 +206,7 @@ export default function ChatTab({
         onRemoveFile={onRemoveFile}
         onFileSelect={onFileSelect}
         onFileDrop={onFileDrop}
+        onQuickAction={(text) => onSend(text)}
       />
 
     </div>
