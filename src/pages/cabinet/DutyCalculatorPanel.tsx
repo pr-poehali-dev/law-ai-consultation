@@ -90,9 +90,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
           <p className="text-xs font-bold text-slate-800">Калькулятор госпошлины</p>
           <span className="text-[10px] text-slate-400">· НК РФ</span>
           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
-            style={{ background: "rgba(245,158,11,0.1)", color: "#b45309", border: "1px solid rgba(245,158,11,0.25)" }}>
-            <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />тест
-          </span>
+            style={{ background: "rgba(245,158,11,0.1)", color: "#b45309", border: "1px solid rgba(245,158,11,0.25)" }}>тестовый режим</span>
         </div>
         <button onClick={onClose} className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
           <Icon name="X" size={13} />
