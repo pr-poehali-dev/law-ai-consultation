@@ -689,8 +689,56 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   </div>
                 )}
 
+                {/* Блок: адрес неизвестен */}
+                {result?.unknownAddress && (
+                  <div className="rounded-xl overflow-hidden border border-amber-200">
+                    <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "rgba(245,158,11,0.07)", borderBottom: "1px solid rgba(245,158,11,0.2)" }}>
+                      <Icon name="AlertCircle" size={11} color="#d97706" />
+                      <p className="text-[10px] font-bold text-amber-800">Адрес ответчика неизвестен</p>
+                    </div>
+                    <div className="px-3 py-2.5 space-y-2">
+                      {(s1.defendant === "org" || s1.defendant === "ip") ? (
+                        <>
+                          <p className="text-[10px] text-slate-600 leading-snug">
+                            Для <strong>{s1.defendant === "org" ? "организации (ООО/АО)" : "ИП"}</strong> адрес регистрации можно найти в реестре ФНС — это бесплатно и занимает 1 минуту.
+                          </p>
+                          <a href="https://egrul.nalog.ru/index.html" target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 active:scale-95"
+                            style={{ background: "linear-gradient(135deg,#1a56db,#1e40af)", color: "#fff" }}>
+                            <Icon name="Search" size={11} color="#fff" />
+                            Найти адрес на сайте ФНС (egrul.nalog.ru)
+                          </a>
+                          <p className="text-[9px] text-slate-400 text-center">Введите ИНН, ОГРН или название — адрес будет в карточке</p>
+                        </>
+                      ) : (
+                        <p className="text-[10px] text-slate-600 leading-snug">
+                          Адрес физлица установит суд по запросу в МВД/ФМС. Подайте иск по последнему известному адресу.
+                        </p>
+                      )}
+                      <div className="h-px bg-slate-100" />
+                      <p className="text-[10px] font-semibold text-slate-700">Одновременно подайте ходатайство об истребовании сведений:</p>
+                      <button
+                        onClick={() => {
+                          const defType = s1.defendant === "org" ? "ООО/организацию" : s1.defendant === "ip" ? "ИП" : "физическое лицо";
+                          const prompt = s1.defendant === "org"
+                            ? `Составь ходатайство об истребовании сведений о юридическом адресе и месте нахождения организации-ответчика из ЕГРЮЛ ФНС России. Ответчик — ООО (организация). Ходатайство для приложения к исковому заявлению в районный суд.`
+                            : s1.defendant === "ip"
+                            ? `Составь ходатайство об истребовании сведений о месте регистрации ответчика-индивидуального предпринимателя из ЕГРИП ФНС России. Ходатайство для приложения к исковому заявлению.`
+                            : `Составь ходатайство об истребовании сведений о месте жительства (регистрации) ответчика — физического лица — из органов МВД России (адресное бюро). Ходатайство для приложения к исковому заявлению в районный суд. Основание: ст. 29 ГПК РФ (подсудность по последнему известному месту жительства).`;
+                          onSendToChat(prompt);
+                          onClose();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 active:scale-95"
+                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }}>
+                        <Icon name="FileText" size={11} color="#fff" />
+                        Составить ходатайство через AI-юриста
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Суд */}
-                <div className="rounded-xl overflow-hidden border border-slate-200">
+                {!result?.unknownAddress && <div className="rounded-xl overflow-hidden border border-slate-200">
                   <div className="px-3 py-2 flex items-center gap-1.5"
                     style={{ background: "linear-gradient(135deg,rgba(5,150,105,0.06),rgba(4,120,87,0.03))", borderBottom: "1px solid #f1f5f9" }}>
                     <Icon name="Landmark" size={11} color="#059669" />
@@ -753,7 +801,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                       </a>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* Дальнейшие шаги */}
                 {result?.nextSteps && result.nextSteps.length > 0 && (
