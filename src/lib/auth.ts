@@ -574,6 +574,15 @@ export async function deleteLegalDoc(docId: number, otpCode: string): Promise<{ 
   return { ok: true };
 }
 
+export async function reindexLegalDocs(category: string, docId?: number): Promise<{
+  ok?: boolean; reindexed?: number; docs?: { id: number; title: string; chunks: number }[]; errors?: string[]; error?: string;
+}> {
+  const res = await legalDocsCall({ action_sub: "reindex", category, ...(docId ? { doc_id: docId } : {}) }, 120000);
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка переиндексации" };
+  return { ok: true, reindexed: data.reindexed, docs: data.docs, errors: data.errors };
+}
+
 export function getFreeLeft(user: User): number {
   return user.isAdmin ? 999 : user.paidQuestions;
 }

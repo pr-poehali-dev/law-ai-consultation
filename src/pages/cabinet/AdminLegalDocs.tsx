@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { getLegalDocs, deleteLegalDoc, requestLegalDocDeleteOtp, type LegalDoc } from "@/lib/auth";
+import { getLegalDocs, deleteLegalDoc, requestLegalDocDeleteOtp, reindexLegalDocs, type LegalDoc } from "@/lib/auth";
 import { CaseLawTree, StateDutyList, SimpleDocList } from "./LegalDocTreeViews";
 import UploadModal from "./LegalDocUploadModal";
 import { YEARS, CATEGORIES, type LegalCategory } from "./legalDocsConstants";
@@ -15,6 +15,8 @@ export default function AdminLegalDocs() {
   const [uploadDefaults, setUploadDefaults] = useState<{ year?: number; subcategory?: string }>({});
   const [deleting, setDeleting] = useState<number | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ doc: LegalDoc; step: "confirm" | "otp"; otp: string; sending: boolean; error: string } | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexResult, setReindexResult] = useState<{ reindexed: number; errors: string[] } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -76,6 +78,17 @@ export default function AdminLegalDocs() {
     }
   };
 
+  const handleReindex = async () => {
+    setReindexing(true);
+    setReindexResult(null);
+    const res = await reindexLegalDocs(activeTab);
+    setReindexing(false);
+    if (res.ok) {
+      setReindexResult({ reindexed: res.reindexed ?? 0, errors: res.errors ?? [] });
+      await load();
+    }
+  };
+
   const countByCategory = (cat: LegalCategory) => docs.filter(d => d.category === cat).length;
   const activeCat = CATEGORIES.find(c => c.id === activeTab)!;
 
@@ -92,12 +105,27 @@ export default function AdminLegalDocs() {
             <p className="text-[11px] text-muted-foreground">{docs.length} документов · AI использует при генерации</p>
           </div>
         </div>
-        <button
-          onClick={() => openUpload()}
-          className="flex items-center gap-1.5 px-3 py-1.5 btn-gold rounded-xl text-xs font-semibold"
-        >
-          <Icon name="Upload" size={13} />Загрузить
-        </button>
+        <div className="flex items-center gap-2">
+          {activeTab === "codex" && (
+            <button
+              onClick={handleReindex}
+              disabled={reindexing}
+              title="Перенарезать все кодексы по статьям для точного поиска"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all"
+            >
+              {reindexing
+                ? <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                : <Icon name="RefreshCw" size={13} />}
+              {reindexing ? "Переиндексация..." : "Переиндексировать"}
+            </button>
+          )}
+          <button
+            onClick={() => openUpload()}
+            className="flex items-center gap-1.5 px-3 py-1.5 btn-gold rounded-xl text-xs font-semibold"
+          >
+            <Icon name="Upload" size={13} />Загрузить
+          </button>
+        </div>
       </div>
 
       {/* Табы — 4 категории */}
@@ -125,6 +153,24 @@ export default function AdminLegalDocs() {
           );
         })}
       </div>
+
+      {/* Результат переиндексации */}
+      {reindexResult && (
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+          <Icon name="CheckCircle" size={14} color="#059669" className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-emerald-800">
+              Переиндексировано {reindexResult.reindexed} документов по статьям
+            </p>
+            {reindexResult.errors.length > 0 && (
+              <p className="text-[11px] text-amber-700 mt-0.5">Ошибки: {reindexResult.errors.join(", ")}</p>
+            )}
+          </div>
+          <button onClick={() => setReindexResult(null)} className="text-emerald-400 hover:text-emerald-600">
+            <Icon name="X" size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Описание активной категории */}
       <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl ${activeCat.bg} border ${activeCat.border}`}>

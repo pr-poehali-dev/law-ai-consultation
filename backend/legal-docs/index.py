@@ -169,7 +169,50 @@ def _split_into_chunks(text: str, chunk_words: int = CHUNK_SIZE, overlap: int = 
     return chunks
 
 
-def _save_chunks(conn, doc_id: int, text: str) -> int:
+def _split_by_articles(text: str, max_chars: int = 4000) -> list:
+    """
+    Нарезает текст кодекса/закона по границам статей.
+    Паттерн: «Статья N.» или «Статья N.N.» в начале строки/абзаца.
+    Если статья длиннее max_chars — дополнительно делит по абзацам.
+    """
+    article_pattern = re.compile(
+        r"(?:^|\n)\s*(Статья\s+\d+(?:\.\d+)?\.?\s+[^\n]{0,120})",
+        re.MULTILINE
+    )
+    positions = [m.start() for m in article_pattern.finditer(text)]
+
+    if len(positions) < 3:
+        # Не похоже на кодекс — обычная нарезка
+        return _split_into_chunks(text)
+
+    chunks = []
+    for i, pos in enumerate(positions):
+        end = positions[i + 1] if i + 1 < len(positions) else len(text)
+        article_text = text[pos:end].strip()
+        if not article_text:
+            continue
+        # Если статья слишком длинная — бьём по абзацам
+        if len(article_text) > max_chars:
+            paragraphs = re.split(r"\n{2,}", article_text)
+            current = ""
+            for para in paragraphs:
+                if len(current) + len(para) + 2 > max_chars and current:
+                    chunks.append(current.strip())
+                    # Сохраняем заголовок статьи в каждом подчанке
+                    header_m = re.match(r"(Статья\s+\d+(?:\.\d+)?\.?[^\n]*)", article_text)
+                    header = header_m.group(1) + "\n" if header_m else ""
+                    current = header + para
+                else:
+                    current = (current + "\n\n" + para).strip() if current else para
+            if current.strip():
+                chunks.append(current.strip())
+        else:
+            chunks.append(article_text)
+
+    return [c for c in chunks if len(c.strip()) > 20]
+
+
+def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
     """Нарезает текст и сохраняет чанки в БД с tsvector-индексом."""
     cur = conn.cursor()
     # Обнуляем старые чанки через UPDATE (не DELETE — политика БД)
@@ -177,7 +220,12 @@ def _save_chunks(conn, doc_id: int, text: str) -> int:
         f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
         (doc_id,)
     )
-    chunks = _split_into_chunks(text)
+    # Для кодексов — нарезка по статьям, для остальных — по словам
+    if category in ("codex",):
+        chunks = _split_by_articles(text)
+        print(f"[CHUNKS] doc_id={doc_id} category={category} article_chunks={len(chunks)}")
+    else:
+        chunks = _split_into_chunks(text)
     for idx, chunk in enumerate(chunks):
         cur.execute(
             f"""INSERT INTO {SCHEMA}.legal_doc_chunks
@@ -594,7 +642,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             text = _extract_text(file_data, ext)
             chunks_count = 0
             if text.strip():
-                chunks_count = _save_chunks(conn, doc_id, text)
+                chunks_count = _save_chunks(conn, doc_id, text, category=category)
 
             conn.commit()
 
@@ -687,6 +735,58 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             conn.commit()
             invalidate_legal_cache()
             return _ok({"ok": True})
+
+        elif action == "reindex":
+            # Перенарезать чанки для документов категории (только для админа)
+            reindex_category = (body.get("category") or "codex").strip()
+            doc_id_filter    = body.get("doc_id")  # опционально — только один документ
+
+            if reindex_category not in ALLOWED_CATEGORIES:
+                return _err(400, "Неверная категория")
+
+            # Получаем список документов для переиндексации
+            if doc_id_filter:
+                cur.execute(
+                    f"SELECT id, title, s3_key FROM {SCHEMA}.legal_docs WHERE id = %s AND is_active = TRUE",
+                    (int(doc_id_filter),)
+                )
+            else:
+                cur.execute(
+                    f"SELECT id, title, s3_key FROM {SCHEMA}.legal_docs WHERE category = %s AND is_active = TRUE",
+                    (reindex_category,)
+                )
+            docs_to_reindex = cur.fetchall()
+            if not docs_to_reindex:
+                return _ok({"ok": True, "reindexed": 0, "message": "Нет документов для переиндексации"})
+
+            s3_client = _s3()
+            reindexed = []
+            errors = []
+            for did, title, s3_key in docs_to_reindex:
+                try:
+                    # Скачиваем файл из S3
+                    obj = s3_client.get_object(Bucket="files", Key=s3_key)
+                    file_data = obj["Body"].read()
+                    ext = s3_key.rsplit(".", 1)[-1].lower() if "." in s3_key else ""
+                    text = _extract_text(file_data, ext)
+                    if not text.strip():
+                        errors.append(f"{title}: пустой текст")
+                        continue
+                    new_count = _save_chunks(conn, did, text, category=reindex_category)
+                    conn.commit()
+                    reindexed.append({"id": did, "title": title, "chunks": new_count})
+                    print(f"[REINDEX] doc_id={did} title={title!r} chunks={new_count}")
+                except Exception as e:
+                    errors.append(f"{title}: {e}")
+                    conn.rollback()
+
+            invalidate_legal_cache()
+            return _ok({
+                "ok": True,
+                "reindexed": len(reindexed),
+                "docs": reindexed,
+                "errors": errors,
+            })
 
         return _err(400, f"Неизвестное действие: {action}")
 
