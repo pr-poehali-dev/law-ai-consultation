@@ -16,12 +16,12 @@ YANDEX_API = "https://llm.api.cloud.yandex.net/v1/chat/completions"
 
 def _call_gpt(system_prompt: str, user_message: str, api_key: str) -> str:
     payload = json.dumps({
-        "model": os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/yandexgpt-5.1/latest"),
+        "model": "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_message},
         ],
-        "max_tokens": 400,
+        "max_tokens": 600,
         "temperature": 0.1,
         "stream": False,
     }, ensure_ascii=False).encode("utf-8")
@@ -143,11 +143,42 @@ def handler(event: dict, context) -> dict:
         print(f"[COURT_FINDER] GPT answer: {answer[:300]}")
 
         # Парсим JSON из ответа
-        json_match = re.search(r"\{[\s\S]*\}", answer)
+        json_match = re.search(r"\{[\s\S]*?\}", answer)
         if not json_match:
+            # Пробуем достроить обрезанный JSON
+            json_start = answer.find("{")
+            if json_start >= 0:
+                fragment = answer[json_start:]
+                # Извлекаем поля регулярками напрямую
+                def _extract(field: str) -> str:
+                    m = re.search(rf'"{field}"\s*:\s*"([^"]*)"', fragment)
+                    return m.group(1) if m else ""
+                name = _extract("name")
+                if name:
+                    return _ok({
+                        "name":    name,
+                        "address": _extract("address"),
+                        "phone":   _extract("phone"),
+                        "website": _extract("website"),
+                        "source":  "DeepSeek",
+                    })
             return _err(502, f"GPT не вернул JSON: {answer[:200]}")
 
-        court_data = json.loads(json_match.group(0))
+        try:
+            court_data = json.loads(json_match.group(0))
+        except json.JSONDecodeError:
+            # JSON обрезан — парсим поля вручную
+            fragment = json_match.group(0)
+            def _extract(field: str) -> str:
+                m = re.search(rf'"{field}"\s*:\s*"([^"]*)"', fragment)
+                return m.group(1) if m else ""
+            court_data = {
+                "name":    _extract("name"),
+                "address": _extract("address"),
+                "phone":   _extract("phone"),
+                "website": _extract("website"),
+            }
+
         if not court_data.get("name"):
             return _err(502, "GPT не определил название суда")
 
@@ -156,7 +187,7 @@ def handler(event: dict, context) -> dict:
             "address": court_data.get("address", ""),
             "phone":   court_data.get("phone", ""),
             "website": court_data.get("website", ""),
-            "source":  "YandexGPT",
+            "source":  "DeepSeek",
         })
 
     except json.JSONDecodeError as e:
