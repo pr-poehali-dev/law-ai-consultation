@@ -27,9 +27,9 @@ DESCRIPTIONS = {
     "subscription_docs":     "Подписка: документы на 31 день",
     "plan_starter":          "Тариф Старт: +30 вопросов, +5 документов",
     "plan_starter_discount": "Тариф Старт со скидкой 50%: +30 вопросов, +5 документов",
-    "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов",
-    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
-    "plan_max_expert":       "Тариф Максимум: +300 вопросов, +50 документов + консультация юриста",
+    "plan_pro":              "Тариф Профи: +100 вопросов, +20 документов, +20 вопросов юристу",
+    "plan_max":              "Тариф Максимум: +300 вопросов, +50 документов, +50 вопросов юристу",
+    "plan_max_expert":       "Тариф Максимум: +300 вопросов, +50 документов, +50 вопросов юристу",
     "lawyer_questions":      "+5 вопросов живому юристу",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
@@ -229,7 +229,7 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 20,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 5,
+                        lawyer_questions_left = lawyer_questions_left + 20,
                         purchased_plan = CASE
                             WHEN purchased_plan = 'max' THEN purchased_plan
                             ELSE 'pro'
@@ -244,7 +244,7 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 50,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 30,
+                        lawyer_questions_left = lawyer_questions_left + 50,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
