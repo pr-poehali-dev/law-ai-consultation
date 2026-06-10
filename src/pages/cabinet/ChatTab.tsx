@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import { sendReport } from "@/lib/auth";
+import { sendReport, consumeQuestion, hasPurchasedPlan } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -97,10 +97,16 @@ export default function ChatTab({
   const [activeTool, setActiveTool] = useState<"penalty" | "duty" | "case_law" | "jurisdiction" | null>(null);
 
   const handleQuickAction = (text: string) => {
-    if (text === "__penalty__")     { setActiveTool("penalty");      return; }
-    if (text === "__duty__")        { setActiveTool("duty");         return; }
-    if (text === "__case_law__")    { setActiveTool("case_law");     return; }
-    if (text === "__jurisdiction__") { setActiveTool("jurisdiction"); return; }
+    if (text === "__penalty__") { setActiveTool("penalty"); return; }
+    if (text === "__duty__")    { setActiveTool("duty");    return; }
+    // Премиум-инструменты: проверяем доступ и списываем вопрос
+    if (text === "__case_law__" || text === "__jurisdiction__") {
+      if (!user.isAdmin && !hasPurchasedPlan(user)) { onUpgradeClick?.(); return; }
+      // Списываем 1 вопрос за использование
+      consumeQuestion();
+      if (text === "__case_law__")    { setActiveTool("case_law");     return; }
+      if (text === "__jurisdiction__") { setActiveTool("jurisdiction"); return; }
+    }
     onSend(text);
   };
 
