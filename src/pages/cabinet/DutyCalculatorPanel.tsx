@@ -346,7 +346,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
   const needOrderAmount = nonpropCategory === "order" || nonpropCategory === "order_min8000";
   const isAlimony = nonpropCategory === "alimony_child";
 
-  const inp = "w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400";
+  const inp = "w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs text-slate-800 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400";
 
   const activeBtn = { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff", border: "1.5px solid #0f4c81" };
   const inactiveBtn = { background: "#f8fafc", color: "#64748b", border: "1.5px solid #e2e8f0" };
@@ -382,13 +382,13 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
 
         {/* Шаг 1: Тип плательщика */}
         <div>
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">1. Тип плательщика</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">1. Тип плательщика</p>
           <div className="grid grid-cols-2 gap-1.5">
             {([ ["individual", "Физическое лицо"], ["org", "Организация"] ] as const).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => setPayer(v)}
-                className="py-1.5 rounded-lg text-[11px] font-semibold border transition-all"
+                className="py-2 rounded-lg text-xs font-semibold border transition-all"
                 style={payer === v ? activeBtn : inactiveBtn}
               >
                 {label}
@@ -399,7 +399,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
 
         {/* Шаг 2: Тип суда */}
         <div>
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">2. Вид судопроизводства</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">2. Вид судопроизводства</p>
           <div className="grid grid-cols-2 gap-1.5">
             {([ ["gp", "Суд общей юрисдикции", "ГПК / КАС РФ"], ["ap", "Арбитражный суд", "АПК РФ"] ] as const).map(([v, label, sub]) => (
               <button
@@ -417,13 +417,13 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
 
         {/* Шаг 3: Характер требования */}
         <div>
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">3. Характер требования</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">3. Характер требования</p>
           <div className="grid grid-cols-2 gap-1.5">
             {([ ["property", "Имущественное"], ["nonproperty", "Неимущественное"] ] as const).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => setClaimType(v)}
-                className="py-1.5 rounded-lg text-[11px] font-semibold border transition-all"
+                className="py-2 rounded-lg text-xs font-semibold border transition-all"
                 style={claimType === v ? activeBtn : inactiveBtn}
               >
                 {label}
@@ -435,7 +435,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
         {/* Шаг 4A: Имущественное — сумма иска */}
         {claimType === "property" && (
           <div>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">4. Сумма иска</p>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">4. Сумма иска</p>
             <input
               className={inp + (amountError ? " border-red-400" : "")}
               placeholder="например: 500000 или 1.5 млн или 200 тыс * 3"
@@ -454,7 +454,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
         {/* Шаг 4B: Неимущественное — категория */}
         {claimType === "nonproperty" && (
           <div>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">4. Вид заявления</p>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">4. Вид заявления</p>
             <select
               className={inp + " cursor-pointer"}
               value={nonpropCategory}
@@ -535,7 +535,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
 
         {/* Льготы */}
         <div>
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Льготы</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Льготы</p>
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 cursor-pointer">
               <div

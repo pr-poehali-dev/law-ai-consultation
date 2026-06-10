@@ -312,7 +312,7 @@ export default function ChatTab({
             <div
               className="bg-white rounded-3xl shadow-2xl overflow-hidden"
               style={{
-                maxHeight: "68dvh",
+                maxHeight: "75dvh",
                 border: "1px solid rgba(226,232,240,0.9)",
                 boxShadow: "0 8px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)",
               }}

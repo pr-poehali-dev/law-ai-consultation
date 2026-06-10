@@ -162,7 +162,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             <button
               key={c.id}
               onClick={() => { setCategory(c.id); setWebResults(null); setDbResults(null); setWebSite(""); setWebError(""); setDbError(""); setSearched(false); }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all"
               style={category === c.id
                 ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff" }
                 : { background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" }}
@@ -178,7 +178,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
         <div className="flex gap-2">
           <input
             ref={inputRef}
-            className="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400"
+            className="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400"
             placeholder={`Поиск в «${catInfo.label}»...`}
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -206,12 +206,12 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             <div className="flex items-center gap-2 px-3 py-2"
               style={{ background: "linear-gradient(135deg,rgba(15,76,129,0.06),rgba(26,107,181,0.03))", borderBottom: "1px solid #e2e8f0" }}>
               <Icon name="BookMarked" size={11} color="#0f4c81" />
-              <p className="text-[10px] font-bold text-slate-700 flex-1">
+              <p className="text-[11px] font-bold text-slate-700 flex-1">
                 {category === "codex" ? "База кодексов и законов" : "База обзоров и определений ВС РФ"}
               </p>
               {dbLoading && <span className="w-3 h-3 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />}
               {!dbLoading && dbResults !== null && (
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                   style={dbResults.length > 0 ? { background: "#dcfce7", color: "#166534" } : { background: "#f1f5f9", color: "#64748b" }}>
                   {dbResults.length > 0 ? `${dbResults.length} найдено` : "Не найдено"}
                 </span>
@@ -240,7 +240,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             {!dbLoading && dbResults && dbResults.length === 0 && !dbError && (
               <div className="px-3 py-3 text-center">
                 <p className="text-[11px] text-slate-400">В базе ничего не найдено</p>
-                <p className="text-[10px] text-slate-300 mt-1">
+                <p className="text-[11px] text-slate-300 mt-1">
                   {category === "codex"
                     ? "Попробуйте: «ст. 333 ГК РФ», «ст. 14 ТК РФ»"
                     : "Попробуйте: «неустойка», «расторжение договора», «защита прав потребителей»"}
@@ -266,14 +266,14 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                       </div>
                     </div>
                     {r.snippet && (
-                      <div className="px-2.5 py-2 rounded-lg text-[10px] text-slate-600 leading-relaxed mb-2"
+                      <div className="px-2.5 py-2 rounded-lg text-[11px] text-slate-600 leading-relaxed mb-2"
                         style={{ background: "#f8fafc", border: "1px solid #f1f5f9", maxHeight: "180px", overflowY: "auto" }}>
                         {highlight(r.snippet, query)}
                       </div>
                     )}
                     <button
                       onClick={() => copyText(i, `${r.title}\n\n${r.snippet}`, "db")}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
                       style={dbCopied === i
                         ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
                         : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
@@ -293,10 +293,10 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             <div className="flex items-center gap-2 px-3 py-2"
               style={{ background: "linear-gradient(135deg,rgba(22,101,52,0.06),rgba(21,128,61,0.03))", borderBottom: "1px solid #e2e8f0" }}>
               <Icon name="Globe" size={11} color="#166534" />
-              <p className="text-[10px] font-bold text-slate-700 flex-1">Поиск судебной практики</p>
+              <p className="text-[11px] font-bold text-slate-700 flex-1">Поиск судебной практики</p>
               {webLoading && <span className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />}
               {!webLoading && webResults && webResults.length > 0 && (
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                   style={{ background: "#dcfce7", color: "#166534" }}>
                   {webResults.length} найдено · {webSite}
                 </span>
@@ -340,21 +340,21 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                       </span>
                     </div>
                     {r.snippet && (
-                      <p className="text-[10px] text-slate-500 leading-snug mb-2">
+                      <p className="text-[11px] text-slate-500 leading-snug mb-2">
                         {highlight(r.snippet.slice(0, 200) + (r.snippet.length > 200 ? "..." : ""), query)}
                       </p>
                     )}
-                    <p className="text-[9px] text-blue-500 truncate mb-2">{r.url}</p>
+                    <p className="text-xs text-blue-500 truncate mb-2">{r.url}</p>
                     <div className="flex gap-1.5">
                       <a href={r.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all hover:opacity-80"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all hover:opacity-80"
                         style={{ background: "#dcfce7", color: "#166534" }}>
                         <Icon name="ExternalLink" size={9} color="#166534" />
                         Открыть
                       </a>
                       <button
                         onClick={() => copyText(i, `${r.title}\n${r.url}\n\n${r.snippet}`, "web")}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
                         style={webCopied === i
                           ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
                           : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
@@ -384,12 +384,12 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                 {category === "codex" ? (
                   <>
                     <p className="text-[11px] text-slate-400">Поиск по загруженным кодексам и законам</p>
-                    <p className="text-[10px] text-slate-300 mt-1">Например: «ст. 333 ГК РФ», «статья 14 ТК РФ», «неустойка»</p>
+                    <p className="text-[11px] text-slate-300 mt-1">Например: «ст. 333 ГК РФ», «статья 14 ТК РФ», «неустойка»</p>
                   </>
                 ) : (
                   <>
                     <p className="text-[11px] text-slate-400">Поиск по обзорам судебной практики ВС РФ</p>
-                    <p className="text-[10px] text-slate-300 mt-1">Например: «неустойка», «расторжение договора», «защита прав потребителей»</p>
+                    <p className="text-[11px] text-slate-300 mt-1">Например: «неустойка», «расторжение договора», «защита прав потребителей»</p>
                   </>
                 )}
               </>
@@ -400,7 +400,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                   <Icon name="Globe" size={18} color="#166534" />
                 </div>
                 <p className="text-[11px] text-slate-400">Поиск в интернете через Яндекс по официальным сайтам судов</p>
-                <p className="text-[10px] text-slate-300 mt-1">Например: «неустойка 1/300», «расторжение договора», «банкротство»</p>
+                <p className="text-[11px] text-slate-300 mt-1">Например: «неустойка 1/300», «расторжение договора», «банкротство»</p>
               </>
             )}
           </div>
@@ -410,7 +410,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
         <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl"
           style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)" }}>
           <Icon name="AlertTriangle" size={11} color="#b45309" className="shrink-0 mt-0.5" />
-          <p className="text-[10px] text-amber-800 leading-snug">
+          <p className="text-[11px] text-amber-800 leading-snug">
             {category === "codex"
               ? "Поиск ведётся по документам из базы. Для точного результата указывайте номер статьи: «ст. 333 ГК РФ»."
               : category === "court_definitions"

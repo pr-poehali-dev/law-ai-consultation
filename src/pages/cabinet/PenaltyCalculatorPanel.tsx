@@ -349,7 +349,7 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
     onClose();
   };
 
-  const inp = "w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400";
+  const inp = "w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs text-slate-800 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400";
 
   return (
     <div className="flex flex-col bg-white" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -361,7 +361,7 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
             <Icon name="Calculator" size={12} color="#fff" />
           </div>
           <p className="text-xs font-bold text-slate-800">Калькулятор неустойки</p>
-          <span className="text-[10px] text-slate-400">· по ГК РФ</span>
+          <span className="hidden sm:inline text-[10px] text-slate-400">· по ГК РФ</span>
           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
             style={{ background: "rgba(245,158,11,0.1)", color: "#b45309", border: "1px solid rgba(245,158,11,0.25)" }}>тестовый режим</span>
         </div>
@@ -381,7 +381,7 @@ export default function PenaltyCalculatorPanel({ onClose, onSendToChat }: Props)
             { v: "fixed", label: "Фикс./день" },
           ] as { v: CalcMode; label: string }[]).map(({ v, label }) => (
             <button key={v} onClick={() => setMode(v)}
-              className="py-1.5 rounded-lg text-[11px] font-semibold border transition-all"
+              className="py-2 rounded-lg text-xs font-semibold border transition-all"
               style={mode === v
                 ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "#fff", border: "1.5px solid #0f4c81" }
                 : { background: "#f8fafc", color: "#64748b", border: "1.5px solid #e2e8f0" }

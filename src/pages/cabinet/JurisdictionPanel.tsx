@@ -431,7 +431,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
     <div className="flex flex-col gap-2 mt-1">
       {options.map(o => (
         <div key={o.id} onClick={() => onChange(o.id)}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all text-[11px] select-none"
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs select-none"
           style={value === o.id ? { background: "rgba(15,76,129,0.08)", border: "1px solid rgba(15,76,129,0.25)", color: "#0f4c81", fontWeight: 600 } : { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#475569" }}>
           <span className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
             style={{ borderColor: value === o.id ? "#0f4c81" : "#cbd5e1" }}>
@@ -511,7 +511,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "rgba(15,76,129,0.04)" }}>
                 <Icon name="User" size={11} color="#0f4c81" />
-                <p className="text-[10px] font-bold text-slate-700">Кто подаёт иск (истец)?</p>
+                <p className="text-[11px] font-bold text-slate-700">Кто подаёт иск (истец)?</p>
               </div>
               <div className="px-3 py-2">
                 <RadioGroup value={s1.plaintiff} onChange={v => setS1(p => ({ ...p, plaintiff: v as PlaintiffType }))} options={[
@@ -525,7 +525,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "rgba(15,76,129,0.04)" }}>
                 <Icon name="UserX" size={11} color="#0f4c81" />
-                <p className="text-[10px] font-bold text-slate-700">На кого подаётся иск (ответчик)?</p>
+                <p className="text-[11px] font-bold text-slate-700">На кого подаётся иск (ответчик)?</p>
               </div>
               <div className="px-3 py-2">
                 <RadioGroup value={s1.defendant} onChange={v => setS1(p => ({ ...p, defendant: v as DefendantType }))} options={[
@@ -539,7 +539,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "rgba(15,76,129,0.04)" }}>
                 <Icon name="Briefcase" size={11} color="#0f4c81" />
-                <p className="text-[10px] font-bold text-slate-700">Это предпринимательский/бизнес-спор?</p>
+                <p className="text-[11px] font-bold text-slate-700">Это предпринимательский/бизнес-спор?</p>
                 <span className="text-[9px] text-slate-400 ml-1">(определяет суд: арбитражный или общей юрисдикции)</span>
               </div>
               <div className="px-3 py-2">
@@ -552,7 +552,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
 
             <div className="flex justify-end pt-1">
               <button onClick={() => setStep(2)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white active:scale-95"
                 style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                 Далее <Icon name="ChevronRight" size={13} color="#fff" />
               </button>
@@ -564,7 +564,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
         {step === 2 && (
           <>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+              <p className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                 <Icon name="Home" size={10} color="#64748b" /> Адрес ответчика
                 <span className="text-[9px] text-slate-400 font-normal">(где живёт или находится организация)</span>
               </p>
@@ -575,7 +575,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             </div>
 
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+              <p className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
                 <Icon name="MapPin" size={10} color="#64748b" /> Ваш адрес (истца)
                 <span className="text-[9px] text-slate-400 font-normal">(для льготных категорий)</span>
               </p>
@@ -587,12 +587,12 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
 
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <div className="px-3 py-2" style={{ background: "rgba(15,76,129,0.04)" }}>
-                <p className="text-[10px] font-bold text-slate-700">О чём спор?</p>
+                <p className="text-[11px] font-bold text-slate-700">О чём спор?</p>
               </div>
               <div className="px-3 py-2 grid grid-cols-1 gap-1.5">
                 {CASE_CATEGORIES.map(c => (
                   <div key={c.id} onClick={() => setS2(p => ({ ...p, caseCategory: c.id }))}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all text-[10px] select-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all text-[11px] select-none"
                     style={s2.caseCategory === c.id
                       ? { background: "rgba(15,76,129,0.08)", border: "1px solid rgba(15,76,129,0.25)", color: "#0f4c81", fontWeight: 600 }
                       : { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#475569" }}>
@@ -609,7 +609,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
 
             {/* Особые условия */}
             <div className="rounded-xl border border-slate-100 px-3 py-2.5 space-y-2">
-              <p className="text-[10px] font-bold text-slate-600 mb-1">Дополнительные условия:</p>
+              <p className="text-[11px] font-bold text-slate-600 mb-1">Дополнительные условия:</p>
               <CheckRow checked={s2.isCyberFraud} onChange={v => setS2(p => ({ ...p, isCyberFraud: v }))}
                 label="Пострадал от телефонных/интернет-мошенников" />
               <CheckRow checked={s2.unknownDefendant} onChange={v => setS2(p => ({ ...p, unknownDefendant: v }))}
@@ -624,7 +624,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
               )}
               {s2.caseCategory === "realestate" && (
                 <div className="mt-1">
-                  <p className="text-[10px] text-slate-500 mb-1">Адрес спорной недвижимости:</p>
+                  <p className="text-[11px] text-slate-500 mb-1">Адрес спорной недвижимости:</p>
                   <input className="w-full text-xs border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:border-blue-400"
                     placeholder="г. Краснодар, ул. Красная, д. 10, кв. 5"
                     value={s2.realEstateAddress}
@@ -639,7 +639,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                 <Icon name="ChevronLeft" size={13} /> Назад
               </button>
               <button onClick={runSearch}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white active:scale-95"
                 style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
                 <Icon name="Search" size={13} color="#fff" /> Определить суд
               </button>
@@ -662,13 +662,13 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   <div className="px-3 py-2 flex items-center gap-1.5"
                     style={{ background: "linear-gradient(135deg,rgba(15,76,129,0.06),rgba(26,107,181,0.03))", borderBottom: "1px solid #f1f5f9" }}>
                     <Icon name="BookOpen" size={11} color="#0f4c81" />
-                    <p className="text-[10px] font-bold text-slate-700">Правило подсудности</p>
+                    <p className="text-[11px] font-bold text-slate-700">Правило подсудности</p>
                   </div>
                   <div className="px-3 py-2.5">
                     <p className="text-[11px] font-semibold text-slate-800">{result?.rule}</p>
-                    <p className="text-[10px] text-blue-700 mt-1 font-medium">{result?.article}</p>
+                    <p className="text-[11px] text-blue-700 mt-1 font-medium">{result?.article}</p>
                     {legalMode && result?.articleFull && (
-                      <p className="text-[10px] text-slate-500 mt-1.5 leading-snug italic">{result.articleFull}</p>
+                      <p className="text-[11px] text-slate-500 mt-1.5 leading-snug italic">{result.articleFull}</p>
                     )}
                   </div>
                 </div>
@@ -678,11 +678,11 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   <div className="rounded-xl border border-amber-200 overflow-hidden">
                     <div className="px-3 py-1.5 flex items-center gap-1.5" style={{ background: "rgba(245,158,11,0.07)" }}>
                       <Icon name="GitBranch" size={10} color="#d97706" />
-                      <p className="text-[10px] font-bold text-amber-800">Можно выбрать любой из вариантов:</p>
+                      <p className="text-[11px] font-bold text-amber-800">Можно выбрать любой из вариантов:</p>
                     </div>
                     <div className="px-3 py-2 space-y-1">
                       {result.alternatives.map((a, i) => (
-                        <p key={i} className="text-[10px] text-slate-600 flex items-start gap-1.5">
+                        <p key={i} className="text-[11px] text-slate-600 flex items-start gap-1.5">
                           <span className="w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center shrink-0 mt-0.5"
                             style={{ background: "#fef3c7", color: "#d97706" }}>{i + 1}</span>
                           {a}
@@ -697,12 +697,12 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   <div className="rounded-xl overflow-hidden border border-amber-200">
                     <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "rgba(245,158,11,0.07)", borderBottom: "1px solid rgba(245,158,11,0.2)" }}>
                       <Icon name="AlertCircle" size={11} color="#d97706" />
-                      <p className="text-[10px] font-bold text-amber-800">Адрес ответчика неизвестен</p>
+                      <p className="text-[11px] font-bold text-amber-800">Адрес ответчика неизвестен</p>
                     </div>
                     <div className="px-3 py-2.5 space-y-2">
                       {(s1.defendant === "org" || s1.defendant === "ip") ? (
                         <>
-                          <p className="text-[10px] text-slate-600 leading-snug">
+                          <p className="text-[11px] text-slate-600 leading-snug">
                             Для <strong>{s1.defendant === "org" ? "организации (ООО/АО)" : "ИП"}</strong> адрес регистрации можно найти в реестре ФНС — это бесплатно и занимает 1 минуту.
                           </p>
                           <a href="https://egrul.nalog.ru/index.html" target="_blank" rel="noopener noreferrer"
@@ -714,12 +714,12 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                           <p className="text-[9px] text-slate-400 text-center">Введите ИНН, ОГРН или название — адрес будет в карточке</p>
                         </>
                       ) : (
-                        <p className="text-[10px] text-slate-600 leading-snug">
+                        <p className="text-[11px] text-slate-600 leading-snug">
                           Адрес физлица установит суд по запросу в МВД/ФМС. Подайте иск по последнему известному адресу.
                         </p>
                       )}
                       <div className="h-px bg-slate-100" />
-                      <p className="text-[10px] font-semibold text-slate-700">Одновременно подайте ходатайство об истребовании сведений:</p>
+                      <p className="text-[11px] font-semibold text-slate-700">Одновременно подайте ходатайство об истребовании сведений:</p>
                       <button
                         onClick={() => {
                           const defType = s1.defendant === "org" ? "ООО/организацию" : s1.defendant === "ip" ? "ИП" : "физическое лицо";
@@ -745,7 +745,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   <div className="px-3 py-2 flex items-center gap-1.5"
                     style={{ background: "linear-gradient(135deg,rgba(5,150,105,0.06),rgba(4,120,87,0.03))", borderBottom: "1px solid #f1f5f9" }}>
                     <Icon name="Landmark" size={11} color="#059669" />
-                    <p className="text-[10px] font-bold text-slate-700 flex-1">Суд</p>
+                    <p className="text-[11px] font-bold text-slate-700 flex-1">Суд</p>
                     {searching && <span className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />}
                     {!searching && result?.court && (
                       <span className="text-[8px] px-1.5 py-0.5 rounded-full font-semibold"
@@ -771,20 +771,20 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                     <div className="px-3 py-2.5 space-y-1.5">
                       <p className="text-[11px] font-bold text-slate-800">{result.court.name}</p>
                       {result.court.address && (
-                        <p className="text-[10px] text-slate-600 flex items-start gap-1">
+                        <p className="text-[11px] text-slate-600 flex items-start gap-1">
                           <Icon name="MapPin" size={10} color="#94a3b8" className="shrink-0 mt-0.5" />
                           {result.court.address}
                         </p>
                       )}
                       {result.court.phone && (
-                        <p className="text-[10px] text-slate-600 flex items-center gap-1">
+                        <p className="text-[11px] text-slate-600 flex items-center gap-1">
                           <Icon name="Phone" size={10} color="#94a3b8" />
                           {result.court.phone}
                         </p>
                       )}
                       {result.court.website && (
                         <a href={result.court.website} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
+                          className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline">
                           <Icon name="ExternalLink" size={10} color="#3b82f6" />
                           {result.court.source === "sudrf.ru" && result.court.website.includes("fs_text")
                             ? "Найти суд по адресу на sudrf.ru →"
@@ -796,9 +796,9 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
 
                   {!searching && !result?.court && (
                     <div className="px-3 py-2.5">
-                      <p className="text-[10px] text-slate-400">Уточните суд по адресу ответчика на сайте судебной системы</p>
+                      <p className="text-[11px] text-slate-400">Уточните суд по адресу ответчика на сайте судебной системы</p>
                       <a href={s1.isBusiness ? "https://arbitr.ru" : "https://sudrf.ru"} target="_blank" rel="noopener noreferrer"
-                        className="text-[10px] text-blue-600 flex items-center gap-1 mt-1 hover:underline">
+                        className="text-[11px] text-blue-600 flex items-center gap-1 mt-1 hover:underline">
                         <Icon name="ExternalLink" size={10} color="#3b82f6" />
                         {s1.isBusiness ? "arbitr.ru" : "sudrf.ru"}
                       </a>
@@ -809,9 +809,9 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                 {/* Дальнейшие шаги */}
                 {result?.nextSteps && result.nextSteps.length > 0 && (
                   <div className="rounded-xl border border-slate-100 px-3 py-2.5 space-y-1">
-                    <p className="text-[10px] font-bold text-slate-600 mb-1">Что делать дальше:</p>
+                    <p className="text-[11px] font-bold text-slate-600 mb-1">Что делать дальше:</p>
                     {result.nextSteps.map((s, i) => (
-                      <p key={i} className="text-[10px] text-slate-600 flex items-start gap-1.5">
+                      <p key={i} className="text-[11px] text-slate-600 flex items-start gap-1.5">
                         <span className="text-emerald-500 shrink-0">✅</span>{s}
                       </p>
                     ))}
@@ -821,7 +821,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                 {/* Кнопки */}
                 <div className="flex gap-1.5 flex-wrap pt-1">
                   <button onClick={copyResult}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
                     style={copied
                       ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
                       : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
@@ -830,7 +830,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
                   </button>
 
                   <button onClick={() => { setStep(1); setResult(null); }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50">
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50">
                     <Icon name="RotateCcw" size={10} /> Заново
                   </button>
                 </div>
@@ -841,7 +841,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
             <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl"
               style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)" }}>
               <Icon name="AlertTriangle" size={11} color="#b45309" className="shrink-0 mt-0.5" />
-              <p className="text-[10px] text-amber-800 leading-snug">
+              <p className="text-[11px] text-amber-800 leading-snug">
                 Носит справочный характер. Для точного определения суда рекомендуется консультация с юристом.
               </p>
             </div>

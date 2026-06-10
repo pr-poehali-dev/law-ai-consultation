@@ -965,12 +965,14 @@ export default function OrganizerPanel({ user: _user }: { user: User }) {
           className="flex flex-col items-center justify-start gap-1 py-3 px-1.5 rounded-l-lg bg-white border border-r-0 border-border shadow-sm hover:bg-slate-50 transition-colors"
           title="Открыть органайзер дел"
         >
-          <Icon name="ChevronLeft" size={14} className="text-slate-400" />
+          <div className="w-5 h-5 rounded-md gradient-navy flex items-center justify-center mb-0.5">
+            <Icon name="Scale" size={11} className="text-gold-400" />
+          </div>
           <span
-            className="text-[10px] font-semibold text-slate-500 tracking-widest"
+            className="text-[9px] font-semibold text-slate-500 tracking-widest"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
-            ⚖️ Дела
+            Дела
           </span>
         </button>
       </div>

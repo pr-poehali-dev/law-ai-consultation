@@ -4,7 +4,7 @@ import Icon from "@/components/ui/icon";
 import { logout, sendReport, isPlanExhausted, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
-type Tab = "chat" | "docs" | "expert" | "business" | "history" | "profile" | "admin";
+type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
 
 interface CabinetHeaderProps {
   user: User;
