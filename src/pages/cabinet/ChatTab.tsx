@@ -99,11 +99,11 @@ export default function ChatTab({
   };
 
   return (
-    <div className="max-w-5xl w-full mx-auto flex-1 min-h-0 flex gap-3">
+    <div className="max-w-3xl w-full mx-auto flex-1 min-h-0 flex">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
 
       {/* Основная колонка чата */}
-      <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0">
+      <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0 w-full">
 
       {/* Шапка — современная карточка */}
       <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
@@ -221,31 +221,34 @@ export default function ChatTab({
 
       </div>{/* конец основной колонки */}
 
-      {/* Боковая панель на ПК */}
+      {/* Bottom-sheet — поверх чата, не смещает layout */}
       {activeTool === "penalty" && (
-        <>
-          {/* Мобиле: full-screen снизу */}
-          <div className="md:hidden fixed inset-0 z-50 flex flex-col">
-            <div className="flex-1 bg-black/40" onClick={() => setActiveTool(null)} />
-            <div className="bg-white rounded-t-3xl shadow-2xl flex flex-col" style={{ maxHeight: "85dvh" }}>
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-slate-200" />
-              </div>
-              <PenaltyCalculatorPanel
-                onClose={() => setActiveTool(null)}
-                onSendToChat={(text) => onSend(text)}
-              />
+        <div className="fixed inset-0 z-50 flex flex-col pointer-events-none">
+          {/* Затемнение — только верхняя часть, кликабельна для закрытия */}
+          <div
+            className="flex-1 pointer-events-auto"
+            style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(2px)" }}
+            onClick={() => setActiveTool(null)}
+          />
+          {/* Сама панель */}
+          <div
+            className="pointer-events-auto bg-white shadow-2xl flex flex-col"
+            style={{
+              borderRadius: "24px 24px 0 0",
+              maxHeight: "70dvh",
+              // На широких экранах — центрируем и ограничиваем ширину
+            }}
+          >
+            {/* Drag-handle */}
+            <div className="flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-slate-200" />
             </div>
-          </div>
-
-          {/* ПК: боковая панель */}
-          <div className="hidden md:flex flex-col w-96 shrink-0 min-h-0 rounded-2xl border border-slate-200 shadow-lg overflow-hidden bg-white">
             <PenaltyCalculatorPanel
               onClose={() => setActiveTool(null)}
-              onSendToChat={(text) => onSend(text)}
+              onSendToChat={(text) => { setActiveTool(null); onSend(text); }}
             />
           </div>
-        </>
+        </div>
       )}
 
     </div>
