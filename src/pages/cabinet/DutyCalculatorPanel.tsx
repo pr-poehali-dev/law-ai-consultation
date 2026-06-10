@@ -39,42 +39,66 @@ interface NonpropItem {
   key: string;
   label: string;
   fee: number | "order" | "order_min8000";
+  note?: string;      // условие или пояснение к льготе
+  exempt?: boolean;   // true = пошлина 0 (льгота ст. 333.36)
+  group?: string;     // группировка для select
 }
 
-// GP + individual
+// GP + individual (с льготными видами ст. 333.36 НК РФ)
 const GP_IND_CATS: NonpropItem[] = [
-  { key: "order",               label: "Заявление о выдаче судебного приказа (50% от имущественной пошлины)", fee: "order" },
-  { key: "nonproperty_claim",   label: "Исковое заявление неимущественного характера / имущественного, не подлежащего оценке", fee: 3000 },
-  { key: "void_deal",           label: "Исковое заявление о признании сделки недействительной (без реституции)", fee: 3000 },
-  { key: "divorce",             label: "Исковое заявление о расторжении брака", fee: 5000 },
-  { key: "normative_act",       label: "Оспаривание нормативных/ненормативных актов Президента, Правительства, нормативных актов госорганов", fee: 4000 },
-  { key: "nonnormative_act",    label: "Признание ненормативного акта недействительным, действий незаконными", fee: 3000 },
-  { key: "special_prod",        label: "Заявление по делам особого производства", fee: 3000 },
-  { key: "succession",          label: "Заявление о правопреемстве", fee: 2000 },
-  { key: "il_duplicate",        label: "Выдача дубликата ИЛ, пересмотр заочного решения", fee: 1500 },
-  { key: "enforcement",         label: "Восстановление срока для ИЛ, отсрочка/рассрочка, поворот, разъяснение", fee: 3000 },
-  { key: "new_circumstances",   label: "Пересмотр по новым/вновь открывшимся обстоятельствам", fee: 10000 },
-  { key: "interim",             label: "Заявление об обеспечении иска", fee: 10000 },
-  { key: "alimony_child",       label: "Взыскание алиментов на детей (+ на содержание истца — опционально)", fee: 150 },
-  { key: "compensation_delay",  label: "Компенсация за нарушение права на судопроизводство в разумный срок", fee: 300 },
-  { key: "compensation_detention", label: "Компенсация за нарушение условий содержания под стражей", fee: 300 },
-  { key: "appeal",              label: "Апелляционная жалоба, частная жалоба, кассационная жалоба на судебный приказ", fee: 3000 },
-  { key: "cassation",           label: "Кассационная жалоба (кроме ВС РФ)", fee: 5000 },
-  { key: "cassation_vs",        label: "Кассационная/надзорная жалоба в ВС РФ, жалоба на отказ", fee: 7000 },
+  // ── Стандартные ──────────────────────────────────────────────────────────
+  { key: "order",               label: "Заявление о выдаче судебного приказа (50% от имущественной пошлины)", fee: "order", group: "Общие" },
+  { key: "nonproperty_claim",   label: "Исковое заявление неимущественного характера / не подлежащего оценке", fee: 3000, group: "Общие" },
+  { key: "void_deal",           label: "Исковое заявление о признании сделки недействительной (без реституции)", fee: 3000, group: "Общие" },
+  { key: "divorce",             label: "Исковое заявление о расторжении брака", fee: 5000, group: "Общие" },
+  { key: "normative_act",       label: "Оспаривание нормативных/ненормативных актов Президента, Правительства, госорганов", fee: 4000, group: "Общие" },
+  { key: "nonnormative_act",    label: "Признание ненормативного акта недействительным, действий незаконными", fee: 3000, group: "Общие" },
+  { key: "special_prod",        label: "Заявление по делам особого производства", fee: 3000, group: "Общие" },
+  { key: "succession",          label: "Заявление о правопреемстве", fee: 2000, group: "Общие" },
+  { key: "il_duplicate",        label: "Выдача дубликата ИЛ, пересмотр заочного решения", fee: 1500, group: "Общие" },
+  { key: "enforcement",         label: "Восстановление срока для ИЛ, отсрочка/рассрочка, поворот, разъяснение", fee: 3000, group: "Общие" },
+  { key: "new_circumstances",   label: "Пересмотр по новым/вновь открывшимся обстоятельствам", fee: 10000, group: "Общие" },
+  { key: "interim",             label: "Заявление об обеспечении иска", fee: 10000, group: "Общие" },
+  { key: "alimony_child",       label: "Взыскание алиментов на детей (+ на содержание истца — опционально)", fee: 150, group: "Общие" },
+  { key: "compensation_delay",  label: "Компенсация за нарушение права на судопроизводство в разумный срок", fee: 300, group: "Общие" },
+  { key: "compensation_detention", label: "Компенсация за нарушение условий содержания под стражей", fee: 300, group: "Общие" },
+  { key: "appeal",              label: "Апелляционная жалоба, частная жалоба, кассационная жалоба на судебный приказ", fee: 3000, group: "Общие" },
+  { key: "cassation",           label: "Кассационная жалоба (кроме ВС РФ)", fee: 5000, group: "Общие" },
+  { key: "cassation_vs",        label: "Кассационная/надзорная жалоба в ВС РФ, жалоба на отказ", fee: 7000, group: "Общие" },
+  // ── Льготы — пошлина 0 (ст. 333.36 НК РФ) ────────────────────────────────
+  { key: "exempt_labor",        label: "Иски о взыскании заработной платы и иные требования из трудовых правоотношений, взыскание пособий", fee: 0, exempt: true, note: "Освобождение — пп.1 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_alimony",      label: "Иски о взыскании алиментов", fee: 0, exempt: true, note: "Освобождение — пп.2 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_health",       label: "Иски о возмещении вреда жизни, здоровью, смерти кормильца", fee: 0, exempt: true, note: "Освобождение — пп.3 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_crime",        label: "Иски о возмещении имущественного/морального вреда, причинённого преступлением", fee: 0, exempt: true, note: "Освобождение — пп.4 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_crim_pursuit", label: "Иски о возмещении вреда в результате уголовного преследования", fee: 0, exempt: true, note: "Освобождение — пп.10 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_child",        label: "Иски о защите прав и законных интересов ребёнка", fee: 0, exempt: true, note: "Освобождение — пп.15 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_adoption",     label: "Заявление об усыновлении/удочерении ребёнка", fee: 0, exempt: true, note: "Освобождение — пп.14 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_orphan",       label: "Иски по защите прав детей-сирот и лиц, потерявших родителей в период обучения", fee: 0, exempt: true, note: "Освобождение — пп.22 п.1 ст.333.36 (ред. ФЗ № 362-ФЗ 2024)", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_disability_nonprop", label: "Иски неимущественного характера по защите прав инвалидов", fee: 0, exempt: true, note: "Освобождение — пп.17 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_consumer",     label: "Иски, связанные с нарушением прав потребителей (истец — физ. лицо)", fee: 0, exempt: true, note: "Освобождение — пп.4 п.2 ст.333.36 НК РФ (при цене иска до 1 000 000 руб.)\nЕсли цена иска > 1 000 000 руб. — платите разницу сверх 1 млн", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_disability12", label: "Истец — инвалид I или II группы, ребёнок-инвалид, инвалид с детства", fee: 0, exempt: true, note: "Освобождение — пп.2 п.2 ст.333.36 (при цене иска до 1 000 000 руб.)\nЕсли цена иска > 1 000 000 руб. — платите пошлину, исчисленную с суммы сверх 1 млн (п.3 ст.333.36)", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_veteran",      label: "Истец — ветеран боевых действий или военной службы (по защите своих прав)", fee: 0, exempt: true, note: "Освобождение — пп.3 п.2 ст.333.36 НК РФ (при цене иска до 1 000 000 руб.)\nЕсли цена иска > 1 000 000 руб. — платите пошлину с суммы сверх 1 млн (п.3 ст.333.36)", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_pensioner",    label: "Истец — пенсионер (иски к ПФР/НПФ/органам пенсионного обеспечения)", fee: 0, exempt: true, note: "Освобождение — пп.5 п.2 ст.333.36 (при цене иска до 1 000 000 руб.)\nЕсли цена иска > 1 000 000 руб. — платите пошлину с суммы сверх 1 млн (п.3 ст.333.36)", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_svo",          label: "Истец — участник СВО, мобилизованный, ветеран вооружённого вторжения или член их семьи", fee: 0, exempt: true, note: "Освобождение — пп.24, 26 п.1 ст.333.36 (ФЗ № 230-ФЗ от 23.07.2025, ФЗ № 40-ФЗ от 20.02.2026)\nТребуется подтверждающий документ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_housing30",    label: "Иски о защите права на единственное жильё истца и членов его семьи", fee: 0, exempt: true, note: "Льгота 70% — платится лишь 30% пошлины (пп.23 п.1 ст.333.36, ФЗ № 259-ФЗ 2024)\nСумма = рассчитанная пошлина × 30%", group: "Льготы: пошлина 0 ₽" },
 ];
 
-// GP + org
+// GP + org (с льготами для организаций ст. 333.36 НК РФ)
 const GP_ORG_CATS: NonpropItem[] = [
-  { key: "order",              label: "Заявление о выдаче судебного приказа (50% от имущественной пошлины)", fee: "order" },
-  { key: "nonproperty_claim",  label: "Исковое заявление неимущественного характера / имущественного, не подлежащего оценке", fee: 20000 },
-  { key: "void_deal",          label: "Исковое заявление о признании сделки недействительной (без реституции)", fee: 20000 },
-  { key: "normative_act",      label: "Оспаривание нормативных/ненормативных актов Президента, Правительства, нормативных актов госорганов", fee: 20000 },
-  { key: "nonnormative_act",   label: "Признание ненормативного акта недействительным, действий незаконными", fee: 15000 },
-  { key: "succession",         label: "Заявление о правопреемстве", fee: 15000 },
-  { key: "compensation_delay", label: "Компенсация за нарушение права на судопроизводство в разумный срок", fee: 6000 },
-  { key: "appeal",             label: "Апелляционная жалоба, частная жалоба, кассационная жалоба на судебный приказ", fee: 15000 },
-  { key: "cassation",          label: "Кассационная жалоба (кроме ВС РФ)", fee: 20000 },
-  { key: "cassation_vs",       label: "Кассационная/надзорная жалоба в ВС РФ, жалоба на отказ", fee: 25000 },
+  { key: "order",              label: "Заявление о выдаче судебного приказа (50% от имущественной пошлины)", fee: "order", group: "Общие" },
+  { key: "nonproperty_claim",  label: "Исковое заявление неимущественного характера / не подлежащего оценке", fee: 20000, group: "Общие" },
+  { key: "void_deal",          label: "Исковое заявление о признании сделки недействительной (без реституции)", fee: 20000, group: "Общие" },
+  { key: "normative_act",      label: "Оспаривание нормативных/ненормативных актов Президента, Правительства, госорганов", fee: 20000, group: "Общие" },
+  { key: "nonnormative_act",   label: "Признание ненормативного акта недействительным, действий незаконными", fee: 15000, group: "Общие" },
+  { key: "succession",         label: "Заявление о правопреемстве", fee: 15000, group: "Общие" },
+  { key: "compensation_delay", label: "Компенсация за нарушение права на судопроизводство в разумный срок", fee: 6000, group: "Общие" },
+  { key: "appeal",             label: "Апелляционная жалоба, частная жалоба, кассационная жалоба на судебный приказ", fee: 15000, group: "Общие" },
+  { key: "cassation",          label: "Кассационная жалоба (кроме ВС РФ)", fee: 20000, group: "Общие" },
+  { key: "cassation_vs",       label: "Кассационная/надзорная жалоба в ВС РФ, жалоба на отказ", fee: 25000, group: "Общие" },
+  // ── Льготы для организаций ──────────────────────────────────────────────
+  { key: "exempt_consumer_org", label: "Иски в защиту потребителей от общественного объединения потребителей", fee: 0, exempt: true, note: "Освобождение — пп.13 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_disability_org", label: "Общественная организация инвалидов — истец или ответчик", fee: 0, exempt: true, note: "Освобождение — пп.1 п.2 ст.333.36 НК РФ (при цене иска до 1 000 000 руб.)\nЕсли цена иска > 1 000 000 руб. — платится пошлина с суммы сверх 1 млн (п.3 ст.333.36)", group: "Льготы: пошлина 0 ₽" },
+  { key: "exempt_state_body",   label: "Государственный орган, орган МСУ — истец или ответчик", fee: 0, exempt: true, note: "Освобождение — пп.19 п.1 ст.333.36 НК РФ", group: "Льготы: пошлина 0 ₽" },
 ];
 
 // AP + individual
@@ -224,34 +248,6 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     setShowBenefits(false);
   }, [payer, courtType]);
 
-  // Применяем льготу ст. 333.36 к рассчитанной пошлине
-  const applyBenefit = (fee: number, amount?: number): { fee: number; benefitNote?: string } => {
-    if (!selectedBenefit) return { fee };
-    const allBenefits = payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG;
-    const benefit = allBenefits.find(b => b.id === selectedBenefit);
-    if (!benefit) return { fee };
-
-    if (benefit.type === "full") {
-      // Инвалиды I/II гр. и пенсионеры: до 1 млн — 0, сверх 1 млн — пошлина минус пошлина по 1 млн
-      if ((benefit.id === "disability12" || benefit.id === "pensioner") && amount !== undefined) {
-        if (amount <= 1_000_000) return { fee: 0, benefitNote: `Льгота: ${benefit.label}` };
-        const rates = courtType === "gp" ? GP_PROPERTY_RATES : AP_PROPERTY_RATES;
-        const minFee = courtType === "gp" ? 4000 : 10000;
-        const feeAt1m = calcPropertyFee(1_000_000, rates, minFee);
-        const reduced = Math.max(0, Math.round((fee - feeAt1m) * 100) / 100);
-        return { fee: reduced, benefitNote: `Льгота (п.3 ст.333.36): пошлина уменьшена на ставку по 1 млн руб.` };
-      }
-      return { fee: 0, benefitNote: `Льгота: ${benefit.label}` };
-    }
-
-    if (benefit.type === "partial70") {
-      const reduced = Math.round(fee * 0.3 * 100) / 100;
-      return { fee: reduced, benefitNote: `Льгота (30% от пошлины): ${benefit.label}` };
-    }
-
-    return { fee };
-  };
-
   const calcFee = useCallback((): { fee: number; percentOfClaim?: number; note?: string } | null => {
     if (claimType === "property") {
       const amount = parseAmount(claimAmount);
@@ -262,13 +258,10 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
       const percentOfClaim = amount > 0 ? (fee / amount) * 100 : 0;
 
       if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины (ст. 333.36 НК РФ)" };
-
       if (discount === "30") fee = Math.round(fee * 0.7 * 100) / 100;
       else if (discount === "50") fee = Math.round(fee * 0.5 * 100) / 100;
       else fee = Math.round(fee * 100) / 100;
-
-      const { fee: finalFee, benefitNote } = applyBenefit(fee, amount);
-      return { fee: finalFee, percentOfClaim: Math.round(percentOfClaim * 100) / 100, note: benefitNote };
+      return { fee, percentOfClaim: Math.round(percentOfClaim * 100) / 100 };
     }
 
     if (!nonpropCategory) return null;
@@ -284,32 +277,43 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
       const base = calcPropertyFee(amount, rates, minFee);
       let fee = base * 0.5;
       if (cat.fee === "order_min8000" && fee < 8000) fee = 8000;
-      fee = Math.round(fee * 100) / 100;
-      if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины" };
-      const { fee: finalFee, benefitNote } = applyBenefit(fee, amount);
-      return { fee: finalFee, note: benefitNote ?? ("50% от ставки имущественного иска" + (cat.fee === "order_min8000" ? ", минимум 8 000 руб." : "")) };
+      return { fee: Math.round(fee * 100) / 100, note: "50% от ставки имущественного иска" + (cat.fee === "order_min8000" ? ", минимум 8 000 руб." : "") };
     }
 
     if (cat.key === "alimony_child") {
-      let fee = alimonyWithSpouse ? 150 + 300 : 150;
-      if (exempt) fee = 0;
-      else if (discount === "30") fee = Math.round(fee * 0.7 * 100) / 100;
-      else if (discount === "50") fee = Math.round(fee * 0.5 * 100) / 100;
-      return {
-        fee,
-        note: alimonyWithSpouse ? "150 руб. (на детей) + 300 руб. (на содержание истца)" : "150 руб. — только на детей",
-      };
+      const fee = alimonyWithSpouse ? 300 : 150;
+      return { fee, note: alimonyWithSpouse ? "150 руб. (на детей) + 150 руб. (на содержание истца)" : "150 руб. — только на детей" };
+    }
+
+    // Льготные категории (exempt: true)
+    if (cat.exempt) {
+      // Особый случай: единственное жильё — 30% пошлины
+      if (cat.key === "exempt_housing30") {
+        return { fee: 0, note: cat.note };
+      }
+      // Особый случай: инвалиды, ветераны, пенсионеры — нужна цена иска
+      const needsAmount = ["exempt_disability12", "exempt_veteran", "exempt_pensioner", "exempt_disability_org"].includes(cat.key);
+      if (needsAmount) {
+        // Если клaimAmount введён — проверяем порог 1 млн
+        const amount = parseAmount(claimAmount);
+        if (amount !== null && amount > 1_000_000) {
+          const rates = courtType === "gp" ? GP_PROPERTY_RATES : AP_PROPERTY_RATES;
+          const minFee = courtType === "gp" ? 4000 : 10000;
+          const feeAt1m = calcPropertyFee(1_000_000, rates, minFee);
+          const fullFee = calcPropertyFee(amount, rates, minFee);
+          const reduced = Math.max(0, Math.round((fullFee - feeAt1m) * 100) / 100);
+          return { fee: reduced, note: `Цена иска > 1 000 000 руб. — платится пошлина с суммы сверх 1 млн (п.3 ст.333.36). ${cat.note ?? ""}` };
+        }
+      }
+      return { fee: 0, note: cat.note };
     }
 
     if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины" };
-
     let fee = cat.fee as number;
     if (discount === "30") fee = Math.round(fee * 0.7 * 100) / 100;
     else if (discount === "50") fee = Math.round(fee * 0.5 * 100) / 100;
-
-    const { fee: finalFee, benefitNote } = applyBenefit(fee);
-    return { fee: finalFee, note: benefitNote };
-  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, selectedBenefit]);
+    return { fee };
+  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse]);
 
   useEffect(() => {
     setAmountError("");
@@ -329,7 +333,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     }
     const r = calcFee();
     setResult(r);
-  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, selectedBenefit, calcFee]);
+  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, calcFee]);
 
   const handleSendToChat = () => {
     if (!result) return;
@@ -497,10 +501,41 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
               onChange={e => setNonpropCategory(e.target.value)}
             >
               <option value="">— Выберите категорию —</option>
-              {cats.map(cat => (
-                <option key={cat.key} value={cat.key}>{cat.label}</option>
-              ))}
+              {/* Группируем: сначала обычные, затем льготные */}
+              {["Общие", "Льготы: пошлина 0 ₽"].map(group => {
+                const items = cats.filter(c => (c.group ?? "Общие") === group);
+                if (!items.length) return null;
+                return (
+                  <optgroup key={group} label={group}>
+                    {items.map(cat => (
+                      <option key={cat.key} value={cat.key}>{cat.label}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
+
+            {/* Примечание для выбранной льготной категории */}
+            {selectedCat?.exempt && selectedCat.note && (
+              <div className="mt-2 px-3 py-2 rounded-xl flex items-start gap-2"
+                style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                <Icon name="ShieldCheck" size={12} color="#059669" className="shrink-0 mt-0.5" />
+                <p className="text-[10px] text-emerald-800 leading-snug whitespace-pre-line">{selectedCat.note}</p>
+              </div>
+            )}
+
+            {/* Для льготных с условием > 1 млн — поле суммы иска */}
+            {selectedCat?.exempt && ["exempt_disability12","exempt_veteran","exempt_pensioner","exempt_disability_org"].includes(nonpropCategory) && (
+              <div className="mt-2">
+                <p className="text-[10px] font-semibold text-slate-500 mb-1">Цена иска (для проверки порога 1 000 000 руб.)</p>
+                <input
+                  className={inp}
+                  placeholder="например: 1500000 или 1.5 млн"
+                  value={claimAmount}
+                  onChange={e => setClaimAmount(e.target.value)}
+                />
+              </div>
+            )}
 
             {/* Для судебного приказа — поле суммы */}
             {needOrderAmount && (
@@ -541,78 +576,30 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
         {/* Льготы */}
         <div>
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Льготы</p>
-          <div className="space-y-2">
-            {/* Льготы ст. 333.36 — раскрывающийся список */}
-            {courtType === "gp" && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowBenefits(v => !v)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Icon name="ShieldCheck" size={12} color="#0f4c81" />
-                    <span className="text-[11px] font-semibold text-slate-700">Льготы ст. 333.36 НК РФ</span>
-                    {selectedBenefit && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">применена</span>
-                    )}
-                  </div>
-                  <Icon name={showBenefits ? "ChevronUp" : "ChevronDown"} size={12} color="#94a3b8" />
-                </button>
-                {showBenefits && (
-                  <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
-                    <button
-                      onClick={() => setSelectedBenefit("")}
-                      className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] transition-all"
-                      style={!selectedBenefit ? { background: "rgba(15,76,129,0.08)", color: "#0f4c81", fontWeight: 600 } : { color: "#64748b" }}
-                    >
-                      Нет льготы
-                    </button>
-                    {(payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG).map(b => (
-                      <button
-                        key={b.id}
-                        onClick={() => { setSelectedBenefit(b.id); setExempt(false); setDiscount("none"); }}
-                        className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] leading-snug transition-all"
-                        style={selectedBenefit === b.id
-                          ? { background: "rgba(15,76,129,0.08)", color: "#0f4c81", fontWeight: 600 }
-                          : { color: "#475569" }}
-                      >
-                        {b.label}
-                        {b.note && <span className="block text-[10px] text-amber-600 mt-0.5">{b.note}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div
+                onClick={() => { setExempt(v => !v); if (!exempt) setDiscount("none"); }}
+                className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                style={exempt ? { background: "#0f4c81", borderColor: "#0f4c81" } : { background: "#fff", borderColor: "#cbd5e1" }}
+              >
+                {exempt && <Icon name="Check" size={10} color="#fff" />}
               </div>
-            )}
-
-            {/* Освобождение вручную */}
-            {!selectedBenefit && (
-              <>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <div
-                    onClick={() => { setExempt(v => !v); if (!exempt) setDiscount("none"); }}
-                    className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer"
-                    style={exempt ? { background: "#0f4c81", borderColor: "#0f4c81" } : { background: "#fff", borderColor: "#cbd5e1" }}
-                  >
-                    {exempt && <Icon name="Check" size={10} color="#fff" />}
-                  </div>
-                  <span className="text-[11px] text-slate-600">Иное освобождение от уплаты пошлины</span>
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {([ ["none", "Без скидки"], ["30", "−30%"], ["50", "−50%"] ] as const).map(([v, label]) => (
-                    <button
-                      key={v}
-                      disabled={exempt}
-                      onClick={() => setDiscount(v)}
-                      className="py-1 rounded-lg text-[11px] font-semibold border transition-all disabled:opacity-40"
-                      style={discount === v && !exempt ? activeBtn : inactiveBtn}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+              <span className="text-[11px] text-slate-600">Иное освобождение от уплаты пошлины</span>
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([ ["none", "Без скидки"], ["30", "−30%"], ["50", "−50%"] ] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  disabled={exempt}
+                  onClick={() => setDiscount(v)}
+                  className="py-1 rounded-lg text-[11px] font-semibold border transition-all disabled:opacity-40"
+                  style={discount === v && !exempt ? activeBtn : inactiveBtn}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
