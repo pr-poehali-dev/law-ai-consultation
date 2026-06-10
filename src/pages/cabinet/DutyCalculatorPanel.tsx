@@ -157,6 +157,42 @@ function getCats(payer: "individual" | "org", courtType: "gp" | "ap"): NonpropIt
   return AP_ORG_CATS;
 }
 
+// ─── Льготы ст. 333.36 НК РФ ─────────────────────────────────────────────────
+
+interface BenefitItem {
+  id: string;
+  label: string;
+  type: "full" | "partial70";  // full = 0%, partial70 = платят 30%
+  note?: string;
+  forCourt?: "gp";              // только для GP
+}
+
+// Льготы, применимые к физическим лицам (п.1 и п.2 ст.333.36 НК РФ)
+const BENEFITS_INDIVIDUAL: BenefitItem[] = [
+  { id: "labor", label: "Иски о взыскании заработной платы и иные требования из трудовых правоотношений, взыскание пособий (пп.1 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "alimony_exempt", label: "Иски о взыскании алиментов (пп.2 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "health_damage", label: "Иски о возмещении вреда жизни/здоровью, смерти кормильца (пп.3 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "crime_damage", label: "Иски о возмещении вреда, причинённого преступлением (пп.4 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "criminal_pursuit", label: "Иски о возмещении вреда в результате уголовного преследования (пп.10 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "child_rights", label: "Иски о защите прав и законных интересов ребёнка (пп.15 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "consumer", label: "Иски, связанные с нарушением прав потребителей (пп.4 п.2 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "disability12", label: "Инвалиды I или II группы, дети-инвалиды, инвалиды с детства (пп.2 п.2 ст.333.36)", type: "full", note: "При цене иска > 1 000 000 руб. платят пошлину сверх 1 млн", forCourt: "gp" },
+  { id: "veteran", label: "Ветераны боевых действий и военной службы — по защите своих прав (пп.3 п.2 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "pensioner", label: "Пенсионеры — по имущественным искам к ПФР/НПФ/органам пенсионного обеспечения (пп.5 п.2 ст.333.36)", type: "full", note: "При цене иска > 1 000 000 руб. платят пошлину сверх 1 млн", forCourt: "gp" },
+  { id: "housing_only", label: "Иски о защите права на единственное жильё (пп.23 п.1 ст.333.36 ФЗ № 259-ФЗ)", type: "partial70", note: "Платят 30% от пошлины", forCourt: "gp" },
+  { id: "svo_participant", label: "Участники СВО, мобилизованные, члены их семей (пп.24, 26 п.1 ст.333.36 ФЗ № 230-ФЗ 2025)", type: "full", forCourt: "gp" },
+  { id: "adoption", label: "Заявления об усыновлении/удочерении ребёнка (пп.14 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "orphans", label: "Иски по защите прав детей-сирот и лиц, потерявших родителей в период обучения (пп.22 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "disability_neimush", label: "Иски неимущественного характера по защите прав инвалидов (пп.17 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+];
+
+// Льготы для организаций
+const BENEFITS_ORG: BenefitItem[] = [
+  { id: "consumer_org", label: "Иски в защиту потребителей, предъявляемые общественными объединениями потребителей (пп.13 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "disability_org", label: "Общественные организации инвалидов — как истцы или ответчики (пп.1 п.2 ст.333.36)", type: "full", forCourt: "gp" },
+  { id: "state_body", label: "Государственные органы, органы МСУ — как истцы или ответчики (пп.19 п.1 ст.333.36)", type: "full", forCourt: "gp" },
+];
+
 // ─── Интерфейс ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -174,6 +210,8 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
   const [exempt, setExempt] = useState(false);
   const [discount, setDiscount] = useState<"none" | "30" | "50">("none");
   const [alimonyWithSpouse, setAlimonyWithSpouse] = useState(false);
+  const [selectedBenefit, setSelectedBenefit] = useState<string>("");
+  const [showBenefits, setShowBenefits] = useState(false);
   const [amountError, setAmountError] = useState("");
   const [result, setResult] = useState<{ fee: number; percentOfClaim?: number; note?: string } | null>(null);
   const [showRatesModal, setShowRatesModal] = useState(false);
@@ -182,7 +220,37 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
   useEffect(() => {
     setNonpropCategory("");
     setAlimonyWithSpouse(false);
+    setSelectedBenefit("");
+    setShowBenefits(false);
   }, [payer, courtType]);
+
+  // Применяем льготу ст. 333.36 к рассчитанной пошлине
+  const applyBenefit = (fee: number, amount?: number): { fee: number; benefitNote?: string } => {
+    if (!selectedBenefit) return { fee };
+    const allBenefits = payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG;
+    const benefit = allBenefits.find(b => b.id === selectedBenefit);
+    if (!benefit) return { fee };
+
+    if (benefit.type === "full") {
+      // Инвалиды I/II гр. и пенсионеры: до 1 млн — 0, сверх 1 млн — пошлина минус пошлина по 1 млн
+      if ((benefit.id === "disability12" || benefit.id === "pensioner") && amount !== undefined) {
+        if (amount <= 1_000_000) return { fee: 0, benefitNote: `Льгота: ${benefit.label}` };
+        const rates = courtType === "gp" ? GP_PROPERTY_RATES : AP_PROPERTY_RATES;
+        const minFee = courtType === "gp" ? 4000 : 10000;
+        const feeAt1m = calcPropertyFee(1_000_000, rates, minFee);
+        const reduced = Math.max(0, Math.round((fee - feeAt1m) * 100) / 100);
+        return { fee: reduced, benefitNote: `Льгота (п.3 ст.333.36): пошлина уменьшена на ставку по 1 млн руб.` };
+      }
+      return { fee: 0, benefitNote: `Льгота: ${benefit.label}` };
+    }
+
+    if (benefit.type === "partial70") {
+      const reduced = Math.round(fee * 0.3 * 100) / 100;
+      return { fee: reduced, benefitNote: `Льгота (30% от пошлины): ${benefit.label}` };
+    }
+
+    return { fee };
+  };
 
   const calcFee = useCallback((): { fee: number; percentOfClaim?: number; note?: string } | null => {
     if (claimType === "property") {
@@ -193,16 +261,16 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
       let fee = calcPropertyFee(amount, rates, minFee);
       const percentOfClaim = amount > 0 ? (fee / amount) * 100 : 0;
 
-      if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины" };
+      if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины (ст. 333.36 НК РФ)" };
 
-      if (discount === "30") fee = fee * 0.7;
-      else if (discount === "50") fee = fee * 0.5;
+      if (discount === "30") fee = Math.round(fee * 0.7 * 100) / 100;
+      else if (discount === "50") fee = Math.round(fee * 0.5 * 100) / 100;
+      else fee = Math.round(fee * 100) / 100;
 
-      fee = Math.round(fee * 100) / 100;
-      return { fee, percentOfClaim: Math.round(percentOfClaim * 100) / 100 };
+      const { fee: finalFee, benefitNote } = applyBenefit(fee, amount);
+      return { fee: finalFee, percentOfClaim: Math.round(percentOfClaim * 100) / 100, note: benefitNote };
     }
 
-    // nonproperty
     if (!nonpropCategory) return null;
     const cats = getCats(payer, courtType);
     const cat = cats.find(c => c.key === nonpropCategory);
@@ -217,7 +285,9 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
       let fee = base * 0.5;
       if (cat.fee === "order_min8000" && fee < 8000) fee = 8000;
       fee = Math.round(fee * 100) / 100;
-      return { fee, note: "50% от ставки имущественного иска" + (cat.fee === "order_min8000" ? ", минимум 8 000 руб." : "") };
+      if (exempt) return { fee: 0, note: "Освобождён от уплаты госпошлины" };
+      const { fee: finalFee, benefitNote } = applyBenefit(fee, amount);
+      return { fee: finalFee, note: benefitNote ?? ("50% от ставки имущественного иска" + (cat.fee === "order_min8000" ? ", минимум 8 000 руб." : "")) };
     }
 
     if (cat.key === "alimony_child") {
@@ -237,8 +307,9 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     if (discount === "30") fee = Math.round(fee * 0.7 * 100) / 100;
     else if (discount === "50") fee = Math.round(fee * 0.5 * 100) / 100;
 
-    return { fee };
-  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse]);
+    const { fee: finalFee, benefitNote } = applyBenefit(fee);
+    return { fee: finalFee, note: benefitNote };
+  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, selectedBenefit]);
 
   useEffect(() => {
     setAmountError("");
@@ -258,7 +329,7 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     }
     const r = calcFee();
     setResult(r);
-  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, calcFee]);
+  }, [claimType, claimAmount, orderAmount, nonpropCategory, payer, courtType, exempt, discount, alimonyWithSpouse, selectedBenefit, calcFee]);
 
   const handleSendToChat = () => {
     if (!result) return;
@@ -282,7 +353,10 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
     }
 
     let discountLine = "";
-    if (exempt) discountLine = "• Льгота: освобождение от уплаты";
+    const allBenefits = payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG;
+    const activeBenefit = allBenefits.find(b => b.id === selectedBenefit);
+    if (activeBenefit) discountLine = `• Льгота ст. 333.36 НК РФ: ${activeBenefit.label}`;
+    else if (exempt) discountLine = "• Льгота: освобождение от уплаты";
     else if (discount === "30") discountLine = "• Льгота: скидка 30%";
     else if (discount === "50") discountLine = "• Льгота: скидка 50%";
 
@@ -467,35 +541,78 @@ export default function DutyCalculatorPanel({ onClose, onSendToChat }: Props) {
         {/* Льготы */}
         <div>
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Льготы</p>
-          <div className="space-y-1.5">
-            {/* Освобождение */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <div
-                onClick={() => { setExempt(v => !v); if (!exempt) setDiscount("none"); }}
-                className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer"
-                style={exempt
-                  ? { background: "#0f4c81", borderColor: "#0f4c81" }
-                  : { background: "#fff", borderColor: "#cbd5e1" }}
-              >
-                {exempt && <Icon name="Check" size={10} color="#fff" />}
-              </div>
-              <span className="text-[11px] text-slate-600">Освобождение от уплаты госпошлины (ст. 333.36 НК РФ)</span>
-            </label>
-
-            {/* Скидки — взаимоисключающие, недоступны при освобождении */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {([ ["none", "Без скидки"], ["30", "−30%"], ["50", "−50%"] ] as const).map(([v, label]) => (
+          <div className="space-y-2">
+            {/* Льготы ст. 333.36 — раскрывающийся список */}
+            {courtType === "gp" && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <button
-                  key={v}
-                  disabled={exempt}
-                  onClick={() => setDiscount(v)}
-                  className="py-1 rounded-lg text-[11px] font-semibold border transition-all disabled:opacity-40"
-                  style={discount === v && !exempt ? activeBtn : inactiveBtn}
+                  onClick={() => setShowBenefits(v => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
-                  {label}
+                  <div className="flex items-center gap-1.5">
+                    <Icon name="ShieldCheck" size={12} color="#0f4c81" />
+                    <span className="text-[11px] font-semibold text-slate-700">Льготы ст. 333.36 НК РФ</span>
+                    {selectedBenefit && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">применена</span>
+                    )}
+                  </div>
+                  <Icon name={showBenefits ? "ChevronUp" : "ChevronDown"} size={12} color="#94a3b8" />
                 </button>
-              ))}
-            </div>
+                {showBenefits && (
+                  <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
+                    <button
+                      onClick={() => setSelectedBenefit("")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] transition-all"
+                      style={!selectedBenefit ? { background: "rgba(15,76,129,0.08)", color: "#0f4c81", fontWeight: 600 } : { color: "#64748b" }}
+                    >
+                      Нет льготы
+                    </button>
+                    {(payer === "individual" ? BENEFITS_INDIVIDUAL : BENEFITS_ORG).map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => { setSelectedBenefit(b.id); setExempt(false); setDiscount("none"); }}
+                        className="w-full text-left px-2 py-1.5 rounded-lg text-[11px] leading-snug transition-all"
+                        style={selectedBenefit === b.id
+                          ? { background: "rgba(15,76,129,0.08)", color: "#0f4c81", fontWeight: 600 }
+                          : { color: "#475569" }}
+                      >
+                        {b.label}
+                        {b.note && <span className="block text-[10px] text-amber-600 mt-0.5">{b.note}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Освобождение вручную */}
+            {!selectedBenefit && (
+              <>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div
+                    onClick={() => { setExempt(v => !v); if (!exempt) setDiscount("none"); }}
+                    className="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                    style={exempt ? { background: "#0f4c81", borderColor: "#0f4c81" } : { background: "#fff", borderColor: "#cbd5e1" }}
+                  >
+                    {exempt && <Icon name="Check" size={10} color="#fff" />}
+                  </div>
+                  <span className="text-[11px] text-slate-600">Иное освобождение от уплаты пошлины</span>
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([ ["none", "Без скидки"], ["30", "−30%"], ["50", "−50%"] ] as const).map(([v, label]) => (
+                    <button
+                      key={v}
+                      disabled={exempt}
+                      onClick={() => setDiscount(v)}
+                      className="py-1 rounded-lg text-[11px] font-semibold border transition-all disabled:opacity-40"
+                      style={discount === v && !exempt ? activeBtn : inactiveBtn}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
