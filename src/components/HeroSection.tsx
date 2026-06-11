@@ -73,9 +73,30 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             <span className="text-white/90"> на основе AI</span>
           </h1>
 
-          <p className={`text-white/65 text-sm sm:text-base max-w-2xl mx-auto mb-3 text-center transition-all duration-600 delay-150 px-2 leading-relaxed ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            Наш AI обучен на судебной практике и актуальной редакции законов РФ. Он мгновенно структурирует хаос: составит иск, ответит на вопросы или напомнит о сроках давности. Ручная проверка сложных кейсов живым юристом доступна на сайте.
-          </p>
+          <div className={`max-w-xl mx-auto mb-4 text-center transition-all duration-600 delay-150 px-2 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <p className="text-white/75 text-sm sm:text-[15px] leading-relaxed mb-3">
+              Нейросеть, знающая законы и практику РФ.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {[
+                { icon: "FileText",   text: "Иски за минуту" },
+                { icon: "Calculator", text: "Пошлина · Неустойка" },
+                { icon: "MapPin",     text: "Подсудность" },
+                { icon: "BookOpen",   text: "Поиск решений" },
+                { icon: "User",       text: "Живой юрист" },
+              ].map(({ icon, text }) => (
+                <span key={text} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <svg width="11" height="11" viewBox="0 0 11 11" style={{ flexShrink: 0 }}>
+                    <circle cx="5.5" cy="5.5" r="5.5" fill="rgba(232,168,32,0.35)" />
+                    <circle cx="5.5" cy="5.5" r="2.5" fill="#e8a820" />
+                  </svg>
+                  {text}
+                </span>
+              ))}
+            </div>
+            <p className="text-white/40 text-[11px] mt-3">Всё — в вашем личном кабинете</p>
+          </div>
 
 
 
