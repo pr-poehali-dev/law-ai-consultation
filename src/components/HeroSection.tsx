@@ -73,29 +73,23 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             <span className="text-white/90"> на основе AI</span>
           </h1>
 
-          <div className={`max-w-xl mx-auto mb-4 text-center transition-all duration-600 delay-150 px-2 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <p className="text-white/75 text-sm sm:text-[15px] leading-relaxed mb-3">
-              Нейросеть, знающая законы и практику РФ.
+          <div className={`max-w-lg mx-auto mb-5 transition-all duration-600 delay-150 px-2 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            {/* Главный текст */}
+            <p className="text-center text-white/70 text-[13px] sm:text-[15px] leading-relaxed mb-4">
+              Нейросеть, знающая законы и практику РФ.{" "}
+              <span className="text-white/90">Генерация исков за минуту</span>,
+              умные калькуляторы, определение подсудности, поиск решений.
+              Подключите живого юриста для сложных кейсов.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {[
-                { icon: "FileText",   text: "Иски за минуту" },
-                { icon: "Calculator", text: "Пошлина · Неустойка" },
-                { icon: "MapPin",     text: "Подсудность" },
-                { icon: "BookOpen",   text: "Поиск решений" },
-                { icon: "User",       text: "Живой юрист" },
-              ].map(({ icon, text }) => (
-                <span key={text} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium"
-                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <svg width="11" height="11" viewBox="0 0 11 11" style={{ flexShrink: 0 }}>
-                    <circle cx="5.5" cy="5.5" r="5.5" fill="rgba(232,168,32,0.35)" />
-                    <circle cx="5.5" cy="5.5" r="2.5" fill="#e8a820" />
-                  </svg>
-                  {text}
-                </span>
-              ))}
+            {/* Разделитель с подписью */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.12))" }} />
+              <span className="text-[11px] font-semibold tracking-widest uppercase"
+                style={{ color: "#e8a820", letterSpacing: "0.16em" }}>
+                Всё в личном кабинете
+              </span>
+              <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(255,255,255,0.12))" }} />
             </div>
-            <p className="text-white/40 text-[11px] mt-3">Всё — в вашем личном кабинете</p>
           </div>
 
 
