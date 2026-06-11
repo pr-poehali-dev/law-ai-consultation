@@ -35,7 +35,7 @@ interface Props {
 const CATEGORIES = [
   { id: "case_law",           label: "Судебная практика", icon: "Scale" },
   { id: "codex",              label: "Кодексы и законы",  icon: "BookMarked" },
-  { id: "court_definitions",  label: "Определения судов", icon: "Gavel" },
+  { id: "court_definitions",  label: "Обзоры", icon: "Gavel" },
 ] as const;
 
 type CategoryId = typeof CATEGORIES[number]["id"];
