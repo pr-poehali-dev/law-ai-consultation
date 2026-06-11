@@ -138,11 +138,14 @@ export function LegalText({ text }: { text: string }) {
       i++; continue;
     }
 
-    // Маркированный список
+    // Маркированный список (пропускаем пустые строки между пунктами)
     if (isBullet(trimmed)) {
       const items: string[] = [];
-      while (i < lines.length && lines[i].trim() && isBullet(lines[i].trim())) {
-        items.push(lines[i].trim().replace(/^[-*\u2022\u00B7]\s/, ""));
+      while (i < lines.length) {
+        const l = lines[i].trim();
+        if (!l) { i++; continue; }
+        if (!isBullet(l)) break;
+        items.push(l.replace(/^[-*\u2022\u00B7]\s/, ""));
         i++;
       }
       blocks.push(
@@ -158,11 +161,14 @@ export function LegalText({ text }: { text: string }) {
       continue;
     }
 
-    // Нумерованный список
+    // Нумерованный список (пропускаем пустые строки между пунктами)
     if (isNumbered(trimmed)) {
       const items: string[] = [];
-      while (i < lines.length && lines[i].trim() && isNumbered(lines[i].trim())) {
-        const m = lines[i].trim().match(/^\d+\.\s+(.*)/);
+      while (i < lines.length) {
+        const l = lines[i].trim();
+        if (!l) { i++; continue; }
+        if (!isNumbered(l)) break;
+        const m = l.match(/^\d+\.\s+(.*)/);
         if (m) items.push(m[1]);
         i++;
       }
