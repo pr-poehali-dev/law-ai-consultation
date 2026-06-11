@@ -3,7 +3,7 @@ import Icon from "@/components/ui/icon";
 import { ymGoal } from "@/lib/metrika";
 import { sendReport } from "@/lib/auth";
 import UpsellCard from "@/pages/cabinet/UpsellCard";
-import { AnimatedMessage, LegalText, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
+import { LegalText, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
@@ -237,15 +237,14 @@ export default function ChatMessageList({
                 <div className="flex-1 min-w-0">
                   <div className="bg-white px-4 py-3 shadow-sm"
                     style={{ borderRadius: "4px 18px 18px 18px", border: "1px solid rgba(226,232,240,0.8)", boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-                    {msg.isStreaming ? (
-                      <div className="font-golos text-navy-800 leading-relaxed whitespace-pre-wrap" style={{ fontSize: "14.5px" }}>
-                        <LegalText text={msg.text} />
-                        <span className="inline-block w-0.5 h-4 bg-navy-600 ml-0.5 align-middle" style={{ animation: "blink 0.8s step-end infinite" }} />
-                        <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
-                      </div>
-                    ) : (
-                      <AnimatedMessage text={msg.text} animate={doAnim} />
+                    <LegalText text={msg.text} />
+                    {msg.isStreaming && (
+                      <>
+                        <style>{`@keyframes ai-blink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
+                        <span style={{ display: "inline-block", width: 2, height: 14, background: "#1a56b0", borderRadius: 2, marginLeft: 2, verticalAlign: "middle", animation: "ai-blink 0.7s step-end infinite" }} />
+                      </>
                     )}
+
                     {isDocRedir && (
                       <button onClick={onGoToDocs} className="mt-3 flex items-center gap-2 px-3 py-2.5 text-white text-xs font-semibold rounded-xl w-full justify-center transition-all active:scale-95"
                         style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>

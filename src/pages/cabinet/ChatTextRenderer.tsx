@@ -1,83 +1,206 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-// ─── renderInline ────────────────────────────────────────────────────
-export function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*(?:\s*ГК|ТК|СК|НК|КоАП|АПК|ГПК|КАС|УК)?(?:\s*РФ)?|статьи?\s+\d+[\w.-]*)/gi);
+// ─── parseInline: жирный + статьи закона ─────────────────────────────
+function parseInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|ст\.\s*\d+[\w.-]*(?:\s*(?:ГК|ТК|СК|НК|КоАП|АПК|ГПК|КАС|УК|ЖК|ЗК|УПК)\s*РФ)?|статьи?\s+\d+[\w.-]*)/gi);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**"))
-      return <strong key={i} className="font-semibold text-navy-800">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold" style={{ color: "#0f2d54" }}>{part.slice(2, -2)}</strong>;
     if (/^(ст\.|статьи?)\s*\d+/i.test(part))
-      return <strong key={i} style={{ fontWeight: 700, color: "#0f4c81" }}>{part}</strong>;
+      return <strong key={i} style={{ fontWeight: 600, color: "#1a56b0" }}>{part}</strong>;
     return part;
   });
 }
 
-// ─── LegalText ───────────────────────────────────────────────────────
+function cleanLine(line: string): string {
+  return line
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^[-]{3,}$/, "")
+    .replace(/^[*]\s+/, "")
+    .trim();
+}
+
+function isHeading(line: string): boolean {
+  return /^#{1,6}\s+/.test(line.trim());
+}
+function isHr(line: string): boolean {
+  return /^[-]{3,}$/.test(line.trim());
+}
+function isBullet(line: string): boolean {
+  return /^[*\u2022\u00B7]\s/.test(line.trim()) || /^[-]\s/.test(line.trim());
+}
+function isNumbered(line: string): boolean {
+  return /^\d+\.\s/.test(line.trim());
+}
+function isSubLabel(line: string): boolean {
+  return /^[А-ЯЁA-Z]\.\s|^[А-ЯЁA-Z]\)\s/.test(line.trim());
+}
+function isDash(line: string): boolean {
+  return /^[—–]\s/.test(line.trim());
+}
+
+// ─── LegalText ────────────────────────────────────────────────────────
 export function LegalText({ text }: { text: string }) {
   const safeText = typeof text === "string" ? text : String(text ?? "");
+  const lines = safeText.split("\n");
+
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const raw = lines[i];
+    const trimmed = raw.trim();
+
+    if (!trimmed) { i++; continue; }
+
+    // --- горизонтальная черта
+    if (isHr(trimmed)) {
+      blocks.push(<div key={i} style={{ height: 1, background: "rgba(15,76,129,0.1)", margin: "12px 0" }} />);
+      i++; continue;
+    }
+
+    // ## Заголовок
+    if (isHeading(trimmed)) {
+      const level = (trimmed.match(/^(#{1,6})\s/) || ["", "#"])[1].length;
+      const title = cleanLine(trimmed);
+      const isH2 = level <= 2;
+      blocks.push(
+        <div key={i} style={{ marginTop: blocks.length === 0 ? 0 : isH2 ? "20px" : "14px", marginBottom: "6px" }}>
+          {isH2 ? (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: "8px",
+              background: "linear-gradient(135deg,rgba(15,76,129,0.07),rgba(15,76,129,0.03))",
+              border: "1px solid rgba(15,76,129,0.12)",
+              borderRadius: "10px", padding: "6px 12px",
+            }}>
+              <span style={{ width: 3, height: 16, background: "#1a56b0", borderRadius: 2, flexShrink: 0, display: "inline-block" }} />
+              <span style={{ fontWeight: 700, fontSize: "13.5px", color: "#0f2d54", letterSpacing: "0.01em" }}>
+                {parseInline(title)}
+              </span>
+            </div>
+          ) : (
+            <p style={{ fontWeight: 600, fontSize: "13px", color: "#1a56b0", margin: 0 }}>
+              {parseInline(title)}
+            </p>
+          )}
+        </div>
+      );
+      i++; continue;
+    }
+
+    // А. / Б. подзаголовок
+    if (isSubLabel(trimmed)) {
+      blocks.push(
+        <p key={i} style={{ fontWeight: 600, fontSize: "13px", color: "#334155", marginTop: "10px", marginBottom: "2px", fontStyle: "italic", margin: "8px 0 2px 0" }}>
+          {parseInline(trimmed)}
+        </p>
+      );
+      i++; continue;
+    }
+
+    // — риск / факт (тире в начале)
+    if (isDash(trimmed)) {
+      const content = trimmed.replace(/^[—–]\s/, "");
+      const isWarn = /уголовн|опасност|риск|ответственност/i.test(content);
+      blocks.push(
+        <div key={i} style={{
+          display: "flex", alignItems: "flex-start", gap: "8px",
+          background: isWarn ? "rgba(239,68,68,0.05)" : "rgba(15,76,129,0.04)",
+          border: `1px solid ${isWarn ? "rgba(239,68,68,0.15)" : "rgba(15,76,129,0.1)"}`,
+          borderRadius: "8px", padding: "8px 10px", marginTop: "4px",
+        }}>
+          <span style={{ color: isWarn ? "#dc2626" : "#1a56b0", fontWeight: 700, fontSize: "14px", flexShrink: 0, marginTop: 1 }}>›</span>
+          <span style={{ fontSize: "13px", color: isWarn ? "#7f1d1d" : "#334155", lineHeight: "1.6" }}>
+            {parseInline(content)}
+          </span>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // 📎 📄 ⚠️ спец-строки
+    if (trimmed.startsWith("📎") || trimmed.startsWith("📄") || trimmed.startsWith("⚠️")) {
+      const isWarn = trimmed.startsWith("⚠️");
+      const emoji = trimmed.slice(0, 2);
+      const content = trimmed.slice(2).trim().replace(/^[:-]\s*/, "");
+      blocks.push(
+        <div key={i} style={{
+          display: "flex", alignItems: "flex-start", gap: "8px",
+          background: isWarn ? "rgba(239,68,68,0.05)" : "rgba(15,76,129,0.04)",
+          border: `1px solid ${isWarn ? "rgba(239,68,68,0.15)" : "rgba(15,76,129,0.1)"}`,
+          borderRadius: "8px", padding: "8px 10px", marginTop: "6px",
+        }}>
+          <span style={{ fontSize: "14px", flexShrink: 0 }}>{emoji}</span>
+          <span style={{ fontSize: "13px", color: "#334155", lineHeight: "1.6" }}>{parseInline(content)}</span>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Маркированный список
+    if (isBullet(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && lines[i].trim() && isBullet(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*\u2022\u00B7]\s/, ""));
+        i++;
+      }
+      blocks.push(
+        <ul key={`ul-${i}`} style={{ margin: "4px 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "3px" }}>
+          {items.map((item, li) => (
+            <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+              <span style={{ marginTop: "7px", width: 5, height: 5, borderRadius: "50%", background: "#1a56b0", flexShrink: 0, display: "inline-block" }} />
+              <span style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.65" }}>{parseInline(item)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+
+    // Нумерованный список
+    if (isNumbered(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && lines[i].trim() && isNumbered(lines[i].trim())) {
+        const m = lines[i].trim().match(/^\d+\.\s+(.*)/);
+        if (m) items.push(m[1]);
+        i++;
+      }
+      blocks.push(
+        <ol key={`ol-${i}`} style={{ margin: "4px 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "3px" }}>
+          {items.map((item, li) => (
+            <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+              <span style={{
+                marginTop: "1px", minWidth: "20px", height: "20px", borderRadius: "50%",
+                background: "rgba(26,86,176,0.1)", color: "#1a56b0",
+                fontSize: "11px", fontWeight: 700, flexShrink: 0,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+              }}>{li + 1}</span>
+              <span style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.65" }}>{parseInline(item)}</span>
+            </li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+
+    // Обычный абзац
+    blocks.push(
+      <p key={i} style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.7", margin: "0 0 2px 0" }}>
+        {parseInline(trimmed)}
+      </p>
+    );
+    i++;
+  }
 
   return (
-    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "15px", lineHeight: "1.9", color: "#1e293b" }}>
-      {safeText.split(/\n{2,}/).map((para, pi) => {
-        const lines = para.split("\n").filter(Boolean);
-        if (!lines.length) return null;
-
-        // Секция с номером и заголовком (1. ЗАГОЛОВОК)
-        const sec = lines[0].match(/^(\d+)\.\s+([А-ЯA-ZЁ][А-ЯA-ZЁ\s/]{3,})(.*)/);
-        if (sec) return (
-          <div key={pi} style={{ marginTop: pi === 0 ? 0 : "1em" }}>
-            <p style={{ fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em", color: "#0f4c81", textTransform: "uppercase", marginBottom: "0.35em", fontFamily: "inherit" }}>
-              {sec[1]}. {sec[2]}{sec[3]}
-            </p>
-            {lines.slice(1).map((l, li) => (
-              <p key={li} style={{ margin: "0.2em 0" }}>{renderInline(l)}</p>
-            ))}
-          </div>
-        );
-
-        // Маркированный список (* - • · –)
-        if (lines.every(l => /^[*\-•·–]\s/.test(l))) return (
-          <ul key={pi} style={{ margin: "0.5em 0", padding: 0, listStyle: "none" }}>
-            {lines.map((l, li) => (
-              <li key={li} style={{ display: "flex", alignItems: "baseline", gap: "0.7em", margin: "0.3em 0", paddingLeft: "0.8em" }}>
-                <span style={{ color: "#0f4c81", fontWeight: 700, flexShrink: 0 }}>—</span>
-                <span>{renderInline(l.replace(/^[*\-•·–]\s/, ""))}</span>
-              </li>
-            ))}
-          </ul>
-        );
-
-        // Нумерованный список
-        if (lines.every(l => /^\d+\.\s/.test(l))) return (
-          <ol key={pi} style={{ margin: "0.5em 0", padding: 0, listStyle: "none" }}>
-            {lines.map((l, li) => {
-              const match = l.match(/^(\d+)\.\s+(.*)/);
-              if (!match) return <p key={li}>{renderInline(l)}</p>;
-              return (
-                <li key={li} style={{ display: "flex", alignItems: "baseline", gap: "0.5em", margin: "0.3em 0", paddingLeft: "0.8em" }}>
-                  <span style={{ color: "#0f4c81", fontWeight: 700, minWidth: "1.5em", flexShrink: 0 }}>{match[1]}.</span>
-                  <span>{renderInline(match[2])}</span>
-                </li>
-              );
-            })}
-          </ol>
-        );
-
-        // Обычный абзац с красной строкой
-        return (
-          <div key={pi} style={{ marginTop: pi === 0 ? 0 : "0.7em" }}>
-            {lines.map((l, li) => (
-              <p key={li} style={{ margin: "0.1em 0" }}>{renderInline(l)}</p>
-            ))}
-          </div>
-        );
-      })}
+    <div style={{ fontFamily: "var(--font-golos,'Golos Text',system-ui,sans-serif)", display: "flex", flexDirection: "column", gap: "2px" }}>
+      {blocks}
     </div>
   );
 }
 
-// ─── AnimatedMessage ─────────────────────────────────────────────────
+// ─── AnimatedMessage ──────────────────────────────────────────────────
 export function AnimatedMessage({ text, animate }: { text: string; animate: boolean }) {
   const safeInput = typeof text === "string" ? text : String(text ?? "");
   const [shown, setShown] = useState(animate ? "" : safeInput);
@@ -86,31 +209,28 @@ export function AnimatedMessage({ text, animate }: { text: string; animate: bool
   useEffect(() => {
     if (!animate) { setShown(safeInput); setDone(true); return; }
     setShown(""); setDone(false);
-    let i = 0;
+    let idx = 0;
     const len = safeInput.length;
     const chunkSize = len > 1200 ? 22 : len > 600 ? 12 : 6;
     const tickMs = len > 1200 ? 10 : len > 600 ? 12 : 14;
     const go = () => {
-      if (i >= safeInput.length) { setDone(true); return; }
-      i += Math.min(chunkSize, safeInput.length - i);
-      setShown(safeInput.slice(0, i));
+      if (idx >= safeInput.length) { setDone(true); return; }
+      idx += Math.min(chunkSize, safeInput.length - idx);
+      setShown(safeInput.slice(0, idx));
       setTimeout(go, tickMs);
     };
     const t = setTimeout(go, 40);
     return () => clearTimeout(t);
-  }, [text, animate]);
+  }, [text]);
 
   if (done) return <LegalText text={safeInput} />;
-  return (
-    <p style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: "15px", lineHeight: "1.9", color: "#1e293b", whiteSpace: "pre-wrap" }}>
-      {shown}
-      <span className="inline-block w-0.5 h-[15px] ml-0.5 align-middle rounded-full animate-pulse"
-        style={{ background: "linear-gradient(#3b82f6,#1d4ed8)" }} />
-    </p>
-  );
+  return <LegalText text={shown} />;
 }
 
-// ─── TypingIndicator ─────────────────────────────────────────────────
+// ─── renderInline (экспорт для совместимости) ─────────────────────────
+export { parseInline as renderInline };
+
+// ─── TypingIndicator ──────────────────────────────────────────────────
 export function TypingIndicator({ status }: { status: string }) {
   return (
     <div className="flex gap-2.5 items-start">
