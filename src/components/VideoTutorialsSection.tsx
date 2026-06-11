@@ -56,23 +56,24 @@ const features = [
 ];
 
 function FeatureRow({ f, reverse }: { f: typeof features[0]; reverse: boolean }) {
-  const { ref, visible } = useInView(0.12);
+  // На мобиле threshold=0 — срабатывает как только хоть пиксель виден
+  const { ref, visible } = useInView(0);
 
   return (
     <div
       ref={ref}
-      className={`flex flex-col ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-10 lg:gap-20 py-14 lg:py-20`}
+      className={`flex flex-col ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-6 sm:gap-10 lg:gap-20 py-10 sm:py-14 lg:py-20`}
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(52px)",
-        transition: "opacity 0.75s ease, transform 0.75s cubic-bezier(0.22,1,0.36,1)",
+        transform: visible ? "translateY(0)" : "translateY(40px)",
+        transition: "opacity 0.7s ease, transform 0.7s cubic-bezier(0.22,1,0.36,1)",
       }}
     >
       {/* ── Картинка ── */}
       <div className="w-full lg:w-[52%] relative">
-        {/* Большой декор-номер */}
+        {/* Декор-номер — только на десктопе чтобы не лезть за экран */}
         <span
-          className="absolute font-cormorant font-bold select-none pointer-events-none z-0 leading-none"
+          className="hidden lg:block absolute font-cormorant font-bold select-none pointer-events-none z-0 leading-none"
           style={{
             fontSize: "clamp(80px,14vw,140px)",
             color: f.accent,
@@ -86,30 +87,27 @@ function FeatureRow({ f, reverse }: { f: typeof features[0]; reverse: boolean })
         </span>
 
         <div
-          className="relative rounded-[28px] overflow-hidden"
+          className="relative rounded-2xl lg:rounded-[28px] overflow-hidden"
           style={{
-            transform: visible
-              ? "perspective(900px) rotateY(0deg) scale(1)"
-              : `perspective(900px) rotateY(${reverse ? "8deg" : "-8deg"}) scale(0.94)`,
-            transition: "transform 0.9s cubic-bezier(0.22,1,0.36,1) 0.1s",
-            boxShadow: `0 32px 72px rgba(0,0,0,0.13), 0 0 0 1.5px rgba(0,0,0,0.05)`,
+            /* rotateY только на десктопе — на мобиле вызывает горизонтальный overflow */
+            transform: visible ? "scale(1)" : "scale(0.96)",
+            transition: "transform 0.8s cubic-bezier(0.22,1,0.36,1) 0.1s",
+            boxShadow: "0 16px 48px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.04)",
           }}
         >
           <img
             src={f.img}
             alt={f.tag}
             className="w-full object-cover"
-            style={{ height: "340px", objectPosition: "top" }}
+            style={{ height: "clamp(200px,50vw,340px)", objectPosition: "top" }}
           />
-          {/* Нижний градиент */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-28"
+            className="absolute bottom-0 left-0 right-0 h-24"
             style={{ background: `linear-gradient(to top,${f.accent}30,transparent)` }}
           />
-          {/* Бейдж */}
-          <div className="absolute bottom-5 left-5">
+          <div className="absolute bottom-4 left-4">
             <span
-              className="text-[11px] font-bold tracking-[0.14em] uppercase px-3.5 py-1.5 rounded-full backdrop-blur-md"
+              className="text-[10px] sm:text-[11px] font-bold tracking-[0.14em] uppercase px-3 py-1.5 rounded-full backdrop-blur-md"
               style={{ background: "rgba(255,255,255,0.93)", color: f.accent, boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}
             >
               {f.law}
@@ -123,29 +121,29 @@ function FeatureRow({ f, reverse }: { f: typeof features[0]; reverse: boolean })
         className="w-full lg:w-[48%] flex flex-col"
         style={{
           opacity: visible ? 1 : 0,
-          transform: visible ? "translateX(0)" : `translateX(${reverse ? "-40px" : "40px"})`,
-          transition: "opacity 0.75s ease 0.22s, transform 0.75s cubic-bezier(0.22,1,0.36,1) 0.22s",
+          /* translateX только на десктопе — на мобиле (flex-col) горизонтальный сдвиг не нужен */
+          transform: visible ? "translateY(0)" : "translateY(20px)",
+          transition: "opacity 0.7s ease 0.18s, transform 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s",
         }}
       >
-        <div className="flex items-center gap-3 mb-5">
-          <div className="h-0.5 w-8 rounded-full" style={{ background: f.accent }} />
-          <span className="text-[11px] font-bold tracking-[0.2em] uppercase" style={{ color: f.accent }}>
+        <div className="flex items-center gap-3 mb-3 sm:mb-5">
+          <div className="h-0.5 w-7 rounded-full" style={{ background: f.accent }} />
+          <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.2em] uppercase" style={{ color: f.accent }}>
             {f.tag}
           </span>
         </div>
 
         <h3
-          className="font-cormorant font-bold leading-[1.1] text-navy-900 mb-5"
-          style={{ fontSize: "clamp(28px,4vw,42px)" }}
+          className="font-cormorant font-bold leading-[1.1] text-navy-900 mb-3 sm:mb-5"
+          style={{ fontSize: "clamp(24px,5vw,42px)" }}
         >
           {f.title}
         </h3>
 
-        <p className="text-slate-500 leading-relaxed mb-8 max-w-sm" style={{ fontSize: "15px" }}>
+        <p className="text-slate-500 leading-relaxed mb-6 sm:mb-8" style={{ fontSize: "14px" }}>
           {f.desc}
         </p>
 
-        {/* Прогресс-точки */}
         <div className="flex items-center gap-2">
           <div className="h-[3px] w-9 rounded-full" style={{ background: f.accent }} />
           <div className="h-[3px] w-3 rounded-full" style={{ background: f.accent, opacity: 0.3 }} />
