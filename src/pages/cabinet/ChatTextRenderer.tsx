@@ -40,6 +40,22 @@ function isDash(line: string): boolean {
   return /^[—–]\s/.test(line.trim());
 }
 
+// Рендерит содержимое пункта (массив строк → React-ноды)
+function renderItem(lines: string[]): React.ReactNode {
+  return (
+    <span>
+      {lines.map((l, idx) => {
+        if (!l) return <br key={idx} />;
+        if (isBullet(l)) return <span key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "6px", marginTop: "2px" }}>
+          <span style={{ marginTop: "7px", width: 4, height: 4, borderRadius: "50%", background: "#1a56b0", flexShrink: 0, display: "inline-block" }} />
+          <span>{parseInline(l.replace(/^[-*\u2022\u00B7]\s/, ""))}</span>
+        </span>;
+        return <span key={idx} style={{ display: idx === 0 ? "inline" : "block", marginTop: idx > 0 ? "2px" : 0 }}>{parseInline(l)}</span>;
+      })}
+    </span>
+  );
+}
+
 // ─── LegalText ────────────────────────────────────────────────────────
 export function LegalText({ text }: { text: string }) {
   const safeText = typeof text === "string" ? text : String(text ?? "");
@@ -161,20 +177,43 @@ export function LegalText({ text }: { text: string }) {
       continue;
     }
 
-    // Нумерованный список (пропускаем пустые строки между пунктами)
+    // Нумерованный список — каждый пункт может занимать несколько строк
     if (isNumbered(trimmed)) {
-      const items: string[] = [];
+      // Собираем все строки до следующего заголовка/разделителя
+      const rawLines: string[] = [];
       while (i < lines.length) {
         const l = lines[i].trim();
-        if (!l) { i++; continue; }
-        if (!isNumbered(l)) break;
-        const m = l.match(/^\d+\.\s+(.*)/);
-        if (m) items.push(m[1]);
+        // Стоп: заголовок ## или горизонтальная черта
+        if (isHeading(lines[i]) || isHr(l)) break;
+        rawLines.push(lines[i]);
         i++;
       }
+
+      // Склеиваем строки в пункты: новый пункт начинается с \d+\.
+      const items: React.ReactNode[] = [];
+      let current: string[] = [];
+      for (const rl of rawLines) {
+        const t = rl.trim();
+        if (!t) {
+          // пустая строка — разделитель внутри пункта, добавляем перенос
+          if (current.length) current.push("");
+          continue;
+        }
+        if (isNumbered(t)) {
+          if (current.length) items.push(renderItem(current));
+          const m = t.match(/^\d+\.\s+(.*)/);
+          current = [m ? m[1] : t];
+        } else {
+          current.push(t);
+        }
+      }
+      if (current.length) items.push(renderItem(current));
+
+      if (items.length === 0) continue;
+
       blocks.push(
-        <ol key={`ol-${i}`} style={{ margin: "4px 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "3px" }}>
-          {items.map((item, li) => (
+        <ol key={`ol-${i}`} style={{ margin: "4px 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {items.map((content, li) => (
             <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
               <span style={{
                 marginTop: "2px", minWidth: "22px", height: "22px", borderRadius: "50%",
@@ -182,7 +221,7 @@ export function LegalText({ text }: { text: string }) {
                 fontSize: "11px", fontWeight: 700, flexShrink: 0, fontFamily: "system-ui,sans-serif",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
               }}>{li + 1}</span>
-              <span style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.75", fontFamily: "Georgia,'Times New Roman',serif" }}>{parseInline(item)}</span>
+              <span style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.75", fontFamily: "Georgia,'Times New Roman',serif" }}>{content}</span>
             </li>
           ))}
         </ol>
