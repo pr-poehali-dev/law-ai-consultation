@@ -111,7 +111,7 @@ export function LegalText({ text }: { text: string }) {
           borderRadius: "8px", padding: "8px 10px", marginTop: "4px",
         }}>
           <span style={{ color: isWarn ? "#dc2626" : "#1a56b0", fontWeight: 700, fontSize: "14px", flexShrink: 0, marginTop: 1 }}>›</span>
-          <span style={{ fontSize: "13px", color: isWarn ? "#7f1d1d" : "#334155", lineHeight: "1.6" }}>
+          <span style={{ fontSize: "13.5px", color: isWarn ? "#7f1d1d" : "#334155", lineHeight: "1.7", fontFamily: "Georgia,'Times New Roman',serif" }}>
             {parseInline(content)}
           </span>
         </div>
@@ -132,7 +132,7 @@ export function LegalText({ text }: { text: string }) {
           borderRadius: "8px", padding: "8px 10px", marginTop: "6px",
         }}>
           <span style={{ fontSize: "14px", flexShrink: 0 }}>{emoji}</span>
-          <span style={{ fontSize: "13px", color: "#334155", lineHeight: "1.6" }}>{parseInline(content)}</span>
+          <span style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.7", fontFamily: "Georgia,'Times New Roman',serif" }}>{parseInline(content)}</span>
         </div>
       );
       i++; continue;
@@ -150,7 +150,7 @@ export function LegalText({ text }: { text: string }) {
           {items.map((item, li) => (
             <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
               <span style={{ marginTop: "7px", width: 5, height: 5, borderRadius: "50%", background: "#1a56b0", flexShrink: 0, display: "inline-block" }} />
-              <span style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.65" }}>{parseInline(item)}</span>
+              <span style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.75", fontFamily: "Georgia,'Times New Roman',serif" }}>{parseInline(item)}</span>
             </li>
           ))}
         </ul>
@@ -169,14 +169,14 @@ export function LegalText({ text }: { text: string }) {
       blocks.push(
         <ol key={`ol-${i}`} style={{ margin: "4px 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "3px" }}>
           {items.map((item, li) => (
-            <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+            <li key={li} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
               <span style={{
-                marginTop: "1px", minWidth: "20px", height: "20px", borderRadius: "50%",
+                marginTop: "2px", minWidth: "22px", height: "22px", borderRadius: "50%",
                 background: "rgba(26,86,176,0.1)", color: "#1a56b0",
-                fontSize: "11px", fontWeight: 700, flexShrink: 0,
+                fontSize: "11px", fontWeight: 700, flexShrink: 0, fontFamily: "system-ui,sans-serif",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
               }}>{li + 1}</span>
-              <span style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.65" }}>{parseInline(item)}</span>
+              <span style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.75", fontFamily: "Georgia,'Times New Roman',serif" }}>{parseInline(item)}</span>
             </li>
           ))}
         </ol>
@@ -186,7 +186,7 @@ export function LegalText({ text }: { text: string }) {
 
     // Обычный абзац
     blocks.push(
-      <p key={i} style={{ fontSize: "13.5px", color: "#334155", lineHeight: "1.7", margin: "0 0 2px 0" }}>
+      <p key={i} style={{ fontSize: "14px", color: "#1e293b", lineHeight: "1.8", margin: "0 0 2px 0", fontFamily: "Georgia,'Times New Roman',serif" }}>
         {parseInline(trimmed)}
       </p>
     );
@@ -194,7 +194,7 @@ export function LegalText({ text }: { text: string }) {
   }
 
   return (
-    <div style={{ fontFamily: "var(--font-golos,'Golos Text',system-ui,sans-serif)", display: "flex", flexDirection: "column", gap: "2px" }}>
+    <div style={{ fontFamily: "Georgia,'Times New Roman',serif", display: "flex", flexDirection: "column", gap: "2px" }}>
       {blocks}
     </div>
   );
