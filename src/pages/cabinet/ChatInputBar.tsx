@@ -20,6 +20,7 @@ interface ChatInputBarProps {
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileDrop?: (files: FileList) => void;
   onQuickAction?: (text: string) => void;
+  onSosClick?: () => void;
 }
 
 export default function ChatInputBar({
@@ -40,6 +41,7 @@ export default function ChatInputBar({
   onFileSelect,
   onFileDrop,
   onQuickAction,
+  onSosClick,
 }: ChatInputBarProps) {
   const nativeInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -245,32 +247,26 @@ export default function ChatInputBar({
             ))}
           </div>
 
-          {/* Mobile: компактная кнопка-триггер */}
-          <button
-            className="md:hidden mt-2 w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-40"
-            onClick={() => setShowToolsSheet(true)}
-            disabled={typing}
-            style={{
-              background: "linear-gradient(135deg,rgba(15,76,129,0.07),rgba(26,107,181,0.04))",
-              border: "1.5px solid rgba(15,76,129,0.14)",
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                <Icon name="LayoutGrid" size={13} color="#fff" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-bold text-navy-800 leading-none">Инструменты</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">неустойка · пошлина · практика · суд</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(15,76,129,0.1)", color: "#0f4c81" }}>4</span>
-              <Icon name="ChevronUp" size={15} color="#0f4c81" />
-            </div>
-          </button>
+          {/* Mobile: компактная строка инструментов */}
+          <div className="md:hidden mt-1.5 flex items-center gap-1.5 flex-wrap">
+            {[
+              { icon: "Calculator", label: "Неустойка", text: "__penalty__",     color: "#f59e0b" },
+              { icon: "Landmark",   label: "Пошлина",   text: "__duty__",         color: "#0f4c81" },
+              { icon: "BookOpen",   label: "Практика",  text: "__case_law__",     color: "#059669" },
+              { icon: "MapPin",     label: "Суд",       text: "__jurisdiction__", color: "#7c3aed" },
+            ].map(({ icon, label, text, color }) => (
+              <button
+                key={text}
+                onClick={() => onQuickAction?.(text)}
+                disabled={typing}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 disabled:opacity-40"
+                style={{ background: `${color}12`, border: `1px solid ${color}28`, color }}
+              >
+                <Icon name={icon as Parameters<typeof Icon>[0]["name"]} size={11} color={color} />
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Bottom sheet — работает на всех устройствах */}
           {showToolsSheet && (
@@ -416,12 +412,22 @@ export default function ChatInputBar({
           </button>
         </div>
         <div className="px-3 pb-2 flex items-center justify-between gap-2">
-          <p className="text-[10px] text-slate-400 leading-tight">
+          <p className="text-[10px] text-slate-400 leading-tight hidden sm:block">
             {canUploadFiles
               ? `Перетащите файлы или нажмите скрепку · до ${MAX_FILES} файлов по 5МБ (суммарно до 7МБ)`
               : "AI-юрист обучен на судебной практике РФ · Не является официальной консультацией"
             }
           </p>
+          {/* SOS — только мобиле, под полем ввода */}
+          {onSosClick && (
+            <button
+              onClick={onSosClick}
+              className="sm:hidden ml-auto text-[10px] text-slate-400 hover:text-orange-500 transition-colors flex items-center gap-1 active:scale-95"
+            >
+              <Icon name="AlertTriangle" size={10} color="currentColor" />
+              Сообщить о проблеме
+            </button>
+          )}
         </div>
       </div>
     </div>

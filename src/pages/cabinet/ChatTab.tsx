@@ -172,8 +172,8 @@ export default function ChatTab({
       {/* Основная колонка чата */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0 w-full">
 
-      {/* Шапка — современная карточка */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
+      {/* Шапка — скрыта на мобиле, видна только на десктопе */}
+      <div className="hidden lg:flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
             <img
@@ -195,14 +195,11 @@ export default function ChatTab({
         <div className="flex items-center gap-1.5">
           <PWAInstallButton />
 
-          {/* Остаток вопросов / купить */}
           {!user.isAdmin && (
             activePlan ? (
-              <button
-                onClick={onSelectPlan}
+              <button onClick={onSelectPlan}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all hover:bg-slate-50"
-                style={{ background: "rgba(16,185,129,0.07)", color: "#059669", border: "1px solid rgba(16,185,129,0.2)" }}
-              >
+                style={{ background: "rgba(16,185,129,0.07)", color: "#059669", border: "1px solid rgba(16,185,129,0.2)" }}>
                 <Icon name="MessageCircle" size={11} color="#059669" />
                 {user.paidQuestions} вопр.
               </button>
@@ -224,20 +221,6 @@ export default function ChatTab({
             <span className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold">Админ</span>
           )}
 
-          {/* Кнопка «Дела» — только мобиле */}
-          {hasPurchasedPlan(user) && (
-            <button
-              onClick={() => setShowMobileOrganizer(true)}
-              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
-              style={{ background: "rgba(15,76,129,0.07)", border: "1px solid rgba(15,76,129,0.15)" }}
-              title="Органайзер дел"
-            >
-              <Icon name="Scale" size={13} color="#0f4c81" />
-              <span className="text-[11px] font-bold text-navy-700">Дела</span>
-            </button>
-          )}
-
-          {/* Кнопка «Проблема» */}
           <div className="relative">
             <button
               onClick={() => setShowReport(v => !v)}
@@ -253,6 +236,34 @@ export default function ChatTab({
 
       {/* Баннер тарифа */}
       <PlanBanner user={user} mode="chat" onSelectPlan={onSelectPlan} />
+
+      {/* Мобиле: компактная строка под тарифом — Дела + PWA */}
+      <div className="lg:hidden flex items-center justify-between px-1">
+        {hasPurchasedPlan(user) ? (
+          <div className="flex flex-col w-full gap-0">
+            {/* Кнопка-триггер Дела */}
+            <button
+              onClick={() => setShowMobileOrganizer(v => !v)}
+              className="flex items-center gap-2 py-1.5 px-2 rounded-xl transition-all active:scale-[0.97] self-start"
+              style={{ color: "#0f4c81" }}
+            >
+              <Icon name="Scale" size={14} color="#0f4c81" />
+              <span className="text-[12px] font-semibold text-navy-700">Дела</span>
+              <Icon name={showMobileOrganizer ? "ChevronUp" : "ChevronDown"} size={12} color="#64748b" />
+            </button>
+            {/* Inline-раскрытие органайзера */}
+            {showMobileOrganizer && (
+              <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm mt-1"
+                style={{ maxHeight: "320px", overflowY: "auto" }}>
+                <OrganizerPanel user={user} mobileMode />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div />
+        )}
+        <PWAInstallButton />
+      </div>
 
       {/* Дисклеймер */}
       <div className="flex items-center gap-1.5 px-1">
@@ -300,7 +311,14 @@ export default function ChatTab({
         onFileSelect={onFileSelect}
         onFileDrop={onFileDrop}
         onQuickAction={handleQuickAction}
+        onSosClick={() => setShowReport(v => !v)}
       />
+      {/* SOS попап — мобиле (рендерится под ChatInputBar) */}
+      {showReport && (
+        <div className="lg:hidden relative">
+          <ReportPopoverChat onClose={() => setShowReport(false)} />
+        </div>
+      )}
 
       </div>{/* конец основной колонки */}
 
@@ -365,41 +383,7 @@ export default function ChatTab({
         </>
       )}
 
-      {/* Мобильный органайзер — fullscreen sheet */}
-      {showMobileOrganizer && (
-        <>
-          <div
-            className="fixed inset-0 z-[60]"
-            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
-            onClick={() => setShowMobileOrganizer(false)}
-          />
-          <div
-            className="fixed inset-0 z-[61] bg-slate-50 flex flex-col"
-            style={{ animation: "slideUpFull 0.3s cubic-bezier(0.32,0.72,0,1)" }}
-          >
-            <style>{`@keyframes slideUpFull{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-            <div className="flex items-center justify-between px-5 bg-white border-b border-slate-100 shrink-0"
-              style={{ paddingTop: "max(env(safe-area-inset-top,0px), 16px)", paddingBottom: "14px" }}>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                  <Icon name="Scale" size={16} color="#fff" />
-                </div>
-                <p className="text-[17px] font-bold text-navy-900">Мои дела</p>
-              </div>
-              <button
-                onClick={() => setShowMobileOrganizer(false)}
-                className="w-9 h-9 rounded-2xl bg-slate-100 flex items-center justify-center active:bg-slate-200 transition-colors"
-              >
-                <Icon name="X" size={18} color="#64748b" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "env(safe-area-inset-bottom,0px)" }}>
-              <OrganizerPanel user={user} mobileMode />
-            </div>
-          </div>
-        </>
-      )}
+
 
     </div>
   );
