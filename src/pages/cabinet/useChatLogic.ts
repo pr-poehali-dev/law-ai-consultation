@@ -238,43 +238,17 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         setCachedAnswer(newHist, aiText, !!truncated, !!needsExpert);
       }
 
-      // Typewriter: добавляем пустое стримящееся сообщение, потом посимвольно заполняем
-      setMessages((p) => [...p, {
-        role: "ai",
-        text: "",
-        isStreaming: true,
-        truncated: false,
-        needsExpert: false,
-        personalDataRefused: false,
-      }]);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
       setTypingStatus("");
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-
-      await new Promise<void>((resolve) => {
-        const CHUNK = 6;
-        const BASE_DELAY = 8;
-        let i = 0;
-        const tick = () => {
-          if (i >= aiText.length) {
-            setMessages((p) => p.map((m, idx) =>
-              idx === p.length - 1
-                ? { ...m, text: aiText, isStreaming: false, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }
-                : m
-            ));
-            resolve();
-            return;
-          }
-          const chunk = aiText.slice(i, i + CHUNK);
-          i += CHUNK;
-          setMessages((p) => p.map((m, idx) =>
-            idx === p.length - 1 ? { ...m, text: (m.text || "") + chunk } : m
-          ));
-          const delay = chunk.includes("\n") ? BASE_DELAY * 3 : BASE_DELAY;
-          setTimeout(tick, delay);
-        };
-        tick();
-      });
+      setMessages((p) => [...p, {
+        role: "ai",
+        text: aiText,
+        isStreaming: false,
+        truncated: !!truncated,
+        needsExpert: !!needsExpert,
+        personalDataRefused: !!personalDataRefused,
+      }]);
 
       invalidateUserCache();
       const left = await getQuestionsLeft();
