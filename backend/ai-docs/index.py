@@ -24,8 +24,8 @@ from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
 from legal_docs_handler import get_legal_context_for_ai
 from penalty_prompt import PENALTY_CALC_SYSTEM, PENALTY_CALC_PROMPT
 
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest"
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest")
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
