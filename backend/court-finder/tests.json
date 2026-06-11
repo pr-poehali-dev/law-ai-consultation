@@ -2,5 +2,5 @@
   {"name": "OPTIONS preflight", "method": "OPTIONS", "path": "/", "expectedStatus": 200},
   {"name": "GET keep-alive", "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": {"ok": true}, "bodyMatcher": "partial"},
   {"name": "POST no address", "method": "POST", "path": "/", "body": {}, "expectedStatus": 400, "bodyMatcher": "partial"},
-  {"name": "POST Симферополь общий суд", "method": "POST", "path": "/", "body": {"defendant_address": "Республика Крым, город Симферополь, улица Леси Украинки, 22а", "court_type": "general", "case_category": "general"}, "expectedStatus": 200, "expectedBody": {"name": "string"}, "bodyMatcher": "partial"}
+  {"name": "POST Москва общий суд", "method": "POST", "path": "/", "body": {"defendant_address": "г. Москва, ул. Тверская, 1", "court_type": "general", "case_category": "general"}, "expectedStatus": 200, "expectedBody": {"name": "string"}, "bodyMatcher": "partial"}
 ]}

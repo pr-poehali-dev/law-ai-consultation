@@ -16,7 +16,7 @@ YANDEX_API = "https://llm.api.cloud.yandex.net/v1/chat/completions"
 
 def _call_gpt(system_prompt: str, user_message: str, api_key: str) -> str:
     payload = json.dumps({
-        "model": "gpt://b1gd8kncmd8nf4j7h770/deepseek-v32/latest",
+        "model": "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_message},
