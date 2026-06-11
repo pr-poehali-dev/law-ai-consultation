@@ -14,7 +14,7 @@ import CaseLawSearchPanel from "@/pages/cabinet/CaseLawSearchPanel";
 import JurisdictionPanel from "@/pages/cabinet/JurisdictionPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; isStreaming?: boolean; }
 
 interface ChatTabProps {
   user: User;

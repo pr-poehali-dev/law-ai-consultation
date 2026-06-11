@@ -238,13 +238,44 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         setCachedAnswer(newHist, aiText, !!truncated, !!needsExpert);
       }
 
+      // Typewriter: добавляем пустое стримящееся сообщение, потом посимвольно заполняем
       setMessages((p) => [...p, {
         role: "ai",
-        text: aiText,
-        truncated: !!truncated,
-        needsExpert: !!needsExpert,
-        personalDataRefused: !!personalDataRefused,
+        text: "",
+        isStreaming: true,
+        truncated: false,
+        needsExpert: false,
+        personalDataRefused: false,
       }]);
+      setTyping(false);
+      setTypingStatus("");
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+
+      await new Promise<void>((resolve) => {
+        const CHUNK = 6;
+        const BASE_DELAY = 8;
+        let i = 0;
+        const tick = () => {
+          if (i >= aiText.length) {
+            setMessages((p) => p.map((m, idx) =>
+              idx === p.length - 1
+                ? { ...m, text: aiText, isStreaming: false, truncated: !!truncated, needsExpert: !!needsExpert, personalDataRefused: !!personalDataRefused }
+                : m
+            ));
+            resolve();
+            return;
+          }
+          const chunk = aiText.slice(i, i + CHUNK);
+          i += CHUNK;
+          setMessages((p) => p.map((m, idx) =>
+            idx === p.length - 1 ? { ...m, text: (m.text || "") + chunk } : m
+          ));
+          const delay = chunk.includes("\n") ? BASE_DELAY * 3 : BASE_DELAY;
+          setTimeout(tick, delay);
+        };
+        tick();
+      });
+
       invalidateUserCache();
       const left = await getQuestionsLeft();
       refreshUser();
@@ -260,12 +291,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setHistory((p) => [...p, { role: "assistant", content: aiText }]);
       ymGoal("chat_question_sent");
     } catch (e) {
-      setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
-      setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
-    } finally {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
       setTypingStatus("");
+      setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
+      setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
     }
   };
 
