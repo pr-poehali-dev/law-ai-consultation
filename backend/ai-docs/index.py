@@ -616,9 +616,9 @@ def handler(event: dict, context) -> dict:
             elif doc_type in _MEDIUM_DOC_TYPES:
                 _max_tokens = 2000
             elif doc_type in _LONG_DOC_TYPES:
-                _max_tokens = 5000
+                _max_tokens = 6000
             else:
-                _max_tokens = 4000
+                _max_tokens = 6000
 
             # Если есть файлы — промт длиннее, ограничиваем его чтобы не съел токены генерации
             has_files = bool(file_context)
