@@ -25,7 +25,6 @@ from legal_docs_handler import get_legal_context_for_ai
 from penalty_prompt import PENALTY_CALC_SYSTEM, PENALTY_CALC_PROMPT
 
 YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
@@ -75,23 +74,6 @@ def is_refusal(text) -> bool:
     low = text.lower()
     return any(m in low for m in REFUSAL_MARKERS)
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
-    recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
-    openai_messages = [{"role": "system", "content": system_prompt}] + [
-        {"role": "user" if m.get("role") == "user" else "assistant",
-         "content": m.get("content", m.get("text", ""))}
-        for m in recent
-    ]
-    model = YANDEX_MODEL_FAST if fast else YANDEX_MODEL
-    timeout = 30 if fast else 80
-    resp = _http.post(
-        "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
-        json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
 
 def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 80) -> tuple:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
@@ -414,7 +396,7 @@ def handler(event: dict, context) -> dict:
                 f"Продолжай документ до финального блока с реквизитами, подписями и датой. "
                 f"Незаполненные поля — метки {{{{ПОЛЕ_НАЗВАНИЕ}}}}."
             )
-            answer = call_yandex(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15)
+            answer, _ = call_deepseek(system_prompt, [{"role": "user", "content": prompt}], max_tokens=3500, temperature=0.15, timeout=60)
             truncated = not bool(re.search(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', answer[-300:], re.I))
             placeholders = list(dict.fromkeys(re.findall(r'\{\{([^}]+)\}\}', answer)))
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -924,11 +906,7 @@ def handler(event: dict, context) -> dict:
                 pen_answer, _ = call_deepseek(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2500, temperature=0.05, timeout=75)
                 print(f"[PENALTY_CALC] DeepSeek ответил, len={len(pen_answer)}")
             except Exception as e:
-                print(f"[PENALTY_CALC] DeepSeek упал: {e} → fallback YandexGPT")
-                try:
-                    pen_answer = call_yandex(PENALTY_CALC_SYSTEM, [{"role": "user", "content": penalty_prompt_text}], max_tokens=2000, fast=True, temperature=0.05)
-                except Exception as e2:
-                    print(f"[PENALTY_CALC] YandexGPT тоже упал: {e2}")
+                print(f"[PENALTY_CALC] DeepSeek упал: {e}")
             if not pen_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось выполнить расчёт. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -973,16 +951,10 @@ def handler(event: dict, context) -> dict:
             )
             rec_answer = ""
             try:
-                # YandexGPT (не fast) — timeout=80с, max_tokens=2800 безопасно
-                rec_answer = call_yandex(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2800, temperature=0.1)
-                print(f"[REC_DOC] YandexGPT OK len={len(rec_answer)}")
+                rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2800, temperature=0.1, timeout=65)
+                print(f"[REC_DOC] DeepSeek OK len={len(rec_answer)}")
             except Exception as e:
-                print(f"[REC_DOC] Яндекс упал: {e} → DeepSeek fallback")
-            if not rec_answer or is_refusal(rec_answer):
-                try:
-                    rec_answer, _ = call_deepseek(rec_system, [{"role": "user", "content": rec_prompt_text}], max_tokens=2500, temperature=0.1, timeout=65)
-                except Exception as e:
-                    print(f"[REC_DOC] DeepSeek упал: {e}")
+                print(f"[REC_DOC] DeepSeek упал: {e}")
             if not rec_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось создать документ. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -1029,7 +1001,7 @@ def handler(event: dict, context) -> dict:
             )
             recs_raw = []
             try:
-                raw = call_yandex(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=700, fast=True, temperature=0.15)
+                raw, _ = call_deepseek(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=700, temperature=0.15, timeout=30)
                 m = re.search(r'\{[\s\S]*\}', raw)
                 if m:
                     parsed = json.loads(m.group())
@@ -1079,7 +1051,7 @@ def handler(event: dict, context) -> dict:
             # Лимит 2000 токенов — быстро и в таймаут
             REVIEW_MAX_TOKENS = 2000
             try:
-                raw = call_yandex(review_system, [{"role": "user", "content": review_prompt}], max_tokens=REVIEW_MAX_TOKENS, fast=True, temperature=0.1)
+                raw, _ = call_deepseek(review_system, [{"role": "user", "content": review_prompt}], max_tokens=REVIEW_MAX_TOKENS, temperature=0.1, timeout=40)
                 m = re.search(r'\{[\s\S]*\}', raw)
                 if m:
                     parsed = json.loads(m.group())
@@ -1088,7 +1060,7 @@ def handler(event: dict, context) -> dict:
                 else:
                     review_answer = raw
             except Exception as e:
-                print(f"[DOC_REVIEW] Яндекс упал: {e}")
+                print(f"[DOC_REVIEW] DeepSeek упал: {e}")
             if not review_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
                         "body": json.dumps({"error": "Не удалось провести анализ. Попробуйте ещё раз."}, ensure_ascii=False)}
@@ -1205,18 +1177,7 @@ def handler(event: dict, context) -> dict:
                 )
                 print(f"[DOC_EDIT] DeepSeek OK was_cut={was_cut} len={len(edit_answer)} doc={doc_len}")
             except Exception as e:
-                print(f"[DOC_EDIT] DeepSeek упал: {e} → YandexGPT fallback")
-                try:
-                    edit_answer = call_yandex(
-                        edit_system,
-                        [{"role": "user", "content": edit_prompt}],
-                        max_tokens=MAX_TOKENS,
-                        fast=True,
-                        temperature=0.05,
-                    )
-                    print(f"[DOC_EDIT] YandexGPT OK len={len(edit_answer)}")
-                except Exception as e2:
-                    print(f"[DOC_EDIT] YandexGPT тоже упал: {e2}")
+                print(f"[DOC_EDIT] DeepSeek упал: {e}")
 
             if not edit_answer:
                 return {"statusCode": 500, "headers": {**CORS, "Content-Type": "application/json"},
