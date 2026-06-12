@@ -3,7 +3,7 @@ import Icon from "@/components/ui/icon";
 import { ymGoal } from "@/lib/metrika";
 import { sendReport } from "@/lib/auth";
 import UpsellCard from "@/pages/cabinet/UpsellCard";
-import { LegalText, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
+import { AnimatedMessage, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
@@ -238,7 +238,7 @@ export default function ChatMessageList({
                 <div className="flex-1 min-w-0">
                   <div className="bg-white px-4 py-3 shadow-sm"
                     style={{ borderRadius: "4px 18px 18px 18px", border: "1px solid rgba(226,232,240,0.8)", boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
-                    <LegalText text={msg.text} />
+                    <AnimatedMessage text={msg.text} animate={doAnim && !msg.isStreaming} />
                     {msg.isStreaming && (
                       <>
                         <style>{`@keyframes ai-blink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
