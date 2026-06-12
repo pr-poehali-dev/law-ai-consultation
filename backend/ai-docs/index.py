@@ -34,7 +34,7 @@ _http.headers.update({"Content-Type": "application/json"})
 _RE_TRUNCATED = re.compile(r'[.!?»\d]\s*$')
 _RE_PLACEHOLDER = re.compile(r'\{\{([^}]+)\}\}')
 _RE_DOC_END_SPEECH = re.compile(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', re.I)
-_RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4}|РЕШИЛ|ПОСТАНОВИЛ|обжаловано\s+в|вступает\s+в\s+законную\s+силу|апелляционном\s+порядке)', re.I)
+_RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4}|РЕШИЛ|ПОСТАНОВИЛ|обжаловано\s+в|вступает\s+в\s+законную\s+силу|апелляционном\s+порядке|ПРИНЯЛ|ПОСТАНОВЛЯЕТ|подписан[ао]|М\.П\.|место\s+печати|юридическ\w+\s+адрес|банковские\s+реквизиты|настоящий\s+договор\s+составлен|договор\s+вступает|стороны\s+пришли\s+к\s+соглашению)', re.I)
 
 SPEECH_DOC_TYPES = {"court_speech"}
 
@@ -516,19 +516,43 @@ def handler(event: dict, context) -> dict:
                 "application_writ", "application_clarify",
             }
             _LONG_DOC_TYPES = {
-                # Исковые и жалобы — нужен большой объём
+                # Исковые и жалобы
                 "claim", "claim_debt", "claim_divorce", "claim_property",
                 "claim_consumer", "claim_damage", "claim_ownership",
                 "claim_paternity", "claim_eviction", "claim_alimony",
                 "claim_admin", "claim_order", "claim_counter", "claim_interim",
-                "appeal", "cassation", "supervisory",
+                "appeal", "cassation", "supervisory", "partial_appeal",
                 "criminal_cassation", "criminal_appeal",
+                # Судебные решения и определения
                 "court_decision", "court_ruling", "court_order",
-                # Договоры сложные
+                "decision_court", "decision_sole", "decision_meeting",
+                "decision_board", "decision_liquidation",
+                # Отзывы, возражения
+                "response_to_claim", "objection_appeal", "objection_cassation",
+                "written_explanations",
+                # Уголовный процесс
+                "criminal_exclude_evidence", "criminal_125", "criminal_terminate",
+                "criminal_measure", "criminal_attach_evidence", "criminal_statement",
+                "criminal_witness", "criminal_special_order", "criminal_reinvestigate",
+                # Договоры — все сложные
                 "corporate_charter", "corporate_collective", "corporate_rules",
-                "contract_gov", "website_terms", "website_privacy", "website_eula",
+                "corporate_founding", "corporate_branch", "corporate_job_desc",
+                "contract_gov", "contract_service_state",
+                "website_terms", "website_privacy", "website_eula",
+                "website_offer", "website_aup", "website_disclaimer",
                 "contract_marriage", "special_will", "special_inheritance_contract",
                 "labor_contract", "contract_sale", "contract_rent", "contract_work",
+                "contract_services", "contract_loan", "contract_license",
+                "contract_cession", "contract_partnership",
+                "contract_children", "contract_property_split",
+                "contract_preliminary", "contract_mediation",
+                # Трудовые сложные
+                "labor_addendum", "labor_termination",
+                "labor_downtime_notice", "labor_dismiss_notice", "labor_layoff_notice",
+                # Корпоративные
+                "corporate_sole_decision", "corporate_meeting", "corporate_board",
+                "corporate_salary", "corporate_bonus", "corporate_pd", "corporate_secret",
+                "corporate_staffing", "corporate_accounting",
             }
 
             # Параллельно запрашиваем все 4 категории правовой базы
