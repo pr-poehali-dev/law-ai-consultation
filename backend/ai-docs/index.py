@@ -34,7 +34,7 @@ _http.headers.update({"Content-Type": "application/json"})
 _RE_TRUNCATED = re.compile(r'[.!?»\d]\s*$')
 _RE_PLACEHOLDER = re.compile(r'\{\{([^}]+)\}\}')
 _RE_DOC_END_SPEECH = re.compile(r'(прошу\s+суд|прошу\s+уважаемый|на\s+основании\s+изложенного|итог|в\s+заключение)', re.I)
-_RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4})', re.I)
+_RE_DOC_END_OTHER = re.compile(r'(подпись|реквизиты|экземпляр|дата\s*[:|]?\s*«|\d{1,2}\.\d{2}\.\d{4}|РЕШИЛ|ПОСТАНОВИЛ|обжаловано\s+в|вступает\s+в\s+законную\s+силу|апелляционном\s+порядке)', re.I)
 
 SPEECH_DOC_TYPES = {"court_speech"}
 
@@ -523,6 +523,7 @@ def handler(event: dict, context) -> dict:
                 "claim_admin", "claim_order", "claim_counter", "claim_interim",
                 "appeal", "cassation", "supervisory",
                 "criminal_cassation", "criminal_appeal",
+                "court_decision", "court_ruling", "court_order",
                 # Договоры сложные
                 "corporate_charter", "corporate_collective", "corporate_rules",
                 "contract_gov", "website_terms", "website_privacy", "website_eula",
