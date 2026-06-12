@@ -212,10 +212,11 @@ export function formatMessage(text: string): string {
       continue;
     }
 
-    // Пустая строка
+    // Пустая строка — схлопываем несколько подряд в одну
     if (!trimmed) {
       if (inList) { result.push('</ul>'); inList = false; }
-      result.push('<br/>');
+      const last = result[result.length - 1];
+      if (last !== '<br/>' && last !== undefined) result.push('<br/>');
       continue;
     }
 
@@ -225,6 +226,9 @@ export function formatMessage(text: string): string {
   }
 
   if (inList) result.push('</ul>');
+
+  // Убираем trailing <br/>
+  while (result[result.length - 1] === '<br/>') result.pop();
 
   return result.join('');
 }
