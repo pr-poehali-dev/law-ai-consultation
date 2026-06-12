@@ -636,10 +636,22 @@ def handler(event: dict, context) -> dict:
             raw_prompt = prompt
 
             # Лимиты токенов (типы уже объявлены выше перед threads)
+            _EXTRA_LONG_DOC_TYPES = {
+                # Решения суда — самые объёмные, могут требовать 7000-8000 токенов
+                "court_decision", "decision_court",
+                # Уставы и корпоративные регламенты
+                "corporate_charter", "corporate_collective", "corporate_rules",
+                # Сложные договоры с большим числом условий
+                "contract_marriage", "contract_gov", "contract_service_state",
+                "special_inheritance_contract", "special_will",
+                "website_terms", "website_privacy", "website_eula",
+            }
             if doc_type in _SHORT_DOC_TYPES:
                 _max_tokens = 600
             elif doc_type in _MEDIUM_DOC_TYPES:
                 _max_tokens = 2000
+            elif doc_type in _EXTRA_LONG_DOC_TYPES:
+                _max_tokens = 8000
             elif doc_type in _LONG_DOC_TYPES:
                 _max_tokens = 6000
             else:
