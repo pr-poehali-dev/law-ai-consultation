@@ -10,8 +10,8 @@ import threading
 import requests
 
 # ── Модели Yandex ──────────────────────────────────────────────────────────
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest"
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest")
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
@@ -339,7 +339,7 @@ def handler(event: dict, context) -> dict:
         if is_system_mode:
             custom_system = messages[0].get("content", SYSTEM_CHAT)
             chat_messages = clean_messages[1:]
-            answer = call_yandex(custom_system, chat_messages, max_tokens=1200, fast=True)
+            answer = call_yandex(custom_system, chat_messages, max_tokens=2000, fast=True)
 
         elif _is_case_law:
             case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)
@@ -350,9 +350,9 @@ def handler(event: dict, context) -> dict:
                 if _lu_idx is not None:
                     _case_law_msgs[_lu_idx] = {**_case_law_msgs[_lu_idx],
                                                "content": _case_law_msgs[_lu_idx].get("content", "") + case_law_db_ctx}
-                answer = call_yandex(SYSTEM_CASE_LAW, _case_law_msgs, max_tokens=1400, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CASE_LAW, _case_law_msgs, max_tokens=2000, fast=True, temperature=0.3)
             else:
-                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=1400, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=2000, fast=True, temperature=0.3)
             if is_case_law_not_found(answer):
                 needs_expert = True
                 answer = answer.rstrip()
@@ -368,7 +368,7 @@ def handler(event: dict, context) -> dict:
                 orig = duty_messages[last_user_idx].get("content", "")
                 duty_messages[last_user_idx] = {**duty_messages[last_user_idx],
                                                 "content": orig + duty_ctx + duty_db_ctx}
-            answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=1800, fast=True, temperature=0.2)
+            answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=2000, fast=True, temperature=0.2)
 
         else:
             # Параллельно ищем по всем категориям правовой базы
@@ -415,12 +415,12 @@ def handler(event: dict, context) -> dict:
                 if _lu_idx2 is not None:
                     enriched_msgs[_lu_idx2] = {**enriched_msgs[_lu_idx2],
                                                "content": enriched_msgs[_lu_idx2].get("content", "") + extra_ctx}
-                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2500, fast=True, temperature=0.2)
+                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2000, fast=True, temperature=0.2)
                 print(f"[AI_CHAT] universal_ctx: chars={len(extra_ctx)}, simple={_is_simple}")
             elif _is_simple:
                 answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2500, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2000, fast=True, temperature=0.3)
 
         # Fallback DeepSeek при отказе Яндекса
         if is_refusal(answer) and not is_system_mode:

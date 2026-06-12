@@ -50,9 +50,9 @@ SPEECH_DOC_TYPES = {"court_speech"}
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest")
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest")
 # Быстрая модель для диалогов и консультаций
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm/latest"
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest"
 
 # HTTP-сессия с keep-alive — переиспользуется между вызовами в рамках одного контейнера
 _http = requests.Session()
@@ -567,7 +567,7 @@ def is_case_law_not_found(answer) -> bool:
     return any(marker in low for marker in _CASE_LAW_NOT_FOUND_MARKERS)
 
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 2000, fast: bool = False, temperature: float = 0.3) -> str:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {
