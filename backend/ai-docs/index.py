@@ -689,7 +689,7 @@ def handler(event: dict, context) -> dict:
                     [{"role": "user", "content": raw_prompt}],
                     max_tokens=_max_tokens,
                     temperature=0.15,
-                    timeout=110,  # 110с < таймаут функции 120с
+                    timeout=115,  # 115с < таймаут функции 120с
                 )
                 print(f"[DOC_GEN] DeepSeek OK симв={len(answer)} was_cut={was_cut} has_files={has_files}")
             except Exception as e:
