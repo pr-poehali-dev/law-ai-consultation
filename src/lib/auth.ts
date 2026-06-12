@@ -376,9 +376,9 @@ export async function refundDoc(): Promise<boolean> {
   return res.ok;
 }
 
-// ── Дневной лимит бесплатных вопросов (3/день, общий для лендинга и ЛК) ──────
+// ── Дневной лимит бесплатных вопросов (2/день, общий для лендинга и ЛК) ──────
 const FREE_DAILY_KEY = "landing_daily_questions";
-const FREE_DAILY_LIMIT = 1;
+const FREE_DAILY_LIMIT = 2;
 
 function getTodayStr(): string {
   return new Date().toLocaleDateString("ru-RU");
