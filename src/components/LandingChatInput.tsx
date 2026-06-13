@@ -55,8 +55,7 @@ export default function LandingChatInput({
   };
 
   const sessionBlocked = sessionLeft === 0 && messagesLength > 1;
-  const dailyBlocked = questionsLeft === 0 && messagesLength > 1;
-  const isBlocked = sessionBlocked || dailyBlocked || showUpsell;
+  const isBlocked = sessionBlocked || showUpsell;
   const canSend = input.trim() && !typing && !isBlocked;
 
   // Заблокированное состояние — показываем только кнопку «Создать документ»
