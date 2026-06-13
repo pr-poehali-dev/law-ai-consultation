@@ -244,7 +244,7 @@ def summarize_old_messages(messages: list) -> list:
 
 # ── Промпты (инлайн, чтобы не зависеть от файла prompts.py) ─────────────────
 from prompts import (
-    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK,
+    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_CHAT_LANDING,
 )
 from state_duty import is_duty_query, get_duty_context_for_chat
 from legal_docs_handler import get_legal_context_for_ai
@@ -254,6 +254,39 @@ NOTICE_PD = (
     "ваши личные реквизиты. После создания документа вы сможете "
     "заполнить их собственноручно.\n\nОднако я проанализирую всё остальное.\n\n"
 )
+
+
+def detectDocSuggestionPy(text: str) -> str | None:
+    lo = text.lower()
+    if "взыскани" in lo and ("долг" in lo or "задолженн" in lo): return "claim_debt"
+    if "расторжени" in lo and "брак" in lo: return "claim_divorce"
+    if "алимент" in lo: return "claim_alimony"
+    if "потребит" in lo and "защит" in lo: return "claim_consumer"
+    if "возмещени" in lo or "ущерб" in lo: return "claim_damage"
+    if "апелляц" in lo: return "appeal"
+    if "кассаци" in lo: return "cassation"
+    if "претензи" in lo and "потребит" in lo: return "pretension_consumer"
+    if "претензи" in lo: return "pretension"
+    if "уведомлени" in lo and "расторжени" in lo: return "notification_termination"
+    if "ходатайств" in lo: return "petition_evidence"
+    if "возражени" in lo: return "response_to_claim"
+    if "трудов" in lo and "договор" in lo: return "labor_contract"
+    if "договор" in lo and "аренд" in lo: return "contract_rent"
+    if "договор" in lo and "купл" in lo: return "contract_sale"
+    if "договор" in lo and "займ" in lo: return "contract_loan"
+    if "договор" in lo and "услуг" in lo: return "contract_services"
+    if "расписк" in lo: return "contract_receipt"
+    if "договор" in lo: return "contract"
+    if "прокуратур" in lo: return "gov_prosecutor"
+    if "роспотребнадзор" in lo: return "gov_rospotreb"
+    if "полици" in lo or "мошенничеств" in lo: return "gov_police"
+    if "трудов" in lo and "инспекц" in lo: return "gov_labor_insp"
+    if "увольнени" in lo: return "labor_quit_app"
+    if "приказ" in lo: return "labor_order_discipline"
+    if "жалоб" in lo: return "complaint"
+    if "исков" in lo or "иск" in lo: return "claim"
+    if "заявлени" in lo: return "application"
+    return None
 
 
 def handler(event: dict, context) -> dict:
@@ -278,6 +311,20 @@ def handler(event: dict, context) -> dict:
     mode = body.get("mode", "chat")
 
     try:
+        # ── Лендинг-чат (сбор данных для документа) ─────────────────────────
+        if mode == "landing_chat":
+            messages = body.get("messages", [])
+            if not messages:
+                return {"statusCode": 400, "headers": CORS,
+                        "body": json.dumps({"error": "messages required"})}
+            clean_messages, _ = strip_personal_data(messages[-6:])
+            answer = call_yandex(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, fast=True, temperature=0.2)
+            if is_refusal(answer):
+                answer, _ = call_deepseek(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, temperature=0.2)
+            suggest = detectDocSuggestionPy(answer)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": answer, "suggest_doc_type": suggest}, ensure_ascii=False)}
+
         # ── Продолжение обрезанного ответа ──────────────────────────────────
         if mode == "chat_continue":
             messages = body.get("messages", [])

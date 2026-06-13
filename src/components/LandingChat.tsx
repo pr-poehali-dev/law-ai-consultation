@@ -17,6 +17,7 @@ import {
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
   saveChatMessages, loadChatMessages,
   detectDocSuggestion, DOC_LABELS_MAP, type Message,
+  getSessionQuestionsLeft, incrementSessionCount,
 } from "@/components/landingChatUtils";
 import LandingChatMessages from "@/components/LandingChatMessages";
 import LandingChatInput from "@/components/LandingChatInput";
@@ -42,6 +43,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
+  const [sessionLeft, setSessionLeft] = useState(getSessionQuestionsLeft());
   const [showUpsell, setShowUpsell] = useState(false);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
@@ -147,13 +149,15 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       return;
     }
 
-    if (getDailyFreeLeft() === 0) {
+    if (getSessionQuestionsLeft() === 0 || getDailyFreeLeft() === 0) {
       setShowUpsell(true);
       return;
     }
 
     incrementDailyFreeCount();
+    incrementSessionCount();
     setQuestionsLeft(getDailyFreeLeft());
+    setSessionLeft(getSessionQuestionsLeft());
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
@@ -161,21 +165,21 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setTyping(true);
     setMessages(p => [...p, { role: "ai", text: "", typing: true }]);
 
-    // Ограничиваем историю последними 10 сообщениями чтобы не переполнять запрос
-    const trimmedHist = history.current.slice(-3);
+    const trimmedHist = history.current.slice(-4);
     const newHist = [...trimmedHist, { role: "user", content: msgText }];
     history.current = [...history.current, { role: "user", content: msgText }];
 
     try {
       const cached = getCachedAnswer(newHist);
       let aiText: string;
+      let suggestFromBackend: string | undefined;
       if (cached) {
         aiText = cached.answer;
       } else {
         const res = await fetchSafe(GIGACHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "chat", messages: newHist }),
+          body: JSON.stringify({ mode: "landing_chat", messages: newHist }),
         }, 90_000, 1);
         if (!res.ok) {
           let errMsg = "Ошибка сервера";
@@ -184,21 +188,21 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         }
         const data = await res.json();
         aiText = data.answer as string;
-        setCachedAnswer(newHist, aiText, !!(data.truncated), !!(data.needs_expert));
+        suggestFromBackend = data.suggest_doc_type || undefined;
+        setCachedAnswer(newHist, aiText, false, false);
       }
 
       history.current = [...history.current, { role: "assistant", content: aiText }];
       saveHistoryToStorage(history.current.slice(-6));
 
-      const suggestDocType = detectDocSuggestion(aiText);
+      const suggestDocType = suggestFromBackend || detectDocSuggestion(aiText) || undefined;
+      const newSessionLeft = getSessionQuestionsLeft();
+      // После 2-го вопроса всегда показываем suggestDocType чтобы появилась кнопка
+      const finalSuggest = newSessionLeft === 0 ? (suggestDocType || "claim") : suggestDocType;
       setMessages(p => {
         const next = p.filter(m => !m.typing);
-        return [...next, { role: "ai", text: aiText, suggestDocType: suggestDocType ?? undefined }];
+        return [...next, { role: "ai", text: aiText, suggestDocType: finalSuggest }];
       });
-
-      if (getDailyFreeLeft() === 0) {
-        setTimeout(() => setShowUpsell(true), 800);
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Произошла ошибка";
       setMessages(p => {
@@ -379,6 +383,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           typing={typing}
           showUpsell={showUpsell}
           questionsLeft={questionsLeft}
+          sessionLeft={sessionLeft}
           showDocMenu={showDocMenu}
           fileInputRef={fileInputRef}
           textareaRef={textareaRef}
@@ -392,6 +397,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onCreateDoc={handleCreateDoc}
           onFileSelect={handleFileSelect}
           onRemoveFile={() => setAttachedFile(null)}
+          lastSuggestDocType={messages.filter(m => m.role === "ai" && m.suggestDocType).at(-1)?.suggestDocType}
         />
       </div>
 

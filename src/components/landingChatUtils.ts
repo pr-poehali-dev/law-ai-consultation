@@ -1,5 +1,25 @@
 // ── Константы и утилиты для LandingChat ──────────────────────────────────────
 
+// ── Лимит вопросов на сессию (2 вопроса до блокировки) ──────────────────────
+const SESSION_COUNT_KEY = "landing_session_count";
+const SESSION_LIMIT = 2;
+
+export function getSessionQuestionsLeft(): number {
+  try {
+    const v = sessionStorage.getItem(SESSION_COUNT_KEY);
+    const used = v ? parseInt(v, 10) : 0;
+    return Math.max(0, SESSION_LIMIT - used);
+  } catch { return SESSION_LIMIT; }
+}
+
+export function incrementSessionCount(): void {
+  try {
+    const v = sessionStorage.getItem(SESSION_COUNT_KEY);
+    const used = v ? parseInt(v, 10) : 0;
+    sessionStorage.setItem(SESSION_COUNT_KEY, String(used + 1));
+  } catch { /* ignore */ }
+}
+
 export const CHAT_HISTORY_KEY = "landing_chat_history";
 export const CHAT_MESSAGES_KEY = "landing_chat_messages"; // UI-сообщения
 export const CHAT_MESSAGES_TS_KEY = "landing_chat_messages_ts";

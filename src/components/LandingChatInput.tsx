@@ -7,11 +7,13 @@ interface LandingChatInputProps {
   typing: boolean;
   showUpsell: boolean;
   questionsLeft: number;
+  sessionLeft: number;
   showDocMenu: boolean;
   fileInputRef: React.RefObject<HTMLInputElement>;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   messagesLength: number;
   attachedFile?: { name: string } | null;
+  lastSuggestDocType?: string;
   onInputChange: (v: string) => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -27,15 +29,17 @@ export default function LandingChatInput({
   typing,
   showUpsell,
   questionsLeft,
+  sessionLeft,
   showDocMenu: _showDocMenu,
   fileInputRef,
   textareaRef,
   messagesLength,
   attachedFile,
+  lastSuggestDocType,
   onInputChange,
   onSend,
   onKeyDown,
-  onAttachClick,
+  onAttachClick: _onAttachClick,
   onToggleDocMenu: _onToggleDocMenu,
   onCreateDoc,
   onFileSelect,
@@ -50,7 +54,36 @@ export default function LandingChatInput({
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
-  const canSend = input.trim() && !typing && !showUpsell;
+  const sessionBlocked = sessionLeft === 0 && messagesLength > 1;
+  const dailyBlocked = questionsLeft === 0 && messagesLength > 1;
+  const isBlocked = sessionBlocked || dailyBlocked || showUpsell;
+  const canSend = input.trim() && !typing && !isBlocked;
+
+  // Заблокированное состояние — показываем только кнопку «Создать документ»
+  if (isBlocked) {
+    const docId = lastSuggestDocType || "claim";
+    return (
+      <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
+        <button
+          onClick={() => onCreateDoc(docId)}
+          className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98]"
+          style={{
+            background: "linear-gradient(135deg, #e8a820, #f0c060)",
+            color: "#0a1628",
+            boxShadow: "0 4px 16px rgba(232,168,32,0.35)",
+          }}
+        >
+          <Icon name="FileText" size={15} color="#0a1628" />
+          Создать документ
+        </button>
+        {sessionBlocked && !dailyBlocked && (
+          <p className="text-center text-[11px] mt-2" style={{ color: "#94a3b8" }}>
+            Обновите страницу, чтобы задать ещё вопросы
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -92,7 +125,7 @@ export default function LandingChatInput({
             onChange={e => { onInputChange(e.target.value); autoResize(); }}
             onKeyDown={onKeyDown}
             placeholder="Опишите вашу ситуацию…"
-            disabled={showUpsell || (questionsLeft === 0 && messagesLength > 1)}
+            disabled={false}
             rows={1}
             className="flex-1 bg-transparent outline-none resize-none py-2 text-[13px] font-golos leading-snug placeholder:text-slate-400"
             style={{ color: "#1e293b", minHeight: "38px", maxHeight: "120px" }}
@@ -113,6 +146,11 @@ export default function LandingChatInput({
             <Icon name="Send" size={15} />
           </button>
         </div>
+        {sessionLeft <= 1 && sessionLeft > 0 && messagesLength > 1 && (
+          <p className="text-[11px] mt-1.5 text-center" style={{ color: "#94a3b8" }}>
+            Осталось вопросов в этой сессии: {sessionLeft}
+          </p>
+        )}
       </div>
 
       <input ref={fileInputRef} type="file"
