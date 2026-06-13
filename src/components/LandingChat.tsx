@@ -249,23 +249,21 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   const handleCreateDoc = (docTypeId: string) => {
     setShowDocMenu(false);
-    // Ищем label сначала в полном списке docBlocks, затем в краткой карте
     const fullLabel = DOC_BLOCKS.flatMap(b => b.types).find(t => t.id === docTypeId)?.label;
     const docLabel = fullLabel || DOC_LABELS_MAP[docTypeId] || "документ";
-    // Берём последний вопрос из истории, иначе — название документа как начальный запрос
-    const lastUserMsg = [...history.current].reverse().find(m => m.role === "user")?.content
-      || input.trim()
-      || docLabel;
+    // Собираем полный диалог: запрос пользователя + ответ AI + ответы пользователя
+    const hist = history.current;
+    const chatQuery = hist.length > 0
+      ? hist.map(m => (m.role === "user" ? "Пользователь" : "AI") + ": " + m.content).join("\n\n")
+      : input.trim() || docLabel;
     setShowDocDetails({
       docTypeId,
       docLabel,
-      query: lastUserMsg,
+      query: chatQuery,
     });
   };
 
-  const handleDocDetailsProceed = (query: string, comment: string, files: DocAttachedFile[]) => {
-    if (!showDocDetails) return;
-    const { docTypeId, docLabel } = showDocDetails;
+  const handleDocDetailsProceed = (query: string, comment: string, files: DocAttachedFile[], docTypeId: string, docLabel: string) => {
     setDocDetailsData({ query, comment, files });
     setShowDocDetails(null);
     setShowDocChoice({ docTypeId, docLabel });

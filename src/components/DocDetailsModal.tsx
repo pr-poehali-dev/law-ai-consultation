@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import { DOC_BLOCKS } from "@/pages/cabinet/docBlocks";
 
 export interface DocAttachedFile {
   name: string;
@@ -11,9 +12,11 @@ interface DocDetailsModalProps {
   docTypeId: string;
   docLabel: string;
   initialQuery: string;
-  onProceed: (query: string, comment: string, files: DocAttachedFile[]) => void;
+  onProceed: (query: string, comment: string, files: DocAttachedFile[], docTypeId: string, docLabel: string) => void;
   onClose: () => void;
 }
+
+const ALL_DOCS = DOC_BLOCKS.flatMap(b => b.types.map(t => ({ id: t.id, label: t.label, group: b.label })));
 
 const MAX_FILES = 3;
 const MAX_FILE_MB = 10;
@@ -26,12 +29,16 @@ function formatSize(bytes: number): string {
 }
 
 export default function DocDetailsModal({
-  docTypeId: _docTypeId,
-  docLabel,
+  docTypeId: initialDocTypeId,
+  docLabel: initialDocLabel,
   initialQuery,
   onProceed,
   onClose,
 }: DocDetailsModalProps) {
+  const [selectedDocId, setSelectedDocId] = useState(initialDocTypeId);
+  const [selectedDocLabel, setSelectedDocLabel] = useState(initialDocLabel);
+  const [showDocPicker, setShowDocPicker] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
   const [query, setQuery] = useState(initialQuery);
   const [comment, setComment] = useState("");
   const [editingQuery, setEditingQuery] = useState(false);
@@ -40,6 +47,10 @@ export default function DocDetailsModal({
   const queryRef = useRef<HTMLTextAreaElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredDocs = docSearch.trim()
+    ? ALL_DOCS.filter(d => d.label.toLowerCase().includes(docSearch.toLowerCase()) || d.group.toLowerCase().includes(docSearch.toLowerCase()))
+    : ALL_DOCS;
 
   useEffect(() => {
     if (editingQuery && queryRef.current) {
@@ -96,7 +107,7 @@ export default function DocDetailsModal({
   const handleProceed = () => {
     const q = query.trim();
     if (!q) return;
-    onProceed(q, comment.trim(), attachedFiles);
+    onProceed(q, comment.trim(), attachedFiles, selectedDocId, selectedDocLabel);
   };
 
   return (
@@ -149,6 +160,53 @@ export default function DocDetailsModal({
               Уточните детали для точной генерации
             </p>
           </div>
+        </div>
+
+        {/* Выбор типа документа */}
+        <div className="px-4 sm:px-5 pb-3 shrink-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>Тип документа</p>
+          <button
+            onClick={() => { setShowDocPicker(v => !v); setDocSearch(""); }}
+            className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl transition-all"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(232,168,32,0.3)" }}
+          >
+            <span className="text-[13px] font-medium text-left flex-1 truncate" style={{ color: "rgba(255,255,255,0.9)" }}>{selectedDocLabel}</span>
+            <Icon name={showDocPicker ? "ChevronUp" : "ChevronDown"} size={14} color="rgba(255,255,255,0.4)" />
+          </button>
+
+          {showDocPicker && (
+            <div className="mt-1.5 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <input
+                  autoFocus
+                  value={docSearch}
+                  onChange={e => setDocSearch(e.target.value)}
+                  placeholder="Поиск документа…"
+                  className="w-full bg-transparent outline-none text-[12px]"
+                  style={{ color: "rgba(255,255,255,0.8)", caretColor: "#e8a820" }}
+                />
+              </div>
+              <div className="overflow-y-auto" style={{ maxHeight: 200 }}>
+                {filteredDocs.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => { setSelectedDocId(d.id); setSelectedDocLabel(d.label); setShowDocPicker(false); }}
+                    className="w-full text-left px-3 py-2 transition-colors"
+                    style={{
+                      background: d.id === selectedDocId ? "rgba(232,168,32,0.1)" : "transparent",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    <p className="text-[12px] leading-snug" style={{ color: d.id === selectedDocId ? "#e8a820" : "rgba(255,255,255,0.75)" }}>{d.label}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{d.group}</p>
+                  </button>
+                ))}
+                {filteredDocs.length === 0 && (
+                  <p className="px-3 py-3 text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>Ничего не найдено</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Скролл-зона */}
