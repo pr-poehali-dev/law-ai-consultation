@@ -100,7 +100,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
           </div>
 
           {/* Stats */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto mt-8 transition-all duration-600 delay-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className={`relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto mt-10 transition-all duration-600 delay-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
             {stats.map((stat) => (
               <div key={stat.value} className="glass rounded-2xl p-3 text-center">
                 <div className="font-cormorant font-bold text-xl text-gradient-gold">{stat.value}</div>
