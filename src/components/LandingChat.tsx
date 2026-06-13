@@ -41,6 +41,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
   const [sessionLeft, setSessionLeft] = useState(getSessionQuestionsLeft());
+  const [landingStep, setLandingStep] = useState(1);
   const [showUpsell, setShowUpsell] = useState(false);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
@@ -158,40 +159,34 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setTyping(true);
     setMessages(p => [...p, { role: "ai", text: "", typing: true }]);
 
+    const currentStep = landingStep;
     const trimmedHist = history.current.slice(-4);
     const newHist = [...trimmedHist, { role: "user", content: msgText }];
     history.current = [...history.current, { role: "user", content: msgText }];
 
     try {
-      const cached = getCachedAnswer(newHist);
-      let aiText: string;
-      let suggestFromBackend: string | undefined;
-      if (cached) {
-        aiText = cached.answer;
-      } else {
-        const res = await fetchSafe(GIGACHAT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "landing_chat", messages: newHist }),
-        }, 90_000, 1);
-        if (!res.ok) {
-          let errMsg = "Ошибка сервера";
-          try { const d = await res.json(); errMsg = d.error || errMsg; } catch { /* ignore */ }
-          throw new Error(errMsg);
-        }
-        const data = await res.json();
-        aiText = data.answer as string;
-        suggestFromBackend = data.suggest_doc_type || undefined;
-        setCachedAnswer(newHist, aiText, false, false);
+      const res = await fetchSafe(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "landing_chat", messages: newHist, step: currentStep }),
+      }, 90_000, 1);
+      if (!res.ok) {
+        let errMsg = "Ошибка сервера";
+        try { const d = await res.json(); errMsg = d.error || errMsg; } catch { /* ignore */ }
+        throw new Error(errMsg);
       }
+      const data = await res.json();
+      aiText = data.answer as string;
+      suggestFromBackend = data.suggest_doc_type || undefined;
 
       history.current = [...history.current, { role: "assistant", content: aiText }];
       saveHistoryToStorage(history.current.slice(-6));
 
-      const suggestDocType = suggestFromBackend || detectDocSuggestion(aiText) || undefined;
       const newSessionLeft = getSessionQuestionsLeft();
-      // После 2-го вопроса всегда показываем suggestDocType чтобы появилась кнопка
+      const suggestDocType = suggestFromBackend || detectDocSuggestion(aiText) || undefined;
+      // После 2-го вопроса всегда показываем suggestDocType чтобы появилась кнопка "Создать документ"
       const finalSuggest = newSessionLeft === 0 ? (suggestDocType || "claim") : suggestDocType;
+      setLandingStep(s => s + 1);
       setMessages(p => {
         const next = p.filter(m => !m.typing);
         return [...next, { role: "ai", text: aiText, suggestDocType: finalSuggest }];
@@ -205,7 +200,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     } finally {
       setTyping(false);
     }
-  }, [input, typing, attachedFile]);
+  }, [input, typing, attachedFile, landingStep]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

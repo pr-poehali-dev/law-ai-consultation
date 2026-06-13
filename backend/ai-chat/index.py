@@ -244,7 +244,8 @@ def summarize_old_messages(messages: list) -> list:
 
 # ── Промпты (инлайн, чтобы не зависеть от файла prompts.py) ─────────────────
 from prompts import (
-    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK, SYSTEM_CHAT_LANDING,
+    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK,
+    SYSTEM_CHAT_LANDING_STEP1, SYSTEM_CHAT_LANDING_STEP2,
 )
 from state_duty import is_duty_query, get_duty_context_for_chat
 from legal_docs_handler import get_legal_context_for_ai
@@ -258,25 +259,34 @@ NOTICE_PD = (
 
 def detectDocSuggestionPy(text: str) -> str | None:
     lo = text.lower()
+    # Претензии — в приоритете над «договором»
+    if "претензи" in lo and "потребит" in lo: return "pretension_consumer"
+    if "претензи" in lo and ("подрядчик" in lo or "исполнител" in lo or "поставщик" in lo): return "pretension_contract"
+    if "претензи" in lo and "договор" in lo: return "pretension_contract"
+    if "претензи" in lo: return "pretension"
+    if "досудебн" in lo and ("требовани" in lo or "уведомлени" in lo or "претензи" in lo): return "pretension"
+    # Иски
     if "взыскани" in lo and ("долг" in lo or "задолженн" in lo): return "claim_debt"
     if "расторжени" in lo and "брак" in lo: return "claim_divorce"
     if "алимент" in lo: return "claim_alimony"
     if "потребит" in lo and "защит" in lo: return "claim_consumer"
-    if "возмещени" in lo or "ущерб" in lo: return "claim_damage"
+    if "возмещени" in lo and "ущерб" in lo: return "claim_damage"
+    if "затоплени" in lo or ("сосед" in lo and "ущерб" in lo): return "claim_damage"
     if "апелляц" in lo: return "appeal"
     if "кассаци" in lo: return "cassation"
-    if "претензи" in lo and "потребит" in lo: return "pretension_consumer"
-    if "претензи" in lo: return "pretension"
     if "уведомлени" in lo and "расторжени" in lo: return "notification_termination"
     if "ходатайств" in lo: return "petition_evidence"
     if "возражени" in lo: return "response_to_claim"
+    # Договоры
     if "трудов" in lo and "договор" in lo: return "labor_contract"
     if "договор" in lo and "аренд" in lo: return "contract_rent"
     if "договор" in lo and "купл" in lo: return "contract_sale"
     if "договор" in lo and "займ" in lo: return "contract_loan"
     if "договор" in lo and "услуг" in lo: return "contract_services"
+    if "договор" in lo and "подряд" in lo: return "contract_work"
     if "расписк" in lo: return "contract_receipt"
     if "договор" in lo: return "contract"
+    # Госорганы
     if "прокуратур" in lo: return "gov_prosecutor"
     if "роспотребнадзор" in lo: return "gov_rospotreb"
     if "полици" in lo or "мошенничеств" in lo: return "gov_police"
@@ -314,12 +324,15 @@ def handler(event: dict, context) -> dict:
         # ── Лендинг-чат (сбор данных для документа) ─────────────────────────
         if mode == "landing_chat":
             messages = body.get("messages", [])
+            step = int(body.get("step", 1))
             if not messages:
                 return {"statusCode": 400, "headers": CORS,
                         "body": json.dumps({"error": "messages required"})}
             clean_messages, _ = strip_personal_data(messages[-6:])
-            answer, _ = call_deepseek(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, temperature=0.2, timeout=30)
-            suggest = detectDocSuggestionPy(answer)
+            system_prompt = SYSTEM_CHAT_LANDING_STEP2 if step >= 2 else SYSTEM_CHAT_LANDING_STEP1
+            max_tokens = 200 if step >= 2 else 600
+            answer, _ = call_deepseek(system_prompt, clean_messages, max_tokens=max_tokens, temperature=0.15, timeout=30)
+            suggest = detectDocSuggestionPy("\n".join(m.get("content","") for m in clean_messages) + "\n" + answer)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "suggest_doc_type": suggest}, ensure_ascii=False)}
 
