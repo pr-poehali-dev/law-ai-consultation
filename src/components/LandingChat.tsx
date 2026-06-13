@@ -345,7 +345,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
                 style={{ background: "#22c55e", border: "2px solid #060e1f", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }} />
             </div>
             <div>
-              <p className="text-[13px] font-bold text-white leading-tight">AI-юрист</p>
+              <p className="text-[13px] font-bold text-white leading-tight">AI-консультант</p>
               <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.01em" }}>законодательство РФ · онлайн</p>
             </div>
           </div>
