@@ -151,6 +151,8 @@ export default function LandingChatMessages({
                         style={{ background: msg.role === "user" ? "rgba(255,255,255,0.5)" : "#94a3b8", animationDelay: `${d}ms` }} />
                     ))}
                   </div>
+                ) : msg.role === "user" ? (
+                  <span style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontWeight: 400 }}>{msg.text}</span>
                 ) : (
                   <div className="ai-message-body" dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }} />
                 )}

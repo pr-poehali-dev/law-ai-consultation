@@ -17,7 +17,7 @@ import {
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
   saveChatMessages, loadChatMessages,
   detectDocSuggestion, DOC_LABELS_MAP, type Message,
-  getSessionQuestionsLeft, incrementSessionCount,
+  getSessionQuestionsLeft, incrementSessionCount, resetSessionCount,
 } from "@/components/landingChatUtils";
 import LandingChatMessages from "@/components/LandingChatMessages";
 import LandingChatInput from "@/components/LandingChatInput";
@@ -75,6 +75,12 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     })()
   );
   const isFirstRender = useRef(true);
+
+  // При маунте — сбрасываем сессионный счётчик вопросов (перезагрузка = новая сессия)
+  useEffect(() => {
+    resetSessionCount();
+    setSessionLeft(getSessionQuestionsLeft());
+  }, []);
 
   // При маунте — чистим устаревший pending если прошло > 30 мин / 24 часа
   useEffect(() => {

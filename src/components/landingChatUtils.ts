@@ -4,6 +4,16 @@
 const SESSION_COUNT_KEY = "landing_session_count";
 const SESSION_LIMIT = 2;
 
+const SESSION_INIT_KEY = "landing_session_init";
+
+/** Вызывать при маунте — сбрасывает счётчик вопросов при каждой новой загрузке страницы */
+export function resetSessionCount(): void {
+  try {
+    sessionStorage.removeItem(SESSION_COUNT_KEY);
+    sessionStorage.setItem(SESSION_INIT_KEY, "1");
+  } catch { /* ignore */ }
+}
+
 export function getSessionQuestionsLeft(): number {
   try {
     const v = sessionStorage.getItem(SESSION_COUNT_KEY);
