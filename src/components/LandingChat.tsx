@@ -6,8 +6,8 @@ import LoginModal from "@/components/LoginModal";
 import PaymentModal, { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
 import DocAnalysisPaywall from "@/components/DocAnalysisPaywall";
-import { getDailyFreeLeft, incrementDailyFreeCount, fetchSafe, getUser, lawyerSend } from "@/lib/auth";
-import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
+import { fetchSafe, getUser, lawyerSend } from "@/lib/auth";
+
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import DocDetailsModal, { type DocAttachedFile } from "@/components/DocDetailsModal";
@@ -39,10 +39,9 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
   const [sessionLeft, setSessionLeft] = useState(getSessionQuestionsLeft());
   const [landingStep, setLandingStep] = useState(1);
-  const [showUpsell, setShowUpsell] = useState(false);
+  const [showUpsell] = useState(false);
   const [showDocMenu, setShowDocMenu] = useState(false);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showDocDetails, setShowDocDetails] = useState<{ docTypeId: string; docLabel: string; query: string } | null>(null);
@@ -138,19 +137,9 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
 
-    if (attachedFile) {
-      setShowDocAnalysisPaywall(true);
-      return;
-    }
+    if (getSessionQuestionsLeft() === 0) return;
 
-    if (getSessionQuestionsLeft() === 0 || getDailyFreeLeft() === 0) {
-      setShowUpsell(true);
-      return;
-    }
-
-    incrementDailyFreeCount();
     incrementSessionCount();
-    setQuestionsLeft(getDailyFreeLeft());
     setSessionLeft(getSessionQuestionsLeft());
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -200,7 +189,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     } finally {
       setTyping(false);
     }
-  }, [input, typing, attachedFile, landingStep]);
+  }, [input, typing, landingStep]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -369,8 +358,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         <LandingChatInput
           input={input}
           typing={typing}
-          showUpsell={showUpsell}
-          questionsLeft={questionsLeft}
+          showUpsell={false}
+          questionsLeft={99}
           sessionLeft={sessionLeft}
           showDocMenu={showDocMenu}
           fileInputRef={fileInputRef}
