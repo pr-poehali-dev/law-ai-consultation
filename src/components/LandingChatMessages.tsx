@@ -186,26 +186,7 @@ export default function LandingChatMessages({
             </div>
           )}
 
-          {/* ── Кнопки под ответом AI ── */}
-          {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
-            <div className="ml-9 mt-2 flex flex-wrap gap-2">
-              {onSendToLawyer && (
-                <button
-                  onClick={() => onSendToLawyer(msg.text)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all active:scale-[0.97]"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #dde3ed",
-                    color: "#475569",
-                    boxShadow: "0 1px 4px rgba(10,22,40,0.06)",
-                  }}
-                >
-                  <Icon name="UserCheck" size={12} color="#64748b" />
-                  Проверить юристу
-                </button>
-              )}
-            </div>
-          )}
+
         </div>
       ))}
 
