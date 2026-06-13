@@ -155,7 +155,7 @@ export default function DocDetailsModal({
             <Icon name="FileText" size={18} color="#e8a820" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-[15px] leading-tight">{docLabel}</h3>
+            <h3 className="font-bold text-white text-[15px] leading-tight">{selectedDocLabel}</h3>
             <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
               Уточните детали для точной генерации
             </p>
