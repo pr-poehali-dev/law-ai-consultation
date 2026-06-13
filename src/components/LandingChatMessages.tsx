@@ -189,20 +189,6 @@ export default function LandingChatMessages({
           {/* ── Кнопки под ответом AI ── */}
           {msg.role === "ai" && !msg.typing && msg.text.length > 30 && i > 0 && (
             <div className="ml-9 mt-2 flex flex-wrap gap-2">
-              {msg.suggestDocType && (
-                <button
-                  onClick={() => onCreateDoc(msg.suggestDocType!)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all active:scale-[0.97] hover:shadow-md"
-                  style={{
-                    background: "linear-gradient(135deg, #e8a820, #f0c060)",
-                    color: "#0a1628",
-                    boxShadow: "0 2px 8px rgba(232,168,32,0.25)",
-                  }}
-                >
-                  <Icon name="FileText" size={12} color="#0a1628" />
-                  Создать {DOC_LABELS[msg.suggestDocType] ?? "документ"}
-                </button>
-              )}
               {onSendToLawyer && (
                 <button
                   onClick={() => onSendToLawyer(msg.text)}
