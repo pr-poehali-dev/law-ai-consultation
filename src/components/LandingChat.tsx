@@ -176,8 +176,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         throw new Error(errMsg);
       }
       const data = await res.json();
-      aiText = data.answer as string;
-      suggestFromBackend = data.suggest_doc_type || undefined;
+      const aiText = data.answer as string;
+      const suggestFromBackend: string | undefined = data.suggest_doc_type || undefined;
 
       history.current = [...history.current, { role: "assistant", content: aiText }];
       saveHistoryToStorage(history.current.slice(-6));
