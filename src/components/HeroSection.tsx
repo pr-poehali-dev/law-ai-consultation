@@ -67,7 +67,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
 
           {/* Headline */}
           <h1 className={`font-cormorant font-bold text-4xl sm:text-5xl md:text-6xl text-white leading-[1.1] mb-3 text-center transition-all duration-600 delay-100 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-            Юридическая помощь{" "}
+            Юридический помощник{" "}
             <span className="text-gradient-gold italic">24/7</span>
             <br className="hidden sm:block" />
             <span className="text-white/90"> на основе AI</span>
