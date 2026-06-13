@@ -318,9 +318,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 400, "headers": CORS,
                         "body": json.dumps({"error": "messages required"})}
             clean_messages, _ = strip_personal_data(messages[-6:])
-            answer = call_yandex(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, fast=True, temperature=0.2)
-            if is_refusal(answer):
-                answer, _ = call_deepseek(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, temperature=0.2)
+            answer, _ = call_deepseek(SYSTEM_CHAT_LANDING, clean_messages, max_tokens=800, temperature=0.2, timeout=30)
             suggest = detectDocSuggestionPy(answer)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "suggest_doc_type": suggest}, ensure_ascii=False)}
