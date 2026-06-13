@@ -72,10 +72,7 @@ export default function LandingChatMessages({
                       <Icon name="FileText" size={11} color="#fff" />
                     </div>
                     <p className="text-[12.5px] leading-relaxed" style={{ color: "#374151" }}>
-                      Укажите, какой документ нужен —{" "}
-                      <span className="font-semibold" style={{ color: "#111827" }}>иск, претензия, договор, возражение</span>{" "}
-                      и т.п. AI подготовит его за{" "}
-                      <span className="font-semibold" style={{ color: "#111827" }}>5 минут</span>.
+                      Укажите, какой документ нужен — иск, претензия, договор, возражение и т.п. AI-консультант поможет с подготовкой за 5-ть минут!
                     </p>
                   </div>
 
