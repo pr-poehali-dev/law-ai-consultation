@@ -75,7 +75,7 @@ export default function LandingChatInput({
           <Icon name="FileText" size={15} color="#0a1628" />
           Создать документ
         </button>
-        {sessionBlocked && !dailyBlocked && (
+        {sessionBlocked && (
           <p className="text-center text-[11px] mt-2" style={{ color: "#94a3b8" }}>
             Обновите страницу, чтобы задать ещё вопросы
           </p>
