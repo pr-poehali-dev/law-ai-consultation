@@ -36,10 +36,7 @@ const WELCOME_MESSAGE: Message = {
 
 export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = loadChatMessages();
-    return saved ?? [WELCOME_MESSAGE];
-  });
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [questionsLeft, setQuestionsLeft] = useState(getDailyFreeLeft());
@@ -63,17 +60,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Восстанавливаем API-историю один раз при маунте
-  const history = useRef<{ role: string; content: string }[]>(
-    (() => {
-      const saved = loadChatMessages();
-      if (!saved || saved.length <= 1) return [];
-      return saved
-        .filter(m => !m.typing)
-        .slice(1)
-        .map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }));
-    })()
-  );
+  const history = useRef<{ role: string; content: string }[]>([]);
   const isFirstRender = useRef(true);
 
   // При маунте — сбрасываем сессионный счётчик вопросов (перезагрузка = новая сессия)
@@ -89,7 +76,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Автосохранение UI-сообщений при каждом изменении (24ч TTL)
+  // Сохранение истории API (не UI) для передачи в кабинет после оплаты
   useEffect(() => {
     if (messages.length > 1) saveChatMessages(messages);
   }, [messages]);
