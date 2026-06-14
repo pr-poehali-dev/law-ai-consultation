@@ -74,6 +74,9 @@ export function LegalText({ text }: { text: string }) {
 
     if (!trimmed) { i++; continue; }
 
+    // Скрываем структурную метку "1. Прямой краткий ответ" из промта
+    if (/^\*{0,2}1\.\s+Прямой краткий ответ\*{0,2}$/i.test(trimmed)) { i++; continue; }
+
     // --- горизонтальная черта
     if (isHr(trimmed)) {
       blocks.push(<div key={i} style={{ height: 1, background: "rgba(15,76,129,0.1)", margin: "12px 0" }} />);
