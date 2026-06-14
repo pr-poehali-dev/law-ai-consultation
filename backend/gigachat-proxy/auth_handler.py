@@ -1966,30 +1966,30 @@ def handle_admin_grant(token: str, body: dict) -> dict:
                 (target_user_id, target_email, f"Установлено {sd} докум. · {comment}")
             )
 
-        # Прямая установка вопросов к юристу
+        # Прямая установка консультаций юриста
         if set_lawyer_questions is not None:
             slq = max(0, int(set_lawyer_questions))
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET lawyer_questions_left = %s, paid_expert = TRUE WHERE id = %s",
+                f"UPDATE {SCHEMA}.users SET lawyer_consultations_left = %s, paid_expert = TRUE WHERE id = %s",
                 (slq, target_user_id)
             )
-            changes.append(f"вопросов юристу установлено: {slq}")
+            changes.append(f"консультаций юриста установлено: {slq}")
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'lawyer_questions', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"Установлено {slq} вопр. юристу · {comment}")
+                (target_user_id, target_email, f"Установлено {slq} консульт. юриста · {comment}")
             )
 
         # Начисление тарифа
         SERVICE_GRANTS = {
-            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 3", "Тариф Старт: +30 вопр +5 докум +3 вопр юристу"),
-            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 3", "Тариф Старт (скидка): +30 вопр +5 докум +3 вопр юристу"),
-            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "Тариф Профи: +100 вопр +20 докум +5 вопр юристу"),
-            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 30", "Тариф Максимум: +300 вопр +50 докум +30 вопр юристу"),
+            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт: +30 вопр +5 докум +3 консульт юриста"),
+            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт (скидка): +30 вопр +5 докум +3 консульт юриста"),
+            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "Тариф Профи: +100 вопр +20 докум +5 консульт юриста"),
+            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 30", "Тариф Максимум: +300 вопр +50 докум +30 консульт юриста"),
             "document":              ("paid_docs = paid_docs + 1", "+1 документ"),
-            "consultation":          ("paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "+5 вопросов юристу"),
+            "consultation":          ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
             "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
-            "lawyer_questions":      ("paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5", "+5 вопросов юристу"),
+            "lawyer_questions":      ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
         }
         if grant_service:
             if grant_service not in SERVICE_GRANTS:
