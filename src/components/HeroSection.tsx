@@ -90,6 +90,39 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               </span>
               <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(255,255,255,0.12))" }} />
             </div>
+
+            {/* Кнопка бесплатной консультации юриста */}
+            <button
+              onClick={() => handleOpenLogin({ freeTrial: false, pendingTab: "expert" })}
+              className="group relative w-full flex items-center gap-4 px-5 py-4 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+              style={{
+                background: "linear-gradient(135deg, rgba(220,38,38,0.12) 0%, rgba(239,68,68,0.06) 50%, rgba(220,38,38,0.10) 100%)",
+                border: "1px solid rgba(239,68,68,0.3)",
+                boxShadow: "0 0 24px rgba(239,68,68,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
+              }}
+            >
+              <div
+                className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)" }}
+              >
+                <Icon name="MessageCircle" size={18} color="#f87171" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-[13px] font-semibold leading-snug" style={{ color: "#fca5a5" }}>
+                  Получить предварительную консультацию
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  от юриста-эксперта · бесплатно
+                </p>
+              </div>
+              <div
+                className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.25)" }}
+              >
+                Бесплатно
+              </div>
+              <Icon name="ChevronRight" size={16} color="rgba(248,113,113,0.6)" className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </button>
           </div>
 
 
@@ -127,46 +160,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             </button>
           </div>
 
-          {/* Кнопка бесплатной консультации юриста */}
-          <div className={`mt-5 px-4 sm:px-0 transition-all duration-600 delay-400 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <button
-              onClick={() => handleOpenLogin({ freeTrial: false, pendingTab: "expert" })}
-              className="group relative w-full max-w-2xl mx-auto flex items-center gap-4 px-5 py-4 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
-              style={{
-                background: "linear-gradient(135deg, rgba(220,38,38,0.12) 0%, rgba(239,68,68,0.06) 50%, rgba(220,38,38,0.10) 100%)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                boxShadow: "0 0 24px rgba(239,68,68,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
-              }}
-            >
-              {/* Иконка */}
-              <div
-                className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)" }}
-              >
-                <Icon name="MessageCircle" size={18} color="#f87171" />
-              </div>
 
-              {/* Текст */}
-              <div className="flex-1 text-left">
-                <p className="text-[13px] font-semibold leading-snug" style={{ color: "#fca5a5" }}>
-                  Получить предварительную консультацию
-                </p>
-                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  от юриста-эксперта · бесплатно
-                </p>
-              </div>
-
-              {/* Бейдж */}
-              <div
-                className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
-                style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.25)" }}
-              >
-                Бесплатно
-              </div>
-
-              <Icon name="ChevronRight" size={16} color="rgba(248,113,113,0.6)" className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </button>
-          </div>
 
         </div>
       </div>
