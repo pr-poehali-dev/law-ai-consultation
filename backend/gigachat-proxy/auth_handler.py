@@ -182,11 +182,46 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type == "expert":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user_id,))
         elif service_type in ("plan_starter", "plan_starter_discount"):
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 30, paid_docs = paid_docs + 5 WHERE id = %s", (user_id,))
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 30,
+                        paid_docs = paid_docs + 5,
+                        paid_expert = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 1,
+                        purchased_plan = CASE
+                            WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
+                            ELSE 'starter'
+                        END
+                    WHERE id = %s""",
+                (user_id,)
+            )
         elif service_type == "plan_pro":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, has_file_analysis = TRUE WHERE id = %s", (user_id,))
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 70,
+                        paid_docs = paid_docs + 20,
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 3,
+                        purchased_plan = CASE
+                            WHEN purchased_plan = 'max' THEN purchased_plan
+                            ELSE 'pro'
+                        END
+                    WHERE id = %s""",
+                (user_id,)
+            )
         elif service_type in ("plan_max", "plan_max_expert"):
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, has_file_analysis = TRUE WHERE id = %s", (user_id,))
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 150,
+                        paid_docs = paid_docs + 50,
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 10,
+                        purchased_plan = 'max'
+                    WHERE id = %s""",
+                (user_id,)
+            )
         elif service_type == "subscription_consult":
             cur.execute(f"UPDATE {SCHEMA}.users SET subscription_consult_until = GREATEST(NOW(), COALESCE(subscription_consult_until, NOW())) + INTERVAL '31 days' WHERE id = %s", (user_id,))
         elif service_type == "subscription_docs":
