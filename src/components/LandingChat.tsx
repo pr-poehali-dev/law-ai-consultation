@@ -376,19 +376,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         />
       </div>
 
-      {/* Кнопка живого юриста + PWA */}
-      <div className="mt-3 flex flex-col sm:flex-row gap-2">
-        <button
-          onClick={() => onOpenLogin({ freeTrial: false, pendingTab: "expert" })}
-          className="flex-1 flex items-center justify-center gap-2.5 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-[0.98]"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" }}
-        >
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(232,168,32,0.15)" }}>
-            <Icon name="UserCheck" size={13} color="#e8a820" />
-          </div>
-          <span>Консультация живого юриста</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(232,168,32,0.15)", color: "#f0c060" }}>990 ₽</span>
-        </button>
+      {/* PWA */}
+      <div className="mt-3 flex justify-center">
         <PWAInstallButton />
       </div>
 
