@@ -10,8 +10,9 @@ import threading
 import requests
 
 # ── Модели Yandex ──────────────────────────────────────────────────────────
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest"
+_FOLDER_ID = os.environ.get("YANDEX_FOLDER_ID", "b1gd8kncmd8nf4j7h770")
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", f"gpt://{_FOLDER_ID}/deepseek-r1/latest")
+YANDEX_MODEL_FAST = f"gpt://{_FOLDER_ID}/deepseek-r1/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
