@@ -124,7 +124,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
                 className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase"
                 style={{ background: "rgba(10,22,40,0.18)", color: "#0a1628", letterSpacing: "0.06em" }}
               >
-                Бесплатно
+                Задать вопрос
               </span>
             </button>
           </div>
