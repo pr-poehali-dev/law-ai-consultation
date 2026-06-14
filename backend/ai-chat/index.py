@@ -11,8 +11,8 @@ import requests
 
 # ── Модели Yandex ──────────────────────────────────────────────────────────
 _FOLDER_ID = os.environ.get("YANDEX_FOLDER_ID", "b1gd8kncmd8nf4j7h770")
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest"
+YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest")
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
