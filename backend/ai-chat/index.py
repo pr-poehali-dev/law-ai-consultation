@@ -11,8 +11,8 @@ import requests
 
 # ── Модели Yandex ──────────────────────────────────────────────────────────
 _FOLDER_ID = os.environ.get("YANDEX_FOLDER_ID", "b1gd8kncmd8nf4j7h770")
-YANDEX_MODEL = os.environ.get("YANDEX_MODEL_URI", "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest")
-YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/aliceai-llm-flash/latest"
+YANDEX_MODEL = "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest"
+YANDEX_MODEL_FAST = "gpt://b1gd8kncmd8nf4j7h770/deepseek-v4-flash/latest"
 _IAM_TOKEN: str = os.environ.get("YANDEX_IAM_TOKEN", "").strip()
 
 _http = requests.Session()
@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=90,
+        timeout=30,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
