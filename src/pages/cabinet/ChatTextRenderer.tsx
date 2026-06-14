@@ -74,8 +74,26 @@ export function LegalText({ text }: { text: string }) {
 
     if (!trimmed) { i++; continue; }
 
-    // Скрываем структурные метки из промта
-    if (/^\*{0,2}\d+\.\s+(Прямой краткий ответ|Правовое обоснование|Практическая рекомендация|Судебная практика)\*{0,2}$/i.test(trimmed)) { i++; continue; }
+    // Скрываем "1. Прямой краткий ответ", остальные заголовки перенумеровываем с 1
+    if (/^\*{0,2}1\.\s+Прямой краткий ответ\*{0,2}$/i.test(trimmed)) { i++; continue; }
+    {
+      const renum = trimmed
+        .replace(/^\*{0,2}2\.\s+(Правовое обоснование)\*{0,2}$/i, "**1. Правовое обоснование**")
+        .replace(/^\*{0,2}3\.\s+(Практическая рекомендация)\*{0,2}$/i, "**2. Практическая рекомендация**")
+        .replace(/^\*{0,2}4\.\s+(Судебная практика)\*{0,2}$/i, "**3. Судебная практика**");
+      if (renum !== trimmed) {
+        const inner = renum.replace(/^\*\*/, "").replace(/\*\*$/, "");
+        blocks.push(
+          <div key={i} style={{ marginTop: blocks.length === 0 ? 0 : "20px", marginBottom: "6px" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "linear-gradient(135deg,rgba(15,76,129,0.07),rgba(15,76,129,0.03))", border: "1px solid rgba(15,76,129,0.12)", borderRadius: "10px", padding: "6px 12px" }}>
+              <span style={{ width: 3, height: 16, background: "#1a56b0", borderRadius: 2, flexShrink: 0, display: "inline-block" }} />
+              <span style={{ fontWeight: 700, fontSize: "13.5px", color: "#0f2d54", letterSpacing: "0.01em" }}>{inner}</span>
+            </div>
+          </div>
+        );
+        i++; continue;
+      }
+    }
 
     // --- горизонтальная черта
     if (isHr(trimmed)) {
