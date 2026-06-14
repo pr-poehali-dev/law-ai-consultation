@@ -22,7 +22,7 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
   const docsSubActive = hasActiveSubscription(user, "docs");
   const bizSubActive = !!(user.businessSubscriptionUntil && new Date(user.businessSubscriptionUntil) > new Date());
   const activePlan = user.isAdmin ? null : getActivePlanInfo(user);
-  const lawyerQ = user.lawyerQuestionsLeft ?? 0;
+  const lawyerQ = user.lawyerConsultationsLeft ?? 0;
 
   return (
     <>
@@ -46,7 +46,7 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
           {([
             { label: "Вопросов AI",     value: user.isAdmin ? "∞" : (user.paidQuestions ?? 0),   icon: "MessageCircle", accent: "#60a5fa" },
             { label: "Документов",      value: user.isAdmin ? "∞" : (user.paidDocs ?? 0),         icon: "FileText",      accent: "#fbbf24" },
-            { label: "Вопросов юристу", value: user.isAdmin ? "∞" : lawyerQ,                      icon: "User",          accent: lawyerQ > 0 || user.isAdmin ? "#34d399" : "#64748b" },
+            { label: "Консультаций", value: user.isAdmin ? "∞" : lawyerQ, icon: "UserCheck", accent: lawyerQ > 0 || user.isAdmin ? "#34d399" : "#64748b" },
             { label: "Бизнес",          value: user.isAdmin ? "∞" : (bizSubActive ? (user.businessActionsLeft ?? 0) : "—"), icon: "Briefcase", accent: bizSubActive || user.isAdmin ? "#a78bfa" : "#64748b" },
           ] as const).map((stat) => (
             <div
@@ -99,16 +99,16 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
                 </div>
                 <div className={`rounded-xl p-2.5 text-center ${lawyerQ > 0 ? "bg-gold-400/20 border border-gold-400/30" : "bg-white/10"}`}>
                   <p className={`text-lg font-bold ${lawyerQ > 0 ? "text-gold-300" : "text-white"}`}>{lawyerQ}</p>
-                  <p className="text-[9px] text-white/60 font-medium mt-0.5">вопросов юристу</p>
+                  <p className="text-[9px] text-white/60 font-medium mt-0.5">консультаций</p>
                 </div>
               </div>
 
-              {lawyerQ <= 1 && (
+              {lawyerQ === 0 && (
                 <button
-                  onClick={() => onPay("lawyer_questions", "+5 вопросов юристу")}
+                  onClick={() => onPay("lawyer_questions", "+1 консультация юриста")}
                   className="mt-3 w-full py-2 rounded-xl text-xs font-bold bg-gold-500 hover:bg-gold-400 text-navy-900 transition-colors active:scale-[0.98]"
                 >
-                  +5 вопросов юристу · 990 ₽
+                  +1 консультация юриста · 990 ₽
                 </button>
               )}
             </div>

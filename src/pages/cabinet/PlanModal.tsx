@@ -24,10 +24,11 @@ export const PLANS: Plan[] = [
     oldPrice: "1 490",
     questions: 30,
     docs: 5,
-    lawyerFeature: "1 консультация живого юриста",
+    lawyerFeature: "1 полная консультация юриста-эксперта",
     features: [
       "30 вопросов AI-юристу",
       "До 5 документов через систему",
+      "1 полная консультация юриста-эксперта",
       "Загрузка PDF, DOCX, фото для анализа",
       "AI-редактор и уточнение у AI-юриста",
       "Анализ судебной практики при подготовке документа",
@@ -48,11 +49,12 @@ export const PLANS: Plan[] = [
     oldPrice: "5 990",
     questions: 70,
     docs: 20,
-    lawyerFeature: "20 вопросов живому юристу",
+    lawyerFeature: "3 полные консультации юриста-эксперта",
     features: [
       "Всё из тарифа «Старт»",
       "70 вопросов AI-юристу",
       "До 20 документов через систему",
+      "3 полные консультации юриста-эксперта",
       "Консультация юриста с анализом документов",
       "Поиск судебной практики",
       "Калькулятор неустойки",
@@ -69,11 +71,12 @@ export const PLANS: Plan[] = [
     oldPrice: "8 990",
     questions: 150,
     docs: 50,
-    lawyerFeature: "50 вопросов живому юристу + 2 документа от юриста",
+    lawyerFeature: "10 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Профи»",
       "150 вопросов AI-юристу",
       "До 50 документов через систему",
+      "10 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
       "Редактор документов через AI-юриста",
@@ -93,11 +96,12 @@ export const PLANS: Plan[] = [
     oldPrice: "",
     questions: 300,
     docs: 100,
-    lawyerFeature: "50 вопросов живому юристу + 2 документа от юриста",
+    lawyerFeature: "20 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Максимум»",
       "300 вопросов AI-юристу",
       "До 100 документов через систему",
+      "20 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
       "Поиск судебной практики",
@@ -147,24 +151,24 @@ const PLAN_ICONS: Record<string, string> = {
 // Ключевые метрики по тарифу (для визуальных пилюль)
 const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
   plan_starter: [
-    { icon: "MessageCircle", label: "30 вопросов" },
+    { icon: "MessageCircle", label: "30 вопросов AI" },
     { icon: "FileText", label: "5 документов" },
-    { icon: "UserCheck", label: "1 юрист" },
+    { icon: "UserCheck", label: "1 консультация" },
   ],
   plan_pro: [
-    { icon: "MessageCircle", label: "70 вопросов" },
+    { icon: "MessageCircle", label: "70 вопросов AI" },
     { icon: "FileText", label: "20 документов" },
-    { icon: "UserCheck", label: "20 юристу" },
+    { icon: "UserCheck", label: "3 консультации" },
   ],
   plan_max: [
-    { icon: "MessageCircle", label: "150 вопросов" },
+    { icon: "MessageCircle", label: "150 вопросов AI" },
     { icon: "FileText", label: "50 документов" },
-    { icon: "UserCheck", label: "50 юристу" },
+    { icon: "UserCheck", label: "10 консультаций" },
   ],
   plan_corporate: [
-    { icon: "MessageCircle", label: "300 вопросов" },
+    { icon: "MessageCircle", label: "300 вопросов AI" },
     { icon: "FileText", label: "100 документов" },
-    { icon: "UserCheck", label: "50 юристу" },
+    { icon: "UserCheck", label: "20 консультаций" },
   ],
 };
 

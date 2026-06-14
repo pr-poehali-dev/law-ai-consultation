@@ -163,15 +163,15 @@ def grant_service(conn, user_id: int, service_type: str):
     cur = conn.cursor()
     try:
         if service_type == "consultation":
-            # Консультация живого юриста — активируем paid_expert + 5 вопросов
+            # Разовая консультация юриста — 1 консультация
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5 WHERE id = %s",
+                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s",
                 (user_id,)
             )
         elif service_type == "lawyer_questions":
-            # Докупить 5 вопросов к живому юристу
+            # Докупить 1 дополнительную консультацию
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_questions_left = lawyer_questions_left + 5 WHERE id = %s",
+                f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s",
                 (user_id,)
             )
         elif service_type == "document":
@@ -215,7 +215,7 @@ def grant_service(conn, user_id: int, service_type: str):
                     SET paid_questions = paid_questions + 30,
                         paid_docs = paid_docs + 5,
                         paid_expert = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 1,
+                        lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
                             ELSE 'starter'
@@ -230,7 +230,7 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 20,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 20,
+                        lawyer_consultations_left = lawyer_consultations_left + 3,
                         purchased_plan = CASE
                             WHEN purchased_plan = 'max' THEN purchased_plan
                             ELSE 'pro'
@@ -245,7 +245,7 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 50,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 50,
+                        lawyer_consultations_left = lawyer_consultations_left + 10,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
@@ -257,7 +257,7 @@ def grant_service(conn, user_id: int, service_type: str):
                         paid_docs = paid_docs + 100,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_questions_left = lawyer_questions_left + 50,
+                        lawyer_consultations_left = lawyer_consultations_left + 20,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)

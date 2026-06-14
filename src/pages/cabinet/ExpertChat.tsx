@@ -71,13 +71,33 @@ export default function ExpertChat({
           </div>
         )}
 
-        {/* Счётчик (только для обычных пользователей) */}
+        {/* Счётчик консультаций (только для обычных пользователей) */}
         {!isAdmin && (
           <>
-            {isFreeUser && (
+            {isFreeUser ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 bg-amber-50 border border-amber-200">
                 <Icon name="Gift" size={11} className="text-amber-500" />
                 <span className="text-[11px] font-bold text-amber-700">Бесплатно</span>
+              </div>
+            ) : (
+              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 ${
+                lawyerQLeft === 0
+                  ? "bg-red-50 border border-red-200"
+                  : lawyerQLeft <= 2
+                    ? "bg-amber-50 border border-amber-200"
+                    : "bg-emerald-50 border border-emerald-200"
+              }`}>
+                <Icon
+                  name="UserCheck"
+                  size={11}
+                  className={lawyerQLeft === 0 ? "text-red-500" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-600"}
+                />
+                <span className={`text-[11px] font-bold ${lawyerQLeft === 0 ? "text-red-600" : lawyerQLeft <= 2 ? "text-amber-700" : "text-emerald-700"}`}>
+                  {lawyerQLeft}
+                </span>
+                <span className={`text-[10px] font-medium ${lawyerQLeft === 0 ? "text-red-400" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-500"}`}>
+                  конс.
+                </span>
               </div>
             )}
             <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">

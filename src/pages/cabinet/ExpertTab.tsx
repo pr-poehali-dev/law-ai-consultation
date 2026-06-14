@@ -217,7 +217,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
         genDocs={genDocs}
         isBlocked={isBlocked}
         isDialogClosed={isDialogClosed}
-        lawyerQLeft={user.lawyerQuestionsLeft ?? 0}
+        lawyerQLeft={user.lawyerConsultationsLeft ?? 0}
         currentPlanId={currentPlanId}
         onBack={() => { setSelectedUserId(null); setLmsgs([]); }}
         onRefresh={loadMessages}
