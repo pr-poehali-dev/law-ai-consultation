@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=30,
+        timeout=45,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -409,9 +409,9 @@ def handler(event: dict, context) -> dict:
                 if _lu_idx is not None:
                     _case_law_msgs[_lu_idx] = {**_case_law_msgs[_lu_idx],
                                                "content": _case_law_msgs[_lu_idx].get("content", "") + case_law_db_ctx}
-                answer = call_yandex(SYSTEM_CASE_LAW, _case_law_msgs, max_tokens=2000, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CASE_LAW, _case_law_msgs, max_tokens=3000, fast=True, temperature=0.3)
             else:
-                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=2000, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CASE_LAW, clean_messages, max_tokens=3000, fast=True, temperature=0.3)
             if is_case_law_not_found(answer):
                 needs_expert = True
                 answer = answer.rstrip()
@@ -427,7 +427,7 @@ def handler(event: dict, context) -> dict:
                 orig = duty_messages[last_user_idx].get("content", "")
                 duty_messages[last_user_idx] = {**duty_messages[last_user_idx],
                                                 "content": orig + duty_ctx + duty_db_ctx}
-            answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=2000, fast=True, temperature=0.2)
+            answer = call_yandex(SYSTEM_CHAT, duty_messages, max_tokens=3000, fast=True, temperature=0.2)
 
         else:
             # Параллельно ищем по всем категориям правовой базы
@@ -474,12 +474,12 @@ def handler(event: dict, context) -> dict:
                 if _lu_idx2 is not None:
                     enriched_msgs[_lu_idx2] = {**enriched_msgs[_lu_idx2],
                                                "content": enriched_msgs[_lu_idx2].get("content", "") + extra_ctx}
-                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=2000, fast=True, temperature=0.2)
+                answer = call_yandex(SYSTEM_CHAT, enriched_msgs, max_tokens=3000, fast=True, temperature=0.2)
                 print(f"[AI_CHAT] universal_ctx: chars={len(extra_ctx)}, simple={_is_simple}")
             elif _is_simple:
                 answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
             else:
-                answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=2000, fast=True, temperature=0.3)
+                answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=3000, fast=True, temperature=0.3)
 
         # Fallback DeepSeek при отказе Яндекса
         if is_refusal(answer) and not is_system_mode:
