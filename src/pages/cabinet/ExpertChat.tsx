@@ -295,10 +295,10 @@ export default function ExpertChat({
                         <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
                           <Icon name="Lock" size={12} className="text-amber-500" />
                         </div>
-                        <p className="text-sm font-semibold text-navy-800">Вопросы к юристу исчерпаны</p>
+                        <p className="text-sm font-semibold text-navy-800">Все консультации использованы</p>
                       </div>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Вы можете читать переписку, но отправка новых сообщений недоступна. Пополните вопросы или перейдите на более высокий тариф.
+                        Вы можете читать переписку, но отправка новых сообщений недоступна. Обновите тариф или докупите доступ.
                       </p>
                     </div>
                     {/* Кнопки воронки */}
@@ -308,11 +308,11 @@ export default function ExpertChat({
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.98] text-left bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 shadow-sm"
                       >
                         <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
-                          <Icon name="MessageCircle" size={16} className="text-gold-400" />
+                          <Icon name="UserCheck" size={16} className="text-gold-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white leading-tight">+5 вопросов юристу</p>
-                          <p className="text-xs text-white/60 mt-0.5">Ответ в течение 24 часов</p>
+                          <p className="text-sm font-semibold text-white leading-tight">+1 консультация юриста</p>
+                          <p className="text-xs text-white/60 mt-0.5">Ответ в течение 1–3 часов</p>
                         </div>
                         <span className="text-sm font-bold text-gold-400 shrink-0">990 ₽</span>
                       </button>
