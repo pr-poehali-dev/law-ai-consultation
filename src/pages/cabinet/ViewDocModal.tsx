@@ -54,20 +54,19 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   // Toast-уведомление
   const [toastType, setToastType] = useState<"lawyer_prompt" | "need_starter" | "need_consultation" | null>(null);
 
-  // Показываем toast при открытии предпросмотра если у пользователя тариф Старт
+  // Показываем toast при открытии предпросмотра если купил только 1 документ (без тарифа)
   useEffect(() => {
     getUser().then(user => {
       if (!user || user.isAdmin) return;
-      const hasStarter = user.purchasedPlan === "starter";
-      const hasPaidExpert = user.paidExpert;
-      const hasConsultation = (user.lawyerConsultationsLeft ?? 0) > 0;
-      // Только для тарифа Старт с консультацией — подсказка направить юристу
-      if (hasStarter && hasPaidExpert && hasConsultation) {
+      const hasPlan = !!user.purchasedPlan;
+      const hasSub = !!(user.subscriptionConsultUntil || user.subscriptionDocsUntil);
+      // Только разовая покупка документа — нет тарифа и нет подписки
+      if (!hasPlan && !hasSub) {
         const t = setTimeout(() => setToastType("lawyer_prompt"), 1200);
         return () => clearTimeout(t);
       }
     });
-  }, []);  
+  }, []);
 
   // Фоновый анализ рекомендаций — запускается после показа документа
   useEffect(() => {
