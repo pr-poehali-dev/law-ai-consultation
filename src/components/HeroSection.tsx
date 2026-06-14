@@ -94,22 +94,26 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             {/* Кнопка бесплатной консультации юриста */}
             <button
               onClick={() => handleOpenLogin({ freeTrial: false, pendingTab: "expert" })}
-              className="group w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl transition-all duration-200 hover:brightness-110 active:scale-[0.99]"
+              className="group w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]"
               style={{
-                background: "linear-gradient(90deg, rgba(232,168,32,0.18) 0%, rgba(245,208,96,0.10) 100%)",
-                border: "1px solid rgba(232,168,32,0.35)",
-                boxShadow: "0 2px 16px rgba(232,168,32,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
+                background: "linear-gradient(135deg, #e8a820 0%, #f0c060 50%, #e8a820 100%)",
+                backgroundSize: "200% 100%",
+                backgroundPosition: "0% 0%",
+                color: "#0a1628",
+                boxShadow: "0 4px 20px rgba(232,168,32,0.35), 0 1px 0 rgba(255,255,255,0.15) inset",
               }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 32px rgba(232,168,32,0.55), 0 1px 0 rgba(255,255,255,0.15) inset"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(232,168,32,0.35), 0 1px 0 rgba(255,255,255,0.15) inset"; }}
             >
-              <div className="flex items-center gap-3">
-                <Icon name="MessageCircle" size={16} color="#e8a820" />
-                <span className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
-                  Получить предварительную консультацию от юриста-эксперта
-                </span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(10,22,40,0.15)" }}>
+                  <Icon name="UserCheck" size={13} color="#0a1628" />
+                </div>
+                <span>Получить бесплатную консультацию юриста-эксперта</span>
               </div>
               <span
-                className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
-                style={{ background: "rgba(232,168,32,0.18)", color: "#e8a820", border: "1px solid rgba(232,168,32,0.3)" }}
+                className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: "rgba(10,22,40,0.15)", color: "#0a1628" }}
               >
                 Бесплатно
               </span>
