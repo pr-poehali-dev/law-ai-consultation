@@ -113,12 +113,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                 style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)" }} />
 
-              <div className="flex items-center gap-2.5 relative z-10 min-w-0">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.18)" }}>
-                  <Icon name="UserCheck" size={14} color="#0a1628" />
-                </div>
-                <span className="truncate text-[13px] sm:text-sm">Получить предварительную консультацию юриста-эксперта</span>
-              </div>
+              <span className="relative z-10 truncate text-[13px] sm:text-sm">Получить предварительную консультацию юриста-эксперта</span>
 
               <span
                 className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase whitespace-nowrap"
