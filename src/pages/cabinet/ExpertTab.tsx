@@ -47,9 +47,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   // Для платных — блокировка только через завершение консультации юристом
   const isDialogClosed = lmsgs.length > 0 && lmsgs.every(m => (m as LawyerMessage & { is_closed?: boolean }).is_closed);
   const hasSentUserMsg = lmsgs.some(m => m.sender === "user");
-  const isBlocked = isFreeUser
-    ? sentFreeQuestion || ((user.lawyerQuestionsLeft ?? 0) <= 0 && hasSentUserMsg)
-    : false;
+  // Блокируем free-пользователя как только он отправил хотя бы 1 сообщение — даже после перезагрузки
+  const isBlocked = isFreeUser ? (sentFreeQuestion || hasSentUserMsg) : false;
 
   const loadMessages = useCallback(async () => {
     if (!isPaid && !isFreeUser && !user.isAdmin) return;
