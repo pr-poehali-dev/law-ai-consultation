@@ -153,6 +153,7 @@ export default function Index() {
     }
     if (opts?.pendingTab) setPendingTab(opts.pendingTab);
     setFreeTrial(opts?.freeTrial ?? false);
+    setLoginMode("register");
     setShowLogin(true);
   }, [isLoggedIn, navigate]);
 
