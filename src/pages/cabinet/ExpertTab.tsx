@@ -29,6 +29,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   const [loading, setLoading] = useState(true);
   const [showArchive, setShowArchive] = useState(false);
   const [adminAction, setAdminAction] = useState<"complete" | "hide" | null>(null);
+  const [sentFreeQuestion, setSentFreeQuestion] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,11 +43,12 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   const isPaid = user.isAdmin || user.paidExpert;
   // Пользователь без тарифа — 1 бесплатная предварительная консультация (через lawyerQuestionsLeft)
   const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null);
-  // Для free-пользователей блокируем по lawyerQuestionsLeft (старая механика, только для бесплатной)
-  // Для платных — не блокируем по вопросам, блокировка только через завершение консультации юристом
+  // Для free-пользователей блокируем после отправки 1 вопроса (только для предварительной)
+  // Для платных — блокировка только через завершение консультации юристом
   const isDialogClosed = lmsgs.length > 0 && lmsgs.every(m => (m as LawyerMessage & { is_closed?: boolean }).is_closed);
+  const hasSentUserMsg = lmsgs.some(m => m.sender === "user");
   const isBlocked = isFreeUser
-    ? (user.lawyerQuestionsLeft ?? 0) <= 0 && lmsgs.some(m => m.sender === "user")
+    ? sentFreeQuestion || ((user.lawyerQuestionsLeft ?? 0) <= 0 && hasSentUserMsg)
     : false;
 
   const loadMessages = useCallback(async () => {
@@ -136,6 +138,9 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     const res = await lawyerSend(params);
     setUploadProgress(100);
     if (res.error) { setErr(res.error); setSending(false); setUploadProgress(0); return; }
+
+    // Для free-пользователей — блокируем после первой отправки
+    if (isFreeUser) setSentFreeQuestion(true);
 
     setInput("");
     clearAttachments();
