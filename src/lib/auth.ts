@@ -41,6 +41,7 @@ export interface User {
   lawyerQuestionsLeft: number;
   hasFileAnalysis: boolean;
   purchasedPlan: "starter" | "pro" | "max" | null;
+  lawyerConsultationsLeft: number;
 }
 
 /** Купил ли пользователь хотя бы тариф Старт или выше (независимо от остатков) */
@@ -608,6 +609,8 @@ export interface LawyerDialog {
   last_at: string;
   unread: number;
   is_closed?: boolean;
+  lawyer_consultations_left?: number;
+  purchased_plan?: string | null;
 }
 
 export async function lawyerSend(params: {
@@ -639,6 +642,13 @@ export async function lawyerCloseDialog(targetUserId: number): Promise<{ ok?: bo
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка" };
   return { ok: true };
+}
+
+export async function lawyerCompleteConsultation(targetUserId: number): Promise<{ ok?: boolean; consultations_left?: number; error?: string }> {
+  const res = await apiCall({ action: "lawyer-complete-consultation", target_user_id: targetUserId });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка" };
+  return { ok: true, consultations_left: data.consultations_left };
 }
 
 export async function lawyerCompleteService(targetUserId: number, serviceType = "paid_expert"): Promise<{ ok?: boolean; error?: string }> {

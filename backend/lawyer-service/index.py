@@ -26,7 +26,7 @@ _SELECT_COLS = (
     "paid_docs, paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
-    "lawyer_questions_left"
+    "lawyer_questions_left, has_file_analysis, purchased_plan, lawyer_consultations_left"
 )
 
 # ─────────────────────────────────────────────
@@ -83,6 +83,9 @@ def _format_user(row) -> dict:
         "businessOrgName": row[14] if len(row) > 14 else "",
         "referralCode": row[15] if len(row) > 15 else "",
         "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
+        "hasFileAnalysis": bool(row[17]) if len(row) > 17 else False,
+        "purchasedPlan": row[18] if len(row) > 18 else None,
+        "lawyerConsultationsLeft": row[19] if len(row) > 19 else 0,
     }
 
 
@@ -226,19 +229,6 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         )
         row = cur.fetchone()
 
-        # Списываем 1 вопрос к юристу (только когда пишет пользователь)
-        if not is_admin:
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET lawyer_questions_left = GREATEST(0, lawyer_questions_left - 1)
-                    WHERE id = %s
-                    RETURNING lawyer_questions_left""",
-                (user_id,)
-            )
-            qleft_row = cur.fetchone()
-            if qleft_row:
-                lawyer_questions_left = qleft_row[0]
-
         conn.commit()
 
         # Получаем данные отправителя для письма
@@ -327,8 +317,6 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
             print(f"[LAWYER_REPLY] Email не отправлен: {e}")
 
     result = {"id": row[0], "created_at": row[1].isoformat()}
-    if lawyer_questions_left is not None:
-        result["lawyer_questions_left"] = lawyer_questions_left
     return _ok(result)
 
 
@@ -355,7 +343,9 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
                     f"""SELECT DISTINCT ON (lm.user_id) lm.user_id, u.name, u.email,
                         lm.body, lm.sender, lm.created_at,
                         (SELECT COUNT(*) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id AND sender='user' AND is_read=FALSE) as unread,
-                        (SELECT bool_or(is_closed) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id) as is_closed
+                        (SELECT bool_or(is_closed) FROM {SCHEMA}.lawyer_messages WHERE user_id=lm.user_id) as is_closed,
+                        u.lawyer_consultations_left,
+                        u.purchased_plan
                         FROM {SCHEMA}.lawyer_messages lm
                         JOIN {SCHEMA}.users u ON u.id = lm.user_id
                         {closed_filter}
@@ -365,7 +355,9 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
                 return _ok({"dialogs": [
                     {"user_id": r[0], "name": r[1], "email": r[2],
                      "last_message": r[3], "last_sender": r[4],
-                     "last_at": r[5].isoformat(), "unread": r[6], "is_closed": bool(r[7])}
+                     "last_at": r[5].isoformat(), "unread": int(r[6]), "is_closed": bool(r[7]),
+                     "lawyer_consultations_left": r[8] if r[8] is not None else 0,
+                     "purchased_plan": r[9]}
                     for r in rows
                 ]})
         else:
@@ -404,7 +396,7 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
 
 
 def handle_lawyer_close_dialog(body: dict, user_id: int, is_admin: bool) -> dict:
-    """Закрыть диалог с пользователем (только для админа)."""
+    """Скрыть диалог из списка (только для админа). Не списывает консультацию."""
     if not is_admin:
         return _err(403, "Нет доступа")
     target_user_id = body.get("target_user_id")
@@ -422,6 +414,39 @@ def handle_lawyer_close_dialog(body: dict, user_id: int, is_admin: bool) -> dict
         cur.close()
         conn.close()
     return _ok({"closed": True})
+
+
+def handle_lawyer_complete_consultation(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Завершить консультацию (только для админа): закрыть диалог + списать 1 консультацию у пользователя."""
+    if not is_admin:
+        return _err(403, "Нет доступа")
+    target_user_id = body.get("target_user_id")
+    if not target_user_id:
+        return _err(400, "Укажите target_user_id")
+    tid = int(target_user_id)
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # Закрываем диалог
+        cur.execute(
+            f"UPDATE {SCHEMA}.lawyer_messages SET is_closed=TRUE WHERE user_id=%s",
+            (tid,)
+        )
+        # Списываем 1 консультацию (не ниже 0)
+        cur.execute(
+            f"""UPDATE {SCHEMA}.users
+                SET lawyer_consultations_left = GREATEST(0, lawyer_consultations_left - 1)
+                WHERE id=%s
+                RETURNING lawyer_consultations_left""",
+            (tid,)
+        )
+        row = cur.fetchone()
+        consultations_left = row[0] if row else 0
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return _ok({"completed": True, "consultations_left": consultations_left})
 
 
 def handle_lawyer_complete_service(token: str, body: dict) -> dict:
@@ -577,6 +602,7 @@ def handler(event: dict, context) -> dict:
         "lawyer-send",
         "lawyer-messages",
         "lawyer-close-dialog",
+        "lawyer-complete-consultation",
         "lawyer-upload-file",
     }
 
@@ -596,6 +622,9 @@ def handler(event: dict, context) -> dict:
 
         if action == "lawyer-close-dialog":
             return _result_response(handle_lawyer_close_dialog(body, user_id, is_admin))
+
+        if action == "lawyer-complete-consultation":
+            return _result_response(handle_lawyer_complete_consultation(body, user_id, is_admin))
 
         if action == "lawyer-upload-file":
             return _result_response(handle_lawyer_upload_file(body, user_id))

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { User } from "@/lib/auth";
-import { lawyerSend, lawyerMessages, lawyerUploadFile } from "@/lib/auth";
+import { lawyerSend, lawyerMessages, lawyerUploadFile, lawyerCloseDialog, lawyerCompleteConsultation } from "@/lib/auth";
 import type { LawyerMessage, LawyerDialog } from "@/lib/auth";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
@@ -27,7 +27,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   const [uploadProgress, setUploadProgress] = useState(0);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
-  const [lawyerQLeft, setLawyerQLeft] = useState<number>(user.lawyerQuestionsLeft ?? 0);
+  const [showArchive, setShowArchive] = useState(false);
+  const [adminAction, setAdminAction] = useState<"complete" | "hide" | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -39,14 +40,19 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   } = useAttachment();
 
   const isPaid = user.isAdmin || user.paidExpert;
-  // Пользователь без тарифа имеет 1 бесплатный вопрос
+  // Пользователь без тарифа — 1 бесплатная предварительная консультация (через lawyerQuestionsLeft)
   const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null);
-  const isBlocked = !user.isAdmin && (isPaid || isFreeUser) && lawyerQLeft <= 0;
+  // Для free-пользователей блокируем по lawyerQuestionsLeft (старая механика, только для бесплатной)
+  // Для платных — не блокируем по вопросам, блокировка только через завершение консультации юристом
+  const isDialogClosed = lmsgs.length > 0 && lmsgs.every(m => (m as LawyerMessage & { is_closed?: boolean }).is_closed);
+  const isBlocked = isFreeUser
+    ? (user.lawyerQuestionsLeft ?? 0) <= 0 && lmsgs.some(m => m.sender === "user")
+    : false;
 
   const loadMessages = useCallback(async () => {
-    if (!isPaid && !isFreeUser) return;
+    if (!isPaid && !isFreeUser && !user.isAdmin) return;
     if (user.isAdmin && !selectedUserId) {
-      const res = await lawyerMessages();
+      const res = await lawyerMessages({ show_closed: showArchive });
       if (res.dialogs) setDialogs(res.dialogs);
       setLoading(false);
       return;
@@ -55,10 +61,10 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     const res = await lawyerMessages(params);
     if (res.messages) setLmsgs(res.messages);
     setLoading(false);
-  }, [isPaid, user.isAdmin, selectedUserId]);
+  }, [isPaid, isFreeUser, user.isAdmin, selectedUserId, showArchive]);
 
   useEffect(() => {
-    if (!isPaid && !isFreeUser) { setLoading(false); return; }
+    if (!isPaid && !isFreeUser && !user.isAdmin) { setLoading(false); return; }
     loadMessages();
     pollRef.current = setInterval(loadMessages, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -68,10 +74,6 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lmsgs]);
 
-  useEffect(() => {
-    setLawyerQLeft(user.lawyerQuestionsLeft ?? 0);
-  }, [user.lawyerQuestionsLeft]);
-
   const adjustTextarea = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -80,7 +82,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   };
 
   const send = async () => {
-    if (isBlocked) return;
+    if (isBlocked || isDialogClosed) return;
     const text = input.trim();
     if (!text && attachments.length === 0) return;
     setSending(true);
@@ -135,12 +137,6 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     setUploadProgress(100);
     if (res.error) { setErr(res.error); setSending(false); setUploadProgress(0); return; }
 
-    if (!user.isAdmin && res.lawyer_questions_left !== undefined) {
-      setLawyerQLeft(res.lawyer_questions_left);
-    } else if (!user.isAdmin) {
-      setLawyerQLeft(prev => Math.max(0, prev - 1));
-    }
-
     setInput("");
     clearAttachments();
     setShowAttachPanel(false);
@@ -148,6 +144,28 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     await loadMessages();
     setSending(false);
     setUploadProgress(0);
+  };
+
+  // Завершить консультацию (списывает 1 консультацию + скрывает диалог)
+  const handleCompleteConsultation = async () => {
+    if (!selectedUserId) return;
+    setAdminAction(null);
+    setSending(true);
+    await lawyerCompleteConsultation(selectedUserId);
+    setSending(false);
+    setSelectedUserId(null);
+    setLmsgs([]);
+    await loadMessages();
+  };
+
+  // Скрыть диалог (без списания консультации)
+  const handleHideDialog = async () => {
+    if (!selectedUserId) return;
+    setAdminAction(null);
+    await lawyerCloseDialog(selectedUserId);
+    setSelectedUserId(null);
+    setLmsgs([]);
+    await loadMessages();
   };
 
   if (!isPaid && !isFreeUser && !user.isAdmin) {
@@ -159,6 +177,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
       <ExpertDialogList
         dialogs={dialogs}
         loading={loading}
+        showArchive={showArchive}
+        onToggleArchive={() => { setShowArchive(v => !v); }}
         onSelect={(userId) => { setSelectedUserId(userId); setLmsgs([]); setLoading(true); }}
         onRefresh={loadMessages}
       />
@@ -173,41 +193,97 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     : "plan_starter";
 
   return (
-    <ExpertChat
-      isAdmin={user.isAdmin}
-      isFreeUser={isFreeUser}
-      selectedUserId={selectedUserId}
-      currentDialog={currentDialog}
-      lmsgs={lmsgs}
-      loading={loading}
-      input={input}
-      sending={sending}
-      uploadProgress={uploadProgress}
-      err={err}
-      attachments={attachments}
-      showAttachPanel={showAttachPanel}
-      viewFullMsg={viewFullMsg}
-      aiAnswers={aiAnswers}
-      genDocs={genDocs}
-      isBlocked={isBlocked}
-      lawyerQLeft={lawyerQLeft}
-      currentPlanId={currentPlanId}
-      onBack={() => { setSelectedUserId(null); setLmsgs([]); }}
-      onRefresh={loadMessages}
-      onInputChange={setInput}
-      onSend={send}
-      onToggleAttachPanel={() => setShowAttachPanel(p => !p)}
-      onHideAttachPanel={() => setShowAttachPanel(false)}
-      onAddAttachment={addAttachment}
-      onAddFiles={addFiles}
-      onRemoveAttachment={removeAttachment}
-      onViewFullMsg={setViewFullMsg}
-      onCloseFullMsg={() => setViewFullMsg(null)}
-      onBuyLawyerQuestions={onBuyLawyerQuestions}
-      onUpgradePlan={onPayClick}
-      textareaRef={textareaRef}
-      bottomRef={bottomRef}
-      adjustTextarea={adjustTextarea}
-    />
+    <>
+      <ExpertChat
+        isAdmin={user.isAdmin}
+        isFreeUser={isFreeUser}
+        selectedUserId={selectedUserId}
+        currentDialog={currentDialog}
+        lmsgs={lmsgs}
+        loading={loading}
+        input={input}
+        sending={sending}
+        uploadProgress={uploadProgress}
+        err={err}
+        attachments={attachments}
+        showAttachPanel={showAttachPanel}
+        viewFullMsg={viewFullMsg}
+        aiAnswers={aiAnswers}
+        genDocs={genDocs}
+        isBlocked={isBlocked}
+        isDialogClosed={isDialogClosed}
+        lawyerQLeft={user.lawyerQuestionsLeft ?? 0}
+        currentPlanId={currentPlanId}
+        onBack={() => { setSelectedUserId(null); setLmsgs([]); }}
+        onRefresh={loadMessages}
+        onInputChange={setInput}
+        onSend={send}
+        onToggleAttachPanel={() => setShowAttachPanel(p => !p)}
+        onHideAttachPanel={() => setShowAttachPanel(false)}
+        onAddAttachment={addAttachment}
+        onAddFiles={addFiles}
+        onRemoveAttachment={removeAttachment}
+        onViewFullMsg={setViewFullMsg}
+        onCloseFullMsg={() => setViewFullMsg(null)}
+        onBuyLawyerQuestions={onBuyLawyerQuestions}
+        onUpgradePlan={onPayClick}
+        onCompleteConsultation={() => setAdminAction("complete")}
+        onHideDialog={() => setAdminAction("hide")}
+        textareaRef={textareaRef}
+        bottomRef={bottomRef}
+        adjustTextarea={adjustTextarea}
+      />
+
+      {/* Модал подтверждения для админа */}
+      {adminAction && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAdminAction(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 z-10">
+            {adminAction === "complete" ? (
+              <>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">✅</span>
+                </div>
+                <h3 className="text-base font-bold text-navy-800 text-center mb-2">Завершить консультацию?</h3>
+                <p className="text-sm text-slate-500 text-center mb-5 leading-relaxed">
+                  Диалог будет скрыт, у пользователя спишется <strong>1 консультация</strong> из баланса.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => setAdminAction(null)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    Отмена
+                  </button>
+                  <button onClick={handleCompleteConsultation}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors"
+                    style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}>
+                    Завершить
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🗂</span>
+                </div>
+                <h3 className="text-base font-bold text-navy-800 text-center mb-2">Скрыть диалог?</h3>
+                <p className="text-sm text-slate-500 text-center mb-5 leading-relaxed">
+                  Диалог пропадёт из списка. Консультация <strong>не спишется</strong>. При новом сообщении от пользователя — появится снова.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => setAdminAction(null)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    Отмена
+                  </button>
+                  <button onClick={handleHideDialog}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-sm font-bold text-white transition-colors">
+                    Скрыть
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

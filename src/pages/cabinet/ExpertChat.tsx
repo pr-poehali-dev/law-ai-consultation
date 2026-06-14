@@ -5,7 +5,7 @@ import { EXPERT_NAME } from "./ExpertChatUtils";
 import type { ExpertChatProps } from "./ExpertChatUtils";
 
 export default function ExpertChat({
-  isAdmin, isFreeUser = false, selectedUserId, currentDialog, lmsgs, loading,
+  isAdmin, isFreeUser = false, isDialogClosed = false, selectedUserId, currentDialog, lmsgs, loading,
   input, sending, uploadProgress, err, attachments, showAttachPanel, viewFullMsg,
   aiAnswers, genDocs, isBlocked = false, lawyerQLeft = 0, currentPlanId = "plan_starter",
   onBack, onRefresh, onInputChange, onSend,
@@ -13,9 +13,9 @@ export default function ExpertChat({
   onAddAttachment, onAddFiles, onRemoveAttachment,
   onViewFullMsg, onCloseFullMsg,
   onBuyLawyerQuestions, onUpgradePlan,
+  onCompleteConsultation, onHideDialog,
   textareaRef, bottomRef, adjustTextarea,
 }: ExpertChatProps) {
-  // Показываем уведомление "вопрос отправлен" если есть сообщения от user и вопросы исчерпаны у free-пользователя
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
 
@@ -25,11 +25,11 @@ export default function ExpertChat({
       {/* Шапка */}
       <div className="flex items-center gap-2 sm:gap-3 bg-white rounded-2xl border border-border px-3 sm:px-4 py-3 shadow-sm shrink-0">
         {isAdmin && (
-          <button onClick={onBack} className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors">
+          <button onClick={onBack} className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors shrink-0">
             <Icon name="ArrowLeft" size={16} className="text-navy-600" />
           </button>
         )}
-        <div className="relative">
+        <div className="relative shrink-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 gradient-navy rounded-xl flex items-center justify-center shadow-sm">
             <Icon name="UserCheck" size={15} className="text-gold-400" />
           </div>
@@ -39,28 +39,52 @@ export default function ExpertChat({
           <p className="text-sm font-semibold text-navy-800 truncate">
             {isAdmin ? (currentDialog?.name ?? `Клиент #${selectedUserId}`) : EXPERT_NAME}
           </p>
-          <p className="text-[11px] text-emerald-600 font-medium">
-            {isAdmin ? currentDialog?.email : "Онлайн · ответит в течение 24 ч"}
+          <p className="text-[11px] font-medium truncate" style={{ color: isAdmin ? "#64748b" : "#059669" }}>
+            {isAdmin
+              ? (currentDialog?.email ?? "")
+              : "Онлайн · ответит в течение 1–3 ч"}
           </p>
         </div>
-        {/* Счётчик вопросов юриста */}
-        {!isAdmin && (
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 ${
-            isBlocked
-              ? "bg-red-50 border border-red-200"
-              : lawyerQLeft <= 2
-                ? "bg-amber-50 border border-amber-200"
-                : "bg-emerald-50 border border-emerald-200"
-          }`}>
-            <Icon name="User" size={11} className={isBlocked ? "text-red-500" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-600"} />
-            <span className={`text-[11px] font-bold ${isBlocked ? "text-red-600" : lawyerQLeft <= 2 ? "text-amber-700" : "text-emerald-700"}`}>
-              {isBlocked ? "0" : lawyerQLeft}
-            </span>
+
+        {/* Кнопки для админа */}
+        {isAdmin && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={onCompleteConsultation}
+              title="Завершить консультацию (списать 1 консультацию)"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:shadow-sm active:scale-95"
+              style={{ background: "rgba(5,150,105,0.1)", color: "#059669", border: "1px solid rgba(5,150,105,0.2)" }}
+            >
+              <Icon name="CheckCircle" size={13} />
+              <span className="hidden sm:inline">Завершить</span>
+            </button>
+            <button
+              onClick={onHideDialog}
+              title="Скрыть диалог (без списания)"
+              className="p-2 rounded-xl transition-colors hover:bg-slate-100"
+            >
+              <Icon name="EyeOff" size={14} className="text-slate-400" />
+            </button>
+            <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
+            </button>
           </div>
         )}
-        <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-          <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
-        </button>
+
+        {/* Счётчик (только для обычных пользователей) */}
+        {!isAdmin && (
+          <>
+            {isFreeUser && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 bg-amber-50 border border-amber-200">
+                <Icon name="Gift" size={11} className="text-amber-500" />
+                <span className="text-[11px] font-bold text-amber-700">Бесплатно</span>
+              </div>
+            )}
+            <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Баннер: 1 бесплатный вопрос (только для free-пользователей до отправки) */}
@@ -348,10 +372,14 @@ export default function ExpertChat({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isBlocked) onSend(); }
               }}
-              disabled={sending || isBlocked}
-              placeholder={isBlocked ? "Вопросы к юристу исчерпаны" : isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
+              disabled={sending || isBlocked || isDialogClosed}
+              placeholder={
+                isDialogClosed ? "Консультация завершена" :
+                isBlocked ? "Предварительная консультация использована" :
+                isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."
+              }
               className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none resize-none leading-relaxed transition-colors ${
-                isBlocked
+                isBlocked || isDialogClosed
                   ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed"
                   : "bg-slate-50 border-slate-200 text-navy-800 placeholder:text-muted-foreground focus:border-navy-300 focus:bg-white"
               }`}

@@ -31,6 +31,7 @@ export function parseFileLinks(body: string): { text: string; files: { name: str
 export interface ExpertChatProps {
   isAdmin: boolean;
   isFreeUser?: boolean;
+  isDialogClosed?: boolean;
   selectedUserId: number | null;
   currentDialog: LawyerDialog | null | undefined;
   lmsgs: LawyerMessage[];
@@ -60,6 +61,8 @@ export interface ExpertChatProps {
   onCloseFullMsg: () => void;
   onBuyLawyerQuestions?: () => void;
   onUpgradePlan?: () => void;
+  onCompleteConsultation?: () => void;
+  onHideDialog?: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   bottomRef: React.RefObject<HTMLDivElement>;
   adjustTextarea: () => void;
