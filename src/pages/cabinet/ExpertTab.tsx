@@ -49,7 +49,11 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   const hasSentUserMsg = lmsgs.some(m => m.sender === "user");
   // Блокируем free-пользователя как только он отправил хотя бы 1 сообщение — даже после перезагрузки.
   // Пока loading=true — тоже блокируем (ждём данных), иначе можно успеть отправить до загрузки истории.
-  const isBlocked = isFreeUser ? (loading || sentFreeQuestion || hasSentUserMsg) : false;
+  const consultationsLeft = user.lawyerConsultationsLeft ?? 0;
+  // Free-пользователь: блокируем после 1 вопроса. Платный: блокируем если 0 консультаций.
+  const isBlocked = isFreeUser
+    ? (loading || sentFreeQuestion || hasSentUserMsg)
+    : (!user.isAdmin && consultationsLeft <= 0);
 
   const loadMessages = useCallback(async () => {
     if (!isPaid && !isFreeUser && !user.isAdmin) return;
