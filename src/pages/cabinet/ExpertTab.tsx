@@ -39,10 +39,12 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   } = useAttachment();
 
   const isPaid = user.isAdmin || user.paidExpert;
-  const isBlocked = !user.isAdmin && isPaid && lawyerQLeft <= 0;
+  // Пользователь без тарифа имеет 1 бесплатный вопрос
+  const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null);
+  const isBlocked = !user.isAdmin && (isPaid || isFreeUser) && lawyerQLeft <= 0;
 
   const loadMessages = useCallback(async () => {
-    if (!isPaid) return;
+    if (!isPaid && !isFreeUser) return;
     if (user.isAdmin && !selectedUserId) {
       const res = await lawyerMessages();
       if (res.dialogs) setDialogs(res.dialogs);
@@ -56,11 +58,11 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   }, [isPaid, user.isAdmin, selectedUserId]);
 
   useEffect(() => {
-    if (!isPaid) { setLoading(false); return; }
+    if (!isPaid && !isFreeUser) { setLoading(false); return; }
     loadMessages();
     pollRef.current = setInterval(loadMessages, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [loadMessages, isPaid]);
+  }, [loadMessages, isPaid, isFreeUser]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -148,7 +150,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
     setUploadProgress(0);
   };
 
-  if (!isPaid && !user.isAdmin) {
+  if (!isPaid && !isFreeUser && !user.isAdmin) {
     return <ExpertPaywall onPayClick={onPayClick} />;
   }
 
@@ -173,6 +175,7 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   return (
     <ExpertChat
       isAdmin={user.isAdmin}
+      isFreeUser={isFreeUser}
       selectedUserId={selectedUserId}
       currentDialog={currentDialog}
       lmsgs={lmsgs}

@@ -30,6 +30,7 @@ export function parseFileLinks(body: string): { text: string; files: { name: str
 
 export interface ExpertChatProps {
   isAdmin: boolean;
+  isFreeUser?: boolean;
   selectedUserId: number | null;
   currentDialog: LawyerDialog | null | undefined;
   lmsgs: LawyerMessage[];
