@@ -113,7 +113,7 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                 style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)" }} />
 
-              <span className="relative z-10 flex-1 text-center text-[14px] sm:text-[15px] italic" style={{ fontFamily: "Times New Roman, serif" }}>Получить предварительную консультацию юриста-эксперта</span>
+              <span className="relative z-10 flex-1 text-center text-[14px] sm:text-[15px] font-semibold" style={{ fontFamily: "Times New Roman, serif" }}>Получить предварительную консультацию юриста-эксперта</span>
 
               <span
                 className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase whitespace-nowrap"
