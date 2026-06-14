@@ -15,6 +15,7 @@ YUKASSA_AGENT_ID = "515407"
 
 PRICES = {
     "consultation":         "990.00",
+    "lawyer_questions":     "990.00",
     "document":             "290.00",
     "doc_analysis":         "99.00",
     "quick_questions":      "35.00",
@@ -40,6 +41,7 @@ PRICES = {
 
 DESCRIPTIONS = {
     "consultation":         "Консультация живого юриста",
+    "lawyer_questions":     "+1 консультация живого юриста",
     "document":             "Подготовка юридического документа",
     "doc_analysis":         "Разовый анализ документа",
     "quick_questions":      "+3 вопроса AI-юристу",
