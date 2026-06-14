@@ -369,8 +369,8 @@ def _sanitize_doc_text(text: str) -> str:
 
 def analyze_file_with_yandex(text: str, comment: str, iam_token: str, n_docs: int = 1) -> str:
     # Лимит текста и токенов масштабируется под количество документов
-    TEXT_LIMIT = min(2500 + (n_docs - 1) * 800, 4500)
-    MAX_TOKENS = min(1200 + (n_docs - 1) * 400, 2000)
+    TEXT_LIMIT = min(4000 + (n_docs - 1) * 1000, 8000)
+    MAX_TOKENS = min(5000 + (n_docs - 1) * 500, 5000)
 
     clean_text = _sanitize_doc_text(text)[:TEXT_LIMIT]
 
@@ -399,7 +399,7 @@ def analyze_file_with_yandex(text: str, comment: str, iam_token: str, n_docs: in
             "temperature": 0.2,
             "stream": False,
         },
-        timeout=45,
+        timeout=110,
     )
     resp.raise_for_status()
     result = resp.json()["choices"][0]["message"]["content"].strip()
