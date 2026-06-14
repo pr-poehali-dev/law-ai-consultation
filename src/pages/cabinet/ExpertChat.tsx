@@ -331,8 +331,8 @@ export default function ExpertChat({
                             </p>
                             <p className="text-xs text-slate-500 mt-0.5">
                               {currentPlanId === "plan_starter"
-                                ? "+5 вопросов юристу · 100 вопросов AI"
-                                : "+30 вопросов юристу · 300 вопросов AI"}
+                                ? "+5 консультаций юриста · 100 вопросов AI · 20 документов"
+                                : "+10 консультаций юриста · 300 вопросов AI · 100 документов"}
                             </p>
                           </div>
                           <Icon name="ChevronRight" size={14} className="text-slate-400 shrink-0" />
