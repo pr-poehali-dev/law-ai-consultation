@@ -2010,7 +2010,7 @@ def handle_admin_grant(token: str, body: dict) -> dict:
 
         # Возвращаем обновлённые данные пользователя
         cur.execute(
-            f"SELECT paid_questions, paid_docs, paid_expert, lawyer_questions_left FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT paid_questions, paid_docs, paid_expert, lawyer_consultations_left FROM {SCHEMA}.users WHERE id = %s",
             (target_user_id,)
         )
         upd = cur.fetchone()
