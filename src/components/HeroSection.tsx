@@ -90,30 +90,39 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               </span>
               <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(255,255,255,0.12))" }} />
             </div>
+          </div>
 
-            {/* Кнопка бесплатной консультации юриста */}
+          {/* Кнопка бесплатной консультации юриста */}
+          <div className={`w-full max-w-2xl mx-auto mt-3 mb-5 px-0 transition-all duration-600 delay-200 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
             <button
               onClick={() => handleOpenLogin({ freeTrial: false, pendingTab: "expert" })}
-              className="group w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99]"
+              className="group w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 hover:-translate-y-[2px] active:scale-[0.99] overflow-hidden relative"
               style={{
-                background: "linear-gradient(135deg, #e8a820 0%, #f0c060 50%, #e8a820 100%)",
-                backgroundSize: "200% 100%",
-                backgroundPosition: "0% 0%",
+                background: "linear-gradient(135deg, #c8901a 0%, #e8a820 40%, #f5cc5a 70%, #e8a820 100%)",
                 color: "#0a1628",
-                boxShadow: "0 4px 20px rgba(232,168,32,0.35), 0 1px 0 rgba(255,255,255,0.15) inset",
+                boxShadow: "0 4px 24px rgba(232,168,32,0.4), 0 1px 0 rgba(255,255,255,0.2) inset",
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 32px rgba(232,168,32,0.55), 0 1px 0 rgba(255,255,255,0.15) inset"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(232,168,32,0.35), 0 1px 0 rgba(255,255,255,0.15) inset"; }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 36px rgba(232,168,32,0.6), 0 1px 0 rgba(255,255,255,0.2) inset";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 24px rgba(232,168,32,0.4), 0 1px 0 rgba(255,255,255,0.2) inset";
+              }}
             >
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(10,22,40,0.15)" }}>
-                  <Icon name="UserCheck" size={13} color="#0a1628" />
+              {/* Блик */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)" }} />
+
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(10,22,40,0.18)" }}>
+                  <Icon name="UserCheck" size={14} color="#0a1628" />
                 </div>
-                <span>Получить бесплатную консультацию юриста-эксперта</span>
+                <span className="whitespace-nowrap">Получить бесплатную консультацию юриста-эксперта</span>
               </div>
+
               <span
-                className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                style={{ background: "rgba(10,22,40,0.15)", color: "#0a1628" }}
+                className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase"
+                style={{ background: "rgba(10,22,40,0.18)", color: "#0a1628", letterSpacing: "0.06em" }}
               >
                 Бесплатно
               </span>
