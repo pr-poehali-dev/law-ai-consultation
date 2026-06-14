@@ -7,6 +7,7 @@ import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
 import UpgradeNoticeModal from "@/components/UpgradeNoticeModal";
+import DocUpgradeToast from "@/components/DocUpgradeToast";
 import ViewDocContent from "./ViewDocContent";
 import ViewDocFooter from "./ViewDocFooter";
 import DocEditorPanel from "./DocEditorPanel";
@@ -49,6 +50,24 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   const [prevDocContent, setPrevDocContent] = useState<string | null>(null);
   const [docFlash, setDocFlash] = useState(false);
   const docScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Toast-уведомление
+  const [toastType, setToastType] = useState<"lawyer_prompt" | "need_starter" | "need_consultation" | null>(null);
+
+  // Показываем toast при открытии предпросмотра если у пользователя тариф Старт
+  useEffect(() => {
+    getUser().then(user => {
+      if (!user || user.isAdmin) return;
+      const hasStarter = user.purchasedPlan === "starter";
+      const hasPaidExpert = user.paidExpert;
+      const hasConsultation = (user.lawyerConsultationsLeft ?? 0) > 0;
+      // Только для тарифа Старт с консультацией — подсказка направить юристу
+      if (hasStarter && hasPaidExpert && hasConsultation) {
+        const t = setTimeout(() => setToastType("lawyer_prompt"), 1200);
+        return () => clearTimeout(t);
+      }
+    });
+  }, []);  
 
   // Фоновый анализ рекомендаций — запускается после показа документа
   useEffect(() => {
@@ -113,7 +132,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
       || hasActiveSubscription(user!, "consult")
       || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
-      setUpgradeFeature("ai_fill_chat");
+      setToastType("need_starter");
       return;
     }
     if (aiFillMsgs.length === 0) {
@@ -190,7 +209,16 @@ ${docTextClean}
 
   const handleSendToLawyer = async (comment: string) => {
     const user = await getUser();
-    if (!user || !user.paidExpert) {
+    if (!user) return;
+    if (!user.isAdmin && !user.purchasedPlan) {
+      setToastType("need_starter");
+      return;
+    }
+    if (!user.isAdmin && (user.lawyerConsultationsLeft ?? 0) <= 0) {
+      setToastType("need_consultation");
+      return;
+    }
+    if (!user.isAdmin && !user.paidExpert) {
       setUpgradeFeature("lawyer");
       return;
     }
@@ -654,6 +682,18 @@ ${docTextClean}
           }}
         />
       )}
+
+      {/* Toast-уведомление слева снизу */}
+      <DocUpgradeToast
+        show={!!toastType}
+        type={toastType ?? "need_starter"}
+        onClose={() => setToastType(null)}
+        onViewPlans={() => {
+          setToastType(null);
+          if (onOpenPlanModal) onOpenPlanModal("plan_starter");
+          else setShowExpertOffer(true);
+        }}
+      />
     </>
   );
 }
