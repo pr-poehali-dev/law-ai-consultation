@@ -33,6 +33,10 @@ function isBullet(line: string): boolean {
 function isNumbered(line: string): boolean {
   return /^\d+\.\s/.test(line.trim());
 }
+// Структурные метки из промта — скрываем от пользователя
+function isStructuralLabel(line: string): boolean {
+  return /^\*?\*?\d+\.\s+(Прямой|Правовое|Практическ|Судебная практика|Что делать|Резюме|Вывод)\b/i.test(line.trim());
+}
 function isSubLabel(line: string): boolean {
   return /^[А-ЯЁA-Z]\.\s|^[А-ЯЁA-Z]\)\s/.test(line.trim());
 }
