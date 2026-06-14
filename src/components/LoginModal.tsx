@@ -135,9 +135,11 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
               <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-2">Добро пожаловать!</h3>
               <p className="text-sm text-muted-foreground mb-1">Аккаунт успешно создан</p>
               {regName && <p className="font-semibold text-navy-800 mb-3">{regName}</p>}
-              <div className="mb-5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
-                <Icon name="Gift" size={20} className="text-emerald-500 shrink-0" />
-                <p className="text-sm text-emerald-800 text-left">Вопрос AI-юристу уже добавлен на ваш счёт — задайте его прямо сейчас!</p>
+              <div className="mb-5 px-4 py-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+                <Icon name="Gift" size={20} className="text-emerald-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-emerald-800 text-left leading-relaxed">
+                  Спасибо за регистрацию — уже начислили вам <span className="font-semibold">2 бесплатных вопроса к AI-Юристу</span> и <span className="font-semibold">1 предварительную консультацию у юриста-эксперта</span>!
+                </p>
               </div>
               <button onClick={onSuccess} className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm">
                 Задать вопрос AI-юристу
