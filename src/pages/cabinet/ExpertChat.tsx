@@ -196,27 +196,66 @@ export default function ExpertChat({
 
             {/* Компактная воронка после ответа юриста */}
             {isFreeUser && hasLawyerReply && isBlocked && (
-              <div className="mx-auto max-w-sm animate-fade-in">
-                <div className="rounded-2xl border border-amber-200/70 px-4 py-3.5 text-center"
-                  style={{ background: "linear-gradient(135deg, #fffbeb, #fef3c7)" }}>
-                  <p className="text-xs font-semibold text-amber-900 mb-0.5">Предварительная консультация завершена</p>
-                  <p className="text-[11px] text-amber-700/80 mb-3 leading-relaxed">
-                    Для продолжения общения с юристом оформите тариф
-                  </p>
-                  <div className="flex flex-col gap-1 mb-3 text-left">
-                    {["1 консультация юриста — тариф Старт", "3 консультации — тариф Профи", "10 консультаций — тариф Максимум"].map(t => (
-                      <div key={t} className="flex items-center gap-1.5">
-                        <Icon name="Check" size={11} className="text-emerald-500 shrink-0" />
-                        <span className="text-[11px] text-amber-800">{t}</span>
+              <div className="animate-fade-in mt-2">
+                {/* Разделитель */}
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Продолжить работу</span>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+
+                <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+                  {/* Шапка */}
+                  <div className="px-4 py-3" style={{ background: "linear-gradient(135deg, #0f2044 0%, #1a3260 100%)" }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(232,168,32,0.2)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                        <Icon name="Star" size={13} color="#e8a820" />
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-sm font-bold text-white leading-tight">Начните с тарифа «Старт»</p>
+                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>Всё необходимое для решения вопроса</p>
+                      </div>
+                    </div>
                   </div>
-                  <button onClick={onUpgradePlan}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
-                    style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628", boxShadow: "0 2px 12px rgba(232,168,32,0.3)" }}>
-                    <Icon name="Sparkles" size={12} color="#0a1628" />
-                    Выбрать тарифный план
-                  </button>
+
+                  {/* Возможности */}
+                  <div className="bg-white px-4 py-3">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-3">
+                      {[
+                        { icon: "UserCheck", text: "1 полная консультация юриста" },
+                        { icon: "FileText", text: "5 документов через AI" },
+                        { icon: "ShieldCheck", text: "Проверка документа юристом" },
+                        { icon: "ScanSearch", text: "Анализ документов через AI" },
+                        { icon: "Bot", text: "30 вопросов к AI-юристу" },
+                        { icon: "Calculator", text: "Калькуляторы и инструменты" },
+                      ].map(item => (
+                        <div key={item.text} className="flex items-start gap-1.5">
+                          <div className="w-4 h-4 rounded-md bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
+                            <Icon name={item.icon as "FileText"} size={10} className="text-emerald-600" />
+                          </div>
+                          <span className="text-[11px] text-slate-600 leading-snug">{item.text}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Кнопки */}
+                    <button
+                      onClick={onUpgradePlan}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mb-1.5 transition-all active:scale-[0.98]"
+                      style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628", boxShadow: "0 3px 14px rgba(232,168,32,0.35)" }}
+                    >
+                      <Icon name="Sparkles" size={12} color="#0a1628" />
+                      Оформить тариф «Старт»
+                    </button>
+                    <button
+                      onClick={onUpgradePlan}
+                      className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-medium text-slate-500 hover:text-navy-700 transition-colors"
+                    >
+                      Сравнить все тарифы
+                      <Icon name="ChevronRight" size={12} className="text-slate-400" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
