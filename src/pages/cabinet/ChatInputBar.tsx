@@ -190,7 +190,9 @@ export default function ChatInputBar({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-navy-800 truncate">{f.name}</p>
+                <p className="text-xs font-semibold text-navy-800 truncate">
+                  {/^package(_\d+)?\.pdf$/i.test(f.name) ? `📦 Запакованные документы${f.name.includes("_") ? ` (часть ${f.name.match(/\d+/)?.[0]})` : ""}` : f.name}
+                </p>
                 <p className="text-[10px] text-muted-foreground">{f.size}</p>
               </div>
               <button
