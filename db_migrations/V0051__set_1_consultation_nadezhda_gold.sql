@@ -1,0 +1,1 @@
+UPDATE users SET lawyer_consultations_left = 1 WHERE email = 'nadezhda.gold@list.ru';
