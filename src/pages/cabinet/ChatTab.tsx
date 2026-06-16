@@ -44,6 +44,7 @@ interface ChatTabProps {
   creatingDocFromChat?: boolean;
   onRevealAnswer?: (msgIndex: number) => void;
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
+  onAddFiles?: (files: { name: string; b64: string; size: string }[]) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -89,7 +90,7 @@ export default function ChatTab({
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
-  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, chatEndRef, fileInputRef,
+  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -312,6 +313,7 @@ export default function ChatTab({
         onFileDrop={onFileDrop}
         onQuickAction={handleQuickAction}
         onSosClick={() => setShowReport(v => !v)}
+        onFilesFromConverter={onAddFiles}
       />
       {/* SOS попап — мобиле (рендерится под ChatInputBar) */}
       {showReport && (

@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
+import ImageToPdfConverter from "@/components/ImageToPdfConverter";
 
 interface ChatInputBarProps {
   user: User;
@@ -21,6 +22,7 @@ interface ChatInputBarProps {
   onFileDrop?: (files: FileList) => void;
   onQuickAction?: (text: string) => void;
   onSosClick?: () => void;
+  onFilesFromConverter?: (files: { name: string; b64: string; size: string }[]) => void;
 }
 
 export default function ChatInputBar({
@@ -42,10 +44,12 @@ export default function ChatInputBar({
   onFileDrop,
   onQuickAction,
   onSosClick,
+  onFilesFromConverter,
 }: ChatInputBarProps) {
   const nativeInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
+  const [showConverter, setShowConverter] = useState(false);
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
@@ -214,6 +218,17 @@ export default function ChatInputBar({
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
             <p className="text-[11px] text-amber-600 px-1">⚠ Фото должны быть чёткими — плохое качество снизит точность AI</p>
           )}
+          <div className="flex items-center gap-2 px-1 pt-0.5">
+            <p className="text-[10px] text-slate-400 flex-1 leading-snug">Если документов много или формат не распознаётся — воспользуйтесь конвертором</p>
+            <button
+              onClick={() => setShowConverter(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all active:scale-95"
+              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", boxShadow: "0 2px 6px rgba(15,76,129,0.3)" }}
+            >
+              <Icon name="FileImage" size={11} />
+              Конвертор
+            </button>
+          </div>
         </div>
       )}
 
@@ -430,6 +445,16 @@ export default function ChatInputBar({
           )}
         </div>
       </div>
+
+      {showConverter && (
+        <ImageToPdfConverter
+          onClose={() => setShowConverter(false)}
+          onSendToAI={(files) => {
+            onFilesFromConverter?.(files);
+            setShowConverter(false);
+          }}
+        />
+      )}
     </div>
   );
 }

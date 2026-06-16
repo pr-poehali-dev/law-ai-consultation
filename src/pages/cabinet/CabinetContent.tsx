@@ -167,6 +167,7 @@ export default function CabinetContent({
             creatingDocFromChat={creatingDocFromChat}
             onRevealAnswer={chat.revealAnswer}
             onSendToLawyer={handleSendToLawyer}
+            onAddFiles={(files) => chat.setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
             chatEndRef={chat.chatEndRef}
             fileInputRef={chat.fileInputRef}
           />
