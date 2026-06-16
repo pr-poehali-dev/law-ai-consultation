@@ -23,51 +23,57 @@ export function useLawyerNotifications(
   const [notification, setNotification] = useState<LawyerNotification | null>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Стабильные примитивы — не пересоздают замыкания при каждом рендере
+  const canPoll = !!(user && !user.isAdmin && (user.paidExpert || !!user.purchasedPlan));
   const isOnExpertTab = activeTab === "expert";
 
-  const canPoll = user && !user.isAdmin && (user.paidExpert || !!user.purchasedPlan);
+  // Ref для текущего значения вкладки — чтобы poll не захватывал устаревшее значение
+  const isOnExpertTabRef = useRef(isOnExpertTab);
+  isOnExpertTabRef.current = isOnExpertTab;
 
   const poll = useCallback(async () => {
-    if (!canPoll) return;
     const res = await lawyerMessages();
     if (!res.messages) return;
 
     const adminMsgs = res.messages.filter(m => m.sender === "admin");
     const unread = res.messages.filter(m => m.sender === "admin" && !m.is_read);
-    const count = isOnExpertTab ? 0 : unread.length;
-    setUnreadCount(count);
 
-    if (!isOnExpertTab && adminMsgs.length > 0) {
-      const latest = adminMsgs[adminMsgs.length - 1];
-      // Показываем тост только для нового сообщения от юриста
-      if (
-        lastSeenIdRef.current !== null &&
-        latest.id > lastSeenIdRef.current &&
-        !latest.is_read
-      ) {
+    // Бейдж — всегда обновляем (даже на вкладке юриста сбросится через отдельный effect)
+    setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
+
+    if (adminMsgs.length === 0) return;
+
+    const latest = adminMsgs[adminMsgs.length - 1];
+
+    // При первой загрузке просто запоминаем последний id — тост не показываем
+    if (lastSeenIdRef.current === null) {
+      lastSeenIdRef.current = latest.id;
+      return;
+    }
+
+    // Новое сообщение от юриста — показываем тост только если не на вкладке юриста
+    if (latest.id > lastSeenIdRef.current && !latest.is_read) {
+      lastSeenIdRef.current = latest.id;
+      if (!isOnExpertTabRef.current) {
         setNotification({ id: latest.id, body: latest.body });
       }
-      // Инициализируем lastSeenId при первой загрузке
-      if (lastSeenIdRef.current === null) {
-        lastSeenIdRef.current = latest.id;
-      } else {
-        lastSeenIdRef.current = Math.max(lastSeenIdRef.current, latest.id);
-      }
     }
-  }, [canPoll, isOnExpertTab]);
+  }, []); // пустые зависимости — poll стабилен, читает всё через refs
 
+  // Запускаем/останавливаем polling
   useEffect(() => {
-    // Не поллим когда пользователь уже на вкладке юриста — там свой поллинг
-    if (!canPoll || isOnExpertTab) {
+    if (!canPoll) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
+    // Сразу первый запрос
     poll();
     pollRef.current = setInterval(poll, POLL_INTERVAL);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [poll, canPoll, isOnExpertTab]);
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [canPoll, poll]);
 
-  // Когда открывают вкладку юриста — сбрасываем счётчик
+  // Когда открывают вкладку юриста — сбрасываем бейдж
   useEffect(() => {
     if (isOnExpertTab) setUnreadCount(0);
   }, [isOnExpertTab]);
