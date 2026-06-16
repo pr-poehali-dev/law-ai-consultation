@@ -197,8 +197,8 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
   const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedUserId) : null;
   const aiAnswers = messages.filter(m => m.role === "ai" && m.text.length > 30).slice(-5);
 
-  const currentPlanId = (user.paidQuestions ?? 0) >= 300 ? "plan_max"
-    : (user.paidQuestions ?? 0) >= 100 ? "plan_pro"
+  const currentPlanId = user.purchasedPlan === "max" ? "plan_max"
+    : user.purchasedPlan === "pro" ? "plan_pro"
     : "plan_starter";
 
   return (

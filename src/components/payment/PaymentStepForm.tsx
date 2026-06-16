@@ -40,7 +40,7 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   business_actions_50: "Дополнительно 50 действий к текущему пакету",
   business_actions_60: "Дополнительно 60 действий к текущему пакету",
   business_actions_150: "Дополнительно 150 действий к текущему пакету",
-  lawyer_questions: "+5 вопросов живому юристу · ответ в течение суток",
+  lawyer_questions: "+1 консультация живого юриста · ответ в течение 1–3 часов",
 };
 
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {

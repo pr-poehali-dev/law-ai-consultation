@@ -97,8 +97,8 @@ export default function CabinetContent({
         ? "flex-1 flex flex-col min-h-0 overflow-hidden px-3 sm:px-4 md:px-6 pt-3 sm:pt-4"
         : "flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-tab-bar md:pb-8"
     }>
-      {/* Баннер исчерпанного тарифа */}
-      {planExhausted && (
+      {/* Баннер исчерпанного тарифа — не показываем на вкладке юриста */}
+      {planExhausted && tab !== "expert" && (
         <div className="w-full max-w-4xl mx-auto mb-3 mt-1">
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
@@ -227,7 +227,7 @@ export default function CabinetContent({
             messages={chat.messages}
             genDocs={docs.genDocs}
             onPayClick={openPlanModal}
-            onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+5 вопросов юристу" })}
+            onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+1 консультация юриста" })}
           />
         )}
 
