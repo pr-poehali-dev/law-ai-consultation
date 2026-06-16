@@ -82,20 +82,24 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
          "content": m.get("content", m.get("text", ""))}
         for m in recent
     ]
-    resp = _http.post(
-        "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
-        json={"model": YANDEX_MODEL, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    resp_json = resp.json()
-    choice = resp_json["choices"][0]
-    text = choice["message"]["content"] or ""
-    was_cut = choice.get("finish_reason") == "length"
-    # Логируем реальный usage токенов для диагностики
-    usage = resp_json.get("usage", {})
-    print(f"[DEEPSEEK] finish={choice.get('finish_reason')} prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')} симв={len(text)}")
+    # Retry при пустом ответе (баг DeepSeek — иногда возвращает 2500 токенов, но пустую строку)
+    for attempt in range(2):
+        resp = _http.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
+            json={"model": YANDEX_MODEL, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        resp_json = resp.json()
+        choice = resp_json["choices"][0]
+        text = choice["message"]["content"] or ""
+        was_cut = choice.get("finish_reason") == "length"
+        usage = resp_json.get("usage", {})
+        print(f"[DEEPSEEK] attempt={attempt+1} finish={choice.get('finish_reason')} prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')} симв={len(text)}")
+        if text.strip():
+            return text, was_cut
+        print(f"[DEEPSEEK] пустой ответ на попытке {attempt+1}, {'retry' if attempt == 0 else 'сдаёмся'}")
     return text, was_cut
 
 # ── Файловые утилиты ───────────────────────────────────────────────────────
