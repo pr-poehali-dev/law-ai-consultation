@@ -50,6 +50,7 @@ export default function ChatInputBar({
   const [isDragging, setIsDragging] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
   const [showConverter, setShowConverter] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
@@ -218,17 +219,6 @@ export default function ChatInputBar({
           {attachedFiles.some(f => /\.(jpg|jpeg|png)$/i.test(f.name)) && (
             <p className="text-[11px] text-amber-600 px-1">⚠ Фото должны быть чёткими — плохое качество снизит точность AI</p>
           )}
-          <div className="flex items-center gap-2 px-1 pt-0.5">
-            <p className="text-[10px] text-slate-400 flex-1 leading-snug">Если документов много или формат не распознаётся — воспользуйтесь конвертором</p>
-            <button
-              onClick={() => setShowConverter(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 transition-all active:scale-95"
-              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", boxShadow: "0 2px 6px rgba(15,76,129,0.3)" }}
-            >
-              <Icon name="FileImage" size={11} />
-              Конвертор
-            </button>
-          </div>
         </div>
       )}
 
@@ -359,27 +349,83 @@ export default function ChatInputBar({
       <div className="mt-2 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm mb-tab-bar md:mb-2">
         <div className="flex items-end gap-1 px-2 py-2">
 
-          {/* Прикрепить */}
-          <button
-            onClick={canUploadFiles ? onAttachClick : onUpgradeClick}
-            disabled={typing || fileUploading || (!canUploadFiles && !onUpgradeClick) || (canUploadFiles && !canAddMore)}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 active:bg-slate-100 transition-colors ${canUploadFiles ? "text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"}`}
-            title={canUploadFiles ? `Прикрепить до ${MAX_FILES} файлов (PDF, DOCX, фото) или перетащите` : "Анализ документов — доступен с тарифа «Старт»"}
-          >
-            {fileUploading
-              ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
-              : (
-                <span className="relative">
-                  <Icon name="Paperclip" size={17} className={hasFiles ? "text-navy-600" : ""} />
-                  {hasFiles && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
-                      {attachedFiles.length}
-                    </span>
-                  )}
-                </span>
-              )
-            }
-          </button>
+          {/* Прикрепить — с меню выбора */}
+          <div className="relative shrink-0">
+            {showAttachMenu && canUploadFiles && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowAttachMenu(false)} />
+                <div className="absolute bottom-11 left-0 z-50 w-64"
+                  style={{ filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.18))" }}>
+                  {/* Треугольник */}
+                  <div className="absolute bottom-[-6px] left-4 w-3 h-3 rotate-45 rounded-sm"
+                    style={{ background: "white", borderRight: "1px solid rgba(226,232,240,0.8)", borderBottom: "1px solid rgba(226,232,240,0.8)" }} />
+                  <div className="rounded-2xl overflow-hidden border border-slate-200/80 bg-white">
+                    {/* Заголовок */}
+                    <div className="px-4 pt-3 pb-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Прикрепить файлы</p>
+                    </div>
+                    {/* Вариант 1: обычная загрузка */}
+                    <button
+                      onClick={() => { setShowAttachMenu(false); onAttachClick(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left group"
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
+                        style={{ background: "rgba(15,76,129,0.08)" }}>
+                        <Icon name="Paperclip" size={16} className="text-navy-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-navy-900 leading-tight">Загрузить файлы</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">PDF, DOCX, фото · до 3 файлов</p>
+                      </div>
+                      <Icon name="ChevronRight" size={14} className="text-slate-300 group-hover:text-slate-400 shrink-0" />
+                    </button>
+                    {/* Разделитель */}
+                    <div className="mx-4 border-t border-slate-100" />
+                    {/* Вариант 2: конвертор */}
+                    <button
+                      onClick={() => { setShowAttachMenu(false); setShowConverter(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-navy-50/60 transition-colors text-left group"
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
+                        <Icon name="FileImage" size={16} className="text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-navy-900 leading-tight">Массовая загрузка</p>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md text-white"
+                            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>NEW</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">До 10 фото → PDF для анализа</p>
+                      </div>
+                      <Icon name="ChevronRight" size={14} className="text-slate-300 group-hover:text-navy-400 shrink-0" />
+                    </button>
+                    <div className="pb-1" />
+                  </div>
+                </div>
+              </>
+            )}
+            <button
+              onClick={() => { if (!canUploadFiles) { onUpgradeClick?.(); return; } setShowAttachMenu(v => !v); }}
+              disabled={typing || fileUploading || (!canUploadFiles && !onUpgradeClick)}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center active:bg-slate-100 transition-colors ${showAttachMenu ? "bg-navy-100 text-navy-700" : canUploadFiles ? "text-slate-400 hover:text-navy-600 hover:bg-slate-50 disabled:opacity-40" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"}`}
+              title={canUploadFiles ? "Прикрепить файлы" : "Анализ документов — доступен с тарифа «Старт»"}
+            >
+              {fileUploading
+                ? <span className="w-4 h-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
+                : (
+                  <span className="relative">
+                    <Icon name="Paperclip" size={17} className={hasFiles || showAttachMenu ? "text-navy-600" : ""} />
+                    {hasFiles && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                        {attachedFiles.length}
+                      </span>
+                    )}
+                  </span>
+                )
+              }
+            </button>
+          </div>
 
           {/* Камера (мобайл) */}
           <button
