@@ -431,9 +431,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   };
 
   // comment передаётся явным параметром из ChatInputBar (native ref) — без iOS race condition
-  const sendFileAnalysis = async (commentFromInput?: string) => {
-    // Читаем из ref — он всегда актуален (stale closure fix)
-    const currentFiles = attachedFilesRef.current;
+  const sendFileAnalysis = async (commentFromInput?: string, directFiles?: { name: string; b64: string; size: string }[]) => {
+    // directFiles — файлы из конвертора (передаются напрямую, минуя ref)
+    const currentFiles = directFiles ?? attachedFilesRef.current;
     if (!currentFiles.length || typing) return;
 
     invalidateUserCache();
