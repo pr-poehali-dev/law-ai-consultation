@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
-import { downloadDoc } from "@/lib/docUtils";
 import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, consumeQuestion, hasActiveSubscription } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
@@ -11,13 +9,14 @@ import DocUpgradeToast from "@/components/DocUpgradeToast";
 import ViewDocContent from "./ViewDocContent";
 import ViewDocFooter from "./ViewDocFooter";
 import DocEditorPanel from "./DocEditorPanel";
+import ViewDocModalHeader from "./ViewDocModalHeader";
+import ViewDocAiFillChat, { type AiFillMsg } from "./ViewDocAiFillChat";
+import ViewDocFillPanel from "./ViewDocFillPanel";
 import type { ViewDocModalProps } from "./ViewDocUtils";
 import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
-
-interface AiFillMsg { role: "user" | "ai"; text: string; }
 
 export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
@@ -260,7 +259,7 @@ ${docTextClean}
   const handleExpertOfferSuccess = async () => { setShowExpertOffer(false); await handleSendToLawyer(""); };
   const handleCopy = async () => { await navigator.clipboard.writeText(currentDocContent); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
-  const hasPlaceholders = fillValues && onFillChange && onApplyFill && doc.placeholders.length > 0;
+  const hasPlaceholders = !!(fillValues && onFillChange && onApplyFill && doc.placeholders.length > 0);
 
   const handleApplyFill = () => {
     // Вычисляем filled локально для мгновенного обновления предпросмотра
@@ -292,68 +291,21 @@ ${docTextClean}
         >
           {/* ── Левая/основная часть: документ ── */}
           <div className="flex flex-col flex-1 min-w-0">
-            {/* Шапка */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
-              <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0">
-                <Icon name="FileText" size={16} className="text-gold-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-navy-800 text-sm truncate">{doc.name}</p>
-                <p className="text-[11px] text-muted-foreground">{doc.date} · Предпросмотр</p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {hasPlaceholders && (
-                  <button
-                    onClick={() => setShowFillPanel(v => !v)}
-                    className={`h-8 px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors sm:hidden ${showFillPanel ? "bg-navy-100 text-navy-700" : "text-navy-600 hover:bg-slate-100"}`}
-                  >
-                    <Icon name="PenLine" size={13} />Заполнить
-                  </button>
-                )}
-                <button onClick={handleCopy} className="h-8 px-3 rounded-xl text-xs font-medium text-navy-600 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
-                  <Icon name={copied ? "Check" : "Copy"} size={13} className={copied ? "text-emerald-500" : ""} />
-                  <span className="hidden sm:inline">{copied ? "Скопировано" : "Копировать"}</span>
-                </button>
-                <button onClick={() => downloadDoc(doc.name, currentDocContent)} className="h-8 px-3 rounded-xl text-xs font-medium bg-navy-700 hover:bg-navy-800 text-white transition-colors flex items-center gap-1.5">
-                  <Icon name="Download" size={13} />
-                  <span className="hidden sm:inline">Скачать .docx</span>
-                </button>
-                <button onClick={handleClose} className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-muted-foreground hover:text-navy-700 transition-colors">
-                  <Icon name="X" size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Мобильная панель реквизитов (под шапкой) */}
-            {hasPlaceholders && showFillPanel && (
-              <div className="sm:hidden shrink-0 border-b border-slate-100 bg-slate-50">
-                <div className="px-4 pt-4 pb-2">
-                  <p className="text-xs font-semibold text-navy-700 mb-3 flex items-center gap-1.5">
-                    <Icon name="PenLine" size={12} />Реквизиты документа
-                  </p>
-                  <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
-                    {doc.placeholders.map(key => (
-                      <div key={key}>
-                        <label className="text-[11px] font-medium text-slate-500 mb-1 block">{key.replace(/_/g, " ")}</label>
-                        <input
-                          type="text"
-                          value={fillValues?.[key] || ""}
-                          onChange={e => onFillChange?.(key, e.target.value)}
-                          placeholder={`Введите ${key.replace(/_/g, " ").toLowerCase()}`}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-navy-400 transition-colors"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleApplyFill}
-                    className="btn-gold w-full py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 mt-3 text-sm"
-                  >
-                    <Icon name="CheckCircle" size={14} />Применить реквизиты
-                  </button>
-                </div>
-              </div>
-            )}
+            <ViewDocModalHeader
+              docName={doc.name}
+              docDate={doc.date}
+              copied={copied}
+              currentDocContent={currentDocContent}
+              showFillPanel={showFillPanel}
+              hasPlaceholders={hasPlaceholders}
+              fillValues={fillValues}
+              placeholders={doc.placeholders}
+              onCopy={handleCopy}
+              onClose={handleClose}
+              onToggleFillPanel={() => setShowFillPanel(v => !v)}
+              onFillChange={onFillChange}
+              onApplyFill={handleApplyFill}
+            />
 
             {/* Контент документа / Редактор */}
             {showEditor ? (
@@ -414,91 +366,22 @@ ${docTextClean}
             <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
           )}
 
-          {/* ── AI-чат по заполнению (десктоп, колонка) ── */}
+          {/* ── AI-чат по заполнению (десктоп-колонка) ── */}
           {showAiFillChat && (
-            <div className={`hidden sm:flex flex-col w-72 shrink-0 overflow-hidden ${!hasPlaceholders ? "rounded-r-3xl" : ""}`} style={{ background: "#f8fafc" }}>
-              {/* Шапка */}
-              <div className="flex items-center gap-2.5 px-4 py-3.5 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                  <Icon name="Bot" size={14} color="white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white">AI-юрист</p>
-                  <p className="text-[10px] text-white/55 truncate">по заполнению реквизитов</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-white/15">
-                    <Icon name="MessageCircle" size={9} color="white" />
-                    <span className="text-[10px] font-semibold text-white">{paidQuestions ?? 0}</span>
-                  </div>
-                  <button onClick={() => setShowAiFillChat(false)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
-                    <Icon name="X" size={12} color="white" />
-                  </button>
-                </div>
-              </div>
-              {/* Сообщения */}
-              <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5" style={{ minHeight: 0 }}>
-                {aiFillMsgs.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-1.5`}>
-                    {msg.role === "ai" && (
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                        <Icon name="Bot" size={10} color="white" />
-                      </div>
-                    )}
-                    <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 bg-white border border-slate-200"}`}
-                      style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {aiFillTyping && (
-                  <div className="flex justify-start gap-1.5">
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                      <Icon name="Bot" size={10} color="white" />
-                    </div>
-                    <div className="px-3 py-2 bg-white border border-slate-200 rounded-xl rounded-tl-sm flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                )}
-                {(paidQuestions ?? 0) <= 0 && (
-                  <div className="rounded-xl p-3 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
-                    <p className="text-[11px] font-bold text-amber-800 mb-1">Вопросы закончились</p>
-                    <button onClick={() => onPayForQuestions?.()} className="w-full py-1.5 rounded-lg text-[11px] font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>
-                      +3 вопроса · 35 ₽
-                    </button>
-                  </div>
-                )}
-                <div ref={aiFillEndRef} />
-              </div>
-              {/* Ввод */}
-              <div className="shrink-0 px-3 py-2.5 border-t border-slate-200 bg-white">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    ref={aiFillInputRef}
-                    type="text"
-                    value={aiFillInput}
-                    onChange={e => setAiFillInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiFillSend()}
-                    placeholder="Спросить по заполнению..."
-                    disabled={(paidQuestions ?? 0) <= 0 || aiFillTyping}
-                    className="flex-1 bg-slate-100 rounded-xl px-3 py-2 text-xs outline-none disabled:opacity-50 transition-colors"
-                    style={{ border: "1.5px solid transparent" }}
-                    onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
-                    onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
-                  />
-                  <button onClick={handleAiFillSend} disabled={!aiFillInput.trim() || aiFillTyping || (paidQuestions ?? 0) <= 0}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-40 shrink-0 transition-all active:scale-95"
-                    style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                    {aiFillTyping
-                      ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      : <Icon name="Send" size={12} color="white" />}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ViewDocAiFillChat
+              docName={doc.name}
+              paidQuestions={paidQuestions}
+              aiFillMsgs={aiFillMsgs}
+              aiFillInput={aiFillInput}
+              aiFillTyping={aiFillTyping}
+              showEditor={showEditor}
+              aiFillEndRef={aiFillEndRef}
+              aiFillInputRef={aiFillInputRef}
+              onClose={() => setShowAiFillChat(false)}
+              onInputChange={setAiFillInput}
+              onSend={handleAiFillSend}
+              onPayForQuestions={onPayForQuestions}
+            />
           )}
 
           {/* Разделитель между AI-чатом и реквизитами */}
@@ -508,118 +391,32 @@ ${docTextClean}
 
           {/* ── Правая панель реквизитов (только десктоп) ── */}
           {hasPlaceholders && (
-            <div className={`hidden sm:flex flex-col w-72 shrink-0 overflow-hidden rounded-r-3xl`} style={{ background: "#f8fafc" }}>
-              <div className="px-5 py-4 border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-navy-800 flex items-center justify-center shrink-0">
-                    <Icon name="PenLine" size={13} className="text-gold-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-navy-800">Реквизиты</p>
-                    <p className="text-[10px] text-slate-400">{doc.placeholders.length} полей</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                <div className="bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
-                  <p className="text-[11px] text-blue-700 leading-relaxed">
-                    Введите данные — документ обновится автоматически после нажатия «Применить».
-                  </p>
-                </div>
-                {doc.placeholders.map(key => (
-                  <div key={key}>
-                    <label className="text-[11px] font-medium text-slate-500 mb-1 block">{key.replace(/_/g, " ")}</label>
-                    <input
-                      type="text"
-                      value={fillValues?.[key] || ""}
-                      onChange={e => onFillChange?.(key, e.target.value)}
-                      placeholder={key.replace(/_/g, " ").toLowerCase()}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-navy-400 transition-colors placeholder:text-slate-300"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="shrink-0 px-4 py-4 border-t border-slate-100">
-                <button
-                  onClick={handleApplyFill}
-                  className="btn-gold w-full py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm"
-                >
-                  <Icon name="CheckCircle" size={15} />Применить реквизиты
-                </button>
-              </div>
-            </div>
+            <ViewDocFillPanel
+              placeholders={doc.placeholders}
+              fillValues={fillValues}
+              onFillChange={onFillChange}
+              onApplyFill={handleApplyFill}
+            />
           )}
         </div>
       </div>
 
       {/* ── Мобильный AI-чат по заполнению (шторка снизу) — скрыт при открытом редакторе ── */}
       {showAiFillChat && !showEditor && (
-        <div className="sm:hidden fixed z-[85] flex items-end inset-0" onClick={() => setShowAiFillChat(false)}>
-          <div className="absolute inset-0" onClick={() => setShowAiFillChat(false)} />
-          <div className="relative w-full rounded-t-3xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "78dvh", background: "#f8fafc" }} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-slate-300" />
-            </div>
-            <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><Icon name="Bot" size={16} color="white" /></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white">AI-юрист</p>
-                <p className="text-[10px] text-white/60 truncate">По заполнению: {doc.name}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
-                  <Icon name="MessageCircle" size={10} color="white" />
-                  <span className="text-[10px] font-semibold text-white">{paidQuestions ?? 0} вопр.</span>
-                </div>
-                <button onClick={() => setShowAiFillChat(false)} className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center"><Icon name="X" size={14} color="white" /></button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
-              {aiFillMsgs.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
-                  {msg.role === "ai" && <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>}
-                  <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === "user" ? "rounded-tr-sm text-white" : "rounded-tl-sm text-navy-800 bg-white border border-slate-200"}`} style={msg.role === "user" ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" } : {}}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {aiFillTyping && (
-                <div className="flex justify-start gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}><Icon name="Bot" size={12} color="white" /></div>
-                  <div className="px-3.5 py-3 bg-white border border-slate-200 rounded-2xl rounded-tl-sm flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              )}
-              {(paidQuestions ?? 0) <= 0 && (
-                <div className="rounded-2xl p-4 border" style={{ background: "#fff7ed", borderColor: "#fbbf24" }}>
-                  <p className="text-xs font-bold text-amber-800 mb-2">Вопросы закончились</p>
-                  <button onClick={() => onPayForQuestions?.()} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#0a1628" }}>+3 вопроса · 35 ₽</button>
-                </div>
-              )}
-              <div ref={aiFillEndRef} />
-            </div>
-            <div className="shrink-0 px-3 py-3 border-t border-slate-200 bg-white">
-              <div className="flex items-center gap-2">
-                <input ref={aiFillInputRef} type="text" value={aiFillInput} onChange={e => setAiFillInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAiFillSend()}
-                  placeholder="Что писать в поле «ФИО»?" disabled={(paidQuestions ?? 0) <= 0 || aiFillTyping}
-                  className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 text-sm outline-none disabled:opacity-50"
-                  style={{ border: "1.5px solid transparent" }}
-                  onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
-                  onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
-                />
-                <button onClick={handleAiFillSend} disabled={!aiFillInput.trim() || aiFillTyping || (paidQuestions ?? 0) <= 0}
-                  className="w-9 h-9 rounded-2xl flex items-center justify-center disabled:opacity-40 shrink-0 active:scale-95" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                  {aiFillTyping ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Icon name="Send" size={14} color="white" />}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ViewDocAiFillChat
+          docName={doc.name}
+          paidQuestions={paidQuestions}
+          aiFillMsgs={aiFillMsgs}
+          aiFillInput={aiFillInput}
+          aiFillTyping={aiFillTyping}
+          showEditor={showEditor}
+          aiFillEndRef={aiFillEndRef}
+          aiFillInputRef={aiFillInputRef}
+          onClose={() => setShowAiFillChat(false)}
+          onInputChange={setAiFillInput}
+          onSend={handleAiFillSend}
+          onPayForQuestions={onPayForQuestions}
+        />
       )}
 
       {/* ── Панель рекомендаций (снаружи оверлея!) ──────────── */}
