@@ -133,44 +133,61 @@ async function buildGroupPdf(items: FileItem[], quality: number): Promise<Blob> 
 
 const QUALITY_STEPS = [85, 70, 50, 30];
 
+// Результат упаковки: PDF-пакеты из фото + оригинальные DOCX/PDF для прямой передачи
+interface PackResult {
+  pdfResults: PdfResult[];           // конвертированные фото-PDF
+  passthroughFiles: FileItem[];      // DOCX/PDF — передаются напрямую бэкенду
+}
+
 async function packAllInto3Pdfs(
   items: FileItem[],
   onProgress: (p: number, label: string) => void
-): Promise<PdfResult[]> {
-  if (items.length === 0) return [];
+): Promise<PackResult> {
+  const images = items.filter(i => i.kind === "image");
+  const docs = items.filter(i => i.kind !== "image"); // PDF и DOCX
 
-  // Равномерно делим все файлы на 3 группы (round-robin)
-  const n = Math.min(MAX_PDF_COUNT, items.length);
-  const groups: FileItem[][] = Array.from({ length: n }, () => []);
-  items.forEach((item, i) => groups[i % n].push(item));
+  // Слоты для фото = 3 минус кол-во документов (но не больше 3 и не меньше 0)
+  const docSlots = Math.min(docs.length, MAX_PDF_COUNT);
+  const imgSlots = Math.max(0, MAX_PDF_COUNT - docSlots);
 
-  let qualityIdx = 0;
-  let finalResults: PdfResult[] = [];
+  // Документы — первые docSlots штук (остальные отбрасываем, предупреждение в UI)
+  const passthroughFiles = docs.slice(0, docSlots);
 
-  while (qualityIdx < QUALITY_STEPS.length) {
-    const q = QUALITY_STEPS[qualityIdx];
-    onProgress(5 + qualityIdx * 10, `Обрабатываю файлы (качество ${q}%)...`);
-    const built: PdfResult[] = [];
-    let allFit = true;
+  // Фото — упаковываем в imgSlots PDF-файлов
+  let pdfResults: PdfResult[] = [];
 
-    for (let gi = 0; gi < groups.length; gi++) {
-      onProgress(5 + qualityIdx * 10 + Math.round(((gi + 1) / groups.length) * 45), `Создаю пакет ${gi + 1}/${groups.length}...`);
-      const blob = await buildGroupPdf(groups[gi], q);
-      const sizeMb = Math.round(blob.size / 1024 / 102.4) / 10;
-      const oversized = blob.size > MAX_PDF_BYTES;
-      if (oversized && qualityIdx < QUALITY_STEPS.length - 1) { allFit = false; break; }
-      const nameMap = groups.length === 1
-        ? ["documents.pdf"]
-        : groups.map((_, i) => `documents_part${i + 1}.pdf`);
-      built.push({ name: nameMap[gi], blob, pages: groups[gi].length, sizeMb, oversized });
+  if (images.length > 0 && imgSlots > 0) {
+    const n = Math.min(imgSlots, images.length);
+    const groups: FileItem[][] = Array.from({ length: n }, () => []);
+    images.forEach((img, i) => groups[i % n].push(img));
+
+    let qualityIdx = 0;
+    while (qualityIdx < QUALITY_STEPS.length) {
+      const q = QUALITY_STEPS[qualityIdx];
+      onProgress(5 + qualityIdx * 10, `Конвертирую фото (качество ${q}%)...`);
+      const built: PdfResult[] = [];
+      let allFit = true;
+
+      for (let gi = 0; gi < groups.length; gi++) {
+        onProgress(5 + qualityIdx * 10 + Math.round(((gi + 1) / groups.length) * 45), `Создаю пакет фото ${gi + 1}/${groups.length}...`);
+        // Только изображения в PDF (buildGroupPdf без DOCX/PDF)
+        const blob = await buildGroupPdf(groups[gi].filter(f => f.kind === "image"), q);
+        const sizeMb = Math.round(blob.size / 1024 / 102.4) / 10;
+        const oversized = blob.size > MAX_PDF_BYTES;
+        if (oversized && qualityIdx < QUALITY_STEPS.length - 1) { allFit = false; break; }
+        const nameMap = groups.length === 1
+          ? ["photos.pdf"]
+          : groups.map((_, i) => `photos_part${i + 1}.pdf`);
+        built.push({ name: nameMap[gi], blob, pages: groups[gi].length, sizeMb, oversized });
+      }
+
+      if (allFit || qualityIdx === QUALITY_STEPS.length - 1) { pdfResults = built; break; }
+      qualityIdx++;
     }
-
-    if (allFit || qualityIdx === QUALITY_STEPS.length - 1) { finalResults = built; break; }
-    qualityIdx++;
   }
 
   onProgress(95, "Готово!");
-  return finalResults;
+  return { pdfResults, passthroughFiles };
 }
 
 export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
@@ -179,7 +196,8 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
   const [converting, setConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
-  const [results, setResults] = useState<PdfResult[]>([]);
+  const [pdfResults, setPdfResults] = useState<PdfResult[]>([]);
+  const [passthroughFiles, setPassthroughFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState("");
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [sendingToAI, setSendingToAI] = useState(false);
@@ -201,13 +219,13 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
       }
       return combined;
     });
-    setResults([]);
+    setPdfResults([]); setPassthroughFiles([]);
   }, []);
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); addFiles(Array.from(e.dataTransfer.files)); };
   const removeFile = (id: string) => {
     setFiles(prev => { const f = prev.find(x => x.id === id); if (f?.preview) URL.revokeObjectURL(f.preview); return prev.filter(x => x.id !== id); });
-    setResults([]);
+    setPdfResults([]); setPassthroughFiles([]);
   };
   const onDragStart = (idx: number) => setDragIdx(idx);
   const onDragOver = (e: React.DragEvent, idx: number) => {
@@ -219,10 +237,11 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
 
   const convert = async () => {
     if (files.length === 0) return;
-    setConverting(true); setResults([]); setError(""); setProgress(0);
+    setConverting(true); setPdfResults([]); setPassthroughFiles([]); setError(""); setProgress(0);
     try {
-      const res = await packAllInto3Pdfs(files, (p, l) => { setProgress(p); setProgressLabel(l); });
-      setResults(res);
+      const { pdfResults: pr, passthroughFiles: pt } = await packAllInto3Pdfs(files, (p, l) => { setProgress(p); setProgressLabel(l); });
+      setPdfResults(pr);
+      setPassthroughFiles(pt);
       setProgress(100); setProgressLabel("Готово!");
     } catch (e) {
       setError("Ошибка: " + (e instanceof Error ? e.message : String(e)));
@@ -238,9 +257,10 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
   };
 
   const downloadAll = async () => {
-    if (results.length === 1) { downloadOne(results[0]); return; }
+    if (pdfResults.length === 1 && passthroughFiles.length === 0) { downloadOne(pdfResults[0]); return; }
     const zip = new JSZip();
-    for (const r of results) zip.file(r.name, r.blob);
+    for (const r of pdfResults) zip.file(r.name, r.blob);
+    for (const f of passthroughFiles) zip.file(f.file.name, f.file);
     const blob = await zip.generateAsync({ type: "blob" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "documents.zip"; a.click();
   };
@@ -248,7 +268,16 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
   const sendToAI = async () => {
     setSendingToAI(true);
     const list: { name: string; b64: string; size: string }[] = [];
-    for (const r of results) {
+
+    // Сначала оригинальные DOCX/PDF (бэкенд читает текст нативно)
+    for (const f of passthroughFiles) {
+      const du = await fileToDataUrl(f.file);
+      const sizeMb = Math.round(f.file.size / 1024 / 102.4) / 10;
+      list.push({ name: f.file.name, b64: du.split(",")[1], size: `${sizeMb} МБ` });
+    }
+
+    // Затем конвертированные PDF из фото
+    for (const r of pdfResults) {
       const b64 = await new Promise<string>(res => {
         const reader = new FileReader();
         reader.onload = () => res((reader.result as string).split(",")[1]);
@@ -256,6 +285,7 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
       });
       list.push({ name: r.name, b64, size: `${r.sizeMb} МБ` });
     }
+
     onSendToAI(list.slice(0, 3));
     setSendingToAI(false);
     onClose();
@@ -265,6 +295,7 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
   const pdfsIn = files.filter(f => f.kind === "pdf");
   const docxIn = files.filter(f => f.kind === "docx");
   const hasImages = images.length > 0;
+  const totalOut = pdfResults.length + passthroughFiles.length;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -345,32 +376,17 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
               </div>
 
               {/* Схема упаковки */}
-              {results.length === 0 && !converting && (
-                <div className="rounded-2xl overflow-hidden border border-slate-200">
-                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
-                    <p className="text-[11px] font-semibold text-slate-600">Как AI получит файлы</p>
-                  </div>
-                  <div className="flex divide-x divide-slate-100">
-                    {Array.from({ length: Math.min(3, files.length) }, (_, i) => {
-                      const group = files.filter((_, fi) => fi % Math.min(3, files.length) === i);
-                      return (
-                        <div key={i} className="flex-1 px-3 py-2.5">
-                          <p className="text-[10px] font-bold text-navy-600 mb-1.5">Пакет {i + 1}</p>
-                          <div className="space-y-0.5">
-                            {group.slice(0, 4).map((f, fi) => (
-                              <div key={fi} className="flex items-center gap-1">
-                                <div className="w-3 h-3 rounded flex items-center justify-center shrink-0" style={{ background: `${fileColor(f.kind)}15` }}>
-                                  <Icon name={fileIconName(f.kind) as Parameters<typeof Icon>[0]["name"]} size={8} color={fileColor(f.kind)} />
-                                </div>
-                                <p className="text-[9px] text-slate-500 truncate">{f.file.name.length > 12 ? f.file.name.slice(0, 10) + "…" : f.file.name}</p>
-                              </div>
-                            ))}
-                            {group.length > 4 && <p className="text-[9px] text-slate-400">+{group.length - 4} ещё</p>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {pdfResults.length === 0 && passthroughFiles.length === 0 && !converting && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs text-slate-500"
+                  style={{ background: "rgba(15,76,129,0.05)", border: "1px solid rgba(15,76,129,0.1)" }}>
+                  <Icon name="Info" size={13} className="text-navy-400 mt-0.5 shrink-0" />
+                  <span>
+                    {images.length > 0 && (pdfsIn.length + docxIn.length) > 0
+                      ? `Фото (${images.length} шт.) → сгруппируются в PDF. PDF/DOCX (${pdfsIn.length + docxIn.length} шт.) → передадутся напрямую. AI получит до 3 файлов.`
+                      : images.length > 0
+                        ? `${images.length} фото → сгруппируются в до ${Math.min(3, images.length)} PDF для анализа AI.`
+                        : `${pdfsIn.length + docxIn.length} документов → AI прочитает их текст напрямую (до 3 файлов).`}
+                  </span>
                 </div>
               )}
             </>
@@ -394,31 +410,47 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
             </div>
           )}
 
-          {results.length > 0 && !converting && (
+          {(pdfResults.length > 0 || passthroughFiles.length > 0) && !converting && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-navy-700">Готово — {results.length} пакета для анализа AI</p>
+              <p className="text-xs font-semibold text-navy-700">Готово к отправке — AI получит {totalOut} файла</p>
               <div className="border border-slate-200 rounded-2xl overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-3 py-2 text-slate-500 font-medium">Пакет</th>
-                      <th className="text-center px-2 py-2 text-slate-500 font-medium">Файлов</th>
+                      <th className="text-left px-3 py-2 text-slate-500 font-medium">Файл</th>
+                      <th className="text-center px-2 py-2 text-slate-500 font-medium">Страниц</th>
                       <th className="text-center px-2 py-2 text-slate-500 font-medium">Размер</th>
                       <th className="text-center px-2 py-2 text-slate-500 font-medium">Статус</th>
                       <th className="px-2 py-2" />
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map((r, i) => (
-                      <tr key={i} className={i < results.length - 1 ? "border-b border-slate-100" : ""}>
-                        <td className="px-3 py-2.5 font-medium text-navy-800">
-                          <span className="flex items-center gap-1.5">
-                            <Icon name="FileText" size={11} color="#dc2626" />{r.name}
+                    {/* Оригинальные DOCX/PDF (AI читает текст нативно) */}
+                    {passthroughFiles.map((f, i) => (
+                      <tr key={`pt-${i}`} className="border-b border-slate-100">
+                        <td className="px-3 py-2.5 font-medium text-navy-800 max-w-[140px]">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Icon name={fileIconName(f.kind) as Parameters<typeof Icon>[0]["name"]} size={11} color={fileColor(f.kind)} />
+                            {f.file.name}
                           </span>
                         </td>
-                        <td className="px-2 py-2.5 text-center text-slate-600">{r.pages}</td>
+                        <td className="px-2 py-2.5 text-center text-slate-400">—</td>
+                        <td className="px-2 py-2.5 text-center text-slate-600">{Math.round(f.file.size / 1024 / 102.4) / 10} МБ</td>
+                        <td className="px-2 py-2.5 text-center"><span className="text-emerald-600 text-[10px] font-medium">✅ читает текст</span></td>
+                        <td className="px-2 py-2.5" />
+                      </tr>
+                    ))}
+                    {/* Конвертированные PDF из фото */}
+                    {pdfResults.map((r, i) => (
+                      <tr key={`pdf-${i}`} className={i < pdfResults.length - 1 ? "border-b border-slate-100" : ""}>
+                        <td className="px-3 py-2.5 font-medium text-navy-800 max-w-[140px]">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Icon name="Image" size={11} color="#0f4c81" />{r.name}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2.5 text-center text-slate-600">{r.pages} фото</td>
                         <td className="px-2 py-2.5 text-center text-slate-600">{r.sizeMb} МБ</td>
-                        <td className="px-2 py-2.5 text-center">{r.oversized ? <span className="text-amber-600">⚠ &gt;5МБ</span> : <span className="text-emerald-600">✅</span>}</td>
+                        <td className="px-2 py-2.5 text-center">{r.oversized ? <span className="text-amber-600">⚠ &gt;5МБ</span> : <span className="text-emerald-600">✅ готов</span>}</td>
                         <td className="px-2 py-2.5 text-right">
                           <button onClick={() => downloadOne(r)} className="text-navy-600 hover:text-navy-800"><Icon name="Download" size={13} /></button>
                         </td>
@@ -433,7 +465,7 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
                   style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white" }}>
                   <Icon name="Download" size={14} />
-                  {results.length === 1 ? "Скачать PDF" : "Скачать все (ZIP)"}
+                  {totalOut === 1 ? "Скачать" : "Скачать все (ZIP)"}
                 </button>
                 <button onClick={sendToAI} disabled={sendingToAI}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-60"
@@ -447,14 +479,14 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
           )}
         </div>
 
-        {files.length > 0 && !converting && results.length === 0 && (
+        {files.length > 0 && !converting && pdfResults.length === 0 && passthroughFiles.length === 0 && (
           <div className="px-5 pb-5 shrink-0">
             <button onClick={convert}
               className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
               style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", boxShadow: "0 4px 16px rgba(15,76,129,0.3)" }}>
               <span className="flex items-center justify-center gap-2">
                 <Icon name="FileOutput" size={15} />
-                Упаковать {files.length} {files.length === 1 ? "файл" : files.length < 5 ? "файла" : "файлов"} в {Math.min(3, files.length)} пакета для AI
+                Подготовить {files.length} {files.length === 1 ? "файл" : files.length < 5 ? "файла" : "файлов"} для анализа AI
               </span>
             </button>
           </div>
