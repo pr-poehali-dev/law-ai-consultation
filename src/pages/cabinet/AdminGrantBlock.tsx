@@ -9,6 +9,7 @@ export default function AdminGrantBlock() {
   const [selected, setSelected] = useState<{ id: number; email: string; name: string } | null>(null);
   const [questions, setQuestions] = useState("");
   const [docs, setDocs] = useState("");
+  const [consultations, setConsultations] = useState("");
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok?: boolean; error?: string; msg?: string } | null>(null);
@@ -37,28 +38,34 @@ export default function AdminGrantBlock() {
     if (!selected) return;
     const q = parseInt(questions) || 0;
     const d = parseInt(docs) || 0;
-    if (q === 0 && d === 0) { setResult({ error: "Укажите количество вопросов или документов" }); return; }
+    const c = parseInt(consultations) || 0;
+    if (q === 0 && d === 0 && c === 0) {
+      setResult({ error: "Укажите количество вопросов, документов или консультаций" });
+      return;
+    }
     setLoading(true);
     setResult(null);
     const res = await adminGrant({
       target_user_id: selected.id,
-      questions: q,
-      docs: d,
+      questions: q || undefined,
+      docs: d || undefined,
+      set_lawyer_questions: c > 0 ? c : undefined,
       comment: comment.trim() || undefined,
     });
     setLoading(false);
     if (res.error) {
       setResult({ error: res.error });
     } else {
-      const parts = [];
-      if (res.questions_added) parts.push(`+${res.questions_added} вопр.`);
-      if (res.docs_added) parts.push(`+${res.docs_added} докум.`);
-      setResult({ ok: true, msg: `Начислено: ${parts.join(", ")} → ${selected.email}` });
+      const parts = res.changes || [];
+      setResult({ ok: true, msg: `Начислено → ${selected.email}: ${parts.join(", ")}` });
       setQuestions("");
       setDocs("");
+      setConsultations("");
       setComment("");
     }
   };
+
+  const hasValue = !!(parseInt(questions) || parseInt(docs) || parseInt(consultations));
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6">
@@ -99,12 +106,12 @@ export default function AdminGrantBlock() {
       )}
 
       {/* Количество */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
           <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Вопросов</label>
           <div className="flex items-center border border-border rounded-xl overflow-hidden focus-within:border-navy-400 transition-colors">
-            <div className="px-2.5 py-2 bg-blue-50">
-              <Icon name="MessageCircle" size={13} className="text-blue-500" />
+            <div className="px-2 py-2 bg-blue-50">
+              <Icon name="MessageCircle" size={12} className="text-blue-500" />
             </div>
             <input
               type="number" min="0" max="9999" value={questions}
@@ -117,12 +124,26 @@ export default function AdminGrantBlock() {
         <div>
           <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Документов</label>
           <div className="flex items-center border border-border rounded-xl overflow-hidden focus-within:border-navy-400 transition-colors">
-            <div className="px-2.5 py-2 bg-amber-50">
-              <Icon name="FileText" size={13} className="text-amber-500" />
+            <div className="px-2 py-2 bg-amber-50">
+              <Icon name="FileText" size={12} className="text-amber-500" />
             </div>
             <input
               type="number" min="0" max="9999" value={docs}
               onChange={e => setDocs(e.target.value)}
+              placeholder="0"
+              className="flex-1 text-sm px-2 py-2 outline-none w-full"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Консультаций</label>
+          <div className="flex items-center border border-border rounded-xl overflow-hidden focus-within:border-emerald-400 transition-colors">
+            <div className="px-2 py-2 bg-emerald-50">
+              <Icon name="UserCheck" size={12} className="text-emerald-600" />
+            </div>
+            <input
+              type="number" min="0" max="999" value={consultations}
+              onChange={e => setConsultations(e.target.value)}
               placeholder="0"
               className="flex-1 text-sm px-2 py-2 outline-none w-full"
             />
@@ -146,7 +167,7 @@ export default function AdminGrantBlock() {
 
       <button
         onClick={handleGrant}
-        disabled={loading || !selected || (parseInt(questions) === 0 && parseInt(docs) === 0 && !questions && !docs)}
+        disabled={loading || !selected || !hasValue}
         className="w-full btn-gold py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
       >
         {loading
