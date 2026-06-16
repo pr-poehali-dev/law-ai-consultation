@@ -55,7 +55,7 @@ export default function CabinetContent({
   const isFlex = tab === "chat" || tab === "business";
 
   const handleSendToLawyer = useCallback(async (msgText: string, prevUserText?: string) => {
-    if (!user.paidExpert && !user.isAdmin) {
+    if (!user.paidExpert && !user.purchasedPlan && !user.isAdmin) {
       setPendingLawyerMsg({ text: msgText, userText: prevUserText });
       setShowExpertMaxOffer(true);
       return;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import { downloadDoc } from "@/lib/docUtils";
-import { sendReport, getUser, lawyerSend, getToken, consumeQuestion, hasActiveSubscription } from "@/lib/auth";
+import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, consumeQuestion, hasActiveSubscription } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
@@ -207,9 +207,10 @@ ${docTextClean}
   };
 
   const handleSendToLawyer = async (comment: string) => {
+    invalidateUserCache();
     const user = await getUser();
     if (!user) return;
-    if (!user.isAdmin && !user.purchasedPlan) {
+    if (!user.isAdmin && !user.purchasedPlan && !user.paidExpert) {
       setToastType("need_starter");
       return;
     }
@@ -217,16 +218,16 @@ ${docTextClean}
       setToastType("need_consultation");
       return;
     }
-    if (!user.isAdmin && !user.paidExpert) {
-      setUpgradeFeature("lawyer");
-      return;
-    }
     setSendingToLawyer(true);
     const body = comment.trim()
       ? `Прошу проверить документ: ${doc.name}\n\nКомментарий клиента: ${comment.trim()}`
       : `Прошу проверить документ: ${doc.name}`;
-    await lawyerSend({ body, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
+    const res = await lawyerSend({ body, attachment_type: "document", attachment_name: doc.name, attachment_content: doc.content });
     setSendingToLawyer(false);
+    if (res.error) {
+      setToastType(null);
+      return;
+    }
     setSentToLawyer(true);
     setShowLawyerSuccess(true);
   };
