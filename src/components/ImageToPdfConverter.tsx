@@ -104,12 +104,14 @@ async function buildMergedPdf(items: FileItem[], quality: number): Promise<Blob>
       merged.addPage(copiedPage);
 
     } else if (item.kind === "pdf") {
-      // PDF → склеиваем страницы
+      // PDF → склеиваем страницы, кол-во зависит от итерации сжатия
+      // qualityIdx 0→15стр, 1→10стр, 2→6стр, 3→4стр
+      const maxPages = [15, 10, 6, 4][quality === 85 ? 0 : quality === 70 ? 1 : quality === 50 ? 2 : 3];
       try {
         const bytes = await fileToBytes(item.file);
         const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
         const pageCount = srcDoc.getPageCount();
-        const indices = Array.from({ length: Math.min(pageCount, 15) }, (_, i) => i); // макс 15 стр из одного PDF
+        const indices = Array.from({ length: Math.min(pageCount, maxPages) }, (_, i) => i);
         const copiedPages = await merged.copyPages(srcDoc, indices);
         copiedPages.forEach(p => merged.addPage(p));
       } catch {
@@ -133,7 +135,7 @@ async function buildMergedPdf(items: FileItem[], quality: number): Promise<Blob>
     }
   }
 
-  const bytes = await merged.save();
+  const bytes = await merged.save({ useObjectStreams: false, addDefaultPage: false });
   return new Blob([bytes], { type: "application/pdf" });
 }
 
@@ -174,8 +176,8 @@ async function packAllInto3Pdfs(
         onProgress(pct, `Создаю пакет ${gi + 1}/${groups.length} (${groups[gi].length} файлов)...`);
         const blob = await buildMergedPdf(groups[gi], q);
         const sizeMb = Math.round(blob.size / 1024 / 102.4) / 10;
-        // Если пакет >8 МБ и ещё можно пересжать — пробуем снова
-        if (blob.size > 8 * 1024 * 1024 && qualityIdx < QUALITY_STEPS.length - 1) {
+        // Если пакет >1.8 МБ и ещё можно пересжать фото — пробуем снова
+        if (blob.size > 1.8 * 1024 * 1024 && qualityIdx < QUALITY_STEPS.length - 1) {
           allOk = false; break;
         }
         const nameMap = groups.length === 1
