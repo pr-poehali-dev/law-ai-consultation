@@ -396,7 +396,7 @@ export default function ChatInputBar({
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md text-white"
                             style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>NEW</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">До 10 фото → PDF для анализа</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">До 20 файлов (фото, PDF, DOCX) → анализ AI</p>
                       </div>
                       <Icon name="ChevronRight" size={14} className="text-slate-300 group-hover:text-navy-400 shrink-0" />
                     </button>
