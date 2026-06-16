@@ -176,7 +176,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
     cur = conn.cursor()
     try:
         if service_type == "consultation":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user_id,))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s", (user_id,))
         elif service_type == "document":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user_id,))
         elif service_type == "expert":
@@ -218,6 +218,18 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 10,
+                        purchased_plan = 'max'
+                    WHERE id = %s""",
+                (user_id,)
+            )
+        elif service_type == "plan_corporate":
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 300,
+                        paid_docs = paid_docs + 100,
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 20,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)

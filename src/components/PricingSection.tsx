@@ -84,7 +84,7 @@ const USER_PLANS = [
 const CORP_FEATURES = [
   { icon: "MessageCircle", text: "300 вопросов AI-юристу" },
   { icon: "FileText", text: "100 юридических документов" },
-  { icon: "UserCheck", text: "50 консультаций живого юриста" },
+  { icon: "UserCheck", text: "20 консультаций живого юриста" },
   { icon: "BookOpen", text: "Поиск судебной практики" },
   { icon: "Calculator", text: "Калькулятор неустойки" },
   { icon: "MapPin", text: "Определение подсудности" },
