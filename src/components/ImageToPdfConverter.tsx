@@ -274,6 +274,7 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
 
   const sendToAI = async () => {
     setSendingToAI(true);
+    setError("");
     const list: { name: string; b64: string; size: string }[] = [];
 
     // PDF-пакеты (фото + склеенные PDF)
@@ -295,6 +296,15 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
         reader.readAsDataURL(f.file);
       });
       list.push({ name: f.file.name, b64, size: `${Math.round(f.file.size / 1024 / 102.4) / 10} МБ` });
+    }
+
+    // Проверяем суммарный размер перед отправкой (лимит платформы ~8 МБ)
+    const totalB64 = list.reduce((sum, f) => sum + f.b64.length, 0);
+    if (totalB64 > 6 * 1024 * 1024) {
+      const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
+      setError(`Суммарный размер пакетов ${totalMb} МБ — превышает лимит. Уменьшите количество файлов или загрузите документы по одному.`);
+      setSendingToAI(false);
+      return;
     }
 
     onSendToAI(list.slice(0, 3));

@@ -494,15 +494,15 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Проверяем суммарный размер — платформа режет запросы > ~10МБ молча.
-      // base64 overhead = 1.33x от исходного файла.
-      const PLATFORM_LIMIT_BYTES = 9 * 1024 * 1024; // 9МБ JSON — безопасная граница
+      // Платформа режет запросы > ~8 МБ (с JSON-обёрткой и заголовками).
+      // base64 overhead = 1.33x, поэтому безопасная граница — 6 МБ b64.
+      const PLATFORM_LIMIT_BYTES = 6 * 1024 * 1024;
       const totalB64 = files.reduce((sum, f) => sum + f.b64.length, 0);
       if (totalB64 > PLATFORM_LIMIT_BYTES) {
         const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
         throw new Error(
-          `Суммарный размер файлов (${totalMb} МБ) превышает лимит. ` +
-          `Используйте меньше файлов или уменьшите их размер.`
+          `Файлы слишком большие (${totalMb} МБ суммарно). ` +
+          `Попробуйте уменьшить количество файлов или их размер — максимум ~4 МБ суммарно.`
         );
       }
 
