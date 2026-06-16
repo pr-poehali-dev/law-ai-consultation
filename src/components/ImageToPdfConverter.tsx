@@ -493,7 +493,7 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
                   style={{ background: "linear-gradient(135deg,#e8a820,#f5cc5a)", color: "#0a1628" }}>
                   {sendingToAI
                     ? <><span className="w-4 h-4 border-2 border-navy-800/30 border-t-navy-800 rounded-full animate-spin" />Отправляю...</>
-                    : <><Icon name="Bot" size={14} color="#0a1628" />Отправить на анализ AI</>}
+                    : <><Icon name="Upload" size={14} color="#0a1628" />Загрузить в чат</>}
                 </button>
               </div>
             </div>
