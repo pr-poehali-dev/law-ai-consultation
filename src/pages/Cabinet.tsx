@@ -17,6 +17,8 @@ import { useCabinetInit } from "@/pages/cabinet/useCabinetInit";
 import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
 import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
 import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
+import { useLawyerNotifications } from "@/hooks/useLawyerNotifications";
+import LawyerNotificationToast from "@/pages/cabinet/LawyerNotificationToast";
 
 type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
 
@@ -105,6 +107,8 @@ export default function Cabinet() {
     pollPaymentStatus: pay.pollPaymentStatus,
   });
 
+  const { unreadCount: lawyerUnread, notification: lawyerNotification, clearNotification: clearLawyerNotification } = useLawyerNotifications(user, tab);
+
   useEffect(() => {
     if (!user || !shouldShowWelcomeTutorials()) return;
     const params = new URLSearchParams(window.location.search);
@@ -138,6 +142,7 @@ export default function Cabinet() {
         user={user}
         tab={tab}
         totalLeft={totalLeft}
+        unreadLawyerCount={lawyerUnread}
         onTabChange={setTab}
         onSelectPlan={pay.openPlanModal}
       />
@@ -196,6 +201,15 @@ export default function Cabinet() {
         setPayment={pay.setPayment}
         setPendingDocType={pay.setPendingDocType}
       />
+
+      {lawyerNotification && (
+        <LawyerNotificationToast
+          key={lawyerNotification.id}
+          message={lawyerNotification.body}
+          onReply={() => setTab("expert")}
+          onClose={clearLawyerNotification}
+        />
+      )}
     </div>
   );
 }
