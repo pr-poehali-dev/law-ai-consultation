@@ -494,9 +494,9 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Платформа режет запросы > ~8 МБ (с JSON-обёрткой и заголовками).
-      // base64 overhead = 1.33x, поэтому безопасная граница — 6 МБ b64.
-      const PLATFORM_LIMIT_BYTES = 6 * 1024 * 1024;
+      // Платформа режет запросы > ~7 МБ (JSON + заголовки + base64 overhead 1.33x).
+      // Безопасная граница — 4.5 МБ суммарного b64.
+      const PLATFORM_LIMIT_BYTES = 4.5 * 1024 * 1024;
       const totalB64 = files.reduce((sum, f) => sum + f.b64.length, 0);
       if (totalB64 > PLATFORM_LIMIT_BYTES) {
         const totalMb = (totalB64 / 1024 / 1024).toFixed(1);

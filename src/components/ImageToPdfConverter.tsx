@@ -105,8 +105,8 @@ async function buildMergedPdf(items: FileItem[], quality: number): Promise<Blob>
 
     } else if (item.kind === "pdf") {
       // PDF → склеиваем страницы, кол-во зависит от итерации сжатия
-      // qualityIdx 0→15стр, 1→10стр, 2→6стр, 3→4стр
-      const maxPages = [15, 10, 6, 4][quality === 85 ? 0 : quality === 70 ? 1 : quality === 50 ? 2 : 3];
+      // quality 85→8стр, 70→5стр, 50→3стр, 30→2стр
+      const maxPages = [8, 5, 3, 2][quality === 85 ? 0 : quality === 70 ? 1 : quality === 50 ? 2 : 3];
       try {
         const bytes = await fileToBytes(item.file);
         const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
@@ -300,11 +300,11 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
       list.push({ name: f.file.name, b64, size: `${Math.round(f.file.size / 1024 / 102.4) / 10} МБ` });
     }
 
-    // Проверяем суммарный размер перед отправкой (лимит платформы ~8 МБ)
+    // Проверяем суммарный размер перед отправкой (лимит платформы ~7 МБ с overhead)
     const totalB64 = list.reduce((sum, f) => sum + f.b64.length, 0);
-    if (totalB64 > 6 * 1024 * 1024) {
+    if (totalB64 > 4.5 * 1024 * 1024) {
       const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
-      setError(`Суммарный размер пакетов ${totalMb} МБ — превышает лимит. Уменьшите количество файлов или загрузите документы по одному.`);
+      setError(`Суммарный размер пакетов ${totalMb} МБ — превышает лимит (~4.5 МБ). Загружайте документы меньшего размера или по одному через обычную загрузку.`);
       setSendingToAI(false);
       return;
     }
