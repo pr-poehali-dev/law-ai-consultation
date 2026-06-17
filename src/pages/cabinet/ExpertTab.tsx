@@ -16,9 +16,10 @@ interface ExpertTabProps {
   genDocs: GenDoc[];
   onPayClick?: () => void;
   onBuyLawyerQuestions?: () => void;
+  onRefreshUser?: () => Promise<void>;
 }
 
-export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLawyerQuestions }: ExpertTabProps) {
+export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLawyerQuestions, onRefreshUser }: ExpertTabProps) {
   const [lmsgs, setLmsgs] = useState<LawyerMessage[]>([]);
   const [dialogs, setDialogs] = useState<LawyerDialog[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -71,10 +72,12 @@ export default function ExpertTab({ user, messages, genDocs, onPayClick, onBuyLa
 
   useEffect(() => {
     if (!isPaid && !isFreeUser && !user.isAdmin) { setLoading(false); return; }
+    // Обновляем данные пользователя при открытии вкладки, чтобы получить актуальный lawyerConsultationsLeft
+    onRefreshUser?.();
     loadMessages();
     pollRef.current = setInterval(loadMessages, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [loadMessages, isPaid, isFreeUser]);
+  }, [loadMessages, isPaid, isFreeUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -229,6 +229,7 @@ export default function CabinetContent({
             genDocs={docs.genDocs}
             onPayClick={openPlanModal}
             onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+1 консультация юриста" })}
+            onRefreshUser={refreshUser}
           />
         )}
 
