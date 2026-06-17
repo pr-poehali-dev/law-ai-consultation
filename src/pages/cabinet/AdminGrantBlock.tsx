@@ -49,7 +49,7 @@ export default function AdminGrantBlock() {
       target_user_id: selected.id,
       questions: q || undefined,
       docs: d || undefined,
-      set_lawyer_questions: c > 0 ? c : undefined,
+      lawyer_questions: c || undefined,
       comment: comment.trim() || undefined,
     });
     setLoading(false);

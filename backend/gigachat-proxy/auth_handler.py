@@ -1936,9 +1936,10 @@ def handle_admin_grant(token: str, body: dict) -> dict:
     grant_service = sanitize_str(body.get("grant_service", ""), max_len=50)  # начислить тариф
     comment = sanitize_str(body.get("comment", "Ручное действие администратора"), max_len=200)
 
-    set_lawyer_questions = body.get("set_lawyer_questions")  # установить вопросы к юристу
+    set_lawyer_questions = body.get("set_lawyer_questions")  # установить точное значение консультаций
+    lawyer_questions_delta = int(body.get("lawyer_questions", 0))  # +/- к текущему
 
-    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and set_lawyer_questions is None and not grant_service:
+    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and set_lawyer_questions is None and lawyer_questions_delta == 0 and not grant_service:
         return _err(400, "Укажите изменение: вопросы, документы или тариф")
 
     conn = get_conn()
@@ -2013,6 +2014,27 @@ def handle_admin_grant(token: str, body: dict) -> dict:
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
                 (target_user_id, target_email, f"Установлено {sd} докум. · {comment}")
+            )
+
+        # Дельта консультаций юриста (+/-)
+        if lawyer_questions_delta != 0:
+            cur.execute(
+                f"SELECT lawyer_consultations_left FROM {SCHEMA}.users WHERE id = %s",
+                (target_user_id,)
+            )
+            cur_lq_row = cur.fetchone()
+            cur_lq = cur_lq_row[0] or 0 if cur_lq_row else 0
+            new_lq = max(0, cur_lq + lawyer_questions_delta)
+            cur.execute(
+                f"UPDATE {SCHEMA}.users SET lawyer_consultations_left = %s, paid_expert = TRUE WHERE id = %s",
+                (new_lq, target_user_id)
+            )
+            sign = "+" if lawyer_questions_delta > 0 else ""
+            changes.append(f"{sign}{lawyer_questions_delta} консульт. юриста (итого {new_lq})")
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
+                    VALUES (%s, %s, 'lawyer_questions', 0, %s, 'admin_grant')""",
+                (target_user_id, target_email, f"{sign}{lawyer_questions_delta} консульт. юриста · {comment}")
             )
 
         # Прямая установка консультаций юриста

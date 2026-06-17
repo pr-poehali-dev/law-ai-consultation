@@ -410,8 +410,8 @@ export async function canAskQuestion(): Promise<boolean> {
   if (!user) return false;
   if (user.isAdmin) return true;
   if (hasActiveSubscription(user, "consult")) return true;
-  // Сначала дневной бесплатный лимит (3/день, общий с лендингом)
-  if (getDailyFreeLeft() > 0) return true;
+  // Бесплатные дневные вопросы — только для пользователей без купленного тарифа
+  if (!user.purchasedPlan && getDailyFreeLeft() > 0) return true;
   return user.paidQuestions > 0;
 }
 
@@ -420,9 +420,9 @@ export async function getQuestionsLeft(): Promise<number> {
   if (!user) return 0;
   if (user.isAdmin) return 999;
   if (hasActiveSubscription(user, "consult")) return 999;
-  // Бесплатный дневной лимит + платные вопросы
-  const dailyFree = getDailyFreeLeft();
   const paid = user.paidQuestions ?? 0;
+  // Бесплатный дневной лимит — только для пользователей без купленного тарифа
+  const dailyFree = user.purchasedPlan ? 0 : getDailyFreeLeft();
   return dailyFree + paid;
 }
 
@@ -741,6 +741,7 @@ export async function adminGrant(params: {
   target_user_id: number;
   questions?: number;
   docs?: number;
+  lawyer_questions?: number;
   set_questions?: number;
   set_docs?: number;
   set_lawyer_questions?: number;

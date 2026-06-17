@@ -5,7 +5,7 @@ import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 import imageCompression from "browser-image-compression";
 
-const MAX_FILES = 20;
+const MAX_FILES = 10;
 const MAX_FILE_MB = 20;
 const MAX_PDF_COUNT = 3;
 

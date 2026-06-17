@@ -149,9 +149,13 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     if (!currentUser) return;
 
     const hasDailyFree = getDailyFreeLeft() > 0;
-    const canAsk = currentUser.isAdmin ||
-      hasActiveSubscription(currentUser, "consult") ||
-      hasDailyFree ||
+    const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
+    // Пользователь с купленным тарифом (purchasedPlan) не использует бесплатные вопросы —
+    // они доступны только пользователям без тарифа
+    const hasPurchasedPlan = !!currentUser.purchasedPlan;
+    const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
+    const canAsk = isPremium ||
+      canUseDailyFree ||
       currentUser.paidQuestions > 0;
 
     if (!canAsk) {
@@ -163,8 +167,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
 
     // Определяем тип вопроса: бесплатный дневной или платный
-    const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
-    const usingDailyFree = !isPremium && hasDailyFree && currentUser.paidQuestions === 0;
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
 
     // Если это бесплатный дневной вопрос — инкрементируем счётчик (не списываем платное)
     if (usingDailyFree) {
