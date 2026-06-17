@@ -761,6 +761,7 @@ export interface AdminUserFull {
   paid_questions: number;
   paid_docs: number;
   paid_expert: boolean;
+  lawyer_questions_left: number;
   paid_business: number;
   is_admin: boolean;
   created_at: string | null;

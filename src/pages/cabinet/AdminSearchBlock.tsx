@@ -105,6 +105,7 @@ export default function AdminSearchBlock() {
         paid_questions: res.paid_questions ?? prev.paid_questions,
         paid_docs:      res.paid_docs      ?? prev.paid_docs,
         paid_expert:    res.paid_expert    ?? prev.paid_expert,
+        lawyer_questions_left: res.lawyer_questions_left ?? prev.lawyer_questions_left,
       } : prev);
       resetForm();
       setShowEdit(false);
@@ -206,11 +207,11 @@ export default function AdminSearchBlock() {
                 <p className="text-xl font-bold text-amber-700">{sel.paid_docs}</p>
                 <p className="text-[10px] text-amber-500 font-medium">Докум</p>
               </div>
-              <div className={`rounded-xl p-2.5 text-center ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "bg-emerald-50" : "bg-slate-50"}`}>
-                <p className={`text-xl font-bold ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "text-emerald-700" : "text-slate-400"}`}>
-                  {(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ?? 0}
+              <div className={`rounded-xl p-2.5 text-center ${sel.lawyer_questions_left ? "bg-emerald-50" : "bg-slate-50"}`}>
+                <p className={`text-xl font-bold ${sel.lawyer_questions_left ? "text-emerald-700" : "text-slate-400"}`}>
+                  {sel.lawyer_questions_left ?? 0}
                 </p>
-                <p className={`text-[10px] font-medium ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ? "text-emerald-500" : "text-slate-400"}`}>Вопр юрист</p>
+                <p className={`text-[10px] font-medium ${sel.lawyer_questions_left ? "text-emerald-500" : "text-slate-400"}`}>Вопр юрист</p>
               </div>
               <div className={`rounded-xl p-2.5 text-center ${sel.paid_expert ? "bg-purple-50" : "bg-slate-50"}`}>
                 <p className={`text-xl font-bold ${sel.paid_expert ? "text-purple-700" : "text-slate-400"}`}>
@@ -331,7 +332,7 @@ export default function AdminSearchBlock() {
                         type="number" min="0"
                         value={setLQ}
                         onChange={e => setSetLQ(e.target.value)}
-                        placeholder={`сейчас: ${(sel as AdminUserFull & { lawyer_questions_left?: number }).lawyer_questions_left ?? 0}`}
+                        placeholder={`сейчас: ${sel.lawyer_questions_left ?? 0}`}
                         className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
                       />
                     </div>
