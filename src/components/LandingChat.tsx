@@ -348,30 +348,13 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onCreateDoc={handleCreateDoc}
           onBuyPlan={openPlanPayment}
           onBuyQuickQuestions={openQuickQuestionsPayment}
-          onLogin={() => onOpenLogin({ freeTrial: false })}
           onSendToLawyer={handleSendToLawyer}
         />
 
         {/* Инпут */}
         <LandingChatInput
-          input={input}
-          typing={typing}
-          showUpsell={false}
-          questionsLeft={99}
-          sessionLeft={sessionLeft}
-          showDocMenu={showDocMenu}
-          fileInputRef={fileInputRef}
-          textareaRef={textareaRef}
-          messagesLength={messages.length}
-          attachedFile={attachedFile}
-          onInputChange={setInput}
-          onSend={() => sendMessage()}
-          onKeyDown={handleKeyDown}
-          onAttachClick={() => setShowDocAnalysisPaywall(true)}
-          onToggleDocMenu={() => setShowDocMenu(v => !v)}
           onCreateDoc={handleCreateDoc}
-          onFileSelect={handleFileSelect}
-          onRemoveFile={() => setAttachedFile(null)}
+          onLogin={() => onOpenLogin({ freeTrial: false })}
           lastSuggestDocType={messages.filter(m => m.role === "ai" && m.suggestDocType).at(-1)?.suggestDocType}
         />
       </div>

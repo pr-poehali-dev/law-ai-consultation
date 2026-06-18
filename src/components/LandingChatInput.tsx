@@ -1,168 +1,75 @@
-import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import DocPickerSheet from "@/components/DocPickerSheet";
 
 interface LandingChatInputProps {
-  input: string;
-  typing: boolean;
-  showUpsell: boolean;
-  questionsLeft: number;
-  sessionLeft: number;
-  showDocMenu: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
-  messagesLength: number;
+  input?: string;
+  typing?: boolean;
+  showUpsell?: boolean;
+  questionsLeft?: number;
+  sessionLeft?: number;
+  showDocMenu?: boolean;
+  fileInputRef?: React.RefObject<HTMLInputElement>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  messagesLength?: number;
   attachedFile?: { name: string } | null;
   lastSuggestDocType?: string;
-  onInputChange: (v: string) => void;
-  onSend: () => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onAttachClick: () => void;
-  onToggleDocMenu: () => void;
+  onInputChange?: (v: string) => void;
+  onSend?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onAttachClick?: () => void;
+  onToggleDocMenu?: () => void;
   onCreateDoc: (docTypeId: string) => void;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveFile?: () => void;
+  onLogin?: () => void;
 }
 
 export default function LandingChatInput({
-  input,
-  typing,
-  showUpsell,
-  questionsLeft,
-  sessionLeft,
-  showDocMenu: _showDocMenu,
-  fileInputRef,
-  textareaRef,
-  messagesLength,
-  attachedFile,
   lastSuggestDocType,
-  onInputChange,
-  onSend,
-  onKeyDown,
-  onAttachClick: _onAttachClick,
-  onToggleDocMenu: _onToggleDocMenu,
   onCreateDoc,
-  onFileSelect,
-  onRemoveFile,
+  onLogin,
 }: LandingChatInputProps) {
-  const [showPicker, setShowPicker] = useState(false);
 
-  const autoResize = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
-  };
-
-  const sessionBlocked = sessionLeft === 0 && messagesLength > 1;
-  const isBlocked = sessionBlocked || showUpsell;
-  const canSend = input.trim() && !typing && !isBlocked;
-
-  // Заблокированное состояние — показываем только кнопку «Создать документ»
-  if (isBlocked) {
-    const docId = lastSuggestDocType || "claim";
-    return (
-      <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
-        <button
-          onClick={() => onCreateDoc(docId)}
-          className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98]"
-          style={{
-            background: "linear-gradient(135deg, #e8a820, #f0c060)",
-            color: "#0a1628",
-            boxShadow: "0 4px 16px rgba(232,168,32,0.35)",
-          }}
-        >
-          <Icon name="FileText" size={15} color="#0a1628" />
-          Создать документ
-        </button>
-        {sessionBlocked && (
-          <p className="text-center text-[11px] mt-2" style={{ color: "#94a3b8" }}>
-            Обновите страницу, чтобы задать ещё вопросы
-          </p>
-        )}
-      </div>
-    );
-  }
+  const docId = lastSuggestDocType || "claim";
 
   return (
-    <>
-      {/* Файл прикреплён */}
-      {attachedFile && (
-        <div className="px-4 pt-2 pb-0" style={{ borderTop: "1px solid #edf0f7" }}>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
-            style={{ background: "rgba(232,168,32,0.07)", border: "1px solid rgba(232,168,32,0.2)" }}>
-            <Icon name="Paperclip" size={11} color="#b45309" className="shrink-0" />
-            <span className="flex-1 text-[11px] font-medium truncate" style={{ color: "#6b7280" }}>{attachedFile.name}</span>
-            <span className="text-[10px] font-semibold shrink-0" style={{ color: "#b45309" }}>Отправить</span>
-            {onRemoveFile && (
-              <button onClick={onRemoveFile} className="shrink-0 ml-0.5 w-4 h-4 flex items-center justify-center rounded" style={{ color: "#9ca3af" }}>
-                <Icon name="X" size={10} />
-              </button>
-            )}
-          </div>
+    <div className="px-4 pb-4 pt-3 flex flex-col gap-2" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
+      {/* Кнопка создания документа */}
+      <button
+        onClick={() => onCreateDoc(docId)}
+        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98]"
+        style={{
+          background: "linear-gradient(135deg, #e8a820, #f0c060)",
+          color: "#0a1628",
+          boxShadow: "0 4px 16px rgba(232,168,32,0.35)",
+        }}
+      >
+        <Icon name="FileText" size={15} color="#0a1628" />
+        Создать документ
+      </button>
+
+      {/* Кнопка входа/регистрации */}
+      <button
+        onClick={() => onLogin?.()}
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all active:scale-[0.98]"
+        style={{
+          background: "linear-gradient(135deg, rgba(13,32,64,0.04), rgba(22,45,90,0.07))",
+          border: "1px solid rgba(13,32,64,0.12)",
+        }}
+      >
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: "linear-gradient(135deg, #0d2040, #162d5a)", boxShadow: "0 2px 6px rgba(10,22,40,0.2)" }}>
+          <Icon name="LogIn" size={12} color="#e8a820" />
         </div>
-      )}
-
-      {/* Инпут */}
-      <div className="px-4 pb-4 pt-3" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
-        <div className="flex items-end gap-2">
-
-          {/* Кнопка выбора документа */}
-          <button
-            onClick={() => setShowPicker(true)}
-            className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{ background: "#f1f4f9", color: "#64748b", border: "1.5px solid #cbd5e1" }}
-            title="Создать документ · 290 ₽"
-          >
-            <Icon name="FileText" size={14} />
-          </button>
-
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => { onInputChange(e.target.value); autoResize(); }}
-            onKeyDown={onKeyDown}
-            placeholder="Опишите вашу ситуацию…"
-            disabled={false}
-            rows={1}
-            className="flex-1 bg-transparent outline-none resize-none py-2 text-[13px] font-golos leading-snug placeholder:text-slate-400"
-            style={{ color: "#1e293b", minHeight: "38px", maxHeight: "120px" }}
-          />
-
-          {/* Кнопка отправки */}
-          <button
-            onClick={onSend}
-            disabled={!canSend}
-            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 mb-0.5"
-            style={{
-              background: canSend ? "linear-gradient(135deg, #e8a820, #f0c060)" : "#f1f4f9",
-              boxShadow: canSend ? "0 4px 14px rgba(232,168,32,0.4)" : "none",
-              color: canSend ? "#0a1628" : "#c4ced9",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <Icon name="Send" size={15} />
-          </button>
-        </div>
-        {sessionLeft <= 1 && sessionLeft > 0 && messagesLength > 1 && (
-          <p className="text-[11px] mt-1.5 text-center" style={{ color: "#94a3b8" }}>
-            Осталось вопросов в этой сессии: {sessionLeft}
+        <div className="flex-1 text-left">
+          <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0d2040" }}>
+            Для доступа ко всем функциям
           </p>
-        )}
-      </div>
-
-      <input ref={fileInputRef} type="file"
-        accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.heic,.webp"
-        className="hidden" onChange={onFileSelect} />
-
-      {/* DocPickerSheet */}
-      {showPicker && (
-        <DocPickerSheet
-          onSelect={id => { setShowPicker(false); onCreateDoc(id); }}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
-    </>
+          <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#64748b" }}>
+            зарегистрируйтесь или авторизуйтесь
+          </p>
+        </div>
+        <Icon name="ChevronRight" size={13} color="#94a3b8" />
+      </button>
+    </div>
   );
 }
