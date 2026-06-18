@@ -247,20 +247,18 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     onOpenLogin({ freeTrial: false, pendingTab: "expert" });
   }, [pendingLawyerMsg, onOpenLogin]);
 
-  const handleCreateDoc = (docTypeId: string) => {
+  const handleCreateDoc = (docTypeId: string, query?: string, comment?: string, files?: DocAttachedFile[]) => {
     setShowDocMenu(false);
     const fullLabel = DOC_BLOCKS.flatMap(b => b.types).find(t => t.id === docTypeId)?.label;
     const docLabel = fullLabel || DOC_LABELS_MAP[docTypeId] || "документ";
-    // Собираем полный диалог: запрос пользователя + ответ AI + ответы пользователя
-    const hist = history.current;
-    const chatQuery = hist.length > 0
-      ? hist.map(m => (m.role === "user" ? "Пользователь" : "AI") + ": " + m.content).join("\n\n")
-      : input.trim() || docLabel;
-    setShowDocDetails({
-      docTypeId,
-      docLabel,
-      query: chatQuery,
-    });
+    // Если query уже передан из LandingChatInput — сразу переходим к выбору оплаты
+    if (query !== undefined) {
+      setDocDetailsData({ query, comment: comment || "", files: files || [] });
+      setShowDocChoice({ docTypeId, docLabel });
+      return;
+    }
+    // Иначе открываем DocDetailsModal (для других мест вызова)
+    setShowDocDetails({ docTypeId, docLabel, query: "" });
   };
 
   const handleDocDetailsProceed = (query: string, comment: string, files: DocAttachedFile[], docTypeId: string, docLabel: string) => {
@@ -353,7 +351,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
         {/* Инпут */}
         <LandingChatInput
-          onCreateDoc={handleCreateDoc}
+          onCreateDoc={(docTypeId, query, comment, files) => handleCreateDoc(docTypeId, query, comment, files)}
           onLogin={() => onOpenLogin({ freeTrial: false })}
           lastSuggestDocType={messages.filter(m => m.role === "ai" && m.suggestDocType).at(-1)?.suggestDocType}
         />
