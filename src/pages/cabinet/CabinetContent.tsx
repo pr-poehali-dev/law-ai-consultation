@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { downloadDoc } from "@/lib/docUtils";
 import { logout, lawyerSend, isPlanExhausted } from "@/lib/auth";
-import type { User } from "@/lib/auth";
+import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 import Icon from "@/components/ui/icon";
 import { ServiceType } from "@/components/PaymentModal";
 import ExpertOfferModal from "@/components/ExpertOfferModal";
@@ -38,6 +38,10 @@ interface CabinetContentProps {
   openDocChoice: (docTypeId: string, docLabel: string) => void;
   createDocFromChat: (aiText: string, userText: string, docHint?: DocHint) => void;
   navigate: (path: string) => void;
+  lawyerMsgs: LawyerMessage[];
+  lawyerDialogs: LawyerDialog[];
+  lawyerLoading: boolean;
+  onRefreshLawyer: () => void;
 }
 
 export default function CabinetContent({
@@ -47,6 +51,7 @@ export default function CabinetContent({
   refreshUser,
   setTab, setPayment, setViewDoc, setPendingDocType,
   openPlanModal, openDocChoice, createDocFromChat, navigate,
+  lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer,
 }: CabinetContentProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
@@ -227,6 +232,10 @@ export default function CabinetContent({
             user={user}
             messages={chat.messages}
             genDocs={docs.genDocs}
+            lawyerMsgs={lawyerMsgs}
+            lawyerDialogs={lawyerDialogs}
+            lawyerLoading={lawyerLoading}
+            onRefreshLawyer={onRefreshLawyer}
             onPayClick={openPlanModal}
             onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+1 консультация юриста" })}
             onRefreshUser={refreshUser}

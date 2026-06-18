@@ -107,7 +107,15 @@ export default function Cabinet() {
     pollPaymentStatus: pay.pollPaymentStatus,
   });
 
-  const { unreadCount: lawyerUnread, notification: lawyerNotification, clearNotification: clearLawyerNotification } = useLawyerNotifications(user, tab);
+  const {
+    unreadCount: lawyerUnread,
+    notification: lawyerNotification,
+    clearNotification: clearLawyerNotification,
+    lawyerMessages: lawyerMsgs,
+    lawyerDialogs,
+    lawyerLoading,
+    refreshLawyer,
+  } = useLawyerNotifications(user, tab);
 
   useEffect(() => {
     if (!user || !shouldShowWelcomeTutorials()) return;
@@ -164,6 +172,10 @@ export default function Cabinet() {
         openDocChoice={(docTypeId, docLabel) => setShowDocChoice({ docTypeId, docLabel })}
         createDocFromChat={createDocFromChat}
         navigate={navigate}
+        lawyerMsgs={lawyerMsgs}
+        lawyerDialogs={lawyerDialogs}
+        lawyerLoading={lawyerLoading}
+        onRefreshLawyer={refreshLawyer}
       />
 
       <CabinetModals

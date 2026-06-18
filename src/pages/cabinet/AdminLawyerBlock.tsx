@@ -38,7 +38,7 @@ export default function AdminLawyerBlock() {
   useEffect(() => {
     if (!selectedUserId) return;
     loadMessages(selectedUserId);
-    const iv = setInterval(() => loadMessages(selectedUserId), 8000);
+    const iv = setInterval(() => loadMessages(selectedUserId), 20000);
     return () => clearInterval(iv);
   }, [selectedUserId, loadMessages]);
 
