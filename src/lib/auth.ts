@@ -238,9 +238,9 @@ export async function adminLoginOtp(
   }
 }
 
-// Кэш пользователя — один запрос в 30 сек вместо многократных дублей
+// Кэш пользователя — один запрос в 60 сек вместо многократных дублей
 let _userCache: { user: User | null; ts: number } | null = null;
-const USER_CACHE_TTL = 30_000;
+const USER_CACHE_TTL = 60_000;
 let _userPromise: Promise<{ user: User | null; unauthorized: boolean }> | null = null;
 
 // Внутренняя функция — возвращает user + флаг unauthorized (true только при 401, не при сетевых ошибках)
