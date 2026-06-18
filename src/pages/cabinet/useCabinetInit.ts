@@ -171,16 +171,25 @@ export function useCabinetInit({
       }
     });
 
+    // Дебаунс — не обновляем юзера при каждом alt+tab, только после 3 сек видимости
+    let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
     const handleVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      invalidateUserCache();
-      getUserWithStatus().then(({ user: u, unauthorized }) => {
-        if (!u && unauthorized) {
-          window.location.href = "/?login=1";
-        } else if (u) {
-          setUser(u);
-        }
-      });
+      if (document.visibilityState !== "visible") {
+        if (visibilityTimer) { clearTimeout(visibilityTimer); visibilityTimer = null; }
+        return;
+      }
+      if (visibilityTimer) clearTimeout(visibilityTimer);
+      visibilityTimer = setTimeout(() => {
+        visibilityTimer = null;
+        invalidateUserCache();
+        getUserWithStatus().then(({ user: u, unauthorized }) => {
+          if (!u && unauthorized) {
+            window.location.href = "/?login=1";
+          } else if (u) {
+            setUser(u);
+          }
+        });
+      }, 3000);
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
@@ -188,6 +197,7 @@ export function useCabinetInit({
     return () => {
       stopKeepAlive();
       clearTimeout(timeoutId);
+      if (visibilityTimer) clearTimeout(visibilityTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

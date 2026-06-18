@@ -1,27 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
-import LoginModal from "@/components/LoginModal";
-import PaymentModal, { ServiceType } from "@/components/PaymentModal";
-import ExpertOfferModal from "@/components/ExpertOfferModal";
-import DocAnalysisPaywall from "@/components/DocAnalysisPaywall";
 import { fetchSafe, getUser, lawyerSend } from "@/lib/auth";
-
-import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
-import DocChoiceModal from "@/components/DocChoiceModal";
-import DocDetailsModal, { type DocAttachedFile } from "@/components/DocDetailsModal";
+import { type ServiceType } from "@/components/PaymentModal";
+import { type DocAttachedFile } from "@/components/DocDetailsModal";
 import { DOC_BLOCKS } from "@/pages/cabinet/docBlocks";
 import {
   PENDING_DOC_KEY, PENDING_SERVICE_KEY, PENDING_TTL_MS, PENDING_FILE_KEY,
   clearLandingPending, checkAndClearExpiredPending, saveHistoryToStorage,
-  saveChatMessages, loadChatMessages,
+  saveChatMessages,
   detectDocSuggestion, DOC_LABELS_MAP, type Message,
   getSessionQuestionsLeft, incrementSessionCount, resetSessionCount,
 } from "@/components/landingChatUtils";
 import LandingChatMessages from "@/components/LandingChatMessages";
 import LandingChatInput from "@/components/LandingChatInput";
-import { PWAInstallButton } from "@/components/LandingChatUpsell";
+import LandingChatHeader from "@/components/LandingChatHeader";
+import LandingChatFooter from "@/components/LandingChatFooter";
+import LandingChatModals from "@/components/LandingChatModals";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
@@ -54,7 +49,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const [pendingDocType, setPendingDocType] = useState<string | null>(null);
   const [showExpertMaxOffer, setShowExpertMaxOffer] = useState(false);
   const [pendingLawyerMsg, setPendingLawyerMsg] = useState<string | null>(null);
-  // Прикреплённый файл для анализа
   const [attachedFile, setAttachedFile] = useState<{ name: string; b64: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatBoxRef = useRef<HTMLDivElement>(null);
@@ -63,25 +57,21 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const history = useRef<{ role: string; content: string }[]>([]);
   const isFirstRender = useRef(true);
 
-  // При маунте — сбрасываем сессионный счётчик вопросов (перезагрузка = новая сессия)
   useEffect(() => {
     resetSessionCount();
     setSessionLeft(getSessionQuestionsLeft());
   }, []);
 
-  // При маунте — чистим устаревший pending если прошло > 30 мин / 24 часа
   useEffect(() => {
     checkAndClearExpiredPending();
     const timer = setTimeout(() => clearLandingPending(), PENDING_TTL_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  // Сохранение истории API (не UI) для передачи в кабинет после оплаты
   useEffect(() => {
     if (messages.length > 1) saveChatMessages(messages);
   }, [messages]);
 
-  // Скролл только внутри чат-бокса
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     const box = chatBoxRef.current;
@@ -107,13 +97,12 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         ? `${details.query}\n\n[Дополнения от пользователя]:\n${details.comment}`
         : details.query;
       localStorage.setItem("landing_pending_doc_details", combined);
-      // Сохраняем файлы (без b64 — слишком тяжёлые для localStorage, передаём отдельно)
       if (details.files && details.files.length > 0) {
         try {
           localStorage.setItem("landing_pending_doc_files", JSON.stringify(
             details.files.map(f => ({ name: f.name, b64: f.b64 }))
           ));
-        } catch { /* quota — игнорируем */ }
+        } catch { /* quota */ }
       } else {
         localStorage.removeItem("landing_pending_doc_files");
       }
@@ -125,7 +114,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   }, []);
 
   const openQuickQuestionsPayment = useCallback(() => {
-    // Сохраняем историю диалога — кабинет подхватит и покажет её в чате
     saveHistoryToStorage(history.current);
     localStorage.setItem(PENDING_SERVICE_KEY, "quick_questions");
     setPaymentService({ type: "quick_questions", name: "+3 вопроса AI-юристу" });
@@ -136,7 +124,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const sendMessage = useCallback(async (text?: string) => {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
-
     if (getSessionQuestionsLeft() === 0) return;
 
     incrementSessionCount();
@@ -173,7 +160,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
       const newSessionLeft = getSessionQuestionsLeft();
       const suggestDocType = suggestFromBackend || detectDocSuggestion(aiText) || undefined;
-      // После 2-го вопроса всегда показываем suggestDocType чтобы появилась кнопка "Создать документ"
       const finalSuggest = newSessionLeft === 0 ? (suggestDocType || "claim") : suggestDocType;
       setLandingStep(s => s + 1);
       setMessages(p => {
@@ -202,7 +188,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    // Читаем файл в base64 и сохраняем в state — модалка появится позже при нажатии «Отправить»
     const reader = new FileReader();
     reader.onload = () => {
       const b64 = (reader.result as string).split(",")[1];
@@ -226,7 +211,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
       attachment_name: msgText.slice(0, 80) + (msgText.length > 80 ? "…" : ""),
       attachment_content: chatSummary || msgText,
     });
-    // Перенаправляем в кабинет к разделу юрист
     saveHistoryToStorage(history.current);
     onOpenLogin({ freeTrial: false, pendingTab: "expert" });
   }, [onOpenLogin]);
@@ -251,13 +235,11 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowDocMenu(false);
     const fullLabel = DOC_BLOCKS.flatMap(b => b.types).find(t => t.id === docTypeId)?.label;
     const docLabel = fullLabel || DOC_LABELS_MAP[docTypeId] || "документ";
-    // Если query уже передан из LandingChatInput — сразу переходим к выбору оплаты
     if (query !== undefined) {
       setDocDetailsData({ query, comment: comment || "", files: files || [] });
       setShowDocChoice({ docTypeId, docLabel });
       return;
     }
-    // Иначе открываем DocDetailsModal (для других мест вызова)
     setShowDocDetails({ docTypeId, docLabel, query: "" });
   };
 
@@ -267,11 +249,9 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowDocChoice({ docTypeId, docLabel });
   };
 
-  // Запускает оплату анализа документа (разовый 99₽ или Профи)
   const openDocAnalysisPayment = useCallback((serviceType: ServiceType, serviceName: string) => {
     if (!attachedFile) return;
     setShowDocAnalysisPaywall(false);
-    // Сохраняем файл и запрос в localStorage — подхватим в кабинете после оплаты
     try {
       localStorage.setItem(PENDING_FILE_KEY, JSON.stringify({ name: attachedFile.name, b64: attachedFile.b64, comment: input.trim() }));
       localStorage.setItem(PENDING_SERVICE_KEY, "file_analysis");
@@ -294,7 +274,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* Чат */}
       <div
         className="rounded-3xl overflow-hidden"
         style={{
@@ -302,42 +281,8 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           boxShadow: "0 32px 80px rgba(10,22,40,0.55), 0 0 0 1px rgba(255,255,255,0.1)",
         }}
       >
-        {/* Шапка */}
-        <div className="flex items-center justify-between px-5 py-3.5"
-          style={{
-            background: "linear-gradient(135deg, #060e1f 0%, #0d2348 60%, #152d5c 100%)",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}>
-          <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{
-                  background: "linear-gradient(145deg, #1a3a6b, #0c1f40)",
-                  border: "1px solid rgba(232,168,32,0.35)",
-                  boxShadow: "0 0 16px rgba(232,168,32,0.12), inset 0 1px 0 rgba(255,255,255,0.08)",
-                }}>
-                <Icon name="Scale" size={15} color="#e8a820" />
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
-                style={{ background: "#22c55e", border: "2px solid #060e1f", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }} />
-            </div>
-            <div>
-              <p className="text-[13px] font-bold text-white leading-tight">Помощник по созданию документов</p>
-              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.01em" }}>законодательство РФ · онлайн</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{
-              background: "rgba(34,197,94,0.1)",
-              border: "1px solid rgba(34,197,94,0.18)",
-            }}
-          >
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#4ade80" }} />
-            <span className="text-[10px] font-semibold" style={{ color: "#4ade80" }}>онлайн</span>
-          </div>
-        </div>
+        <LandingChatHeader />
 
-        {/* Сообщения */}
         <LandingChatMessages
           messages={messages}
           showUpsell={showUpsell}
@@ -349,7 +294,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           onSendToLawyer={handleSendToLawyer}
         />
 
-        {/* Инпут */}
         <LandingChatInput
           onCreateDoc={(docTypeId, query, comment, files) => handleCreateDoc(docTypeId, query, comment, files)}
           onLogin={() => onOpenLogin({ freeTrial: false })}
@@ -357,151 +301,54 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
         />
       </div>
 
-      {/* PWA */}
-      <div className="mt-3 flex justify-center">
-        <PWAInstallButton />
-      </div>
+      <LandingChatFooter />
 
-      {/* Социальные сети */}
-      <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-        <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: "rgba(255,255,255,0.28)" }}>Мы в соцсетях:</span>
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-        <a
-          href="https://vk.ru/ai_pravorf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-all duration-200 active:scale-95"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
-        >
-          <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/f966fdfe-7ab1-464e-bb46-e70bf162004e.jpg" alt="VK" className="w-5 h-5 rounded-full object-cover shrink-0" />
-          <span className="text-xs font-medium">ВКонтакте</span>
-        </a>
-        <a
-          href="https://vk.com/away.php?to=https%3A%2F%2Fmax.ru%2Fjoin%2FzoHlcjX6QssCLMfhkcWj08KtE0Q_C4HQJhp6WdHNhbY&utf=1"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-all duration-200 active:scale-95"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
-        >
-          <img src="https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/files/4b6ec240-afc6-41c9-befd-87022247d412.jpg" alt="MAX" className="w-5 h-5 rounded-full object-cover shrink-0" />
-          <span className="text-xs font-medium">MAX</span>
-        </a>
-        <a
-          href="https://dzen.ru/jurist_ai?share_to=link"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-all duration-200 active:scale-95"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
-        >
-          <span className="text-xs font-bold shrink-0 text-yellow-300" style={{ color: "rgba(255,82,82,0.9)" }}>Д</span>
-          <span className="text-xs font-medium">Читать на Дзен</span>
-        </a>
-        </div>
-      </div>
-
-      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>Документ 290 ₽ · Пакет 30 вопросов + 5 документов за 990 ₽</p>
-
-      {/* Модалки */}
-      {showLogin && (
-        <LoginModal
-          onClose={() => setShowLogin(false)}
-          onSuccess={() => { setShowLogin(false); navigate("/cabinet"); }}
-          freeTrial={false}
-        />
-      )}
-
-      {showProOffer && (
-        <ExpertOfferModal
-          onClose={() => setShowProOffer(false)}
-          onSelectOffer={(type, name) => {
-            setShowProOffer(false);
-            setPaymentService({ type, name });
-            setShowPayment(true);
-          }}
-          mode="pro"
-        />
-      )}
-
-      {showPayment && (
-        <PaymentModal
-          serviceType={paymentService.type}
-          serviceName={paymentService.name}
-          onClose={() => { setShowPayment(false); setPendingDocType(null); }}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
-
-      {showDocDetails && (
-        <DocDetailsModal
-          docTypeId={showDocDetails.docTypeId}
-          docLabel={showDocDetails.docLabel}
-          initialQuery={showDocDetails.query}
-          onProceed={handleDocDetailsProceed}
-          onClose={() => setShowDocDetails(null)}
-        />
-      )}
-
-      {showDocChoice && (
-        <DocChoiceModal
-          docLabel={showDocChoice.docLabel}
-          onChooseDoc={() => {
-            const dtId = showDocChoice.docTypeId;
-            const det = docDetailsData;
-            setShowDocChoice(null);
-            openDocPayment(dtId, det || undefined);
-          }}
-          onChoosePlan={(planId) => {
-            const dtId = showDocChoice.docTypeId;
-            setShowDocChoice(null);
-            saveHistoryToStorage(history.current);
-            localStorage.setItem(PENDING_DOC_KEY, dtId);
-            localStorage.setItem(PENDING_SERVICE_KEY, "plan");
-            if (docDetailsData) {
-              const combined = docDetailsData.comment
-                ? `${docDetailsData.query}\n\n[Дополнения от пользователя]:\n${docDetailsData.comment}`
-                : docDetailsData.query;
-              localStorage.setItem("landing_pending_doc_details", combined);
-              if (docDetailsData.files?.length) {
-                try {
-                  localStorage.setItem("landing_pending_doc_files", JSON.stringify(
-                    docDetailsData.files.map(f => ({ name: f.name, b64: f.b64 }))
-                  ));
-                } catch { /* quota */ }
-              } else {
-                localStorage.removeItem("landing_pending_doc_files");
-              }
-            }
-            localStorage.setItem("landing_pending_ts", String(Date.now()));
-            const id = (planId || "plan_starter") as ServiceType;
-            const nameMap: Record<string, string> = {
-              plan_starter: "Тариф «Старт»",
-              plan_pro: "Тариф «Профи»",
-              plan_max: "Тариф «Максимум»",
-            };
-            setPaymentService({ type: id, name: nameMap[id] || "Тариф" });
-            setPendingDocType(dtId);
-            setShowPayment(true);
-          }}
-          onClose={() => { setShowDocChoice(null); setDocDetailsData(null); }}
-          onLoginClick={() => { setShowDocChoice(null); setShowLogin(true); }}
-        />
-      )}
-
-      {showExpertMaxOffer && (
-        <ExpertMaxOfferModal
-          context="chat"
-          onClose={() => { setShowExpertMaxOffer(false); setPendingLawyerMsg(null); }}
-          onSuccess={handleExpertMaxSuccess}
-        />
-      )}
-
-      {showDocAnalysisPaywall && (
-        <DocAnalysisPaywall
-          onChoosePro={() => openDocAnalysisPayment("plan_pro", "Тариф «Профи»")}
-          onChooseMax={() => openDocAnalysisPayment("plan_max", "Тариф «Максимум»")}
-          onClose={() => setShowDocAnalysisPaywall(false)}
-        />
-      )}
+      <LandingChatModals
+        showLogin={showLogin}
+        showProOffer={showProOffer}
+        showPayment={showPayment}
+        showDocDetails={showDocDetails}
+        showDocChoice={showDocChoice}
+        showExpertMaxOffer={showExpertMaxOffer}
+        showDocAnalysisPaywall={showDocAnalysisPaywall}
+        paymentService={paymentService}
+        docDetailsData={docDetailsData}
+        pendingDocType={pendingDocType}
+        historyRef={history}
+        onCloseLogin={() => setShowLogin(false)}
+        onLoginSuccess={() => { setShowLogin(false); navigate("/cabinet"); }}
+        onCloseProOffer={() => setShowProOffer(false)}
+        onSelectProOffer={(type, name) => { setPaymentService({ type, name }); setShowPayment(true); }}
+        onClosePayment={() => { setShowPayment(false); setPendingDocType(null); }}
+        onPaymentSuccess={handlePaymentSuccess}
+        onDocDetailsProceed={handleDocDetailsProceed}
+        onCloseDocDetails={() => setShowDocDetails(null)}
+        onDocChooseDoc={() => {
+          const dtId = showDocChoice?.docTypeId;
+          const det = docDetailsData;
+          setShowDocChoice(null);
+          openDocPayment(dtId, det || undefined);
+        }}
+        onDocChoosePlan={(planId) => {
+          const dtId = showDocChoice?.docTypeId || "";
+          setPendingDocType(dtId);
+          const id = (planId || "plan_starter") as ServiceType;
+          const nameMap: Record<string, string> = {
+            plan_starter: "Тариф «Старт»",
+            plan_pro: "Тариф «Профи»",
+            plan_max: "Тариф «Максимум»",
+          };
+          setPaymentService({ type: id, name: nameMap[id] || "Тариф" });
+          setShowPayment(true);
+        }}
+        onCloseDocChoice={() => { setShowDocChoice(null); setDocDetailsData(null); }}
+        onLoginClickFromDocChoice={() => { setShowDocChoice(null); setShowLogin(true); }}
+        onCloseExpertMaxOffer={() => { setShowExpertMaxOffer(false); setPendingLawyerMsg(null); }}
+        onExpertMaxSuccess={handleExpertMaxSuccess}
+        onChooseProDocAnalysis={() => openDocAnalysisPayment("plan_pro", "Тариф «Профи»")}
+        onChooseMaxDocAnalysis={() => openDocAnalysisPayment("plan_max", "Тариф «Максимум»")}
+        onCloseDocAnalysisPaywall={() => setShowDocAnalysisPaywall(false)}
+      />
     </div>
   );
 }

@@ -10,9 +10,10 @@ const AI_CHAT_URL = _f["ai-chat"];
 const AI_DOCS_URL = _f["ai-docs"];
 const TOKEN_KEY = "yurist_ai_token";
 
-// Keep-alive: греем только ai-chat и ai-docs — они "холодные" и нужны пользователю
+// Keep-alive: греем ai-chat и ai-docs — только когда вкладка активна
 export function startKeepAlive(): () => void {
   const ping = () => {
+    if (document.visibilityState !== "visible") return; // не пингуем в фоне
     fetch(AI_CHAT_URL, { method: "GET" }).catch(() => {});
     fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
   };

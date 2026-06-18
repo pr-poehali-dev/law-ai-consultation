@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-const POLL_ACTIVE = 20000;    // 20 сек — когда вкладка активна
-const POLL_HIDDEN = 60000;    // 60 сек — когда вкладка в фоне
+const POLL_INTERVAL = 20000; // 20 сек — только когда вкладка видима
 
 export interface LawyerNotification {
   id: number;
@@ -42,10 +41,9 @@ export function useLawyerNotifications(
   const isFreeUser = !isAdmin && !hasPlan;
   const canPoll = !!userId && !isAdmin && (hasPlan || isFreeUser);
 
-  const getInterval = () =>
-    document.visibilityState === "visible" ? POLL_ACTIVE : POLL_HIDDEN;
-
   const poll = useCallback(async () => {
+    // Не делаем запрос если вкладка скрыта
+    if (document.visibilityState !== "visible") return;
     const res = await lawyerMessages();
     if (!res.messages) return;
 
@@ -73,6 +71,7 @@ export function useLawyerNotifications(
   }, []);
 
   const pollAdmin = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
     const res = await lawyerMessages({ show_closed: false });
     if (res.dialogs) setDialogs(res.dialogs);
     setLoading(false);
@@ -83,13 +82,7 @@ export function useLawyerNotifications(
     else if (canPoll) poll();
   }, [isAdmin, canPoll, poll, pollAdmin]);
 
-  // Перезапускаем интервал при изменении видимости вкладки
-  const restartInterval = useCallback((fn: () => void) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(fn, getInterval());
-  }, []);  
-
-  // Polling для обычных пользователей
+  // Polling для обычных пользователей — стартует, останавливается при уходе вкладки в фон
   useEffect(() => {
     if (!canPoll) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -99,33 +92,60 @@ export function useLawyerNotifications(
     }
     if (isStartedRef.current) return;
     isStartedRef.current = true;
-    poll();
-    pollRef.current = setInterval(poll, POLL_ACTIVE);
 
-    const onVisibility = () => restartInterval(poll);
+    const startPolling = () => {
+      poll();
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(poll, POLL_INTERVAL);
+    };
+
+    const stopPolling = () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        startPolling(); // сразу опрашиваем при возврате
+      } else {
+        stopPolling(); // полностью останавливаем в фоне
+      }
+    };
+
+    startPolling();
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      stopPolling();
       isStartedRef.current = false;
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [canPoll, poll, restartInterval]);
+  }, [canPoll, poll]);
 
-  // Polling для админа — только когда на вкладке юриста
+  // Polling для админа — только когда на вкладке юриста и вкладка видима
   useEffect(() => {
     if (!isAdmin || activeTab !== "expert") return;
     setLoading(true);
-    pollAdmin();
-    const iv = setInterval(pollAdmin, POLL_ACTIVE);
+
+    const startAdminPolling = () => {
+      pollAdmin();
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(pollAdmin, POLL_INTERVAL);
+    };
+
+    const stopAdminPolling = () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
 
     const onVisibility = () => {
-      clearInterval(iv);
+      if (document.visibilityState === "visible") startAdminPolling();
+      else stopAdminPolling();
     };
+
+    startAdminPolling();
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      clearInterval(iv);
+      stopAdminPolling();
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [isAdmin, activeTab, pollAdmin]);

@@ -38,8 +38,24 @@ export default function AdminLawyerBlock() {
   useEffect(() => {
     if (!selectedUserId) return;
     loadMessages(selectedUserId);
-    const iv = setInterval(() => loadMessages(selectedUserId), 20000);
-    return () => clearInterval(iv);
+    let iv: ReturnType<typeof setInterval> | null = setInterval(() => {
+      if (document.visibilityState === "visible") loadMessages(selectedUserId);
+    }, 20000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadMessages(selectedUserId);
+        if (!iv) iv = setInterval(() => {
+          if (document.visibilityState === "visible") loadMessages(selectedUserId);
+        }, 20000);
+      } else {
+        if (iv) { clearInterval(iv); iv = null; }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      if (iv) clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [selectedUserId, loadMessages]);
 
   useEffect(() => {
