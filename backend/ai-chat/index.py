@@ -331,7 +331,7 @@ def handler(event: dict, context) -> dict:
                         "body": json.dumps({"error": "messages required"})}
             clean_messages, _ = strip_personal_data(messages[-6:])
             system_prompt = SYSTEM_CHAT_LANDING_STEP2 if step >= 2 else SYSTEM_CHAT_LANDING_STEP1
-            max_tokens = 200 if step >= 2 else 600
+            max_tokens = 800 if step >= 2 else 1200
             answer, _ = call_deepseek(system_prompt, clean_messages, max_tokens=max_tokens, temperature=0.15, timeout=30)
             suggest = detectDocSuggestionPy("\n".join(m.get("content","") for m in clean_messages) + "\n" + answer)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
