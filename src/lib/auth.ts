@@ -124,7 +124,6 @@ const SLOW_ACTIONS = new Set([
 
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
-  const controller = new AbortController();
   const action = (body as Record<string, unknown>).action as string | undefined;
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
   // Медленные actions — 25с, юрист — 30с, остальные — 10с
@@ -132,21 +131,39 @@ async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   if (LAWYER_ACTIONS.has(action ?? "")) cap = 30000;
   else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
   const effectiveTimeout = Math.min(timeoutMs, cap);
-  const tid = setTimeout(() => controller.abort(), effectiveTimeout);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { "X-Auth-Token": token } : {}),
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    return res;
-  } finally {
-    clearTimeout(tid);
+
+  // Автоматический retry при 502 (холодный старт функции) — 1 повтор через 1.5с
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), effectiveTimeout);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+      // 502 = холодный старт или временный сбой — повторяем один раз
+      if (res.status === 502 && attempt === 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      clearTimeout(tid);
+      if (attempt === 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      throw e;
+    }
   }
+  // fallback (не должен достигаться)
+  throw new Error("Нет соединения");
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok?: boolean; error?: string }> {
