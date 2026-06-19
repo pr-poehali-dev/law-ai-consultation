@@ -91,7 +91,8 @@
       "method": "POST",
       "path": "/",
       "body": {"action": "vapid-public-key"},
-      "expectedStatus": 503,
+      "expectedStatus": 200,
+      "expectedBody": {"publicKey": "string"},
       "bodyMatcher": "partial"
     },
     {
