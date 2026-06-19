@@ -18,8 +18,8 @@ export default function AdminLawyerBlock() {
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; filename: string; expires_at: number }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Защита от race condition при быстрых кликах по диалогам
   const loadMsgSeqRef = useRef(0);
+  const sendingRef = useRef(false); // мгновенная блокировка повторной отправки
 
   const loadDialogs = useCallback(async () => {
     setLoading(true);
@@ -57,10 +57,14 @@ export default function AdminLawyerBlock() {
 
   const handleSendReply = async () => {
     if (!reply.trim() || !selectedUserId) return;
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
-    await lawyerSend({ body: reply.trim(), target_user_id: selectedUserId });
+    const text = reply.trim();
     setReply("");
+    await lawyerSend({ body: text, target_user_id: selectedUserId });
     await loadMessages(selectedUserId);
+    sendingRef.current = false;
     setSending(false);
   };
 
