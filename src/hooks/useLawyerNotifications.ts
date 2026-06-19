@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-// Polling только для АДМИНА (видит все диалоги, ему нужна актуальность)
-const POLL_ADMIN = 20000;
+// Polling убран — Web Push доставляет уведомления мгновенно.
+// Данные обновляются: при открытии вкладки, при возврате из фона, при ручном refresh.
 
 export interface LawyerNotification {
   id: number;
@@ -30,7 +30,6 @@ export function useLawyerNotifications(
   const [dialogs, setDialogs] = useState<LawyerDialog[]>([]);
   const [loading, setLoading] = useState(true);
   const lastSeenIdRef = useRef<number | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isStartedRef = useRef(false);
   const isOnExpertTabRef = useRef(activeTab === "expert");
   isOnExpertTabRef.current = activeTab === "expert";
@@ -104,28 +103,18 @@ export function useLawyerNotifications(
     };
   }, [canLoad, loadOnce]);
 
-  // Polling для админа — только на вкладке юриста, останавливается в фоне
+  // Загрузка для админа — разово при открытии вкладки + при возврате из фона.
+  // Push-уведомление приходит → пользователь кликает → вкладка становится visible → данные обновляются.
   useEffect(() => {
     if (!isAdmin || activeTab !== "expert") return;
     setLoading(true);
+    pollAdmin();
 
-    const start = () => {
-      pollAdmin();
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = setInterval(pollAdmin, POLL_ADMIN);
-    };
-    const stop = () => {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") start();
-      else stop();
+      if (document.visibilityState === "visible") pollAdmin();
     };
-
-    start();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [isAdmin, activeTab, pollAdmin]);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react"; // useRef нужен для messagesEndRef и fileInputRef
 import Icon from "@/components/ui/icon";
 import { lawyerMessages, lawyerSend, lawyerCloseDialog, lawyerCompleteService, lawyerUploadFile, type LawyerMessage, type LawyerDialog } from "@/lib/auth";
 
@@ -38,20 +38,12 @@ export default function AdminLawyerBlock() {
   useEffect(() => {
     if (!selectedUserId) return;
     loadMessages(selectedUserId);
-    // 30 сек — диалог уже открыт, спешки нет; реальные уведомления идут через push
-    let iv: ReturnType<typeof setInterval> | null = null;
-    const start = () => {
-      if (iv) return;
-      iv = setInterval(() => loadMessages(selectedUserId), 30000);
-    };
-    const stop = () => { if (iv) { clearInterval(iv); iv = null; } };
+    // Polling убран — push уведомит админа, при клике вкладка станет visible и данные обновятся
     const onVisibility = () => {
-      if (document.visibilityState === "visible") { loadMessages(selectedUserId); start(); }
-      else stop();
+      if (document.visibilityState === "visible") loadMessages(selectedUserId);
     };
-    if (document.visibilityState === "visible") start();
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
+    return () => { document.removeEventListener("visibilitychange", onVisibility); };
   }, [selectedUserId, loadMessages]);
 
   useEffect(() => {
