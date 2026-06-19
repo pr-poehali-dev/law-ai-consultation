@@ -36,8 +36,8 @@ _SELECT_COLS = (
 def get_conn():
     return psycopg2.connect(
         os.environ["DATABASE_URL"],
-        connect_timeout=3,              # БД локальная — 3с достаточно
-        options="-c statement_timeout=8000",  # 8с — защита от зависших запросов
+        connect_timeout=8,
+        options="-c statement_timeout=15000",
     )
 
 
@@ -125,7 +125,7 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     last_err = None
     # Попытка 1: SSL 465
     try:
-        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=8) as server:
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
             server.login(smtp_from, smtp_pass)
             server.sendmail(smtp_from, [to_email], msg.as_string())
         return  # успех
@@ -134,7 +134,7 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
 
     # Попытка 2: STARTTLS 587
     try:
-        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=8) as server:
+        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
@@ -294,131 +294,90 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         cur.close()
         conn.close()
 
-    # Email и push — запускаем в фоновых потоках, не блокируем ответ пользователю
+    # Отправляем email юристу (только когда пишет пользователь, не админ)
     if not is_admin:
-        # Пользователь написал юристу → уведомляем админа
-        def _notify_admin():
-            try:
-                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
-                _send_email(
-                    to_email=ADMIN_EMAIL,
-                    subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
-                    body_text=(
-                        f"Новое сообщение от клиента\n{'─'*40}\n"
-                        f"Имя: {sender_name}\nEmail: {sender_email}\n{'─'*40}\n\n"
-                        f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                        f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
-                    ),
-                )
-            except Exception:
-                pass
-            try:
-                short_msg = (msg_body or att_name or "Новое сообщение")[:100]
-                name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
-                _push_to_admin(
-                    title=f"💬 {name_label} — ИИ-Право.рф",
-                    body=short_msg,
-                    url="/cabinet",
-                    tag="lawyer-inbox",
-                )
-            except Exception:
-                pass
-        threading.Thread(target=_notify_admin, daemon=True).start()
+        try:
+            att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+            email_body = (
+                f"Новое сообщение от клиента\n"
+                f"{'─'*40}\n"
+                f"Имя: {sender_name}\n"
+                f"Email: {sender_email}\n"
+                f"{'─'*40}\n\n"
+                f"{msg_body}{att_info}\n\n"
+                f"{'─'*40}\n"
+                f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
+            )
+            _send_email(
+                to_email=ADMIN_EMAIL,
+                subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
+                body_text=email_body,
+            )
+        except Exception:
+            pass  # Email не критичен — сообщение уже сохранено
+
+        # Push-уведомление администратору
+        try:
+            short_msg = (msg_body or att_name or "Новое сообщение")[:100]
+            name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
+            _push_to_admin(
+                title=f"💬 {name_label} — ИИ-Право.рф",
+                body=short_msg,
+                url="/cabinet",
+                tag="lawyer-inbox",
+            )
+        except Exception:
+            pass
 
     else:
-        # Админ ответил → уведомляем пользователя
-        def _notify_user():
+        # Админ ответил — email + push пользователю
+        try:
+            # Получаем email пользователя
+            conn2 = get_conn()
+            cur2 = conn2.cursor()
             try:
-                conn2 = get_conn()
-                cur2 = conn2.cursor()
-                try:
-                    cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (recipient_id,))
-                    urow2 = cur2.fetchone()
-                finally:
-                    cur2.close()
-                    conn2.close()
-                if urow2:
-                    recipient_name = urow2[0] or ""
-                    recipient_email = urow2[1] or ""
-                    greeting = f"Здравствуйте, {recipient_name.strip()}!" if recipient_name.strip() else "Здравствуйте!"
-                    att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
-                    _send_email(
-                        to_email=recipient_email,
-                        subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
-                        body_text=(
-                            f"{greeting}\n\nЮрист ответил на ваш запрос:\n\n"
-                            f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                            f"Просмотреть переписку и продолжить диалог:\nhttps://ии-право.рф/cabinet\n\n"
-                            f"С уважением, команда ИИ-Право.рф"
-                        ),
-                    )
-            except Exception as e:
-                print(f"[LAWYER_REPLY] Email не отправлен: {e}")
-            try:
-                short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
-                _push_to_users(
-                    [recipient_id],
-                    title="⚖️ Юрист ответил — ИИ-Право.рф",
-                    body=short_msg,
-                    url="/cabinet?tab=expert",
-                    tag="lawyer-reply",
+                cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (recipient_id,))
+                urow2 = cur2.fetchone()
+            finally:
+                cur2.close()
+                conn2.close()
+
+            if urow2:
+                recipient_name = urow2[0] or ""
+                recipient_email = urow2[1] or ""
+                greeting = f"Здравствуйте, {recipient_name.strip()}!" if recipient_name.strip() else "Здравствуйте!"
+                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+                _send_email(
+                    to_email=recipient_email,
+                    subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
+                    body_text=(
+                        f"{greeting}\n\n"
+                        f"Юрист ответил на ваш запрос:\n\n"
+                        f"{msg_body}{att_info}\n\n"
+                        f"{'─'*40}\n"
+                        f"Просмотреть переписку и продолжить диалог:\n"
+                        f"https://ии-право.рф/cabinet\n\n"
+                        f"С уважением, команда ИИ-Право.рф"
+                    ),
                 )
-            except Exception as e:
-                print(f"[LAWYER_REPLY] Push не отправлен: {e}")
-        threading.Thread(target=_notify_user, daemon=True).start()
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Email не отправлен: {e}")
+
+        # Push пользователю — мгновенно, даже если вкладка закрыта
+        try:
+            short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
+            _push_to_users(
+                [recipient_id],
+                title="⚖️ Юрист ответил — ИИ-Право.рф",
+                body=short_msg,
+                url="/cabinet?tab=expert",
+                tag="lawyer-reply",
+            )
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Push не отправлен: {e}")
 
     result = {"id": row[0], "created_at": row[1].isoformat()}
     return _ok(result)
-
-
-def handle_lawyer_ping(body: dict, user_id: int, is_admin: bool) -> dict:
-    """Лёгкий ping — возвращает только last_id и unread_count без загрузки тела сообщений.
-    Используется для быстрого поллинга (каждые 3с) когда пользователь на вкладке Юрист.
-    Если last_id изменился — фронтенд делает полный lawyer-messages запрос."""
-    target_user_id = body.get("target_user_id")
-    known_last_id = body.get("last_id", 0)
-
-    conn = get_conn()
-    cur = conn.cursor()
-    try:
-        if is_admin:
-            if target_user_id:
-                # Пинг конкретного диалога — проверяем появились ли новые сообщения
-                cur.execute(
-                    f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='user' AND is_read=FALSE) "
-                    f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s",
-                    (int(target_user_id),)
-                )
-                row = cur.fetchone()
-                last_id = row[0] or 0
-                unread = int(row[1] or 0)
-            else:
-                # Пинг списка диалогов — проверяем появились ли новые сообщения от любого юзера
-                cur.execute(
-                    f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='user' AND is_read=FALSE) "
-                    f"FROM {SCHEMA}.lawyer_messages"
-                )
-                row = cur.fetchone()
-                last_id = row[0] or 0
-                unread = int(row[1] or 0)
-        else:
-            cur.execute(
-                f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='admin' AND is_read=FALSE) "
-                f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s",
-                (user_id,)
-            )
-            row = cur.fetchone()
-            last_id = row[0] or 0
-            unread = int(row[1] or 0)
-    finally:
-        cur.close()
-        conn.close()
-
-    return _ok({
-        "last_id": last_id,
-        "unread": unread,
-        "has_new": last_id > known_last_id,
-    })
 
 
 def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
@@ -623,13 +582,11 @@ def handle_lawyer_upload_file(body: dict, user_id: int) -> dict:
     content_type = mime_map.get(ext, "application/octet-stream")
     ts = int(time.time())
     key = f"lawyer-files/{ts}_{user_id}_{filename}"
-    from botocore.config import Config as BotoConfig
     s3 = boto3.client(
         "s3",
         endpoint_url="https://bucket.poehali.dev",
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        config=BotoConfig(connect_timeout=5, read_timeout=20),  # 20с на upload до 20МБ
     )
     s3.put_object(Bucket="files", Key=key, Body=file_data, ContentType=content_type,
                   Metadata={"uploaded_at": str(ts), "user_id": str(user_id), "ttl": str(ts + 86400)})
@@ -722,7 +679,6 @@ def handler(event: dict, context) -> dict:
     TOKEN_REQUIRED_ACTIONS = {
         "lawyer-send",
         "lawyer-messages",
-        "lawyer-ping",
         "lawyer-close-dialog",
         "lawyer-complete-consultation",
         "lawyer-upload-file",
@@ -741,9 +697,6 @@ def handler(event: dict, context) -> dict:
 
         if action == "lawyer-messages":
             return _result_response(handle_lawyer_messages(body, user_id, is_admin))
-
-        if action == "lawyer-ping":
-            return _result_response(handle_lawyer_ping(body, user_id, is_admin))
 
         if action == "lawyer-close-dialog":
             return _result_response(handle_lawyer_close_dialog(body, user_id, is_admin))

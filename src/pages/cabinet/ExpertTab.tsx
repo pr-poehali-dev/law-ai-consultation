@@ -135,23 +135,9 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    let res: Awaited<ReturnType<typeof lawyerSend>>;
-    try {
-      res = await lawyerSend(params);
-    } catch {
-      setErr("Ошибка соединения. Попробуйте ещё раз.");
-      setSending(false);
-      setUploadProgress(0);
-      return;
-    }
+    const res = await lawyerSend(params);
     setUploadProgress(100);
-    if (res.error) {
-      // При временных серверных ошибках — не очищаем поле, чтобы можно было повторить
-      setErr("Не удалось отправить. Попробуйте ещё раз.");
-      setSending(false);
-      setUploadProgress(0);
-      return;
-    }
+    if (res.error) { setErr(res.error); setSending(false); setUploadProgress(0); return; }
 
     // Для free-пользователей — блокируем после первой отправки
     if (isFreeUser) setSentFreeQuestion(true);

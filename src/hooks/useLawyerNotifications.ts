@@ -1,13 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { lawyerMessages, lawyerPing } from "@/lib/auth";
+import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-// Стратегия двухуровневого polling:
-// 1. FAST: ping каждые 3с — только MAX(id) и unread (~10-20мс, почти бесплатно)
-// 2. FULL: полная загрузка только если ping вернул has_new=true (~250мс)
-// Итого: 1 полный запрос при изменении + 19 лёгких пингов в минуту
-const PING_INTERVAL = 3_000;   // ping каждые 3 сек — пока на вкладке юриста
-const SLOW_INTERVAL = 15_000;  // когда НЕ на вкладке — не пингуем (0 запросов)
+// Polling только для АДМИНА (видит все диалоги, ему нужна актуальность)
+const POLL_ADMIN = 20000;
 
 export interface LawyerNotification {
   id: number;
@@ -33,130 +29,116 @@ export function useLawyerNotifications(
   const [msgs, setMsgs] = useState<LawyerMessage[]>([]);
   const [dialogs, setDialogs] = useState<LawyerDialog[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const lastKnownIdRef = useRef<number>(0);   // last_id из последнего ping/fetch
-  const fetchingRef = useRef(false);           // защита от параллельных полных запросов
-  const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSeenIdRef = useRef<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isStartedRef = useRef(false);
   const isOnExpertTabRef = useRef(activeTab === "expert");
   isOnExpertTabRef.current = activeTab === "expert";
 
   const userId = user?.id ?? null;
   const isAdmin = user?.isAdmin ?? false;
-  // Polling запускаем только тем, у кого есть доступ к юристу
-  const hasLawyerAccess = isAdmin || (user?.paidExpert ?? false) || (user?.lawyerConsultationsLeft ?? 0) > 0;
-  const isOnExpertTab = activeTab === "expert";
+  const canLoad = !!userId && !isAdmin; // обычные пользователи — только разовая загрузка
 
-  // ─── Полная загрузка данных ─────────────────────────────────────────────────
-  const fetchFull = useCallback(async (adminTarget?: number) => {
-    if (fetchingRef.current) return;
-    if (!userId) return;
-    fetchingRef.current = true;
-    try {
-      if (isAdmin) {
-        const params = adminTarget ? { target_user_id: adminTarget } : { show_closed: false };
-        const res = await lawyerMessages(params);
-        if (res.dialogs) {
-          setDialogs(res.dialogs);
-          // Обновляем last_id по максимальной дате из диалогов
-          if (res.dialogs.length > 0) {
-            const maxTs = Math.max(...res.dialogs.map(d => new Date(d.last_at).getTime()));
-            lastKnownIdRef.current = maxTs;
-          }
-        }
-        if (res.messages) setMsgs(res.messages);
-      } else {
-        const res = await lawyerMessages();
-        if (!res.messages) return;
-        const newMsgs = res.messages;
-        setMsgs(newMsgs);
+  // ─── Разовая загрузка для обычных пользователей ─────────────────────────────
+  // Push-уведомления заменяют polling: юзер получает push и открывает кабинет.
+  // При открытии кабинета данные грузятся один раз. Повтор — только при явном refresh.
+  const loadOnce = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
+    const res = await lawyerMessages();
+    if (!res.messages) { setLoading(false); return; }
 
-        if (newMsgs.length > 0) {
-          lastKnownIdRef.current = newMsgs[newMsgs.length - 1].id;
-        }
+    const newMsgs = res.messages;
+    setMsgs(newMsgs);
 
-        const adminMsgs = newMsgs.filter(m => m.sender === "admin");
-        const unread = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
-        setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
+    const adminMsgs = newMsgs.filter(m => m.sender === "admin");
+    const unread = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
 
-        if (adminMsgs.length > 0) {
-          const latest = adminMsgs[adminMsgs.length - 1];
-          if (!isOnExpertTabRef.current && latest.id > lastKnownIdRef.current) {
-            setNotification({ id: latest.id, body: latest.body });
-          }
-        }
+    setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
+    setLoading(false);
+
+    if (adminMsgs.length === 0) return;
+    const latest = adminMsgs[adminMsgs.length - 1];
+
+    if (lastSeenIdRef.current === null) {
+      lastSeenIdRef.current = latest.id;
+      return;
+    }
+    if (latest.id > lastSeenIdRef.current && !latest.is_read) {
+      lastSeenIdRef.current = latest.id;
+      if (!isOnExpertTabRef.current) {
+        setNotification({ id: latest.id, body: latest.body });
       }
-    } finally {
-      fetchingRef.current = false;
-      setLoading(false);
     }
-  }, [userId, isAdmin]);
+  }, []);
 
-  // ─── Лёгкий ping — только MAX(id), не тянем тело сообщений ────────────────
-  const doPing = useCallback(async () => {
-    if (!userId || document.visibilityState !== "visible") return;
-    const res = await lawyerPing({ last_id: lastKnownIdRef.current });
-    if (res.error) return;
+  // ─── Polling для АДМИНА ──────────────────────────────────────────────────────
+  const pollAdmin = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
+    const res = await lawyerMessages({ show_closed: false });
+    if (res.dialogs) setDialogs(res.dialogs);
+    setLoading(false);
+  }, []);
 
-    // Обновляем счётчик непрочитанных даже без полной загрузки
-    if (res.unread !== undefined && !isOnExpertTabRef.current) {
-      setUnreadCount(res.unread);
-    }
+  const refresh = useCallback(() => {
+    if (isAdmin) pollAdmin();
+    else if (canLoad) loadOnce();
+  }, [isAdmin, canLoad, loadOnce, pollAdmin]);
 
-    // Новые сообщения появились — делаем полную загрузку
-    if (res.has_new) {
-      if (res.last_id) lastKnownIdRef.current = res.last_id;
-      fetchFull();
-    }
-  }, [userId, fetchFull]);
-
-  // ─── Управление ping-интервалом ────────────────────────────────────────────
+  // Разовая загрузка при маунте для обычных пользователей
   useEffect(() => {
-    if (!userId) { setLoading(false); return; }
-    // Не запускаем polling для пользователей без доступа к юристу
-    if (!hasLawyerAccess) { setLoading(false); return; }
+    if (!canLoad) { setLoading(false); return; }
+    if (isStartedRef.current) return;
+    isStartedRef.current = true;
 
-    const stopPing = () => {
-      if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; }
-    };
-    const startPing = () => {
-      if (pingRef.current) return;
-      pingRef.current = setInterval(doPing, PING_INTERVAL);
-    };
+    loadOnce();
 
-    if (isOnExpertTab) {
-      // На вкладке юриста: полная загрузка сразу + быстрый ping каждые 3с
-      fetchFull();
-      startPing();
-    } else {
-      // Ушли с вкладки юриста — останавливаем ping полностью
-      stopPing();
-      // Разовая загрузка для бейджа (только при смене вкладки)
-      fetchFull();
-    }
-
-    // Браузер уходит в фон — ping паузируем; возвращается — возобновляем
+    // При возврате вкладки — тоже обновляем (мог прийти push пока вкладка была скрыта)
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        doPing(); // немедленная проверка при возврате
-        if (isOnExpertTab) startPing();
-      } else {
-        stopPing();
-      }
+      if (document.visibilityState === "visible") loadOnce();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      stopPing();
+      isStartedRef.current = false;
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [userId, isOnExpertTab, hasLawyerAccess, fetchFull, doPing]);
+  }, [canLoad, loadOnce]);
 
-  // Сброс бейджа при переходе на вкладку юриста
+  // Polling для админа — только на вкладке юриста, останавливается в фоне
   useEffect(() => {
-    if (isOnExpertTab) setUnreadCount(0);
-  }, [isOnExpertTab]);
+    if (!isAdmin || activeTab !== "expert") return;
+    setLoading(true);
 
-  const refresh = useCallback(() => fetchFull(), [fetchFull]);
+    const start = () => {
+      pollAdmin();
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(pollAdmin, POLL_ADMIN);
+    };
+    const stop = () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") start();
+      else stop();
+    };
+
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [isAdmin, activeTab, pollAdmin]);
+
+  // При переходе на вкладку юриста — сбрасываем бейдж и обновляем данные
+  useEffect(() => {
+    if (activeTab === "expert") {
+      setUnreadCount(0);
+      if (!isAdmin) loadOnce(); // обновить при открытии вкладки
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const clearNotification = useCallback(() => setNotification(null), []);
 
   return {

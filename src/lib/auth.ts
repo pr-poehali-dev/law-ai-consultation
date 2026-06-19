@@ -11,21 +11,14 @@ const AI_DOCS_URL = _f["ai-docs"];
 const TOKEN_KEY = "yurist_ai_token";
 
 // Keep-alive: греем ai-chat и ai-docs — только когда вкладка активна
-// Запоминаем какими сервисами пользователь реально пользовался в сессии
-const _usedServices = new Set<string>();
-export function markServiceUsed(service: "chat" | "docs") { _usedServices.add(service); }
-
 export function startKeepAlive(): () => void {
-  // Пингуем только те сервисы которыми пользовались — ai-chat всегда (основной), ai-docs только если открывали вкладку Документы
   const ping = () => {
-    if (document.visibilityState !== "visible") return;
+    if (document.visibilityState !== "visible") return; // не пингуем в фоне
     fetch(AI_CHAT_URL, { method: "GET" }).catch(() => {});
-    if (_usedServices.has("docs")) {
-      fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
-    }
+    fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
   };
   const id = setInterval(ping, 9 * 60 * 1000);
-  ping();
+  ping(); // сразу при входе в кабинет
   return () => clearInterval(id);
 }
 
@@ -113,7 +106,7 @@ export async function fetchSafe(
 
 // Lawyer actions → lawyer-service
 const LAWYER_ACTIONS = new Set([
-  "lawyer-send", "lawyer-messages", "lawyer-ping", "lawyer-close-dialog",
+  "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
   "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
 ]);
 
@@ -124,6 +117,7 @@ const SLOW_ACTIONS = new Set([
 
 async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
+  const controller = new AbortController();
   const action = (body as Record<string, unknown>).action as string | undefined;
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
   // Медленные actions — 25с, юрист — 30с, остальные — 10с
@@ -131,39 +125,21 @@ async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   if (LAWYER_ACTIONS.has(action ?? "")) cap = 30000;
   else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
   const effectiveTimeout = Math.min(timeoutMs, cap);
-
-  // Автоматический retry при 502 (холодный старт функции) — 1 повтор через 1.5с
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), effectiveTimeout);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(tid);
-      // 502 = холодный старт или временный сбой — повторяем один раз
-      if (res.status === 502 && attempt === 0) {
-        await new Promise(r => setTimeout(r, 1500));
-        continue;
-      }
-      return res;
-    } catch (e) {
-      clearTimeout(tid);
-      if (attempt === 0) {
-        await new Promise(r => setTimeout(r, 1500));
-        continue;
-      }
-      throw e;
-    }
+  const tid = setTimeout(() => controller.abort(), effectiveTimeout);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "X-Auth-Token": token } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(tid);
   }
-  // fallback (не должен достигаться)
-  throw new Error("Нет соединения");
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok?: boolean; error?: string }> {
@@ -659,17 +635,6 @@ export async function lawyerMessages(params?: {
   const res = await apiCall({ action: "lawyer-messages", ...(params || {}) });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка загрузки" };
-  return data;
-}
-
-// Лёгкий ping — только last_id и unread, без тела сообщений (~10мс vs ~250мс)
-export async function lawyerPing(params?: {
-  last_id?: number;
-  target_user_id?: number;
-}): Promise<{ last_id?: number; unread?: number; has_new?: boolean; error?: string }> {
-  const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 8000);
-  const data = await res.json();
-  if (!res.ok) return { error: data.error };
   return data;
 }
 

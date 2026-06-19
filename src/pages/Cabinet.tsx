@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUser, type User, getDailyFreeLeft, hasActiveSubscription, markServiceUsed } from "@/lib/auth";
+import { getUser, type User, getDailyFreeLeft, hasActiveSubscription } from "@/lib/auth";
 
 import { type GenDoc } from "@/pages/cabinet/DocsTab";
 import { type DocType } from "@/pages/cabinet/docBlocks";
@@ -30,11 +30,6 @@ export default function Cabinet() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authTimeout, setAuthTimeout] = useState(false);
   const [tab, setTab] = useState<Tab>("chat");
-  // Отмечаем какими сервисами пользовались — keep-alive будет греть только их
-  const handleSetTab = (t: Tab) => {
-    if (t === "docs") markServiceUsed("docs");
-    setTab(t);
-  };
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
 
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
@@ -61,7 +56,7 @@ export default function Cabinet() {
       }
     },
     onDocGenerated: (doc) => {
-      handleSetTab("docs");
+      setTab("docs");
       setViewDoc(doc);
     },
     onDocSaved: (docName) => setDocSavedToast(docName),
@@ -79,7 +74,7 @@ export default function Cabinet() {
 
   const pay = useCabinetPayment({
     setUser: (u) => setUser(u),
-    setTab: handleSetTab,
+    setTab,
     tab,
     chatSendMessage: chat.sendMessage,
     chatRemoveUpsell: chat.removeUpsell,
@@ -94,7 +89,7 @@ export default function Cabinet() {
   const { creatingDocFromChat, createDocFromChat } = useCabinetDocFromChat({
     user,
     tab,
-    setTab: handleSetTab,
+    setTab,
     docs,
     chat,
     openDocChoice: (docTypeId, docLabel) => setShowDocChoice({ docTypeId, docLabel }),
@@ -105,7 +100,7 @@ export default function Cabinet() {
     setUser,
     setAuthChecked,
     setAuthTimeout,
-    setTab: handleSetTab,
+    setTab,
     analyzeFileDirectly: chat.analyzeFileDirectly,
     setDocDetails: docs.setDocDetails,
     setDocPhase: docs.setDocPhase,
@@ -157,7 +152,7 @@ export default function Cabinet() {
         tab={tab}
         totalLeft={totalLeft}
         unreadLawyerCount={lawyerUnread}
-        onTabChange={handleSetTab}
+        onTabChange={setTab}
         onSelectPlan={pay.openPlanModal}
       />
 
@@ -170,7 +165,7 @@ export default function Cabinet() {
         docs={docs}
         creatingDocFromChat={creatingDocFromChat}
         refreshUser={refreshUser}
-        setTab={handleSetTab}
+        setTab={setTab}
         setPayment={pay.setPayment}
         setViewDoc={setViewDoc}
         setPendingDocType={pay.setPendingDocType}

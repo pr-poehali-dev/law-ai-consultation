@@ -3,7 +3,7 @@ import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 import type { Attachment, ContentAttachment, FileAttachment } from "./ExpertAttachPanel";
 
-export const EXPERT_NAME = "Эксперт-юрист";
+export const EXPERT_NAME = "Эксперт-юрист Поварчук И.В.";
 
 export function fmtTime(iso: string) {
   const d = new Date(iso);

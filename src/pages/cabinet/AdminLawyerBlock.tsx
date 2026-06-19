@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"; // useRef нужен для messagesEndRef и fileInputRef
+import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { lawyerMessages, lawyerSend, lawyerCloseDialog, lawyerCompleteService, lawyerUploadFile, type LawyerMessage, type LawyerDialog } from "@/lib/auth";
 
@@ -18,8 +18,6 @@ export default function AdminLawyerBlock() {
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; filename: string; expires_at: number }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Защита от race condition при быстрых кликах по диалогам
-  const loadMsgSeqRef = useRef(0);
 
   const loadDialogs = useCallback(async () => {
     setLoading(true);
@@ -29,11 +27,8 @@ export default function AdminLawyerBlock() {
   }, [showClosed]);
 
   const loadMessages = useCallback(async (userId: number) => {
-    const seq = ++loadMsgSeqRef.current; // уникальный номер этого запроса
     setMsgLoading(true);
     const res = await lawyerMessages({ target_user_id: userId });
-    // Игнорируем ответ если за время запроса пользователь кликнул другой диалог
-    if (seq !== loadMsgSeqRef.current) return;
     if (res.messages) setMessages(res.messages);
     setMsgLoading(false);
   }, []);
@@ -43,12 +38,20 @@ export default function AdminLawyerBlock() {
   useEffect(() => {
     if (!selectedUserId) return;
     loadMessages(selectedUserId);
-    // Polling убран — push уведомит админа, при клике вкладка станет visible и данные обновятся
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") loadMessages(selectedUserId);
+    // 30 сек — диалог уже открыт, спешки нет; реальные уведомления идут через push
+    let iv: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (iv) return;
+      iv = setInterval(() => loadMessages(selectedUserId), 30000);
     };
+    const stop = () => { if (iv) { clearInterval(iv); iv = null; } };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") { loadMessages(selectedUserId); start(); }
+      else stop();
+    };
+    if (document.visibilityState === "visible") start();
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { document.removeEventListener("visibilitychange", onVisibility); };
+    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
   }, [selectedUserId, loadMessages]);
 
   useEffect(() => {
