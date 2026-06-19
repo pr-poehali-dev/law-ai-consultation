@@ -5,6 +5,7 @@ import type { LawyerMessage, LawyerDialog } from "@/lib/auth";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 import ExpertPaywall from "./ExpertPaywall";
+import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
 import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
 import { useAttachment } from "./ExpertAttachPanel";
@@ -190,7 +191,16 @@ export default function ExpertTab({
   }
 
   if (user.isAdmin && !selectedAdminUserId) {
-    return null;
+    return (
+      <ExpertDialogList
+        dialogs={dialogs}
+        loading={loading}
+        showArchive={showArchive}
+        onToggleArchive={() => setShowArchive(v => !v)}
+        onSelect={uid => onSelectAdminDialog(uid)}
+        onRefresh={onRefreshLawyer}
+      />
+    );
   }
 
   const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedAdminUserId) : null;
