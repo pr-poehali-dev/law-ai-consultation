@@ -136,13 +136,22 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    // 1. Очищаем форму, паузируем polling
+    // 1. Очищаем форму, показываем сообщение мгновенно, паузируем polling
     setInput("");
     clearAttachments();
     setShowAttachPanel(false);
     if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     if (isFreeUser) setSentFreeQuestion(true);
     onPausePing?.();
+    onAddOptimisticMsg?.({
+      user_id: user.id,
+      sender: user.isAdmin ? "admin" : "user",
+      body: params.body,
+      attachment_type: params.attachment_type,
+      attachment_name: params.attachment_name,
+      attachment_content: undefined,
+      is_read: true,
+    });
 
     // 2. Отправляем, потом загружаем один раз, потом возобновляем polling
     lawyerSend(params)
