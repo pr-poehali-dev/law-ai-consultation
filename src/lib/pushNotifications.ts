@@ -37,27 +37,31 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /** Отправляет подписку на сервер */
-async function sendSubscriptionToServer(sub: PushSubscription): Promise<void> {
+async function sendSubscriptionToServer(sub: PushSubscription): Promise<boolean> {
   const key = sub.getKey("p256dh");
   const auth = sub.getKey("auth");
-  if (!key || !auth) return;
+  if (!key || !auth) return false;
 
   const p256dh = btoa(String.fromCharCode(...new Uint8Array(key)));
   const authStr = btoa(String.fromCharCode(...new Uint8Array(auth)));
 
   const action = getToken() ? "push-subscribe" : "push-subscribe-anon";
-  await apiCall({
-    action,
-    endpoint: sub.endpoint,
-    p256dh,
-    auth: authStr,
-  });
+  try {
+    const res = await apiCall({
+      action,
+      endpoint: sub.endpoint,
+      p256dh,
+      auth: authStr,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Подписывает пользователя на Web Push уведомления.
- * Вызывается после установки PWA или по явному запросу.
- * Не показывает запрос дважды.
+ * Если есть старая подписка — отписываем и создаём новую с актуальным VAPID ключом.
  */
 export async function subscribeToPush(force = false): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
@@ -75,11 +79,10 @@ export async function subscribeToPush(force = false): Promise<boolean> {
     if (!vapidKey) return false;
 
     const reg = await navigator.serviceWorker.ready;
+
+    // Всегда отписываем старую и создаём новую — гарантируем правильный VAPID ключ
     const existing = await reg.pushManager.getSubscription();
-    if (existing) {
-      await sendSubscriptionToServer(existing);
-      return true;
-    }
+    if (existing) await existing.unsubscribe();
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
@@ -94,8 +97,8 @@ export async function subscribeToPush(force = false): Promise<boolean> {
 }
 
 /**
- * Автоматически обновляет подписку при входе в кабинет
- * (чтобы привязать существующую анон-подписку к user_id)
+ * При входе в кабинет: если уведомления разрешены — переподписываем с актуальным VAPID ключом
+ * и сохраняем на сервере (привязывает к user_id).
  */
 export async function refreshPushSubscription(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
@@ -103,9 +106,22 @@ export async function refreshPushSubscription(): Promise<void> {
   if (!getToken()) return;
 
   try {
+    const vapidKey = await getVapidPublicKey();
+    if (!vapidKey) return;
+
     const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) await sendSubscriptionToServer(sub);
+    let sub = await reg.pushManager.getSubscription();
+
+    // Если подписка есть — просто шлём на сервер (привязка к user_id)
+    // Если нет — создаём новую с правильным ключом
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+
+    await sendSubscriptionToServer(sub);
   } catch {
     // не критично
   }
