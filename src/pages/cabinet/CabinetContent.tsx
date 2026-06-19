@@ -41,9 +41,12 @@ interface CabinetContentProps {
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
+  selectedAdminUserId: number | null;
+  onSelectAdminDialog: (uid: number | null) => void;
   onRefreshLawyer: () => void;
   onPausePing?: () => void;
   onResumePing?: () => void;
+  onGoToChat?: () => void;
 }
 
 export default function CabinetContent({
@@ -53,8 +56,9 @@ export default function CabinetContent({
   refreshUser,
   setTab, setPayment, setViewDoc, setPendingDocType,
   openPlanModal, openDocChoice, createDocFromChat, navigate,
-  lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer,
-  onPausePing, onResumePing,
+  lawyerMsgs, lawyerDialogs, lawyerLoading,
+  selectedAdminUserId, onSelectAdminDialog,
+  onRefreshLawyer, onPausePing, onResumePing, onGoToChat,
 }: CabinetContentProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
@@ -238,9 +242,12 @@ export default function CabinetContent({
             lawyerMsgs={lawyerMsgs}
             lawyerDialogs={lawyerDialogs}
             lawyerLoading={lawyerLoading}
+            selectedAdminUserId={selectedAdminUserId}
+            onSelectAdminDialog={onSelectAdminDialog}
             onRefreshLawyer={onRefreshLawyer}
             onPausePing={onPausePing}
             onResumePing={onResumePing}
+            onGoToChat={onGoToChat}
             onPayClick={openPlanModal}
             onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+1 консультация юриста" })}
             onRefreshUser={refreshUser}

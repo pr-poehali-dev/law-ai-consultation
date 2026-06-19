@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { User } from "@/lib/auth";
-import { lawyerSend, lawyerMessages, lawyerUploadFile, lawyerCloseDialog, lawyerCompleteConsultation } from "@/lib/auth";
+import { lawyerSend, lawyerUploadFile, lawyerCloseDialog, lawyerCompleteConsultation } from "@/lib/auth";
 import type { LawyerMessage, LawyerDialog } from "@/lib/auth";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
@@ -14,26 +14,32 @@ interface ExpertTabProps {
   user: User;
   messages: ChatMsg[];
   genDocs: GenDoc[];
+  // Всё из хука useLawyerNotifications — единственный источник данных
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
+  selectedAdminUserId: number | null;
+  onSelectAdminDialog: (uid: number | null) => void;
   onRefreshLawyer: () => void;
   onPausePing?: () => void;
   onResumePing?: () => void;
+  onGoToChat?: () => void;
   onPayClick?: () => void;
   onBuyLawyerQuestions?: () => void;
   onRefreshUser?: () => Promise<void>;
 }
 
-export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer, onPausePing, onResumePing, onPayClick, onBuyLawyerQuestions, onRefreshUser }: ExpertTabProps) {
-  const [lmsgs, setLmsgs] = useState<LawyerMessage[]>(lawyerMsgs);
-  const [dialogs, setDialogs] = useState<LawyerDialog[]>(lawyerDialogs);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+export default function ExpertTab({
+  user, messages, genDocs,
+  lawyerMsgs, lawyerDialogs, lawyerLoading,
+  selectedAdminUserId, onSelectAdminDialog,
+  onRefreshLawyer, onPausePing, onResumePing,
+  onGoToChat, onPayClick, onBuyLawyerQuestions,
+}: ExpertTabProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(lawyerLoading);
   const [showArchive, setShowArchive] = useState(false);
   const [adminAction, setAdminAction] = useState<"complete" | "hide" | null>(null);
   const [sentFreeQuestion, setSentFreeQuestion] = useState(false);
@@ -46,14 +52,10 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     viewFullMsg, setViewFullMsg,
   } = useAttachment();
 
-  // Синхронизируем данные из внешнего polling'а
-  // Для обычных пользователей — lmsgs берём из хука
-  // Для админа — lmsgs берём только из loadAdminDialog (чтобы не было дублей от двух источников)
-  useEffect(() => {
-    if (!user.isAdmin) setLmsgs(lawyerMsgs);
-  }, [lawyerMsgs, user.isAdmin]);
-  useEffect(() => { setDialogs(lawyerDialogs); }, [lawyerDialogs]);
-  useEffect(() => { setLoading(lawyerLoading); }, [lawyerLoading]);
+  // Данные приходят прямо из пропов (из хука) — никаких локальных fetch
+  const lmsgs = lawyerMsgs;
+  const dialogs = lawyerDialogs;
+  const loading = lawyerLoading;
 
   const isPaid = user.isAdmin || user.paidExpert;
   const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null);
@@ -63,20 +65,6 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
   const isBlocked = isFreeUser
     ? (loading || sentFreeQuestion || hasSentUserMsg)
     : (!user.isAdmin && consultationsLeft <= 0);
-
-  // Для админа — отдельная загрузка диалога конкретного пользователя
-  const loadAdminDialog = useCallback(async (uid: number) => {
-    setLoading(true);
-    const res = await lawyerMessages({ target_user_id: uid });
-    if (res.messages) setLmsgs(res.messages);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (user.isAdmin && selectedUserId) {
-      loadAdminDialog(selectedUserId);
-    }
-  }, [selectedUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,7 +116,7 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     const firstContent = contentAtts[0] || null;
     const params: Parameters<typeof lawyerSend>[0] = {
       body: bodyText,
-      ...(user.isAdmin && selectedUserId ? { target_user_id: selectedUserId } : {}),
+      ...(user.isAdmin && selectedAdminUserId ? { target_user_id: selectedAdminUserId } : {}),
       ...(firstContent ? {
         attachment_type: firstContent.type,
         attachment_name: firstContent.name,
@@ -141,7 +129,6 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    // Останавливаем ping на время отправки — не конкурируем за слоты функции
     onPausePing?.();
     let res: Awaited<ReturnType<typeof lawyerSend>>;
     try {
@@ -156,23 +143,8 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     onResumePing?.();
     setUploadProgress(100);
 
-    if (res.error) {
-      // 502 может быть ложным — функция выполнилась, но платформа вернула ошибку.
-      // Обновляем чат и очищаем поле — если сообщение появилось, значит дошло.
-      // Ошибку не показываем: пользователь сам увидит результат.
-      setInput("");
-      clearAttachments();
-      setShowAttachPanel(false);
-      if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
-      onRefreshLawyer();
-      setSending(false);
-      setUploadProgress(0);
-      return;
-    }
-
-    // Для free-пользователей — блокируем после первой отправки
+    // 502 может быть ложным — обновляем чат в любом случае
     if (isFreeUser) setSentFreeQuestion(true);
-
     setInput("");
     clearAttachments();
     setShowAttachPanel(false);
@@ -180,27 +152,25 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     onRefreshLawyer();
     setSending(false);
     setUploadProgress(0);
+
+    if (res.error) return; // уже очистили поле, молча игнорируем
   };
 
-  // Завершить консультацию (списывает 1 консультацию + скрывает диалог)
   const handleCompleteConsultation = async () => {
-    if (!selectedUserId) return;
+    if (!selectedAdminUserId) return;
     setAdminAction(null);
     setSending(true);
-    await lawyerCompleteConsultation(selectedUserId);
+    await lawyerCompleteConsultation(selectedAdminUserId);
     setSending(false);
-    setSelectedUserId(null);
-    setLmsgs([]);
+    onSelectAdminDialog(null);
     onRefreshLawyer();
   };
 
-  // Скрыть диалог (без списания консультации)
   const handleHideDialog = async () => {
-    if (!selectedUserId) return;
+    if (!selectedAdminUserId) return;
     setAdminAction(null);
-    await lawyerCloseDialog(selectedUserId);
-    setSelectedUserId(null);
-    setLmsgs([]);
+    await lawyerCloseDialog(selectedAdminUserId);
+    onSelectAdminDialog(null);
     onRefreshLawyer();
   };
 
@@ -208,22 +178,21 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     return <ExpertPaywall onPayClick={onPayClick} />;
   }
 
-  if (user.isAdmin && !selectedUserId) {
+  if (user.isAdmin && !selectedAdminUserId) {
     return (
       <ExpertDialogList
         dialogs={dialogs}
         loading={loading}
         showArchive={showArchive}
         onToggleArchive={() => { setShowArchive(v => !v); }}
-        onSelect={(userId) => { setSelectedUserId(userId); setLmsgs([]); setLoading(true); }}
+        onSelect={(uid) => { onSelectAdminDialog(uid); }}
         onRefresh={onRefreshLawyer}
       />
     );
   }
 
-  const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedUserId) : null;
+  const currentDialog = user.isAdmin ? dialogs.find((d) => d.user_id === selectedAdminUserId) : null;
   const aiAnswers = messages.filter(m => m.role === "ai" && m.text.length > 30).slice(-5);
-
   const currentPlanId = user.purchasedPlan === "max" ? "plan_max"
     : user.purchasedPlan === "pro" ? "plan_pro"
     : "plan_starter";
@@ -233,7 +202,7 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
       <ExpertChat
         isAdmin={user.isAdmin}
         isFreeUser={isFreeUser}
-        selectedUserId={selectedUserId}
+        selectedUserId={selectedAdminUserId}
         currentDialog={currentDialog}
         lmsgs={lmsgs}
         loading={loading}
@@ -250,7 +219,7 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
         isDialogClosed={isDialogClosed}
         lawyerQLeft={user.lawyerConsultationsLeft ?? 0}
         currentPlanId={currentPlanId}
-        onBack={() => { setSelectedUserId(null); setLmsgs([]); }}
+        onBack={() => { onSelectAdminDialog(null); }}
         onRefresh={onRefreshLawyer}
         onInputChange={setInput}
         onSend={send}
@@ -265,12 +234,12 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
         onUpgradePlan={onPayClick}
         onCompleteConsultation={() => setAdminAction("complete")}
         onHideDialog={() => setAdminAction("hide")}
+        onGoToChat={onGoToChat}
         textareaRef={textareaRef}
         bottomRef={bottomRef}
         adjustTextarea={adjustTextarea}
       />
 
-      {/* Модал подтверждения для админа */}
       {adminAction && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAdminAction(null)} />
