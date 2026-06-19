@@ -106,7 +106,7 @@ export async function fetchSafe(
 
 // Lawyer actions → lawyer-service
 const LAWYER_ACTIONS = new Set([
-  "lawyer-send", "lawyer-messages", "lawyer-close-dialog",
+  "lawyer-send", "lawyer-messages", "lawyer-ping", "lawyer-close-dialog",
   "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
 ]);
 
@@ -635,6 +635,17 @@ export async function lawyerMessages(params?: {
   const res = await apiCall({ action: "lawyer-messages", ...(params || {}) });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка загрузки" };
+  return data;
+}
+
+// Лёгкий ping — только last_id и unread, без тела сообщений (~10мс vs ~250мс)
+export async function lawyerPing(params?: {
+  last_id?: number;
+  target_user_id?: number;
+}): Promise<{ last_id?: number; unread?: number; has_new?: boolean; error?: string }> {
+  const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 8000);
+  const data = await res.json();
+  if (!res.ok) return { error: data.error };
   return data;
 }
 

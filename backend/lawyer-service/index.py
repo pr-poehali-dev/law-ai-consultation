@@ -380,6 +380,56 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
     return _ok(result)
 
 
+def handle_lawyer_ping(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Лёгкий ping — возвращает только last_id и unread_count без загрузки тела сообщений.
+    Используется для быстрого поллинга (каждые 3с) когда пользователь на вкладке Юрист.
+    Если last_id изменился — фронтенд делает полный lawyer-messages запрос."""
+    target_user_id = body.get("target_user_id")
+    known_last_id = body.get("last_id", 0)
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        if is_admin:
+            if target_user_id:
+                # Пинг конкретного диалога — проверяем появились ли новые сообщения
+                cur.execute(
+                    f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='user' AND is_read=FALSE) "
+                    f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s",
+                    (int(target_user_id),)
+                )
+                row = cur.fetchone()
+                last_id = row[0] or 0
+                unread = int(row[1] or 0)
+            else:
+                # Пинг списка диалогов — проверяем появились ли новые сообщения от любого юзера
+                cur.execute(
+                    f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='user' AND is_read=FALSE) "
+                    f"FROM {SCHEMA}.lawyer_messages"
+                )
+                row = cur.fetchone()
+                last_id = row[0] or 0
+                unread = int(row[1] or 0)
+        else:
+            cur.execute(
+                f"SELECT MAX(id), COUNT(*) FILTER (WHERE sender='admin' AND is_read=FALSE) "
+                f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s",
+                (user_id,)
+            )
+            row = cur.fetchone()
+            last_id = row[0] or 0
+            unread = int(row[1] or 0)
+    finally:
+        cur.close()
+        conn.close()
+
+    return _ok({
+        "last_id": last_id,
+        "unread": unread,
+        "has_new": last_id > known_last_id,
+    })
+
+
 def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
     """Получить историю сообщений. Пользователь — свои; админ — all или по target_user_id."""
     target_user_id = body.get("target_user_id")
@@ -681,6 +731,7 @@ def handler(event: dict, context) -> dict:
     TOKEN_REQUIRED_ACTIONS = {
         "lawyer-send",
         "lawyer-messages",
+        "lawyer-ping",
         "lawyer-close-dialog",
         "lawyer-complete-consultation",
         "lawyer-upload-file",
@@ -699,6 +750,9 @@ def handler(event: dict, context) -> dict:
 
         if action == "lawyer-messages":
             return _result_response(handle_lawyer_messages(body, user_id, is_admin))
+
+        if action == "lawyer-ping":
+            return _result_response(handle_lawyer_ping(body, user_id, is_admin))
 
         if action == "lawyer-close-dialog":
             return _result_response(handle_lawyer_close_dialog(body, user_id, is_admin))
