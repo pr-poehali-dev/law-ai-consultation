@@ -125,6 +125,7 @@ export default function Cabinet() {
     resumePing,
     selectAdminDialog,
     selectedAdminUserId,
+    addOptimisticMessage,
   } = useLawyerNotifications(user, tab);
 
   useEffect(() => {
@@ -188,6 +189,7 @@ export default function Cabinet() {
         selectedAdminUserId={selectedAdminUserId}
         onSelectAdminDialog={selectAdminDialog}
         onRefreshLawyer={refreshLawyer}
+        onAddOptimisticMessage={addOptimisticMessage}
         onPausePing={pausePing}
         onResumePing={resumePing}
         onGoToChat={() => handleSetTab("chat")}

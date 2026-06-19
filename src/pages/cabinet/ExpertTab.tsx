@@ -14,13 +14,13 @@ interface ExpertTabProps {
   user: User;
   messages: ChatMsg[];
   genDocs: GenDoc[];
-  // Всё из хука useLawyerNotifications — единственный источник данных
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
   selectedAdminUserId: number | null;
   onSelectAdminDialog: (uid: number | null) => void;
   onRefreshLawyer: () => void;
+  onAddOptimisticMessage?: (msg: Omit<LawyerMessage, "id" | "created_at">) => void;
   onPausePing?: () => void;
   onResumePing?: () => void;
   onGoToChat?: () => void;
@@ -33,7 +33,8 @@ export default function ExpertTab({
   user, messages, genDocs,
   lawyerMsgs, lawyerDialogs, lawyerLoading,
   selectedAdminUserId, onSelectAdminDialog,
-  onRefreshLawyer, onPausePing, onResumePing,
+  onRefreshLawyer, onAddOptimisticMessage,
+  onPausePing, onResumePing,
   onGoToChat, onPayClick, onBuyLawyerQuestions,
 }: ExpertTabProps) {
   const [input, setInput] = useState("");
@@ -129,31 +130,44 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
+    // Оптимистичное добавление — сообщение появляется СРАЗУ, до ответа сервера
+    const optimisticBody = params.body;
+    onAddOptimisticMessage?.({
+      user_id: user.id,
+      sender: user.isAdmin ? "admin" : "user",
+      body: optimisticBody,
+      attachment_type: params.attachment_type,
+      attachment_name: params.attachment_name,
+      attachment_content: undefined, // не показываем контент оптимистично
+      is_read: true,
+    });
+
+    // Очищаем поле ввода сразу
+    setInput("");
+    clearAttachments();
+    setShowAttachPanel(false);
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+
     onPausePing?.();
     let res: Awaited<ReturnType<typeof lawyerSend>>;
     try {
       res = await lawyerSend(params);
     } catch {
       onResumePing?.();
-      setErr("Ошибка соединения. Попробуйте ещё раз.");
       setSending(false);
       setUploadProgress(0);
+      // Даже при сетевой ошибке обновляем — сообщение могло дойти
+      onRefreshLawyer();
       return;
     }
     onResumePing?.();
     setUploadProgress(100);
 
-    // 502 может быть ложным — обновляем чат в любом случае
     if (isFreeUser) setSentFreeQuestion(true);
-    setInput("");
-    clearAttachments();
-    setShowAttachPanel(false);
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
-    onRefreshLawyer();
     setSending(false);
     setUploadProgress(0);
-
-    if (res.error) return; // уже очистили поле, молча игнорируем
+    // Обновляем данные с сервера — заменяем оптимистичное реальным
+    onRefreshLawyer();
   };
 
   const handleCompleteConsultation = async () => {
