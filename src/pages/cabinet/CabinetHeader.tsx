@@ -4,31 +4,28 @@ import Icon from "@/components/ui/icon";
 import { logout, sendReport, isPlanExhausted, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
-type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
+type Tab = "chat" | "docs" | "history" | "profile" | "admin";
 
 interface CabinetHeaderProps {
   user: User;
   tab: Tab;
   totalLeft: number;
-  unreadLawyerCount?: number;
   onTabChange: (tab: Tab) => void;
   onSelectPlan: () => void;
 }
 
 const TABS_DESKTOP = [
-  { id: "chat", label: "Чат с AI", icon: "Bot" },
-  { id: "docs", label: "Документы", icon: "FileText" },
-  { id: "expert", label: "Юрист", icon: "UserCheck" },
-  { id: "history", label: "История", icon: "Clock" },
-  { id: "profile", label: "Профиль", icon: "User" },
+  { id: "chat",    label: "Чат с AI",   icon: "Bot" },
+  { id: "docs",    label: "Документы",  icon: "FileText" },
+  { id: "history", label: "История",    icon: "Clock" },
+  { id: "profile", label: "Профиль",    icon: "User" },
 ];
 
 const TABS_MOBILE = [
-  { id: "chat", label: "Чат", icon: "Bot" },
-  { id: "docs", label: "Доки", icon: "FileText" },
-  { id: "expert", label: "Юрист", icon: "UserCheck" },
-  { id: "history", label: "История", icon: "Clock" },
-  { id: "profile", label: "Профиль", icon: "User" },
+  { id: "chat",    label: "Чат",       icon: "Bot" },
+  { id: "docs",    label: "Доки",      icon: "FileText" },
+  { id: "history", label: "История",   icon: "Clock" },
+  { id: "profile", label: "Профиль",   icon: "User" },
 ];
 
 function ReportPopover({ onClose }: { onClose: () => void }) {
@@ -100,7 +97,7 @@ function ReportPopover({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount = 0, onTabChange, onSelectPlan }: CabinetHeaderProps) {
+export default function CabinetHeader({ user, tab, totalLeft, onTabChange, onSelectPlan }: CabinetHeaderProps) {
   const navigate = useNavigate();
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -109,7 +106,6 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
 
   return (
     <>
-      {/* Overlay для закрытия поповера */}
       {showReport && (
         <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />
       )}
@@ -136,12 +132,6 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
               >
                 <Icon name={t.icon} size={14} />
                 {t.label}
-                {t.id === "expert" && unreadLawyerCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)", boxShadow: "0 2px 6px rgba(220,38,38,0.5)", animation: "pulse 2s infinite" }}>
-                    {unreadLawyerCount}
-                  </span>
-                )}
               </button>
             ))}
             {user.isAdmin && (
@@ -184,7 +174,6 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
               </button>
             )}
 
-            {/* Кнопка «Сообщить о проблеме» — доступна всегда */}
             <div className="relative">
               <button
                 onClick={() => setShowReport(v => !v)}
@@ -200,7 +189,6 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
               {showReport && <ReportPopover onClose={() => setShowReport(false)} />}
             </div>
 
-            {/* Кнопка Админ на мобиле */}
             {user.isAdmin && (
               <button
                 onClick={() => onTabChange("admin")}
@@ -237,12 +225,6 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
             >
               <div className={`relative w-10 h-6 flex items-center justify-center rounded-full transition-all ${tab === t.id ? "bg-navy-100" : ""}`}>
                 <Icon name={t.icon} size={17} className={tab === t.id ? "text-navy-700" : "text-slate-400"} />
-                {t.id === "expert" && unreadLawyerCount > 0 && (
-                  <span className="absolute -top-1.5 -right-0.5 min-w-[16px] h-[16px] px-0.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)", boxShadow: "0 2px 4px rgba(220,38,38,0.5)" }}>
-                    {unreadLawyerCount}
-                  </span>
-                )}
               </div>
               <span className="leading-none">{t.label}</span>
               <div className={`w-1 h-1 rounded-full mt-0.5 transition-all ${tab === t.id ? "bg-navy-600 scale-100" : "bg-transparent scale-0"}`} />
