@@ -3,7 +3,7 @@ import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 import type { Attachment, ContentAttachment, FileAttachment } from "./ExpertAttachPanel";
 
-export const EXPERT_NAME = "Эксперт-юрист Поварчук И.В.";
+export const EXPERT_NAME = "Эксперт-юрист";
 
 export function fmtTime(iso: string) {
   const d = new Date(iso);
@@ -63,6 +63,7 @@ export interface ExpertChatProps {
   onUpgradePlan?: () => void;
   onCompleteConsultation?: () => void;
   onHideDialog?: () => void;
+  onGoToChat?: () => void;  // автопереход на Chat AI при бездействии
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   bottomRef: React.RefObject<HTMLDivElement>;
   adjustTextarea: () => void;

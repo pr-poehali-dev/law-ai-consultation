@@ -12,7 +12,7 @@ SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
 MAX_CHUNKS_FOR_AI = 4
 MAX_CHUNK_CHARS = 1800
-LEGAL_CACHE_TTL = 300
+LEGAL_CACHE_TTL = 7200  # 2 часа — документы меняются редко, кэш экономит ~80% DB-запросов
 
 _legal_cache: dict = {}
 _legal_cache_lock = threading.Lock()
