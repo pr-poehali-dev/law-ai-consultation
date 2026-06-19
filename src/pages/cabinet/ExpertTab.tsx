@@ -131,7 +131,15 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    // 1. Показываем сообщение МГНОВЕННО в UI
+    // 1. Очищаем форму сразу
+    setInput("");
+    clearAttachments();
+    setShowAttachPanel(false);
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+    if (isFreeUser) setSentFreeQuestion(true);
+
+    // 2. Показываем оптимистичное сообщение МГНОВЕННО и паузируем ping
+    //    чтобы не было дублирования пока сервер не ответил
     onAddOptimisticMsg?.({
       user_id: user.id,
       sender: user.isAdmin ? "admin" : "user",
@@ -141,27 +149,23 @@ export default function ExpertTab({
       attachment_content: undefined,
       is_read: true,
     });
+    onPausePing?.();
 
-    // 2. Очищаем форму сразу — не ждём ответа сервера
-    setInput("");
-    clearAttachments();
-    setShowAttachPanel(false);
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
-    if (isFreeUser) setSentFreeQuestion(true);
-
-    // 3. Отправляем на сервер — ping НЕ паузируем, он продолжает работать
+    // 3. Отправляем на сервер
     lawyerSend(params)
       .then(() => {
         setSending(false);
         setUploadProgress(0);
-        // Синхронизируем с сервером — оптимистичное заменяется реальным (без дубля)
+        // Сначала обновляем данные (оптимистичное заменяется реальным)
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        // Только после обновления — возобновляем ping
+        setTimeout(() => onResumePing?.(), 500);
       })
       .catch(() => {
         setSending(false);
         setUploadProgress(0);
-        // При ошибке сети — тоже обновляем (сообщение могло дойти)
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        setTimeout(() => onResumePing?.(), 500);
       });
   };
 

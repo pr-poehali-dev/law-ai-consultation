@@ -30,7 +30,9 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
       )}
       <div className={`max-w-[80%] sm:max-w-[72%] min-w-0 flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
         {!isMe && (
-          <p className="text-[10.5px] font-semibold text-navy-500 ml-1">{EXPERT_NAME}</p>
+          <p className="text-[10.5px] font-semibold text-navy-500 ml-1">
+            {msg.sender === "admin" ? EXPERT_NAME : "Клиент"}
+          </p>
         )}
         <div className={`rounded-2xl px-4 py-3 shadow-sm transition-all flex flex-col gap-2 min-w-0 w-full ${
           isMe

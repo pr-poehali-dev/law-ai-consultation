@@ -231,9 +231,8 @@ export function useLawyerNotifications(
   const pausePing = useCallback(() => { pingPausedRef.current = true; }, []);
   const resumePing = useCallback(() => {
     pingPausedRef.current = false;
-    // После отправки — сразу проверяем есть ли новые сообщения
-    doPing();
-  }, [doPing]);
+    // Не делаем немедленный doPing — refreshDialog уже обновляет данные
+  }, []);
 
   return {
     unreadCount, notification, clearNotification,
