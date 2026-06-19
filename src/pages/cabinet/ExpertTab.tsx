@@ -7,6 +7,8 @@ import type { GenDoc } from "./DocsTab";
 import ExpertPaywall from "./ExpertPaywall";
 import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
+import EndConsultationModal from "./EndConsultationModal";
+import LawyerDashboard from "./LawyerDashboard";
 import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
 import { useAttachment } from "./ExpertAttachPanel";
 
@@ -187,13 +189,9 @@ export default function ExpertTab({
 
   if (user.isAdmin && !selectedAdminUserId) {
     return (
-      <ExpertDialogList
+      <LawyerDashboard
         dialogs={dialogs}
-        loading={loading}
-        showArchive={showArchive}
-        onToggleArchive={() => { setShowArchive(v => !v); }}
-        onSelect={(uid) => { onSelectAdminDialog(uid); }}
-        onRefresh={onRefreshLawyer}
+        onSelectDialog={(uid) => { onSelectAdminDialog(uid); }}
       />
     );
   }
@@ -247,52 +245,42 @@ export default function ExpertTab({
         adjustTextarea={adjustTextarea}
       />
 
-      {adminAction && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAdminAction(null)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 z-10">
-            {adminAction === "complete" ? (
-              <>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">✅</span>
-                </div>
-                <h3 className="text-base font-bold text-navy-800 text-center mb-2">Завершить консультацию?</h3>
-                <p className="text-sm text-slate-500 text-center mb-5 leading-relaxed">
-                  Диалог будет скрыт, у пользователя спишется <strong>1 консультация</strong> из баланса.
-                </p>
-                <div className="flex gap-2">
-                  <button onClick={() => setAdminAction(null)}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                    Отмена
-                  </button>
-                  <button onClick={handleCompleteConsultation}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors"
-                    style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}>
-                    Завершить
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🗂</span>
-                </div>
-                <h3 className="text-base font-bold text-navy-800 text-center mb-2">Скрыть диалог?</h3>
-                <p className="text-sm text-slate-500 text-center mb-5 leading-relaxed">
-                  Диалог пропадёт из списка. Консультация <strong>не спишется</strong>. При новом сообщении от пользователя — появится снова.
-                </p>
-                <div className="flex gap-2">
-                  <button onClick={() => setAdminAction(null)}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                    Отмена
-                  </button>
-                  <button onClick={handleHideDialog}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-sm font-bold text-white transition-colors">
-                    Скрыть
-                  </button>
-                </div>
-              </>
-            )}
+      {adminAction === "complete" && (
+        <EndConsultationModal
+          clientName={currentDialog?.name || `Клиент #${selectedAdminUserId}`}
+          clientBalance={currentDialog?.lawyer_consultations_left ?? 1}
+          messageCount={lmsgs.length}
+          fileCount={lmsgs.filter(m => m.body?.includes("[Прикреплённые файлы]")).length}
+          durationMin={lmsgs.length > 0
+            ? Math.round((Date.now() - new Date(lmsgs[0].created_at).getTime()) / 60000)
+            : 0}
+          loading={sending}
+          onConfirm={handleCompleteConsultation}
+          onCancel={() => setAdminAction(null)}
+        />
+      )}
+
+      {adminAction === "hide" && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setAdminAction(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-xs w-full p-5 z-10">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🗂</span>
+            </div>
+            <h3 className="text-base font-bold text-navy-800 text-center mb-2">Скрыть диалог?</h3>
+            <p className="text-sm text-slate-500 text-center mb-5 leading-relaxed">
+              Диалог пропадёт из списка. Консультация <strong>не спишется</strong>.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setAdminAction(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                Отмена
+              </button>
+              <button onClick={handleHideDialog}
+                className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-sm font-bold text-white transition-colors">
+                Скрыть
+              </button>
+            </div>
           </div>
         </div>
       )}
