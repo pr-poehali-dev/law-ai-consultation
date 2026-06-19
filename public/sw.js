@@ -107,12 +107,7 @@ self.addEventListener("push", (event) => {
   } catch {}
 
   // Определяем действия по типу уведомления
-  const actions = [];
-  if (data.url && data.url.includes("expert")) {
-    actions.push({ action: "open", title: "Ответить" });
-  } else {
-    actions.push({ action: "open", title: "Открыть" });
-  }
+  const actions = [{ action: "open", title: "Ответить" }];
 
 
   const options = {
