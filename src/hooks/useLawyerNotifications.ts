@@ -55,7 +55,8 @@ export function useLawyerNotifications(
 
   const userId  = user?.id  ?? null;
   const isAdmin = user?.isAdmin ?? false;
-  const hasLawyerAccess = isAdmin || (user?.paidExpert ?? false) || (user?.lawyerConsultationsLeft ?? 0) > 0;
+  // Бесплатные пользователи тоже должны видеть свои сообщения (1 бесплатный вопрос)
+  const hasLawyerAccess = !!userId;
   const isOnExpertTab = activeTab === "expert";
 
   // ── Оптимистичное добавление — сообщение сразу в UI ──────────────────────────
