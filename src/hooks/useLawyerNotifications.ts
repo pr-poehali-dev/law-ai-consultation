@@ -49,10 +49,13 @@ export function useLawyerNotifications(
   // Версия запроса сообщений пользователя — только свежий результат применяется
   const userMsgsVerRef     = useRef(0);
   const optimisticIdRef    = useRef(0);
+  // Флаг параллельного fetching для пользователя
+  const fetchingUserMsgsRef = useRef(false);
 
   const userId  = user?.id  ?? null;
   const isAdmin = user?.isAdmin ?? false;
-  const hasLawyerAccess = isAdmin || (user?.paidExpert ?? false) || (user?.lawyerConsultationsLeft ?? 0) > 0;
+  // Любой залогиненный пользователь должен получать сообщения (в т.ч. бесплатный вопрос)
+  const hasLawyerAccess = !!userId;
   const isOnExpertTab = activeTab === "expert";
 
   // ── Оптимистичное добавление ────────────────────────────────────────────────
@@ -75,6 +78,7 @@ export function useLawyerNotifications(
       if (selectedUidRef.current !== uid) return;
       if (dialogVerRef.current !== ver) return;
       if (res.messages) {
+        // Полностью заменяем — включая удаление оптимистичных (id < 0)
         setMsgs(res.messages);
         if (res.messages.length > 0) {
           const lastId = res.messages[res.messages.length - 1].id;
@@ -103,9 +107,12 @@ export function useLawyerNotifications(
     }
   }, [userId, isAdmin]);
 
-  // ── Загрузка сообщений (для пользователя) — без блокирующего флага ──────────
+  // ── Загрузка сообщений (для пользователя) ────────────────────────────────────
   const fetchUserMsgs = useCallback(async () => {
     if (!userId || isAdmin) return;
+    // Если уже идёт загрузка — пропускаем, не дублируем
+    if (fetchingUserMsgsRef.current) return;
+    fetchingUserMsgsRef.current = true;
     const ver = ++userMsgsVerRef.current;
     try {
       const res = await lawyerMessages();
@@ -127,6 +134,7 @@ export function useLawyerNotifications(
         }
       }
     } catch { /* игнорируем */ } finally {
+      fetchingUserMsgsRef.current = false;
       setLoading(false);
     }
   }, [userId, isAdmin]);
@@ -149,6 +157,8 @@ export function useLawyerNotifications(
       const uid = selectedUidRef.current;
       if (uid) fetchDialog(uid);
     } else {
+      // Принудительно сбрасываем флаг — обновление после отправки приоритетнее
+      fetchingUserMsgsRef.current = false;
       fetchUserMsgs();
     }
   }, [isAdmin, fetchDialog, fetchUserMsgs]);
