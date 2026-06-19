@@ -120,9 +120,9 @@ export default function Cabinet() {
     lawyerMessages: lawyerMsgs,
     lawyerDialogs,
     lawyerLoading,
-    msgLoading: lawyerMsgLoading,
     refreshLawyer,
     refreshDialog: refreshLawyerDialog,
+    addOptimisticMsg: addLawyerOptimisticMsg,
     pausePing,
     resumePing,
     selectAdminDialog,
@@ -187,11 +187,11 @@ export default function Cabinet() {
         lawyerMsgs={lawyerMsgs}
         lawyerDialogs={lawyerDialogs}
         lawyerLoading={lawyerLoading}
-        lawyerMsgLoading={lawyerMsgLoading}
         selectedAdminUserId={selectedAdminUserId}
         onSelectAdminDialog={selectAdminDialog}
         onRefreshLawyer={refreshLawyer}
         onRefreshDialog={refreshLawyerDialog}
+        onAddOptimisticMsg={addLawyerOptimisticMsg}
         onPausePing={pausePing}
         onResumePing={resumePing}
         onGoToChat={() => handleSetTab("chat")}

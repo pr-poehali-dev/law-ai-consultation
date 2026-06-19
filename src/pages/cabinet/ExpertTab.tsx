@@ -17,11 +17,11 @@ interface ExpertTabProps {
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
-  lawyerMsgLoading?: boolean;
   selectedAdminUserId: number | null;
   onSelectAdminDialog: (uid: number | null) => void;
   onRefreshLawyer: () => void;
-  onRefreshDialog?: () => void;    // быстрое обновление только текущего диалога
+  onRefreshDialog?: () => void;
+  onAddOptimisticMsg?: (msg: Omit<LawyerMessage, "id" | "created_at">) => void;
   onPausePing?: () => void;
   onResumePing?: () => void;
   onGoToChat?: () => void;
@@ -32,9 +32,9 @@ interface ExpertTabProps {
 
 export default function ExpertTab({
   user, messages, genDocs,
-  lawyerMsgs, lawyerDialogs, lawyerLoading, lawyerMsgLoading,
+  lawyerMsgs, lawyerDialogs, lawyerLoading,
   selectedAdminUserId, onSelectAdminDialog,
-  onRefreshLawyer, onRefreshDialog,
+  onRefreshLawyer, onRefreshDialog, onAddOptimisticMsg,
   onPausePing, onResumePing,
   onGoToChat, onPayClick, onBuyLawyerQuestions,
 }: ExpertTabProps) {
@@ -131,6 +131,24 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
+    // Показываем сообщение МГНОВЕННО — до ответа сервера
+    onAddOptimisticMsg?.({
+      user_id: user.id,
+      sender: user.isAdmin ? "admin" : "user",
+      body: params.body,
+      attachment_type: params.attachment_type,
+      attachment_name: params.attachment_name,
+      attachment_content: undefined,
+      is_read: true,
+    });
+
+    // Очищаем форму сразу
+    setInput("");
+    clearAttachments();
+    setShowAttachPanel(false);
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+    if (isFreeUser) setSentFreeQuestion(true);
+
     onPausePing?.();
     let res: Awaited<ReturnType<typeof lawyerSend>>;
     try {
@@ -139,22 +157,14 @@ export default function ExpertTab({
       onResumePing?.();
       setSending(false);
       setUploadProgress(0);
-      // При ошибке сети сообщение могло дойти — обновляем чат
       if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
       return;
     }
     onResumePing?.();
-
-    // Очищаем форму
-    setInput("");
-    clearAttachments();
-    setShowAttachPanel(false);
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     setUploadProgress(0);
-    if (isFreeUser) setSentFreeQuestion(true);
     setSending(false);
 
-    // Сразу обновляем только текущий диалог (быстро, без перезагрузки списка)
+    // Синхронизируем с сервером — оптимистичное заменяется реальным
     if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
   };
 
