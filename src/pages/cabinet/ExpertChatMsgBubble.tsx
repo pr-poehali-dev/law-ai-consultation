@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import Icon from "@/components/ui/icon";
 import type { LawyerMessage } from "@/lib/auth";
 import { AttachmentModal } from "./ExpertAttachPanel";
@@ -15,8 +16,7 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
   const [viewAtt, setViewAtt] = useState(false);
   const hasContent = !!(msg.attachment_content && msg.attachment_content.length > 5);
   const { text, files } = parseFileLinks(msg.body || "");
-  // Оптимистичные сообщения — отрицательный id
-  const isOptimistic = msg.id < 0;
+  const isOptimistic = typeof msg.id === "number" && msg.id < 0;
 
   const attIconName = msg.attachment_type === "document" ? "FileText" : "Bot";
   const attColors = msg.attachment_type === "document"
@@ -24,20 +24,12 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
     : isMe ? "bg-white/15 text-white/85 hover:bg-white/25" : "bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100";
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: isOptimistic ? 0.75 : 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.22, ease: [0.34, 1.1, 0.64, 1] }}
       className={`flex gap-2 sm:gap-3 items-end ${isMe ? "justify-end" : "justify-start"}`}
-      style={{
-        animation: "msgSlideIn 0.25s cubic-bezier(0.34,1.2,0.64,1) both",
-        opacity: isOptimistic ? 0.75 : 1,
-      }}
     >
-      <style>{`
-        @keyframes msgSlideIn {
-          from { opacity: 0; transform: translateY(8px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
-
       {/* Аватар эксперта (слева) */}
       {!isMe && (
         <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
@@ -56,7 +48,7 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
             ? "bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm"
             : "bg-white border border-slate-100 text-navy-800 rounded-bl-sm shadow"
         }`}>
-          {/* Вложение (AI-ответ или документ) */}
+          {/* Вложение */}
           {(msg.attachment_type === "chat_answer" || msg.attachment_type === "document") && msg.attachment_name && (
             <button
               onClick={() => hasContent && setViewAtt(true)}
@@ -105,7 +97,7 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
         </div>
       )}
 
-      {/* Модалка предпросмотра */}
+      {/* Модалка вложения */}
       {viewAtt && msg.attachment_content && (
         <AttachmentModal
           title={msg.attachment_name || ""}
@@ -114,6 +106,6 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
           onClose={() => setViewAtt(false)}
         />
       )}
-    </div>
+    </motion.div>
   );
 }
