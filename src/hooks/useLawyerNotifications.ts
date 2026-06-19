@@ -2,10 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-// Polling только когда пользователь АКТИВНО смотрит на вкладку «Юрист»
-// На других вкладках / в фоне — не тратим запросы, push всё равно уведомит
-const POLL_ON_EXPERT_TAB = 15_000; // 15 сек — пользователь ждёт ответа и смотрит в экран
-const POLL_ADMIN_ON_TAB  = 15_000; // для админа аналогично
+// Polling только пока пользователь активно смотрит на вкладку «Юрист»
+// На других вкладках кабинета и в фоне — 0 запросов, push уведомит
+const POLL_INTERVAL = 15_000;
 
 export interface LawyerNotification {
   id: number;
@@ -31,130 +30,105 @@ export function useLawyerNotifications(
   const [msgs, setMsgs] = useState<LawyerMessage[]>([]);
   const [dialogs, setDialogs] = useState<LawyerDialog[]>([]);
   const [loading, setLoading] = useState(true);
+
   const lastSeenIdRef = useRef<number | null>(null);
-  const isStartedRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Защита от двойного вызова — если запрос уже идёт, новый не стартуем
+  const fetchingRef = useRef(false);
   const isOnExpertTabRef = useRef(activeTab === "expert");
   isOnExpertTabRef.current = activeTab === "expert";
 
   const userId = user?.id ?? null;
   const isAdmin = user?.isAdmin ?? false;
-  const canLoad = !!userId && !isAdmin;
-
-  // ─── Загрузка для обычного пользователя ────────────────────────────────────
-  const loadOnce = useCallback(async () => {
-    if (document.visibilityState !== "visible") return;
-    const res = await lawyerMessages();
-    if (!res.messages) { setLoading(false); return; }
-
-    const newMsgs = res.messages;
-    setMsgs(newMsgs);
-
-    const adminMsgs = newMsgs.filter(m => m.sender === "admin");
-    const unread = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
-
-    setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
-    setLoading(false);
-
-    if (adminMsgs.length === 0) return;
-    const latest = adminMsgs[adminMsgs.length - 1];
-
-    if (lastSeenIdRef.current === null) {
-      lastSeenIdRef.current = latest.id;
-      return;
-    }
-    if (latest.id > lastSeenIdRef.current && !latest.is_read) {
-      lastSeenIdRef.current = latest.id;
-      if (!isOnExpertTabRef.current) {
-        setNotification({ id: latest.id, body: latest.body });
-      }
-    }
-  }, []);
-
-  // ─── Загрузка для админа ───────────────────────────────────────────────────
-  const pollAdmin = useCallback(async () => {
-    if (document.visibilityState !== "visible") return;
-    const res = await lawyerMessages({ show_closed: false });
-    if (res.dialogs) setDialogs(res.dialogs);
-    setLoading(false);
-  }, []);
-
-  const refresh = useCallback(() => {
-    if (isAdmin) pollAdmin();
-    else if (canLoad) loadOnce();
-  }, [isAdmin, canLoad, loadOnce, pollAdmin]);
-
-  // ─── Обычный пользователь: разовая загрузка + visibilitychange ────────────
-  // Когда НЕ на вкладке «Юрист» — polling не нужен, push уведомит.
-  // Когда на вкладке «Юрист» — polling ниже подхватит.
-  useEffect(() => {
-    if (!canLoad) { setLoading(false); return; }
-    if (isStartedRef.current) return;
-    isStartedRef.current = true;
-
-    loadOnce();
-
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") loadOnce();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      isStartedRef.current = false;
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [canLoad, loadOnce]);
-
-  // ─── Polling ТОЛЬКО на вкладке «Юрист» (для обоих: юзер и админ) ──────────
-  // Логика: пользователь открыл вкладку «Юрист» и ждёт ответа — опрашиваем каждые 15 сек.
-  // Ушёл на другую вкладку кабинета или свернул браузер — останавливаем немедленно.
   const isOnExpertTab = activeTab === "expert";
 
-  useEffect(() => {
+  // ─── Единая функция загрузки (дедуплицированная) ────────────────────────────
+  const fetchData = useCallback(async () => {
+    if (fetchingRef.current) return;           // запрос уже в процессе — пропускаем
+    if (document.visibilityState !== "visible") return;
     if (!userId) return;
-    if (!isOnExpertTab) {
-      // Не на вкладке юриста — убиваем polling если был
+
+    fetchingRef.current = true;
+    try {
+      if (isAdmin) {
+        const res = await lawyerMessages({ show_closed: false });
+        if (res.dialogs) setDialogs(res.dialogs);
+      } else {
+        const res = await lawyerMessages();
+        if (!res.messages) return;
+
+        const newMsgs = res.messages;
+        setMsgs(newMsgs);
+
+        const adminMsgs = newMsgs.filter(m => m.sender === "admin");
+        const unread = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
+        setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
+
+        if (adminMsgs.length > 0) {
+          const latest = adminMsgs[adminMsgs.length - 1];
+          if (lastSeenIdRef.current === null) {
+            lastSeenIdRef.current = latest.id;
+          } else if (latest.id > lastSeenIdRef.current && !latest.is_read) {
+            lastSeenIdRef.current = latest.id;
+            if (!isOnExpertTabRef.current) {
+              setNotification({ id: latest.id, body: latest.body });
+            }
+          }
+        }
+      }
+    } finally {
+      fetchingRef.current = false;
+      setLoading(false);
+    }
+  }, [userId, isAdmin]);
+
+  // ─── Управление polling ──────────────────────────────────────────────────────
+  // Правило: polling активен ТОЛЬКО когда вкладка «Юрист» открыта И браузер виден.
+  // При переходе на другую вкладку кабинета — останавливается немедленно.
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+
+    const stopPoll = () => {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-      return;
+    };
+    const startPoll = () => {
+      if (pollRef.current) return; // уже запущен, не дублируем
+      pollRef.current = setInterval(() => {
+        if (document.visibilityState === "visible") fetchData();
+      }, POLL_INTERVAL);
+    };
+
+    if (isOnExpertTab) {
+      fetchData();   // немедленная загрузка при входе на вкладку
+      startPoll();   // и запускаем 15-сек polling
+    } else {
+      stopPoll();    // ушли с вкладки — останавливаем
+      fetchData();   // разовая загрузка для бейджа непрочитанных
     }
 
-    const poll = isAdmin ? pollAdmin : loadOnce;
-    const interval = isAdmin ? POLL_ADMIN_ON_TAB : POLL_ON_EXPERT_TAB;
-
-    const start = () => {
-      if (pollRef.current) return; // уже запущен
-      pollRef.current = setInterval(() => {
-        if (document.visibilityState === "visible") poll();
-      }, interval);
-    };
-
-    const stop = () => {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    };
-
-    // Запускаем немедленно при входе на вкладку
-    poll();
-    start();
-
-    // Пауза когда браузер уходит в фон, возобновление когда возвращается
+    // Браузер сворачивается / разворачивается
     const onVisibility = () => {
-      if (document.visibilityState === "visible") { poll(); start(); }
-      else stop();
+      if (document.visibilityState === "visible") {
+        fetchData();
+        if (isOnExpertTab) startPoll();
+      } else {
+        stopPoll();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      stop();
+      stopPoll();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [isOnExpertTab, userId, isAdmin, pollAdmin, loadOnce]);
+  }, [userId, isOnExpertTab, fetchData]);
 
-  // При переходе на вкладку юриста — сбрасываем бейдж
+  // Сброс бейджа при переходе на вкладку юриста
   useEffect(() => {
-    if (activeTab === "expert") {
-      setUnreadCount(0);
-    }
-  }, [activeTab]);
+    if (isOnExpertTab) setUnreadCount(0);
+  }, [isOnExpertTab]);
 
+  const refresh = useCallback(() => fetchData(), [fetchData]);
   const clearNotification = useCallback(() => setNotification(null), []);
 
   return {
