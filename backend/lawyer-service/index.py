@@ -193,6 +193,47 @@ def _push_to_admin(title: str, body: str, url: str = "/cabinet"):
         _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url)
 
 
+def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet"):
+    """Отправляет push конкретным пользователям. Помечает истёкшие подписки."""
+    if not user_ids:
+        return
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        placeholders = ",".join(["%s"] * len(user_ids))
+        cur.execute(
+            f"SELECT id, endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions "
+            f"WHERE user_id IN ({placeholders}) AND auth != 'expired'",
+            user_ids,
+        )
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+
+    expired = []
+    for row in rows:
+        sub_id, endpoint, p256dh, auth = row
+        ok = _send_push_to_subscription({"endpoint": endpoint, "p256dh": p256dh, "auth": auth}, title, body, url)
+        if not ok:
+            expired.append(sub_id)
+
+    if expired:
+        try:
+            conn2 = get_conn()
+            cur2 = conn2.cursor()
+            placeholders2 = ",".join(["%s"] * len(expired))
+            cur2.execute(
+                f"UPDATE {SCHEMA}.push_subscriptions SET auth = 'expired' WHERE id IN ({placeholders2})",
+                expired,
+            )
+            conn2.commit()
+            cur2.close()
+            conn2.close()
+        except Exception:
+            pass
+
+
 # ─────────────────────────────────────────────
 # Мессенджер: пользователь ↔ администратор
 # ─────────────────────────────────────────────
@@ -315,6 +356,18 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
                 )
         except Exception as e:
             print(f"[LAWYER_REPLY] Email не отправлен: {e}")
+
+        # Push пользователю — мгновенно, даже если вкладка закрыта
+        try:
+            short_msg = (msg_body or att_name or "Новый ответ юриста")[:80]
+            _push_to_users(
+                [recipient_id],
+                title="⚖️ Юрист ответил на ваш запрос",
+                body=short_msg,
+                url="/cabinet?tab=expert",
+            )
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Push не отправлен: {e}")
 
     result = {"id": row[0], "created_at": row[1].isoformat()}
     return _ok(result)

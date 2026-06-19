@@ -8,6 +8,7 @@ import {
   invalidateUserCache,
   hasActiveSubscription,
 } from "@/lib/auth";
+import { refreshPushSubscription } from "@/lib/pushNotifications";
 import { PENDING_FILE_KEY } from "@/components/landingChatUtils";
 import { findDocType } from "@/pages/cabinet/docBlocks";
 import { savePendingAction, loadPendingAction, clearPendingAction } from "@/pages/cabinet/useCabinetPayment";
@@ -82,6 +83,9 @@ export function useCabinetInit({
         return;
       }
       setUser(u);
+
+      // Привязываем push-подписку к user_id (если уже была получена анонимно)
+      refreshPushSubscription().catch(() => {});
 
       // Подхватываем pending-файл с лендинга (анализ документа 99₽)
       const pendingFileRaw = localStorage.getItem(PENDING_FILE_KEY);
