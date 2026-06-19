@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { AttachmentModal, AttachmentBar, AttachPanel } from "./ExpertAttachPanel";
 import MsgBubble from "./ExpertChatMsgBubble";
@@ -23,6 +23,43 @@ export default function ExpertChat({
 }: ExpertChatProps) {
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
+
+  // Кнопка «↓ Новые» + typing indicator
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [newCount, setNewCount] = useState(0);
+  const prevLenRef = useRef(lmsgs.length);
+
+  // Отслеживаем скролл
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 120);
+  }, []);
+
+  // При новых сообщениях — если не внизу, показываем счётчик
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const newMsgs = lmsgs.length - prevLenRef.current;
+    if (newMsgs > 0) {
+      if (distFromBottom > 120) {
+        setNewCount(n => n + newMsgs);
+      } else {
+        // Уже внизу — скроллим к новому
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    }
+    prevLenRef.current = lmsgs.length;
+  }, [lmsgs.length]);
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    setShowScrollBtn(false);
+    setNewCount(0);
+  };
 
   // Push: показываем кнопку если push поддерживается но не разрешён / не подписан
   const [pushNeedsSetup, setPushNeedsSetup] = useState(false);
@@ -208,7 +245,25 @@ export default function ExpertChat({
       )}
 
       {/* Сообщения */}
-      <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-3 sm:space-y-4" style={{ scrollbarWidth: "none" }}>
+      <div className="relative flex-1 min-h-0">
+        {/* Кнопка «↓ Новые» */}
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg text-xs font-semibold text-white transition-all active:scale-95"
+            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 16px rgba(15,76,129,0.35)" }}
+          >
+            <Icon name="ChevronDown" size={13} />
+            {newCount > 0 ? `${newCount} новых` : "Вниз"}
+          </button>
+        )}
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5 space-y-3 sm:space-y-4"
+        style={{ scrollbarWidth: "none" }}
+      >
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
@@ -424,8 +479,30 @@ export default function ExpertChat({
             )}
           </>
         )}
+        {/* Typing indicator — показываем если sending и это не мы печатаем */}
+        {sending && !isAdmin && (
+          <div className="flex gap-2 items-end justify-start">
+            <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
+              <Icon name="UserCheck" size={15} className="text-gold-400" />
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite", animationDelay: "0s" }} />
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite", animationDelay: "0.2s" }} />
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite", animationDelay: "0.4s" }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <style>{`
+          @keyframes typingDot {
+            0%,100% { opacity:.3; transform: scale(.8); }
+            50% { opacity:1; transform: scale(1.1); }
+          }
+        `}</style>
         <div ref={bottomRef} />
       </div>
+      </div>{/* конец relative flex-1 */}
 
       {/* Панель ввода */}
       <div className="bg-white rounded-2xl border border-border shadow-sm shrink-0 overflow-hidden">
