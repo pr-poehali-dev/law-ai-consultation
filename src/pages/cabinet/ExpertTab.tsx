@@ -138,34 +138,22 @@ export default function ExpertTab({
     if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     if (isFreeUser) setSentFreeQuestion(true);
 
-    // 2. Показываем оптимистичное сообщение МГНОВЕННО и паузируем ping
-    //    чтобы не было дублирования пока сервер не ответил
-    onAddOptimisticMsg?.({
-      user_id: user.id,
-      sender: user.isAdmin ? "admin" : "user",
-      body: params.body,
-      attachment_type: params.attachment_type,
-      attachment_name: params.attachment_name,
-      attachment_content: undefined,
-      is_read: true,
-    });
+    // 2. Паузируем ping на время отправки
     onPausePing?.();
 
-    // 3. Отправляем на сервер
+    // 3. Отправляем — после ответа сервера загружаем актуальный список
     lawyerSend(params)
       .then(() => {
         setSending(false);
         setUploadProgress(0);
-        // Сначала обновляем данные (оптимистичное заменяется реальным)
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        // Только после обновления — возобновляем ping
-        setTimeout(() => onResumePing?.(), 500);
+        setTimeout(() => onResumePing?.(), 1000);
       })
       .catch(() => {
         setSending(false);
         setUploadProgress(0);
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        setTimeout(() => onResumePing?.(), 500);
+        setTimeout(() => onResumePing?.(), 1000);
       });
   };
 
