@@ -47,6 +47,8 @@ export default function ExpertTab({
   const [sentFreeQuestion, setSentFreeQuestion] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Ref-флаг для мгновенной блокировки повторной отправки (до ре-рендера)
+  const sendingRef = useRef(false);
 
   const {
     attachments, addAttachment, addFiles, removeAttachment, clearAttachments,
@@ -81,8 +83,10 @@ export default function ExpertTab({
 
   const send = async () => {
     if (isBlocked || isDialogClosed) return;
+    if (sendingRef.current) return; // мгновенная блокировка повторной отправки
     const text = input.trim();
     if (!text && attachments.length === 0) return;
+    sendingRef.current = true;
     setSending(true);
     setErr("");
     setUploadProgress(0);
@@ -98,6 +102,7 @@ export default function ExpertTab({
         const res = await lawyerUploadFile(f.b64, f.name);
         if (res.error) {
           setErr(`Ошибка загрузки ${f.name}: ${res.error}`);
+          sendingRef.current = false;
           setSending(false);
           setUploadProgress(0);
           return;
@@ -141,13 +146,15 @@ export default function ExpertTab({
 
     // 2. Отправляем, потом загружаем один раз, потом возобновляем polling
     lawyerSend(params)
-      .then(async () => {
+      .then(() => {
+        sendingRef.current = false;
         setSending(false);
         setUploadProgress(0);
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
         onResumePing?.();
       })
-      .catch(async () => {
+      .catch(() => {
+        sendingRef.current = false;
         setSending(false);
         setUploadProgress(0);
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
