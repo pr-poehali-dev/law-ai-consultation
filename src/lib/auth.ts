@@ -644,7 +644,8 @@ export async function lawyerSend(params: {
   attachment_name?: string;
   attachment_content?: string;
 }): Promise<{ ok?: boolean; error?: string }> {
-  const res = await apiCall({ action: "lawyer-send", ...params });
+  // noRetry=true — повтор отправки сообщения недопустим (создаёт дубли в БД)
+  const res = await apiCall({ action: "lawyer-send", ...params }, 20000, true);
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка отправки" };
   return { ok: true };
