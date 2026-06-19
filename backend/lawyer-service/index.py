@@ -36,8 +36,8 @@ _SELECT_COLS = (
 def get_conn():
     return psycopg2.connect(
         os.environ["DATABASE_URL"],
-        connect_timeout=8,
-        options="-c statement_timeout=15000",
+        connect_timeout=3,              # БД локальная — 3с достаточно
+        options="-c statement_timeout=8000",  # 8с — защита от зависших запросов
     )
 
 
@@ -125,7 +125,7 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     last_err = None
     # Попытка 1: SSL 465
     try:
-        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=15) as server:
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465, timeout=8) as server:
             server.login(smtp_from, smtp_pass)
             server.sendmail(smtp_from, [to_email], msg.as_string())
         return  # успех
@@ -134,7 +134,7 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
 
     # Попытка 2: STARTTLS 587
     try:
-        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=15) as server:
+        with smtplib.SMTP("smtp.yandex.ru", 587, timeout=8) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
@@ -582,11 +582,13 @@ def handle_lawyer_upload_file(body: dict, user_id: int) -> dict:
     content_type = mime_map.get(ext, "application/octet-stream")
     ts = int(time.time())
     key = f"lawyer-files/{ts}_{user_id}_{filename}"
+    from botocore.config import Config as BotoConfig
     s3 = boto3.client(
         "s3",
         endpoint_url="https://bucket.poehali.dev",
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+        config=BotoConfig(connect_timeout=5, read_timeout=20),  # 20с на upload до 20МБ
     )
     s3.put_object(Bucket="files", Key=key, Body=file_data, ContentType=content_type,
                   Metadata={"uploaded_at": str(ts), "user_id": str(user_id), "ttl": str(ts + 86400)})
