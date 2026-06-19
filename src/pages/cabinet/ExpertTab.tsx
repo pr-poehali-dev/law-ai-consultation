@@ -47,7 +47,11 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
   } = useAttachment();
 
   // Синхронизируем данные из внешнего polling'а
-  useEffect(() => { setLmsgs(lawyerMsgs); }, [lawyerMsgs]);
+  // Для обычных пользователей — lmsgs берём из хука
+  // Для админа — lmsgs берём только из loadAdminDialog (чтобы не было дублей от двух источников)
+  useEffect(() => {
+    if (!user.isAdmin) setLmsgs(lawyerMsgs);
+  }, [lawyerMsgs, user.isAdmin]);
   useEffect(() => { setDialogs(lawyerDialogs); }, [lawyerDialogs]);
   useEffect(() => { setLoading(lawyerLoading); }, [lawyerLoading]);
 
