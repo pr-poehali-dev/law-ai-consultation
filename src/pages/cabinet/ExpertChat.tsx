@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@/components/ui/icon";
 import { AttachmentModal, AttachmentBar, AttachPanel } from "./ExpertAttachPanel";
 import MsgBubble from "./ExpertChatMsgBubble";
@@ -24,7 +23,7 @@ export default function ExpertChat({
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
 
-  // ── Скролл и кнопка «↓ Новые» ───────────────────────────────────────
+  // ── Скролл и кнопка «↓ Новые» ──────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [newCount, setNewCount] = useState(0);
@@ -33,16 +32,15 @@ export default function ExpertChat({
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setShowScrollBtn(dist > 120);
+    setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 120);
   }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
     const added = lmsgs.length - prevLenRef.current;
     if (added > 0) {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
       if (dist > 120) setNewCount(n => n + added);
       else el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
@@ -55,7 +53,7 @@ export default function ExpertChat({
     setNewCount(0);
   };
 
-  // ── Push-уведомления ────────────────────────────────────────────────
+  // ── Push ────────────────────────────────────────────────────────────
   const [pushNeedsSetup, setPushNeedsSetup] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushDone, setPushDone] = useState(false);
@@ -75,14 +73,11 @@ export default function ExpertChat({
     if (ok) { setPushDone(true); setPushNeedsSetup(false); }
   }, []);
 
-  // ── Автопереход на Chat AI при бездействии ──────────────────────────
+  // ── Автопереход на Chat AI ──────────────────────────────────────────
   useEffect(() => {
     if (!onGoToChat) return;
     let timer: ReturnType<typeof setTimeout>;
-    const reset = () => {
-      clearTimeout(timer);
-      timer = setTimeout(onGoToChat, IDLE_TIMEOUT_MS);
-    };
+    const reset = () => { clearTimeout(timer); timer = setTimeout(onGoToChat, IDLE_TIMEOUT_MS); };
     const events = ["mousemove", "keydown", "touchstart", "click", "scroll"];
     events.forEach(e => window.addEventListener(e, reset, { passive: true }));
     reset();
@@ -92,7 +87,7 @@ export default function ExpertChat({
   return (
     <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}>
 
-      {/* ── Шапка ─────────────────────────────────────────────────────── */}
+      {/* ── Шапка ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 sm:gap-3 bg-white rounded-2xl border border-border px-3 sm:px-4 py-3 shadow-sm shrink-0">
         {isAdmin && (
           <button onClick={onBack} className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors shrink-0">
@@ -113,19 +108,15 @@ export default function ExpertChat({
             {isAdmin ? (currentDialog?.email ?? "") : "Онлайн · ответит в течение 1–3 ч"}
           </p>
         </div>
-
         {isAdmin && (
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={onCompleteConsultation}
-              title="Завершить консультацию (списать 1 консультацию)"
+            <button onClick={onCompleteConsultation}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:shadow-sm active:scale-95"
-              style={{ background: "rgba(5,150,105,0.1)", color: "#059669", border: "1px solid rgba(5,150,105,0.2)" }}
-            >
+              style={{ background: "rgba(5,150,105,0.1)", color: "#059669", border: "1px solid rgba(5,150,105,0.2)" }}>
               <Icon name="CheckCircle" size={13} />
               <span className="hidden sm:inline">Завершить</span>
             </button>
-            <button onClick={onHideDialog} title="Скрыть диалог" className="p-2 rounded-xl transition-colors hover:bg-slate-100">
+            <button onClick={onHideDialog} className="p-2 rounded-xl transition-colors hover:bg-slate-100">
               <Icon name="EyeOff" size={14} className="text-slate-400" />
             </button>
             <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
@@ -133,7 +124,6 @@ export default function ExpertChat({
             </button>
           </div>
         )}
-
         {!isAdmin && (
           <>
             {isFreeUser ? (
@@ -142,32 +132,17 @@ export default function ExpertChat({
                 <span className="text-[11px] font-bold text-amber-700">Бесплатно</span>
               </div>
             ) : (
-              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 ${
-                lawyerQLeft === 0 ? "bg-red-50 border border-red-200"
-                : lawyerQLeft <= 2 ? "bg-amber-50 border border-amber-200"
-                : "bg-emerald-50 border border-emerald-200"
-              }`}>
-                <Icon name="UserCheck" size={11}
-                  className={lawyerQLeft === 0 ? "text-red-500" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-600"} />
-                <span className={`text-[11px] font-bold ${lawyerQLeft === 0 ? "text-red-600" : lawyerQLeft <= 2 ? "text-amber-700" : "text-emerald-700"}`}>
-                  {lawyerQLeft}
-                </span>
-                <span className={`text-[10px] font-medium ${lawyerQLeft === 0 ? "text-red-400" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-500"}`}>
-                  конс.
-                </span>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 ${lawyerQLeft === 0 ? "bg-red-50 border border-red-200" : lawyerQLeft <= 2 ? "bg-amber-50 border border-amber-200" : "bg-emerald-50 border border-emerald-200"}`}>
+                <Icon name="UserCheck" size={11} className={lawyerQLeft === 0 ? "text-red-500" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-600"} />
+                <span className={`text-[11px] font-bold ${lawyerQLeft === 0 ? "text-red-600" : lawyerQLeft <= 2 ? "text-amber-700" : "text-emerald-700"}`}>{lawyerQLeft}</span>
+                <span className={`text-[10px] font-medium ${lawyerQLeft === 0 ? "text-red-400" : lawyerQLeft <= 2 ? "text-amber-500" : "text-emerald-500"}`}>конс.</span>
               </div>
             )}
             {pushNeedsSetup && !pushDone && (
-              <button
-                onClick={handleEnablePush}
-                disabled={pushLoading}
-                title="Включить уведомления"
+              <button onClick={handleEnablePush} disabled={pushLoading}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 shrink-0"
-                style={{ background: "rgba(15,76,129,0.08)", color: "#0f4c81", border: "1px solid rgba(15,76,129,0.2)" }}
-              >
-                {pushLoading
-                  ? <span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
-                  : <Icon name="Bell" size={12} />}
+                style={{ background: "rgba(15,76,129,0.08)", color: "#0f4c81", border: "1px solid rgba(15,76,129,0.2)" }}>
+                {pushLoading ? <span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" /> : <Icon name="Bell" size={12} />}
                 <span className="hidden sm:inline">Уведомления</span>
               </button>
             )}
@@ -184,7 +159,7 @@ export default function ExpertChat({
         )}
       </div>
 
-      {/* ── Баннер бесплатного вопроса ────────────────────────────────── */}
+      {/* ── Баннер бесплатного вопроса ─────────────────────────────────── */}
       {isFreeUser && !hasSentQuestion && (
         <div className="shrink-0 rounded-2xl overflow-hidden border border-amber-200/60 shadow-sm"
           style={{ background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" }}>
@@ -194,83 +169,61 @@ export default function ExpertChat({
               <Icon name="Gift" size={16} className="text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-900 leading-snug">
-                Вы можете задать 1 вопрос юристу-эксперту совершенно бесплатно
-              </p>
-              <p className="text-xs text-amber-700/80 mt-1 leading-relaxed">
-                Опишите вашу ситуацию как можно подробнее — юрист ответит в течение 1–3 часов.
-              </p>
+              <p className="text-sm font-semibold text-amber-900 leading-snug">Вы можете задать 1 вопрос юристу-эксперту совершенно бесплатно</p>
+              <p className="text-xs text-amber-700/80 mt-1 leading-relaxed">Опишите вашу ситуацию как можно подробнее — юрист ответит в течение 1–3 часов.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Область сообщений ─────────────────────────────────────────── */}
-      <div className="relative flex-1 min-h-0">
-        {/* Кнопка «↓ Новые» */}
-        <AnimatePresence>
-          {showScrollBtn && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8, y: 4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 4 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={scrollToBottom}
-              className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
-              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 16px rgba(15,76,129,0.4)" }}
-            >
-              <Icon name="ChevronDown" size={13} />
-              {newCount > 0 ? `${newCount} новых` : "Вниз"}
-            </motion.button>
-          )}
-        </AnimatePresence>
+      {/* ── Список сообщений ────────────────────────────────────────────── */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {showScrollBtn && (
+          <button onClick={scrollToBottom}
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
+            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 16px rgba(15,76,129,0.4)", animation: "fadeInUp .2s ease both" }}>
+            <Icon name="ChevronDown" size={13} />
+            {newCount > 0 ? `${newCount} новых` : "Вниз"}
+          </button>
+        )}
 
-        {/* Список сообщений */}
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="h-full overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}
-        >
+        <div ref={scrollRef} onScroll={handleScroll}
+          className="absolute inset-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+
+          <style>{`
+            @keyframes typingDot { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.15)} }
+            @keyframes fadeInUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+          `}</style>
+
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center h-full min-h-[200px]">
               <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
             </div>
           ) : lmsgs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-4 text-center h-full">
+            <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
               <div className="w-16 h-16 gradient-navy rounded-2xl flex items-center justify-center shadow-lg mx-auto">
                 <Icon name="MessageSquarePlus" size={24} className="text-gold-400" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-navy-700 mb-1">Начните диалог</p>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  Опишите вашу ситуацию, прикрепите документы или ответ AI-консультанта
-                </p>
+                <p className="text-xs text-muted-foreground max-w-xs">Опишите вашу ситуацию, прикрепите документы или ответ AI-консультанта</p>
               </div>
               {!isAdmin && (
-                <button
-                  onClick={onToggleAttachPanel}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-navy-50 hover:bg-navy-100 rounded-xl text-xs font-medium text-navy-700 transition-colors border border-navy-200"
-                >
+                <button onClick={onToggleAttachPanel}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-navy-50 hover:bg-navy-100 rounded-xl text-xs font-medium text-navy-700 transition-colors border border-navy-200">
                   <Icon name="Paperclip" size={13} />
                   Прикрепить файлы или материалы
                 </button>
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-3 sm:gap-4">
-              {lmsgs.map((m) => (
-                <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />
-              ))}
+            <div className="flex flex-col gap-3 sm:gap-4 pb-2">
+              {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)}
 
-              {/* Воронка free: до ответа юриста */}
+              {/* Воронка free: до ответа */}
               {isFreeUser && hasSentQuestion && isBlocked && !hasLawyerReply && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
+                <div className="flex justify-start animate-fade-in">
                   <div className="flex gap-2 sm:gap-3 items-start max-w-[92%] sm:max-w-[85%]">
                     <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md mt-1">
                       <Icon name="UserCheck" size={15} className="text-gold-400" />
@@ -286,9 +239,7 @@ export default function ExpertChat({
                             </div>
                             <p className="text-sm font-bold text-white">Юрист получил ваш вопрос</p>
                           </div>
-                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                            Среднее время ответа — <span className="text-white font-semibold">1–3 часа</span>
-                          </p>
+                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>Среднее время ответа — <span className="text-white font-semibold">1–3 часа</span></p>
                         </div>
                       </div>
                       <div className="rounded-2xl rounded-tl-sm bg-white border border-slate-100 shadow-sm px-3.5 py-2.5 mb-2">
@@ -316,12 +267,12 @@ export default function ExpertChat({
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
 
-              {/* Воронка free: после ответа юриста */}
+              {/* Воронка free: после ответа */}
               {isFreeUser && hasLawyerReply && isBlocked && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+                <div className="animate-fade-in mt-2">
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <div className="flex-1 h-px bg-slate-200" />
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Продолжить работу</span>
@@ -366,17 +317,16 @@ export default function ExpertChat({
                       </button>
                       <button onClick={onUpgradePlan}
                         className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-medium text-slate-500 hover:text-navy-700 transition-colors">
-                        Сравнить все тарифы
-                        <Icon name="ChevronRight" size={12} className="text-slate-400" />
+                        Сравнить все тарифы <Icon name="ChevronRight" size={12} className="text-slate-400" />
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
 
-              {/* Воронка при исчерпании вопросов */}
+              {/* Воронка исчерпания */}
               {isBlocked && !isAdmin && !isFreeUser && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                <div className="flex justify-start animate-fade-in">
                   <div className="flex gap-2 sm:gap-3 items-end max-w-[92%] sm:max-w-[80%]">
                     <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
                       <Icon name="UserCheck" size={15} className="text-gold-400" />
@@ -390,9 +340,7 @@ export default function ExpertChat({
                           </div>
                           <p className="text-sm font-semibold text-navy-800">Все консультации использованы</p>
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          Вы можете читать переписку, но отправка новых сообщений недоступна. Обновите тариф или докупите доступ.
-                        </p>
+                        <p className="text-xs text-slate-500 leading-relaxed">Вы можете читать переписку, но отправка новых сообщений недоступна.</p>
                       </div>
                       <div className="space-y-2">
                         <button onClick={onBuyLawyerQuestions}
@@ -417,9 +365,7 @@ export default function ExpertChat({
                                 {currentPlanId === "plan_starter" ? "Перейти на тариф «Профи»" : "Перейти на тариф «Максимум»"}
                               </p>
                               <p className="text-xs text-slate-500 mt-0.5">
-                                {currentPlanId === "plan_starter"
-                                  ? "+5 консультаций юриста · 100 вопросов AI · 20 документов"
-                                  : "+10 консультаций юриста · 300 вопросов AI · 100 документов"}
+                                {currentPlanId === "plan_starter" ? "+5 консультаций юриста · 100 вопросов AI · 20 документов" : "+10 консультаций юриста · 300 вопросов AI · 100 документов"}
                               </p>
                             </div>
                             <Icon name="ChevronRight" size={14} className="text-slate-400 shrink-0" />
@@ -428,46 +374,32 @@ export default function ExpertChat({
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
             </div>
           )}
 
           {/* Typing indicator */}
-          <AnimatePresence>
-            {sending && !isAdmin && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                className="flex gap-2 items-end justify-start mt-3"
-              >
-                <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
-                  <Icon name="UserCheck" size={15} className="text-gold-400" />
-                </div>
-                <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                  <span className="flex gap-1 items-center">
-                    <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0s" }} />
-                    <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.2s" }} />
-                    <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.4s" }} />
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <style>{`
-            @keyframes typingDot {
-              0%,100% { opacity:.3; transform:scale(.8); }
-              50% { opacity:1; transform:scale(1.15); }
-            }
-          `}</style>
+          {sending && !isAdmin && (
+            <div className="flex gap-2 items-end justify-start mt-3" style={{ animation: "fadeInUp .2s ease both" }}>
+              <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
+                <Icon name="UserCheck" size={15} className="text-gold-400" />
+              </div>
+              <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                <span className="flex gap-1 items-center">
+                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0s" }} />
+                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.2s" }} />
+                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.4s" }} />
+                </span>
+              </div>
+            </div>
+          )}
 
           <div ref={bottomRef} />
         </div>
       </div>
 
-      {/* ── Панель ввода ──────────────────────────────────────────────── */}
+      {/* ── Панель ввода ────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-border shadow-sm shrink-0 overflow-hidden">
         {sending && uploadProgress > 0 && uploadProgress < 100 && (
           <div className="px-4 pt-3 pb-1">
@@ -476,38 +408,24 @@ export default function ExpertChat({
               <p className="text-[11px] font-semibold text-navy-700 ml-auto">{uploadProgress}%</p>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-navy-500 to-navy-700 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }} />
+              <div className="h-full bg-gradient-to-r from-navy-500 to-navy-700 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
             </div>
           </div>
         )}
-
         {attachments.length > 0 && (
           <div className="px-4 pt-3">
             <AttachmentBar attachments={attachments} onView={onViewFullMsg} onRemove={onRemoveAttachment} />
           </div>
         )}
-
         {showAttachPanel && (
           <div className="px-4 pt-3">
-            <AttachPanel
-              aiAnswers={aiAnswers} genDocs={genDocs}
-              currentCount={attachments.length}
-              onSelectContent={onAddAttachment} onFilesAdded={onAddFiles} onClose={onHideAttachPanel}
-            />
+            <AttachPanel aiAnswers={aiAnswers} genDocs={genDocs} currentCount={attachments.length}
+              onSelectContent={onAddAttachment} onFilesAdded={onAddFiles} onClose={onHideAttachPanel} />
           </div>
         )}
-
         <div className="flex items-end gap-2 px-3 sm:px-4 py-3">
-          <button
-            onClick={onToggleAttachPanel}
-            disabled={sending}
-            className={`relative p-2 rounded-xl transition-colors shrink-0 mb-0.5 ${
-              showAttachPanel || attachments.length > 0
-                ? "bg-navy-100 text-navy-700"
-                : "text-muted-foreground hover:text-navy-700 hover:bg-slate-100"
-            }`}
-          >
+          <button onClick={onToggleAttachPanel} disabled={sending}
+            className={`relative p-2 rounded-xl transition-colors shrink-0 mb-0.5 ${showAttachPanel || attachments.length > 0 ? "bg-navy-100 text-navy-700" : "text-muted-foreground hover:text-navy-700 hover:bg-slate-100"}`}>
             <Icon name="Paperclip" size={16} />
             {attachments.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-navy-600 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
@@ -515,64 +433,35 @@ export default function ExpertChat({
               </span>
             )}
           </button>
-
           <div className="relative flex-1">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
+            <textarea ref={textareaRef} rows={1} value={input}
               onChange={(e) => { onInputChange(e.target.value); adjustTextarea(); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isBlocked) onSend(); }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isBlocked) onSend(); } }}
               disabled={sending || isBlocked || isDialogClosed}
-              placeholder={
-                isDialogClosed ? "Консультация завершена" :
-                isBlocked ? "Предварительная консультация использована" :
-                isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."
-              }
-              className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none resize-none leading-relaxed transition-colors ${
-                isBlocked || isDialogClosed
-                  ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed"
-                  : "bg-slate-50 border-slate-200 text-navy-800 placeholder:text-muted-foreground focus:border-navy-300 focus:bg-white"
-              }`}
-              style={{ minHeight: "40px", maxHeight: "180px" }}
-            />
+              placeholder={isDialogClosed ? "Консультация завершена" : isBlocked ? "Предварительная консультация использована" : isAdmin ? "Ответить клиенту..." : "Опишите вопрос для юриста..."}
+              className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none resize-none leading-relaxed transition-colors ${isBlocked || isDialogClosed ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed" : "bg-slate-50 border-slate-200 text-navy-800 placeholder:text-muted-foreground focus:border-navy-300 focus:bg-white"}`}
+              style={{ minHeight: "40px", maxHeight: "180px" }} />
           </div>
-
-          <button
-            onClick={onSend}
-            disabled={isBlocked || sending || (!input.trim() && attachments.length === 0)}
-            className="w-10 h-10 gradient-navy rounded-xl flex items-center justify-center shrink-0 mb-0.5 disabled:opacity-40 hover:opacity-90 transition-all shadow-sm active:scale-95"
-          >
-            {sending
-              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <Icon name="Send" size={16} className="text-white" />}
+          <button onClick={onSend} disabled={isBlocked || sending || (!input.trim() && attachments.length === 0)}
+            className="w-10 h-10 gradient-navy rounded-xl flex items-center justify-center shrink-0 mb-0.5 disabled:opacity-40 hover:opacity-90 transition-all shadow-sm active:scale-95">
+            {sending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Icon name="Send" size={16} className="text-white" />}
           </button>
         </div>
-
         {err && (
           <div className="px-4 pb-3 flex items-center gap-2">
             <Icon name="AlertCircle" size={11} className="text-red-500 shrink-0" />
             <p className="text-xs text-red-500 flex-1">{err}</p>
             <button onClick={onSend} disabled={sending}
               className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 shrink-0 underline underline-offset-2 transition-colors">
-              <Icon name="RotateCcw" size={11} />
-              Повторить
+              <Icon name="RotateCcw" size={11} /> Повторить
             </button>
           </div>
         )}
       </div>
 
-      {/* Модалка предпросмотра */}
       {viewFullMsg && (
-        <AttachmentModal
-          title={viewFullMsg.title}
-          content={viewFullMsg.content}
-          type={viewFullMsg.type}
-          downloadUrl={viewFullMsg.downloadUrl}
-          onClose={onCloseFullMsg}
-        />
+        <AttachmentModal title={viewFullMsg.title} content={viewFullMsg.content}
+          type={viewFullMsg.type} downloadUrl={viewFullMsg.downloadUrl} onClose={onCloseFullMsg} />
       )}
     </div>
   );

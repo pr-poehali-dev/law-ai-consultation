@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import Icon from "@/components/ui/icon";
 import type { LawyerMessage } from "@/lib/auth";
 import { AttachmentModal } from "./ExpertAttachPanel";
@@ -24,12 +23,11 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
     : isMe ? "bg-white/15 text-white/85 hover:bg-white/25" : "bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
-      animate={{ opacity: isOptimistic ? 0.75 : 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: [0.34, 1.1, 0.64, 1] }}
+    <div
       className={`flex gap-2 sm:gap-3 items-end ${isMe ? "justify-end" : "justify-start"}`}
+      style={{ animation: "msgIn .22s ease both", opacity: isOptimistic ? 0.75 : undefined }}
     >
+      <style>{`@keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}`}</style>
       {/* Аватар эксперта (слева) */}
       {!isMe && (
         <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
@@ -106,6 +104,6 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
           onClose={() => setViewAtt(false)}
         />
       )}
-    </motion.div>
+    </div>
   );
 }
