@@ -448,11 +448,17 @@ export default function ExpertChat({
         </div>
 
         {err && (
-          <div className="px-4 pb-3">
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <Icon name="AlertCircle" size={11} />
-              {err}
-            </p>
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <Icon name="AlertCircle" size={11} className="text-red-500 shrink-0" />
+            <p className="text-xs text-red-500 flex-1">{err}</p>
+            <button
+              onClick={onSend}
+              disabled={sending}
+              className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 shrink-0 underline underline-offset-2 transition-colors"
+            >
+              <Icon name="RotateCcw" size={11} />
+              Повторить
+            </button>
           </div>
         )}
       </div>
