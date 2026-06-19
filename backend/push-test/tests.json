@@ -1,1 +1,0 @@
-{"tests": [{"name": "gen keys and test push", "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": {"newPublicKey": "string"}, "bodyMatcher": "partial"}]}
