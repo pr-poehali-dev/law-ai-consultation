@@ -18,6 +18,8 @@ export default function AdminLawyerBlock() {
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; filename: string; expires_at: number }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Защита от race condition при быстрых кликах по диалогам
+  const loadMsgSeqRef = useRef(0);
 
   const loadDialogs = useCallback(async () => {
     setLoading(true);
@@ -27,8 +29,11 @@ export default function AdminLawyerBlock() {
   }, [showClosed]);
 
   const loadMessages = useCallback(async (userId: number) => {
+    const seq = ++loadMsgSeqRef.current; // уникальный номер этого запроса
     setMsgLoading(true);
     const res = await lawyerMessages({ target_user_id: userId });
+    // Игнорируем ответ если за время запроса пользователь кликнул другой диалог
+    if (seq !== loadMsgSeqRef.current) return;
     if (res.messages) setMessages(res.messages);
     setMsgLoading(false);
   }, []);

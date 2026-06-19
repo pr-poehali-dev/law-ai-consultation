@@ -75,7 +75,8 @@ def is_refusal(text) -> bool:
     return any(m in low for m in REFUSAL_MARKERS)
 
 
-def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 80) -> tuple:
+def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, temperature: float = 0.3, timeout: int = 50) -> tuple:
+    # timeout=50: 2 попытки × 50с = 100с, укладывается в таймаут функции 120с с запасом 20с
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": "user" if m.get("role") == "user" else "assistant",

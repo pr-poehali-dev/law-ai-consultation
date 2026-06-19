@@ -42,6 +42,8 @@ export function useLawyerNotifications(
 
   const userId = user?.id ?? null;
   const isAdmin = user?.isAdmin ?? false;
+  // Polling запускаем только тем, у кого есть доступ к юристу
+  const hasLawyerAccess = isAdmin || (user?.paidExpert ?? false) || (user?.lawyerConsultationsLeft ?? 0) > 0;
   const isOnExpertTab = activeTab === "expert";
 
   // ─── Полная загрузка данных ─────────────────────────────────────────────────
@@ -110,6 +112,8 @@ export function useLawyerNotifications(
   // ─── Управление ping-интервалом ────────────────────────────────────────────
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
+    // Не запускаем polling для пользователей без доступа к юристу
+    if (!hasLawyerAccess) { setLoading(false); return; }
 
     const stopPing = () => {
       if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; }
@@ -145,7 +149,7 @@ export function useLawyerNotifications(
       stopPing();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [userId, isOnExpertTab, fetchFull, doPing]);
+  }, [userId, isOnExpertTab, hasLawyerAccess, fetchFull, doPing]);
 
   // Сброс бейджа при переходе на вкладку юриста
   useEffect(() => {

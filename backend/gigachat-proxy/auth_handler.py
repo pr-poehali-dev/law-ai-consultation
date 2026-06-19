@@ -136,11 +136,11 @@ GRANT_SERVICE_MAP = {
 
 def _credit_pending_orders(conn, user_id: int, email: str) -> int:
     """Зачисляет незакрытые оплаченные ордера по email. Возвращает кол-во зачисленных.
-    Атомарное обновление через RETURNING защищает от двойного зачисления при параллельных запросах."""
-    credited = 0
+    Атомарное обновление через RETURNING защищает от двойного зачисления при параллельных запросах.
+    Batch: все сервисы зачисляются и billing_log пишется за один коммит вместо N."""
     cur = conn.cursor()
     try:
-        # Атомарно помечаем ордера как зачисленные — только те которые ещё не зачислены
+        # Атомарно помечаем ордера как зачисленные
         cur.execute(
             f"""UPDATE {SCHEMA}.orders
                 SET service_credited = TRUE, user_id = %s
@@ -149,28 +149,35 @@ def _credit_pending_orders(conn, user_id: int, email: str) -> int:
             (user_id, email.lower())
         )
         rows = cur.fetchall()
-        conn.commit()
+        if not rows:
+            return 0
 
+        # Применяем все гранты сервисов
         for order_id, service_type, amount in rows:
-            try:
-                _apply_service_grant(conn, user_id, service_type)
-                cur2 = conn.cursor()
-                cur2.execute(
-                    f"""INSERT INTO {SCHEMA}.billing_log
-                        (user_id, user_email, service_type, amount, description, source)
-                        VALUES (%s, %s, %s, %s, %s, 'auto_credit_on_login')""",
-                    (user_id, email, service_type, amount, f"Автозачисление при входе: {service_type}")
-                )
-                conn.commit()
-                cur2.close()
-                credited += 1
-                print(f"[AUTH] Автозачислен ордер id={order_id} service={service_type} → user_id={user_id}")
-            except Exception as e:
-                conn.rollback()
-                print(f"[AUTH] Ошибка зачисления ордера id={order_id}: {e}")
+            _apply_service_grant(conn, user_id, service_type)
+            print(f"[AUTH] Автозачислен ордер id={order_id} service={service_type} → user_id={user_id}")
+
+        # Один batch INSERT в billing_log вместо N отдельных
+        billing_values = [
+            (user_id, email, service_type, amount,
+             f"Автозачисление при входе: {service_type}", "auto_credit_on_login")
+            for _, service_type, amount in rows
+        ]
+        cur.executemany(
+            f"""INSERT INTO {SCHEMA}.billing_log
+                (user_id, user_email, service_type, amount, description, source)
+                VALUES (%s, %s, %s, %s, %s, %s)""",
+            billing_values
+        )
+        # Один коммит на всё вместо N коммитов
+        conn.commit()
+        return len(rows)
+    except Exception as e:
+        conn.rollback()
+        print(f"[AUTH] Ошибка batch зачисления ордеров: {e}")
+        return 0
     finally:
         cur.close()
-    return credited
 
 
 def _apply_service_grant(conn, user_id: int, service_type: str):
