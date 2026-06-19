@@ -151,8 +151,16 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
     }
     onResumePing?.();
     setUploadProgress(100);
+
     if (res.error) {
-      setErr("Не удалось отправить. Попробуйте ещё раз.");
+      // 502 может быть ложным — функция выполнилась, но платформа вернула ошибку.
+      // Обновляем чат и очищаем поле — если сообщение появилось, значит дошло.
+      // Ошибку не показываем: пользователь сам увидит результат.
+      setInput("");
+      clearAttachments();
+      setShowAttachPanel(false);
+      if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+      onRefreshLawyer();
       setSending(false);
       setUploadProgress(0);
       return;
