@@ -63,7 +63,6 @@ export interface ExpertChatProps {
   onUpgradePlan?: () => void;
   onCompleteConsultation?: () => void;
   onHideDialog?: () => void;
-  onGoToChat?: () => void;  // автопереход на Chat AI при бездействии
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   bottomRef: React.RefObject<HTMLDivElement>;
   adjustTextarea: () => void;

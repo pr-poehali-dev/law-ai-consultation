@@ -37,7 +37,7 @@ def get_conn():
     return psycopg2.connect(
         os.environ["DATABASE_URL"],
         connect_timeout=3,              # БД локальная — 3с достаточно
-        options="-c statement_timeout=5000",  # 5с — таймаут функции 10с, запас на остальное
+        options="-c statement_timeout=8000",  # 8с — защита от зависших запросов
     )
 
 
@@ -294,13 +294,24 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         cur.close()
         conn.close()
 
-    # Возвращаем результат НЕМЕДЛЕННО — пользователь не ждёт push/email
-    result = {"id": row[0], "created_at": row[1].isoformat()}
-
-    # Push + email в отдельном потоке с join — поток успеет завершиться пока
-    # cloud function ещё активна (функция продолжает работу после return handler'а)
+    # Email и push — запускаем в фоновых потоках, не блокируем ответ пользователю
     if not is_admin:
-        def _notify():
+        # Пользователь написал юристу → уведомляем админа
+        def _notify_admin():
+            try:
+                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+                _send_email(
+                    to_email=ADMIN_EMAIL,
+                    subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
+                    body_text=(
+                        f"Новое сообщение от клиента\n{'─'*40}\n"
+                        f"Имя: {sender_name}\nEmail: {sender_email}\n{'─'*40}\n\n"
+                        f"{msg_body}{att_info}\n\n{'─'*40}\n"
+                        f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
+                    ),
+                )
+            except Exception:
+                pass
             try:
                 short_msg = (msg_body or att_name or "Новое сообщение")[:100]
                 name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
@@ -312,37 +323,11 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
                 )
             except Exception:
                 pass
-            try:
-                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
-                _send_email(
-                    to_email=ADMIN_EMAIL,
-                    subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
-                    body_text=(
-                        f"Новое сообщение от клиента\n{'─'*40}\n"
-                        f"Имя: {sender_name}\nEmail: {sender_email}\n{'─'*40}\n\n"
-                        f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                        f"Ответить можно через кабинет на сайте ии-право.рф\n"
-                    ),
-                )
-            except Exception:
-                pass
-        t = threading.Thread(target=_notify, daemon=False)
-        t.start()
-        # НЕ делаем join — возвращаем ответ немедленно, поток работает фоново
+        threading.Thread(target=_notify_admin, daemon=True).start()
 
     else:
+        # Админ ответил → уведомляем пользователя
         def _notify_user():
-            try:
-                short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
-                _push_to_users(
-                    [recipient_id],
-                    title="⚖️ Юрист ответил — ИИ-Право.рф",
-                    body=short_msg,
-                    url="/cabinet?tab=expert",
-                    tag="lawyer-reply",
-                )
-            except Exception as e:
-                print(f"[LAWYER_REPLY] Push: {e}")
             try:
                 conn2 = get_conn()
                 cur2 = conn2.cursor()
@@ -361,17 +346,28 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
                         to_email=recipient_email,
                         subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
                         body_text=(
-                            f"{greeting}\n\nЮрист ответил:\n\n"
+                            f"{greeting}\n\nЮрист ответил на ваш запрос:\n\n"
                             f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                            f"Просмотреть: https://ии-право.рф/cabinet\n\nС уважением, ИИ-Право.рф"
+                            f"Просмотреть переписку и продолжить диалог:\nhttps://ии-право.рф/cabinet\n\n"
+                            f"С уважением, команда ИИ-Право.рф"
                         ),
                     )
             except Exception as e:
-                print(f"[LAWYER_REPLY] Email: {e}")
-        t = threading.Thread(target=_notify_user, daemon=False)
-        t.start()
-        # НЕ делаем join — возвращаем ответ немедленно
+                print(f"[LAWYER_REPLY] Email не отправлен: {e}")
+            try:
+                short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
+                _push_to_users(
+                    [recipient_id],
+                    title="⚖️ Юрист ответил — ИИ-Право.рф",
+                    body=short_msg,
+                    url="/cabinet?tab=expert",
+                    tag="lawyer-reply",
+                )
+            except Exception as e:
+                print(f"[LAWYER_REPLY] Push не отправлен: {e}")
+        threading.Thread(target=_notify_user, daemon=True).start()
 
+    result = {"id": row[0], "created_at": row[1].isoformat()}
     return _ok(result)
 
 
