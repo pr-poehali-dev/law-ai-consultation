@@ -122,47 +122,31 @@ const SLOW_ACTIONS = new Set([
   "register", "send-otp", "add-paid-service",
 ]);
 
-async function apiCall(body: object, timeoutMs = 45000, noRetry = false): Promise<Response> {
+async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
   const token = getToken();
+  const controller = new AbortController();
   const action = (body as Record<string, unknown>).action as string | undefined;
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
-  // Юрист — 20с (таймаут платформы 20с, push+email синхронно), остальные — 10с
+  // Медленные actions — 25с, юрист — 30с, остальные — 10с
   let cap = 10000;
-  if (LAWYER_ACTIONS.has(action ?? "")) cap = 20000;
+  if (LAWYER_ACTIONS.has(action ?? "")) cap = 30000;
   else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
   const effectiveTimeout = Math.min(timeoutMs, cap);
-
-  // При 502 (перегрузка/холодный старт) — до 3 попыток с паузой 1с, 2с (если не noRetry)
-  const retryDelays = noRetry ? [] : [1000, 2000];
-  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), effectiveTimeout);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "X-Auth-Token": token } : {}),
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(tid);
-      if (res.status === 502 && attempt < retryDelays.length) {
-        await new Promise(r => setTimeout(r, retryDelays[attempt]));
-        continue;
-      }
-      return res;
-    } catch (e) {
-      clearTimeout(tid);
-      if (attempt < retryDelays.length) {
-        await new Promise(r => setTimeout(r, retryDelays[attempt]));
-        continue;
-      }
-      throw e;
-    }
+  const tid = setTimeout(() => controller.abort(), effectiveTimeout);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "X-Auth-Token": token } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(tid);
   }
-  throw new Error("Нет соединения");
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok?: boolean; error?: string }> {
@@ -666,14 +650,10 @@ export async function lawyerPing(params?: {
   last_id?: number;
   target_user_id?: number;
 }): Promise<{ last_id?: number; unread?: number; has_new?: boolean; error?: string }> {
-  try {
-    const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 5000, true); // noRetry=true — ping не критичен
-    const data = await res.json();
-    if (!res.ok) return { error: data.error };
-    return data;
-  } catch {
-    return { error: "ping failed" };
-  }
+  const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 8000);
+  const data = await res.json();
+  if (!res.ok) return { error: data.error };
+  return data;
 }
 
 export async function lawyerCloseDialog(targetUserId: number): Promise<{ ok?: boolean; error?: string }> {

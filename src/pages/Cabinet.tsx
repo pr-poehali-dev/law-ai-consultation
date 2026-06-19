@@ -121,12 +121,6 @@ export default function Cabinet() {
     lawyerDialogs,
     lawyerLoading,
     refreshLawyer,
-    refreshDialog: refreshLawyerDialog,
-    addOptimisticMsg: addLawyerOptimisticMsg,
-    pausePing,
-    resumePing,
-    selectAdminDialog,
-    selectedAdminUserId,
   } = useLawyerNotifications(user, tab);
 
   useEffect(() => {
@@ -187,14 +181,7 @@ export default function Cabinet() {
         lawyerMsgs={lawyerMsgs}
         lawyerDialogs={lawyerDialogs}
         lawyerLoading={lawyerLoading}
-        selectedAdminUserId={selectedAdminUserId}
-        onSelectAdminDialog={selectAdminDialog}
         onRefreshLawyer={refreshLawyer}
-        onRefreshDialog={refreshLawyerDialog}
-        onAddOptimisticMsg={addLawyerOptimisticMsg}
-        onPausePing={pausePing}
-        onResumePing={resumePing}
-        onGoToChat={() => handleSetTab("chat")}
       />
 
       <CabinetModals
