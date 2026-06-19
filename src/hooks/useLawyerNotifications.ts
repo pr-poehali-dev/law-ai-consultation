@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-const POLL_INTERVAL = 20000; // 20 сек — только когда вкладка видима
+// Интервалы polling в зависимости от типа пользователя
+const POLL_PAID = 20000;  // 20 сек — платный пользователь (активная переписка)
+const POLL_FREE = 60000;  // 60 сек — бесплатный (1 вопрос, нечасто меняется)
 
 export interface LawyerNotification {
   id: number;
@@ -31,26 +33,28 @@ export function useLawyerNotifications(
   const lastSeenIdRef = useRef<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isStartedRef = useRef(false);
-
   const isOnExpertTabRef = useRef(activeTab === "expert");
   isOnExpertTabRef.current = activeTab === "expert";
 
   const userId = user?.id ?? null;
   const isAdmin = user?.isAdmin ?? false;
   const hasPlan = !!(user?.paidExpert || user?.purchasedPlan);
-  const isFreeUser = !isAdmin && !hasPlan;
-  const canPoll = !!userId && !isAdmin && (hasPlan || isFreeUser);
+  // Polling запускаем для всех авторизованных не-админов
+  const canPoll = !!userId && !isAdmin;
+
+  // Платный — 20 сек, бесплатный — 60 сек (1 вопрос, меняется редко)
+  const getPollInterval = () => hasPlan ? POLL_PAID : POLL_FREE;
 
   const poll = useCallback(async () => {
-    // Не делаем запрос если вкладка скрыта
     if (document.visibilityState !== "visible") return;
     const res = await lawyerMessages();
     if (!res.messages) return;
 
-    setMsgs(res.messages);
+    const newMsgs = res.messages;
+    setMsgs(newMsgs);
 
-    const adminMsgs = res.messages.filter(m => m.sender === "admin");
-    const unread = res.messages.filter(m => m.sender === "admin" && !m.is_read);
+    const adminMsgs = newMsgs.filter(m => m.sender === "admin");
+    const unread = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
 
     setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
     setLoading(false);
@@ -82,7 +86,7 @@ export function useLawyerNotifications(
     else if (canPoll) poll();
   }, [isAdmin, canPoll, poll, pollAdmin]);
 
-  // Polling для обычных пользователей — стартует, останавливается при уходе вкладки в фон
+  // Polling для обычных пользователей
   useEffect(() => {
     if (!canPoll) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -94,9 +98,8 @@ export function useLawyerNotifications(
     isStartedRef.current = true;
 
     const startPolling = () => {
-      poll();
       if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = setInterval(poll, POLL_INTERVAL);
+      pollRef.current = setInterval(poll, getPollInterval());
     };
 
     const stopPolling = () => {
@@ -105,13 +108,19 @@ export function useLawyerNotifications(
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        startPolling(); // сразу опрашиваем при возврате
+        poll(); // немедленный запрос при возврате
+        startPolling();
       } else {
-        stopPolling(); // полностью останавливаем в фоне
+        stopPolling();
       }
     };
 
-    startPolling();
+    // Первый запрос сразу, потом интервал
+    poll().then(() => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(poll, getPollInterval());
+    });
+
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
@@ -119,9 +128,10 @@ export function useLawyerNotifications(
       isStartedRef.current = false;
       document.removeEventListener("visibilitychange", onVisibility);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPoll, poll]);
 
-  // Polling для админа — только когда на вкладке юриста и вкладка видима
+  // Polling для админа — только на вкладке юриста, останавливается в фоне
   useEffect(() => {
     if (!isAdmin || activeTab !== "expert") return;
     setLoading(true);
@@ -129,7 +139,7 @@ export function useLawyerNotifications(
     const startAdminPolling = () => {
       pollAdmin();
       if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = setInterval(pollAdmin, POLL_INTERVAL);
+      pollRef.current = setInterval(pollAdmin, POLL_PAID);
     };
 
     const stopAdminPolling = () => {
@@ -150,13 +160,13 @@ export function useLawyerNotifications(
     };
   }, [isAdmin, activeTab, pollAdmin]);
 
-  // При переходе на вкладку юриста — немедленно обновляем и сбрасываем бейдж
+  // При переходе на вкладку юриста — сбрасываем бейдж (НЕ делаем лишний refresh,
+  // т.к. polling уже идёт и следующий tick обновит данные)
   useEffect(() => {
     if (activeTab === "expert") {
       setUnreadCount(0);
-      refresh();
     }
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const clearNotification = useCallback(() => setNotification(null), []);
 
