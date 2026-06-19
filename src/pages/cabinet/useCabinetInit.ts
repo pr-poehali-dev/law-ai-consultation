@@ -98,9 +98,10 @@ export function useCabinetInit({
             setTab("chat");
             // Ждём начисления от вебхука ЮКассы — делаем ретраи до 35 сек
             const waitAndAnalyze = async () => {
-              // Exponential backoff: 2→4→8→16с, итого ~30с макс вместо 17 запросов по 2с
-              const delays = [2000, 4000, 8000, 16000];
-              for (const delay of delays) {
+              const MAX_WAIT_MS = 35_000;
+              const RETRY_INTERVAL_MS = 2_000;
+              const started = Date.now();
+              while (Date.now() - started < MAX_WAIT_MS) {
                 invalidateUserCache();
                 const freshUser = await getUser();
                 const canRun = freshUser && (
@@ -113,9 +114,8 @@ export function useCabinetInit({
                   analyzeFileDirectly({ name, b64 }, comment || "");
                   return;
                 }
-                await new Promise(res => setTimeout(res, delay));
+                await new Promise(res => setTimeout(res, RETRY_INTERVAL_MS));
               }
-              // Последняя попытка после всех задержек
               analyzeFileDirectly({ name, b64 }, comment || "");
             };
             setTimeout(waitAndAnalyze, 800);
@@ -175,21 +175,16 @@ export function useCabinetInit({
       }
     });
 
-    // Дебаунс 30с — не перезапрашиваем профиль при каждом alt+tab/гашении экрана на мобиле
+    // Дебаунс — не обновляем юзера при каждом alt+tab, только после 3 сек видимости
     let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastVisibilityFetch = 0;
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") {
         if (visibilityTimer) { clearTimeout(visibilityTimer); visibilityTimer = null; }
         return;
       }
-      // Не запрашиваем чаще чем раз в 30 сек
-      const now = Date.now();
-      if (now - lastVisibilityFetch < 30_000) return;
       if (visibilityTimer) clearTimeout(visibilityTimer);
       visibilityTimer = setTimeout(() => {
         visibilityTimer = null;
-        lastVisibilityFetch = Date.now();
         invalidateUserCache();
         getUserWithStatus().then(({ user: u, unauthorized }) => {
           if (!u && unauthorized) {
@@ -197,8 +192,8 @@ export function useCabinetInit({
           } else if (u) {
             setUser(u);
           }
-        }).catch(() => {});
-      }, 2000);
+        });
+      }, 3000);
     };
     document.addEventListener("visibilitychange", handleVisibility);
 

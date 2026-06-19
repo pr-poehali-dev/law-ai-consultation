@@ -294,78 +294,87 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
         cur.close()
         conn.close()
 
-    # Email и push — запускаем в фоновых потоках, не блокируем ответ пользователю
+    # Отправляем email юристу (только когда пишет пользователь, не админ)
     if not is_admin:
-        # Пользователь написал юристу → уведомляем админа
-        def _notify_admin():
-            try:
-                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
-                _send_email(
-                    to_email=ADMIN_EMAIL,
-                    subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
-                    body_text=(
-                        f"Новое сообщение от клиента\n{'─'*40}\n"
-                        f"Имя: {sender_name}\nEmail: {sender_email}\n{'─'*40}\n\n"
-                        f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                        f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
-                    ),
-                )
-            except Exception:
-                pass
-            try:
-                short_msg = (msg_body or att_name or "Новое сообщение")[:100]
-                name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
-                _push_to_admin(
-                    title=f"💬 {name_label} — ИИ-Право.рф",
-                    body=short_msg,
-                    url="/cabinet",
-                    tag="lawyer-inbox",
-                )
-            except Exception:
-                pass
-        threading.Thread(target=_notify_admin, daemon=True).start()
+        try:
+            att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+            email_body = (
+                f"Новое сообщение от клиента\n"
+                f"{'─'*40}\n"
+                f"Имя: {sender_name}\n"
+                f"Email: {sender_email}\n"
+                f"{'─'*40}\n\n"
+                f"{msg_body}{att_info}\n\n"
+                f"{'─'*40}\n"
+                f"Ответить можно через личный кабинет юриста на сайте ии-право.рф\n"
+            )
+            _send_email(
+                to_email=ADMIN_EMAIL,
+                subject=f"💬 Новое сообщение от {sender_name or sender_email or 'клиента'}",
+                body_text=email_body,
+            )
+        except Exception:
+            pass  # Email не критичен — сообщение уже сохранено
+
+        # Push-уведомление администратору
+        try:
+            short_msg = (msg_body or att_name or "Новое сообщение")[:100]
+            name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
+            _push_to_admin(
+                title=f"💬 {name_label} — ИИ-Право.рф",
+                body=short_msg,
+                url="/cabinet",
+                tag="lawyer-inbox",
+            )
+        except Exception:
+            pass
 
     else:
-        # Админ ответил → уведомляем пользователя
-        def _notify_user():
+        # Админ ответил — email + push пользователю
+        try:
+            # Получаем email пользователя
+            conn2 = get_conn()
+            cur2 = conn2.cursor()
             try:
-                conn2 = get_conn()
-                cur2 = conn2.cursor()
-                try:
-                    cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (recipient_id,))
-                    urow2 = cur2.fetchone()
-                finally:
-                    cur2.close()
-                    conn2.close()
-                if urow2:
-                    recipient_name = urow2[0] or ""
-                    recipient_email = urow2[1] or ""
-                    greeting = f"Здравствуйте, {recipient_name.strip()}!" if recipient_name.strip() else "Здравствуйте!"
-                    att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
-                    _send_email(
-                        to_email=recipient_email,
-                        subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
-                        body_text=(
-                            f"{greeting}\n\nЮрист ответил на ваш запрос:\n\n"
-                            f"{msg_body}{att_info}\n\n{'─'*40}\n"
-                            f"Просмотреть переписку и продолжить диалог:\nhttps://ии-право.рф/cabinet\n\n"
-                            f"С уважением, команда ИИ-Право.рф"
-                        ),
-                    )
-            except Exception as e:
-                print(f"[LAWYER_REPLY] Email не отправлен: {e}")
-            try:
-                short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
-                _push_to_users(
-                    [recipient_id],
-                    title="⚖️ Юрист ответил — ИИ-Право.рф",
-                    body=short_msg,
-                    url="/cabinet?tab=expert",
-                    tag="lawyer-reply",
+                cur2.execute(f"SELECT name, email FROM {SCHEMA}.users WHERE id = %s", (recipient_id,))
+                urow2 = cur2.fetchone()
+            finally:
+                cur2.close()
+                conn2.close()
+
+            if urow2:
+                recipient_name = urow2[0] or ""
+                recipient_email = urow2[1] or ""
+                greeting = f"Здравствуйте, {recipient_name.strip()}!" if recipient_name.strip() else "Здравствуйте!"
+                att_info = f"\n\nПрикреплено: {att_name}" if att_name else ""
+                _send_email(
+                    to_email=recipient_email,
+                    subject="⚖️ Юрист ответил на ваш запрос — ИИ-Право.рф",
+                    body_text=(
+                        f"{greeting}\n\n"
+                        f"Юрист ответил на ваш запрос:\n\n"
+                        f"{msg_body}{att_info}\n\n"
+                        f"{'─'*40}\n"
+                        f"Просмотреть переписку и продолжить диалог:\n"
+                        f"https://ии-право.рф/cabinet\n\n"
+                        f"С уважением, команда ИИ-Право.рф"
+                    ),
                 )
-            except Exception as e:
-                print(f"[LAWYER_REPLY] Push не отправлен: {e}")
-        threading.Thread(target=_notify_user, daemon=True).start()
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Email не отправлен: {e}")
+
+        # Push пользователю — мгновенно, даже если вкладка закрыта
+        try:
+            short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
+            _push_to_users(
+                [recipient_id],
+                title="⚖️ Юрист ответил — ИИ-Право.рф",
+                body=short_msg,
+                url="/cabinet?tab=expert",
+                tag="lawyer-reply",
+            )
+        except Exception as e:
+            print(f"[LAWYER_REPLY] Push не отправлен: {e}")
 
     result = {"id": row[0], "created_at": row[1].isoformat()}
     return _ok(result)

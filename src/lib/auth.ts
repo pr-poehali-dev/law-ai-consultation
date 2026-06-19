@@ -11,21 +11,14 @@ const AI_DOCS_URL = _f["ai-docs"];
 const TOKEN_KEY = "yurist_ai_token";
 
 // Keep-alive: греем ai-chat и ai-docs — только когда вкладка активна
-// Запоминаем какими сервисами пользователь реально пользовался в сессии
-const _usedServices = new Set<string>();
-export function markServiceUsed(service: "chat" | "docs") { _usedServices.add(service); }
-
 export function startKeepAlive(): () => void {
-  // Пингуем только те сервисы которыми пользовались — ai-chat всегда (основной), ai-docs только если открывали вкладку Документы
   const ping = () => {
-    if (document.visibilityState !== "visible") return;
+    if (document.visibilityState !== "visible") return; // не пингуем в фоне
     fetch(AI_CHAT_URL, { method: "GET" }).catch(() => {});
-    if (_usedServices.has("docs")) {
-      fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
-    }
+    fetch(AI_DOCS_URL, { method: "GET" }).catch(() => {});
   };
   const id = setInterval(ping, 9 * 60 * 1000);
-  ping();
+  ping(); // сразу при входе в кабинет
   return () => clearInterval(id);
 }
 
