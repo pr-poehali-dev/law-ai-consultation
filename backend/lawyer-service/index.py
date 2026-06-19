@@ -515,6 +515,7 @@ def handle_lawyer_close_dialog(body: dict, user_id: int, is_admin: bool) -> dict
 
 def handle_lawyer_complete_consultation(body: dict, user_id: int, is_admin: bool) -> dict:
     """Завершить консультацию (только для админа): закрыть диалог + списать 1 консультацию у пользователя."""
+    print(f"[COMPLETE] called by user_id={user_id} is_admin={is_admin} body={body}")
     if not is_admin:
         return _err(403, "Нет доступа")
     target_user_id = body.get("target_user_id")
@@ -540,6 +541,7 @@ def handle_lawyer_complete_consultation(body: dict, user_id: int, is_admin: bool
         row = cur.fetchone()
         consultations_left = row[0] if row else 0
         conn.commit()
+        print(f"[COMPLETE] done: tid={tid} consultations_left={consultations_left}")
     finally:
         cur.close()
         conn.close()
