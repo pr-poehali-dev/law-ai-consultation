@@ -103,6 +103,9 @@ export default function PushPromptBanner() {
                     Мгновенно узнавайте об ответах юриста и новых возможностях
                   </p>
                 </div>
+                <button onClick={handleDismiss} className="shrink-0 p-1 text-slate-300 hover:text-slate-500 transition-colors">
+                  <Icon name="X" size={14} />
+                </button>
 
               </div>
               <div className="flex gap-2">
