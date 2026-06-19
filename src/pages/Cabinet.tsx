@@ -18,7 +18,7 @@ import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
 import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
 import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
 import { useLawyerNotifications } from "@/hooks/useLawyerNotifications";
-import LawyerNotificationToast from "@/pages/cabinet/LawyerNotificationToast";
+
 import PushPromptBanner from "@/components/PushPromptBanner";
 
 type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
@@ -115,8 +115,6 @@ export default function Cabinet() {
 
   const {
     unreadCount: lawyerUnread,
-    notification: lawyerNotification,
-    clearNotification: clearLawyerNotification,
     lawyerMessages: lawyerMsgs,
     lawyerDialogs,
     lawyerLoading,
@@ -235,14 +233,7 @@ export default function Cabinet() {
 
       <PushPromptBanner />
 
-      {lawyerNotification && (
-        <LawyerNotificationToast
-          key={lawyerNotification.id}
-          message={lawyerNotification.body}
-          onReply={() => setTab("expert")}
-          onClose={clearLawyerNotification}
-        />
-      )}
+
     </div>
   );
 }
