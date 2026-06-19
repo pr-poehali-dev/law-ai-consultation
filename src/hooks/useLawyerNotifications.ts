@@ -60,8 +60,9 @@ export function useLawyerNotifications(
   }, []);
 
   // ── Загрузка сообщений пользователя ──────────────────────────────────────────
-  const fetchUserMsgs = useCallback(async () => {
+  const fetchUserMsgs = useCallback(async (force = false) => {
     if (!userId || isAdmin) return;
+    if (!force && pausedRef.current) return; // во время отправки — не перебиваем
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
@@ -121,8 +122,8 @@ export function useLawyerNotifications(
       const uid = selectedUidRef.current;
       if (uid) fetchDialog(uid);
     } else {
-      fetchingRef.current = false; // сбрасываем блокировку
-      fetchUserMsgs();
+      fetchingRef.current = false;
+      fetchUserMsgs(true); // force=true — игнорирует паузу и fetchingRef
     }
   }, [isAdmin, fetchDialog, fetchUserMsgs]);
 
@@ -133,7 +134,7 @@ export function useLawyerNotifications(
       if (uid) fetchDialog(uid);
     } else {
       fetchingRef.current = false;
-      fetchUserMsgs();
+      fetchUserMsgs(true);
     }
   }, [isAdmin, fetchDialogs, fetchDialog, fetchUserMsgs]);
 

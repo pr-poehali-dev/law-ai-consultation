@@ -131,7 +131,7 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    // 1. Очищаем форму и паузируем ping
+    // 1. Очищаем форму, паузируем polling
     setInput("");
     clearAttachments();
     setShowAttachPanel(false);
@@ -139,32 +139,19 @@ export default function ExpertTab({
     if (isFreeUser) setSentFreeQuestion(true);
     onPausePing?.();
 
-    // 2. Показываем сообщение мгновенно (оптимистично)
-    onAddOptimisticMsg?.({
-      user_id: user.id,
-      sender: user.isAdmin ? "admin" : "user",
-      body: params.body,
-      attachment_type: params.attachment_type,
-      attachment_name: params.attachment_name,
-      attachment_content: undefined,
-      is_read: true,
-    });
-
-    // 3. Отправляем на сервер
+    // 2. Отправляем, потом загружаем один раз, потом возобновляем polling
     lawyerSend(params)
-      .then(() => {
+      .then(async () => {
         setSending(false);
         setUploadProgress(0);
-        // Загружаем реальный список — он заменяет оптимистичное (ровно 1 сообщение)
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        // Возобновляем ping только после загрузки (даём 800ms на завершение fetch)
-        setTimeout(() => onResumePing?.(), 800);
+        onResumePing?.();
       })
-      .catch(() => {
+      .catch(async () => {
         setSending(false);
         setUploadProgress(0);
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        setTimeout(() => onResumePing?.(), 800);
+        onResumePing?.();
       });
   };
 
