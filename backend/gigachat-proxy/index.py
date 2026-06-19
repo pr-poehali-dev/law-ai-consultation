@@ -2,7 +2,7 @@
 Единый API: AI-юрист (DeepSeek V3 via Yandex Cloud) + авторизация. v7 — admin OTP login + lawyer_questions.
 mode: "chat" | "doc_generate" | "file_analyze" | "file_cleanup"
 auth actions: register, login, admin-login-otp, me, logout, update-profile, consume-question, add-paid-service
-VAPID push support: vapid-public-key, push-subscribe, push-subscribe-anon (fix: correct URL in frontend)
+VAPID push support: vapid-public-key, push-subscribe, push-subscribe-anon (keys: PEM format)
 """
 import json
 import os
