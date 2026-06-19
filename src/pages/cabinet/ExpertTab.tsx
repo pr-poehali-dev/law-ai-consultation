@@ -150,22 +150,22 @@ export default function ExpertTab({
     if (isFreeUser) setSentFreeQuestion(true);
 
     onPausePing?.();
-    let res: Awaited<ReturnType<typeof lawyerSend>>;
-    try {
-      res = await lawyerSend(params);
-    } catch {
-      onResumePing?.();
-      setSending(false);
-      setUploadProgress(0);
-      if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-      return;
-    }
-    onResumePing?.();
-    setUploadProgress(0);
-    setSending(false);
 
-    // Синхронизируем с сервером — оптимистичное заменяется реальным
-    if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+    // Запускаем отправку и НЕ ждём её завершения для показа UI
+    lawyerSend(params)
+      .then(() => {
+        onResumePing?.();
+        setSending(false);
+        setUploadProgress(0);
+        // Синхронизируем — оптимистичное заменяется реальным
+        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+      })
+      .catch(() => {
+        onResumePing?.();
+        setSending(false);
+        setUploadProgress(0);
+        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+      });
   };
 
   const handleCompleteConsultation = async () => {

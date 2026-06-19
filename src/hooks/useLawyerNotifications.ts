@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages, lawyerPing } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-const PING_INTERVAL = 10_000;
+// 3с — лёгкий ping (~15мс реального времени, не 10с таймаута)
+// Биллинг для lawyer-ping: реальное время ~15мс, не таймаут функции
+const PING_INTERVAL = 3_000;
 
 export interface LawyerNotification {
   id: number;
