@@ -52,6 +52,70 @@ def generate_token() -> str:
     return secrets.token_hex(48)
 
 
+def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo") -> bool:
+    """Отправляет Web Push одной подписке. Возвращает True при успехе."""
+    try:
+        from pywebpush import webpush, WebPushException
+        import json as _json
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+        if not vapid_private:
+            return False
+        webpush(
+            subscription_info={
+                "endpoint": sub["endpoint"],
+                "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
+            },
+            data=_json.dumps({"title": title, "body": body, "url": url, "tag": tag}),
+            vapid_private_key=vapid_private,
+            vapid_claims={"sub": f"mailto:{ADMIN_EMAIL}"},
+            timeout=4,
+        )
+        return True
+    except Exception as push_err:
+        print(f"[PUSH] Ошибка: {push_err}")
+        return False
+
+
+def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
+    """Отправляет push конкретным пользователям."""
+    if not user_ids:
+        return
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        placeholders = ",".join(["%s"] * len(user_ids))
+        cur.execute(
+            f"SELECT DISTINCT ON (user_id) id, endpoint, p256dh, auth "
+            f"FROM {SCHEMA}.push_subscriptions "
+            f"WHERE user_id IN ({placeholders}) AND auth != 'expired' "
+            f"ORDER BY user_id, id DESC",
+            user_ids,
+        )
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+    for row in rows:
+        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url, tag)
+
+
+def _push_to_admin(title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
+    """Отправляет push всем администраторам."""
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM {SCHEMA}.push_subscriptions ps "
+            f"JOIN {SCHEMA}.users u ON u.id = ps.user_id WHERE u.is_admin = TRUE AND ps.auth != 'expired'"
+        )
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+    for row in rows:
+        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url, tag)
+
+
 def sanitize_str(s: str, max_len: int = 255) -> str:
     if not s:
         return ""
@@ -1019,6 +1083,16 @@ def handle_report(token: str, body: dict) -> dict:
         )
         report_id = cur.fetchone()[0]
         conn.commit()
+        name_label = user.get("name", "").strip() or user.get("email", "Пользователь")
+        try:
+            _push_to_admin(
+                title=f"📩 Обращение от {name_label} — ИИ-Право.рф",
+                body=message[:100],
+                url="/cabinet?tab=profile",
+                tag="support-new",
+            )
+        except Exception as e:
+            print(f"[REPORT] Push admin: {e}")
         try:
             _send_email(
                 to_email=ADMIN_EMAIL,
