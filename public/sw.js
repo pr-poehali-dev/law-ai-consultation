@@ -1,5 +1,5 @@
 // Service Worker: network-first для HTML, cache-first для статики
-const CACHE_VERSION = "ii-pravo-v4";
+const CACHE_VERSION = "ii-pravo-v5";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 // Статика которую кэшируем (JS/CSS/иконки)
@@ -81,36 +81,93 @@ self.addEventListener("fetch", (e) => {
 
 // ── Web Push ──────────────────────────────────────────────────────────────────
 
+// Иконки: используем абсолютные URL чтобы работало и в PWA и в браузере
+const PUSH_ICON = "/icon-192.svg";
+const PUSH_BADGE = "/icon-192.svg"; // badge — SVG (Chrome Android использует для строки статуса)
+
+// Действия по умолчанию для уведомлений с кнопками
+const ACTION_OPEN = { action: "open", title: "Открыть" };
+const ACTION_DISMISS = { action: "dismiss", title: "Закрыть" };
+
 self.addEventListener("push", (event) => {
-  let data = { title: "AI-Юрист", body: "У вас новое сообщение", url: "/cabinet" };
+  let data = {
+    title: "ИИ-Право.рф",
+    body: "У вас новое сообщение",
+    url: "/cabinet",
+    tag: "default",
+    actions: [],
+    image: null,
+  };
+
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
   } catch {}
 
+  // Определяем действия по типу уведомления
+  const actions = [];
+  if (data.url && data.url.includes("expert")) {
+    actions.push({ action: "open", title: "Ответить" });
+  } else {
+    actions.push({ action: "open", title: "Открыть" });
+  }
+  actions.push(ACTION_DISMISS);
+
+  const options = {
+    body: data.body,
+    icon: PUSH_ICON,
+    badge: PUSH_BADGE,
+    data: { url: data.url || "/cabinet" },
+    // Вибрация: короткий паттерн — неназойливо
+    vibrate: [100, 50, 100],
+    // Группировка одинаковых уведомлений
+    tag: data.tag || "ii-pravo",
+    renotify: true,
+    // Не требуем взаимодействия — исчезнет само
+    requireInteraction: false,
+    // Показываем уведомление даже если приложение открыто
+    silent: false,
+    // Кнопки действий (работает в Chrome Android и desktop)
+    actions: actions,
+    // Временная метка
+    timestamp: Date.now(),
+  };
+
+  // image — большая картинка под телом (только Chrome desktop/Android)
+  if (data.image) options.image = data.image;
+
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: { url: data.url || "/cabinet" },
-      vibrate: [150, 50, 150],
-      requireInteraction: false,
-    })
+    self.registration.showNotification(data.title, options)
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+
+  // Если нажали "Закрыть" — просто закрываем
+  if (event.action === "dismiss") return;
+
   const url = event.notification.data?.url || "/cabinet";
+  const fullUrl = self.location.origin + url;
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      // Если уже открыт кабинет — фокусируем и навигируем
       for (const client of list) {
-        if (client.url.includes(self.location.origin) && "focus" in client) {
-          client.navigate(url);
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          client.navigate(fullUrl);
           return client.focus();
         }
       }
-      if (clients.openWindow) return clients.openWindow(url);
+      // Иначе открываем новую вкладку
+      if (clients.openWindow) return clients.openWindow(fullUrl);
     })
   );
+});
+
+// Закрытие уведомления без клика — можно логировать аналитику
+self.addEventListener("notificationclose", () => {
+  // можно отправить событие аналитики
 });

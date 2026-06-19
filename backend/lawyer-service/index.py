@@ -151,7 +151,7 @@ def _get_vapid_claims():
     return {"sub": f"mailto:{ADMIN_EMAIL}"}
 
 
-def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/cabinet") -> bool:
+def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo") -> bool:
     """Отправляет Web Push одной подписке. Возвращает True при успехе."""
     try:
         from pywebpush import webpush, WebPushException
@@ -164,7 +164,7 @@ def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/ca
                 "endpoint": sub["endpoint"],
                 "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
             },
-            data=_json.dumps({"title": title, "body": body, "url": url}),
+            data=_json.dumps({"title": title, "body": body, "url": url, "tag": tag}),
             vapid_private_key=vapid_private,
             vapid_claims=_get_vapid_claims(),
             timeout=8,
@@ -175,7 +175,7 @@ def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/ca
         return False
 
 
-def _push_to_admin(title: str, body: str, url: str = "/cabinet"):
+def _push_to_admin(title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
     """Отправляет push всем подпискам администраторов."""
     conn = get_conn()
     cur = conn.cursor()
@@ -190,10 +190,10 @@ def _push_to_admin(title: str, body: str, url: str = "/cabinet"):
         conn.close()
 
     for row in rows:
-        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url)
+        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url, tag)
 
 
-def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet"):
+def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
     """Отправляет push конкретным пользователям. Помечает истёкшие подписки."""
     if not user_ids:
         return
@@ -214,7 +214,7 @@ def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet")
     expired = []
     for row in rows:
         sub_id, endpoint, p256dh, auth = row
-        ok = _send_push_to_subscription({"endpoint": endpoint, "p256dh": p256dh, "auth": auth}, title, body, url)
+        ok = _send_push_to_subscription({"endpoint": endpoint, "p256dh": p256dh, "auth": auth}, title, body, url, tag)
         if not ok:
             expired.append(sub_id)
 
@@ -314,11 +314,13 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
 
         # Push-уведомление администратору
         try:
-            short_msg = (msg_body or att_name or "Новый запрос")[:80]
+            short_msg = (msg_body or att_name or "Новое сообщение")[:100]
+            name_label = sender_name.strip() if sender_name.strip() else (sender_email or "Клиент")
             _push_to_admin(
-                title=f"💬 Новый запрос от {sender_name or sender_email or 'клиента'}",
+                title=f"💬 {name_label} — ИИ-Право.рф",
                 body=short_msg,
                 url="/cabinet",
+                tag="lawyer-inbox",
             )
         except Exception:
             pass
@@ -359,12 +361,13 @@ def handle_lawyer_send(body: dict, user_id: int, is_admin: bool) -> dict:
 
         # Push пользователю — мгновенно, даже если вкладка закрыта
         try:
-            short_msg = (msg_body or att_name or "Новый ответ юриста")[:80]
+            short_msg = (msg_body or att_name or "Посмотрите ответ в личном кабинете")[:100]
             _push_to_users(
                 [recipient_id],
-                title="⚖️ Юрист ответил на ваш запрос",
+                title="⚖️ Юрист ответил — ИИ-Право.рф",
                 body=short_msg,
                 url="/cabinet?tab=expert",
+                tag="lawyer-reply",
             )
         except Exception as e:
             print(f"[LAWYER_REPLY] Push не отправлен: {e}")
@@ -502,12 +505,17 @@ def handle_lawyer_complete_consultation(body: dict, user_id: int, is_admin: bool
 
     # Push пользователю о завершении консультации
     try:
-        left_text = f"Осталось консультаций: {consultations_left}" if consultations_left > 0 else "Все консультации использованы"
+        left_text = (
+            f"Осталось {consultations_left} консульт. · Спасибо за обращение!"
+            if consultations_left > 0
+            else "Консультации исчерпаны · Можно продлить в кабинете"
+        )
         _push_to_users(
             [tid],
-            title="✅ Консультация завершена",
+            title="✅ Консультация завершена — ИИ-Право.рф",
             body=left_text,
             url="/cabinet?tab=expert",
+            tag="lawyer-complete",
         )
     except Exception as e:
         print(f"[LAWYER_COMPLETE] Push не отправлен: {e}")
