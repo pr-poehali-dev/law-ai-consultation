@@ -1,5 +1,5 @@
 // Service Worker: network-first для HTML, cache-first для статики
-const CACHE_VERSION = "ii-pravo-v5";
+const CACHE_VERSION = "ii-pravo-v6";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 // Статика которую кэшируем (JS/CSS/иконки)
