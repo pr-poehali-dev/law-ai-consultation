@@ -2161,7 +2161,7 @@ def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/ca
             data=_json.dumps({"title": title, "body": body, "url": url, "tag": tag}),
             vapid_private_key=vapid_private,
             vapid_claims=_get_vapid_claims(),
-            timeout=8,
+            timeout=4,  # 4с достаточно; снижаем время блокировки обработчика
         )
         return True
     except Exception as push_err:
@@ -2177,8 +2177,12 @@ def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet",
     cur = conn.cursor()
     try:
         placeholders = ",".join(["%s"] * len(user_ids))
+        # Берём только последнюю подписку на пользователя — меньше вычислительного времени
         cur.execute(
-            f"SELECT id, endpoint, p256dh, auth FROM {SCHEMA}.push_subscriptions WHERE user_id IN ({placeholders})",
+            f"SELECT DISTINCT ON (user_id) id, endpoint, p256dh, auth "
+            f"FROM {SCHEMA}.push_subscriptions "
+            f"WHERE user_id IN ({placeholders}) AND auth != 'expired' "
+            f"ORDER BY user_id, id DESC",
             user_ids,
         )
         rows = cur.fetchall()

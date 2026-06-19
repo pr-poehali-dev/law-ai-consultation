@@ -106,11 +106,15 @@ export default function AdminLegalDocs() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {(activeTab === "codex" || activeTab === "court_definitions") && (
+          {(activeTab === "codex" || activeTab === "court_definitions" || activeTab === "statute") && (
             <button
               onClick={handleReindex}
               disabled={reindexing}
-              title={activeTab === "codex" ? "Перенарезать кодексы по статьям" : "Перенарезать обзоры по правовым позициям"}
+              title={
+                activeTab === "codex" ? "Перенарезать кодексы по статьям" :
+                activeTab === "statute" ? "Перенарезать законы по статьям с контекстом разделов" :
+                "Перенарезать обзоры по правовым позициям"
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all"
             >
               {reindexing

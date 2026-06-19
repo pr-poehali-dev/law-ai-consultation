@@ -6,7 +6,7 @@ export const SUBCATEGORIES = [
   { id: "administrative", label: "Административные дела", icon: "FileText", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
 ];
 
-export type LegalCategory = "case_law" | "state_duty" | "court_definitions" | "codex";
+export type LegalCategory = "case_law" | "state_duty" | "court_definitions" | "codex" | "statute";
 
 export const CATEGORIES: { id: LegalCategory; label: string; shortLabel: string; icon: string; color: string; bg: string; border: string; description: string }[] = [
   {
@@ -48,6 +48,16 @@ export const CATEGORIES: { id: LegalCategory; label: string; shortLabel: string;
     bg: "bg-amber-50",
     border: "border-amber-200",
     description: "Действующие кодексы РФ: ГК, ТК, УК, ГПК, АПК, НК и другие",
+  },
+  {
+    id: "statute",
+    label: "Законы РФ",
+    shortLabel: "Законы",
+    icon: "ScrollText",
+    color: "text-rose-700",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    description: "ФЗ, ФКЗ, законы РФ: о защите прав потребителей, об ООО, о труде и другие",
   },
 ];
 

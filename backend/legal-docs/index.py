@@ -26,7 +26,7 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token",
 }
 
-ALLOWED_CATEGORIES = {"case_law", "state_duty", "court_definitions", "codex"}
+ALLOWED_CATEGORIES = {"case_law", "state_duty", "court_definitions", "codex", "statute"}
 ALLOWED_SUBCATEGORIES = {"civil", "criminal", "administrative", ""}
 ALLOWED_MIME = {
     "pdf": "application/pdf",
@@ -274,6 +274,76 @@ def _split_by_positions(text: str, max_chars: int = 3000) -> list:
     return [c for c in chunks if len(c) > 50]
 
 
+def _split_by_law_articles(text: str, max_chars: int = 3500) -> list:
+    """
+    Нарезает федеральные законы и иные НПА по статьям.
+    Распознаёт форматы:
+      - «Статья 1.», «Статья 14.1.» (кодексы и законы)
+      - «Статья 1» без точки (некоторые законы)
+      - «Глава I.», «Раздел I.» — добавляет как заголовок к следующим статьям
+    Если структуры нет — fallback на обычную нарезку.
+    """
+    # Паттерн: статья с номером (обязательно) + необязательный заголовок
+    article_pat = re.compile(
+        r"(?:^|\n)\s*(Статья\s+\d+(?:[.\-]\d+)*\.?\s*(?:[А-ЯЁA-Z][^\n]{0,150})?)",
+        re.MULTILINE
+    )
+    # Паттерн для заголовков разделов/глав — сохраняем контекст
+    section_pat = re.compile(
+        r"(?:^|\n)\s*((?:Раздел|Глава|Часть)\s+[IVXLCDM\d]+\.?\s*[^\n]{0,120})",
+        re.MULTILINE
+    )
+
+    positions = [(m.start(), "article", m.group(1).strip()) for m in article_pat.finditer(text)]
+
+    if len(positions) < 3:
+        # Закон без явной разбивки по статьям — пробуем по разделам/главам
+        section_positions = [(m.start(), "section", m.group(1).strip()) for m in section_pat.finditer(text)]
+        if len(section_positions) >= 2:
+            positions = section_positions
+        else:
+            return _split_into_chunks(text)
+
+    # Добавляем секции как контекст к статьям
+    all_marks = sorted(
+        positions + [(m.start(), "section", m.group(1).strip()) for m in section_pat.finditer(text)],
+        key=lambda x: x[0]
+    )
+
+    chunks = []
+    current_section = ""
+    for i, (pos, kind, header) in enumerate(all_marks):
+        if kind == "section":
+            current_section = header
+            continue
+        next_pos = next((p for p, k, _ in all_marks[i+1:] if k == "article"), len(text))
+        article_text = text[pos:next_pos].strip()
+        if not article_text:
+            continue
+
+        # Добавляем контекст раздела/главы в начало каждой статьи
+        full_text = (f"{current_section}\n\n{article_text}" if current_section else article_text)
+
+        if len(full_text) <= max_chars:
+            chunks.append(full_text)
+        else:
+            # Длинная статья — бьём по абзацам, сохраняя заголовок
+            header_line = article_text.split("\n")[0]
+            paragraphs = re.split(r"\n{2,}", article_text)
+            current = ""
+            for para in paragraphs:
+                candidate = (current + "\n\n" + para).strip() if current else para
+                if len(candidate) > max_chars and current:
+                    chunks.append((f"{current_section}\n\n" if current_section else "") + current.strip())
+                    current = header_line + "\n" + para  # повторяем заголовок статьи
+                else:
+                    current = candidate
+            if current.strip():
+                chunks.append((f"{current_section}\n\n" if current_section else "") + current.strip())
+
+    return [c for c in chunks if len(c.strip()) > 30]
+
+
 def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
     """Нарезает текст и сохраняет чанки в БД с tsvector-индексом."""
     cur = conn.cursor()
@@ -282,10 +352,14 @@ def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
         f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
         (doc_id,)
     )
-    # Для кодексов — нарезка по статьям, для определений — по правовым позициям
+    # Выбираем стратегию нарезки по категории
     if category == "codex":
         chunks = _split_by_articles(text)
         print(f"[CHUNKS] doc_id={doc_id} category={category} article_chunks={len(chunks)}")
+    elif category == "statute":
+        # Законы — умная нарезка по статьям с контекстом разделов/глав
+        chunks = _split_by_law_articles(text)
+        print(f"[CHUNKS] doc_id={doc_id} category={category} law_chunks={len(chunks)}")
     elif category == "court_definitions":
         chunks = _split_by_positions(text)
         print(f"[CHUNKS] doc_id={doc_id} category={category} position_chunks={len(chunks)}")

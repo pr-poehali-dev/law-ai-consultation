@@ -4,7 +4,7 @@ import { getComputeStats, type ComputeStats } from "@/lib/auth";
 
 const TOTAL_COMPUTE = 3_000_000;
 const USED_BEFORE_TRACKING = 1_180_000;
-const RESET_DATE = new Date("2026-06-16");
+const RESET_DATE = new Date("2026-07-16");
 const DAILY_TARGET = 70_000;
 
 const MODE_LABELS: Record<string, string> = {
@@ -46,10 +46,10 @@ export default function ComputeStatsBlock() {
     setLoading(false);
   }, []);
 
+  // Загружаем один раз при открытии — обновление вручную кнопкой RefreshCw
+  // Авто-polling убран: каждый запрос к get-compute-stats тратит вычислительное время
   useEffect(() => {
     load();
-    const interval = setInterval(load, 60_000);
-    return () => clearInterval(interval);
   }, [load]);
 
   const trackedSec = stats?.week_sec ?? 0;
