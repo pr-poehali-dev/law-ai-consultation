@@ -126,9 +126,9 @@ async function apiCall(body: object, timeoutMs = 45000, noRetry = false): Promis
   const token = getToken();
   const action = (body as Record<string, unknown>).action as string | undefined;
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
-  // Юрист — 10с (таймаут платформы 10с), медленные — 25с, остальные — 10с
+  // Юрист — 20с (таймаут платформы 20с, push+email синхронно), остальные — 10с
   let cap = 10000;
-  if (LAWYER_ACTIONS.has(action ?? "")) cap = 10000;
+  if (LAWYER_ACTIONS.has(action ?? "")) cap = 20000;
   else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
   const effectiveTimeout = Math.min(timeoutMs, cap);
 

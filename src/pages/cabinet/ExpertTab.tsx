@@ -17,10 +17,11 @@ interface ExpertTabProps {
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
+  lawyerMsgLoading?: boolean;
   selectedAdminUserId: number | null;
   onSelectAdminDialog: (uid: number | null) => void;
   onRefreshLawyer: () => void;
-  onAddOptimisticMessage?: (msg: Omit<LawyerMessage, "id" | "created_at">) => void;
+  onRefreshDialog?: () => void;    // быстрое обновление только текущего диалога
   onPausePing?: () => void;
   onResumePing?: () => void;
   onGoToChat?: () => void;
@@ -31,9 +32,9 @@ interface ExpertTabProps {
 
 export default function ExpertTab({
   user, messages, genDocs,
-  lawyerMsgs, lawyerDialogs, lawyerLoading,
+  lawyerMsgs, lawyerDialogs, lawyerLoading, lawyerMsgLoading,
   selectedAdminUserId, onSelectAdminDialog,
-  onRefreshLawyer, onAddOptimisticMessage,
+  onRefreshLawyer, onRefreshDialog,
   onPausePing, onResumePing,
   onGoToChat, onPayClick, onBuyLawyerQuestions,
 }: ExpertTabProps) {
@@ -130,24 +131,6 @@ export default function ExpertTab({
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
-    // Оптимистичное добавление — сообщение появляется СРАЗУ, до ответа сервера
-    const optimisticBody = params.body;
-    onAddOptimisticMessage?.({
-      user_id: user.id,
-      sender: user.isAdmin ? "admin" : "user",
-      body: optimisticBody,
-      attachment_type: params.attachment_type,
-      attachment_name: params.attachment_name,
-      attachment_content: undefined, // не показываем контент оптимистично
-      is_read: true,
-    });
-
-    // Очищаем поле ввода сразу
-    setInput("");
-    clearAttachments();
-    setShowAttachPanel(false);
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
-
     onPausePing?.();
     let res: Awaited<ReturnType<typeof lawyerSend>>;
     try {
@@ -156,18 +139,23 @@ export default function ExpertTab({
       onResumePing?.();
       setSending(false);
       setUploadProgress(0);
-      // Даже при сетевой ошибке обновляем — сообщение могло дойти
-      onRefreshLawyer();
+      // При ошибке сети сообщение могло дойти — обновляем чат
+      if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
       return;
     }
     onResumePing?.();
-    setUploadProgress(100);
 
+    // Очищаем форму
+    setInput("");
+    clearAttachments();
+    setShowAttachPanel(false);
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+    setUploadProgress(0);
     if (isFreeUser) setSentFreeQuestion(true);
     setSending(false);
-    setUploadProgress(0);
-    // Обновляем данные с сервера — заменяем оптимистичное реальным
-    onRefreshLawyer();
+
+    // Сразу обновляем только текущий диалог (быстро, без перезагрузки списка)
+    if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
   };
 
   const handleCompleteConsultation = async () => {

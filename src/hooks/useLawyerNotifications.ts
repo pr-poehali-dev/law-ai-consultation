@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { lawyerMessages, lawyerPing } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
-// Ping каждые 10с — при таймауте платформы 10с это 60с/мин биллинга (разумно)
 const PING_INTERVAL = 10_000;
 
 export interface LawyerNotification {
@@ -17,34 +16,30 @@ interface UseLawyerNotificationsResult {
   lawyerMessages: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
+  msgLoading: boolean;          // отдельный индикатор для сообщений
   refreshLawyer: () => void;
+  refreshDialog: () => void;    // обновить только текущий диалог
   pausePing: () => void;
   resumePing: () => void;
   selectAdminDialog: (uid: number | null) => void;
   selectedAdminUserId: number | null;
-  // Оптимистичное добавление — сообщение показывается сразу без ожидания сервера
-  addOptimisticMessage: (msg: Omit<LawyerMessage, "id" | "created_at">) => void;
 }
 
 export function useLawyerNotifications(
   user: User | null,
   activeTab: string
 ): UseLawyerNotificationsResult {
-  const [unreadCount, setUnreadCount]               = useState(0);
-  const [notification, setNotification]             = useState<LawyerNotification | null>(null);
-  const [msgs, setMsgs]                             = useState<LawyerMessage[]>([]);
-  const [dialogs, setDialogs]                       = useState<LawyerDialog[]>([]);
-  const [loading, setLoading]                       = useState(true);
+  const [unreadCount, setUnreadCount]   = useState(0);
+  const [notification, setNotification] = useState<LawyerNotification | null>(null);
+  const [msgs, setMsgs]                 = useState<LawyerMessage[]>([]);
+  const [dialogs, setDialogs]           = useState<LawyerDialog[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [msgLoading, setMsgLoading]     = useState(false);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState<number | null>(null);
 
-  // ── Refs (не вызывают ре-рендер, безопасны в коллбэках) ──────────────────────
   const lastKnownIdRef         = useRef<number>(0);
-  const lastDialogMsgIdRef     = useRef<number>(0);
-  // Единый флаг "идёт запрос диалога" — защита от параллельных вызовов
   const dialogInFlightRef      = useRef(false);
-  // Единый флаг "идёт запрос списка диалогов"
   const dialogsInFlightRef     = useRef(false);
-  // Единый флаг "идёт запрос пользовательских сообщений"
   const userMsgsInFlightRef    = useRef(false);
   const pingRef                = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingPausedRef          = useRef(false);
@@ -52,55 +47,45 @@ export function useLawyerNotifications(
   isOnExpertTabRef.current     = activeTab === "expert";
   const selectedAdminUserIdRef = useRef<number | null>(null);
   selectedAdminUserIdRef.current = selectedAdminUserId;
-  // Счётчик запроса — если сменился диалог, старый ответ выбрасываем
-  const dialogFetchVersionRef  = useRef(0);
+  // Версия диалога: при смене диалога старые ответы выбрасываются
+  const dialogVersionRef       = useRef(0);
 
   const userId  = user?.id  ?? null;
   const isAdmin = user?.isAdmin ?? false;
   const hasLawyerAccess = isAdmin || (user?.paidExpert ?? false) || (user?.lawyerConsultationsLeft ?? 0) > 0;
   const isOnExpertTab = activeTab === "expert";
 
-  // ── Оптимистичное добавление сообщения (мгновенно в UI) ──────────────────────
-  const addOptimisticMessage = useCallback((msg: Omit<LawyerMessage, "id" | "created_at">) => {
-    const optimistic: LawyerMessage = {
-      ...msg,
-      id: Date.now() * -1,                        // временный отрицательный id
-      created_at: new Date().toISOString(),
-    };
-    setMsgs(prev => [...prev, optimistic]);
-  }, []);
-
-  // ── Загрузка сообщений открытого диалога (админ) ─────────────────────────────
-  const fetchAdminDialog = useCallback(async (uid: number, force = false) => {
-    if (dialogInFlightRef.current && !force) return; // уже идёт — пропускаем
+  // ── Загрузка сообщений диалога (для админа) ──────────────────────────────────
+  const fetchDialog = useCallback(async (uid: number, showLoader = false) => {
+    if (dialogInFlightRef.current) return;
     dialogInFlightRef.current = true;
-    const version = ++dialogFetchVersionRef.current;
+    const ver = dialogVersionRef.current;
+    if (showLoader) setMsgLoading(true);
     try {
       const res = await lawyerMessages({ target_user_id: uid });
-      // Если диалог сменился или пришёл устаревший ответ — выбрасываем
+      // Проверяем актуальность: диалог не сменился
       if (selectedAdminUserIdRef.current !== uid) return;
-      if (version !== dialogFetchVersionRef.current) return;
+      if (dialogVersionRef.current !== ver) return;
       if (res.messages) {
         setMsgs(res.messages);
         if (res.messages.length > 0) {
-          lastDialogMsgIdRef.current = res.messages[res.messages.length - 1].id;
-          // Обновляем lastKnownId чтобы ping не думал что есть новые
           lastKnownIdRef.current = Math.max(
             lastKnownIdRef.current,
-            res.messages[res.messages.length - 1].id,
+            res.messages[res.messages.length - 1].id
           );
         }
       }
     } finally {
-      if (version === dialogFetchVersionRef.current) {
+      if (dialogVersionRef.current === ver) {
         dialogInFlightRef.current = false;
       }
+      setMsgLoading(false);
       setLoading(false);
     }
   }, []);
 
-  // ── Загрузка списка диалогов (админ) ─────────────────────────────────────────
-  const fetchAdminDialogs = useCallback(async () => {
+  // ── Загрузка списка диалогов (для админа) ────────────────────────────────────
+  const fetchDialogs = useCallback(async () => {
     if (dialogsInFlightRef.current) return;
     if (!userId || !isAdmin) return;
     dialogsInFlightRef.current = true;
@@ -119,7 +104,7 @@ export function useLawyerNotifications(
     }
   }, [userId, isAdmin]);
 
-  // ── Загрузка сообщений (обычный пользователь) ────────────────────────────────
+  // ── Загрузка сообщений (для обычного пользователя) ───────────────────────────
   const fetchUserMsgs = useCallback(async () => {
     if (userMsgsInFlightRef.current) return;
     if (!userId || isAdmin) return;
@@ -129,15 +114,12 @@ export function useLawyerNotifications(
       if (!res.messages) return;
       const newMsgs = res.messages;
       setMsgs(newMsgs);
-
       if (newMsgs.length > 0) {
         lastKnownIdRef.current = newMsgs[newMsgs.length - 1].id;
       }
-
       const adminMsgs = newMsgs.filter(m => m.sender === "admin");
       const unread    = newMsgs.filter(m => m.sender === "admin" && !m.is_read);
       setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
-
       if (adminMsgs.length > 0) {
         const latest = adminMsgs[adminMsgs.length - 1];
         if (!isOnExpertTabRef.current && latest.id > lastKnownIdRef.current) {
@@ -150,34 +132,39 @@ export function useLawyerNotifications(
     }
   }, [userId, isAdmin]);
 
-  // ── Полное обновление (refresh + ping result) ─────────────────────────────────
-  const fetchFull = useCallback(async () => {
+  // ── Полное обновление ─────────────────────────────────────────────────────────
+  const fetchFull = useCallback(() => {
     if (isAdmin) {
-      fetchAdminDialogs(); // не ждём, параллельно
+      fetchDialogs();
       const uid = selectedAdminUserIdRef.current;
-      if (uid) fetchAdminDialog(uid);
+      if (uid) fetchDialog(uid);
     } else {
       fetchUserMsgs();
     }
-  }, [isAdmin, fetchAdminDialogs, fetchAdminDialog, fetchUserMsgs]);
+  }, [isAdmin, fetchDialogs, fetchDialog, fetchUserMsgs]);
 
-  // ── Выбор диалога (единственная точка входа для админа) ──────────────────────
+  // ── Обновление только текущего диалога (вызывается после отправки) ───────────
+  const refreshDialog = useCallback(() => {
+    if (isAdmin) {
+      const uid = selectedAdminUserIdRef.current;
+      if (uid) fetchDialog(uid);
+    } else {
+      fetchUserMsgs();
+    }
+  }, [isAdmin, fetchDialog, fetchUserMsgs]);
+
+  // ── Выбор диалога ─────────────────────────────────────────────────────────────
   const selectAdminDialog = useCallback((uid: number | null) => {
     setSelectedAdminUserId(uid);
     selectedAdminUserIdRef.current = uid;
-    dialogFetchVersionRef.current++;   // обнуляем версию — старые ответы выбросим
-    if (!uid) {
-      setMsgs([]);
-      lastDialogMsgIdRef.current = 0;
-      return;
-    }
+    dialogVersionRef.current++;    // старые ответы выбросим
     setMsgs([]);
-    lastDialogMsgIdRef.current = 0;
+    if (!uid) return;
     setLoading(true);
-    fetchAdminDialog(uid, true); // force=true — игнорируем in-flight флаг
-  }, [fetchAdminDialog]);
+    fetchDialog(uid, true);
+  }, [fetchDialog]);
 
-  // ── Ping — лёгкий, только MAX(id), без загрузки тела ─────────────────────────
+  // ── Ping ──────────────────────────────────────────────────────────────────────
   const doPing = useCallback(async () => {
     if (!userId || document.visibilityState !== "visible") return;
     if (pingPausedRef.current) return;
@@ -192,31 +179,25 @@ export function useLawyerNotifications(
     if (res.has_new) {
       if (res.last_id) lastKnownIdRef.current = res.last_id;
       if (isAdmin) {
-        fetchAdminDialogs();
+        fetchDialogs();
         const uid = selectedAdminUserIdRef.current;
-        if (uid) fetchAdminDialog(uid); // in-flight защита внутри fetchAdminDialog
+        if (uid) fetchDialog(uid);
       } else {
         fetchUserMsgs();
       }
     }
-  }, [userId, isAdmin, fetchAdminDialogs, fetchAdminDialog, fetchUserMsgs]);
+  }, [userId, isAdmin, fetchDialogs, fetchDialog, fetchUserMsgs]);
 
-  // ── Управление polling'ом ─────────────────────────────────────────────────────
+  // ── Polling ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     if (!hasLawyerAccess) { setLoading(false); return; }
 
-    const stopPing  = () => {
-      if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; }
-    };
-    const startPing = () => {
-      if (pingRef.current) return;
-      pingRef.current = setInterval(doPing, PING_INTERVAL);
-    };
+    const stopPing  = () => { if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; } };
+    const startPing = () => { if (!pingRef.current) { pingRef.current = setInterval(doPing, PING_INTERVAL); } };
 
     if (isOnExpertTab) {
-      if (isAdmin) fetchAdminDialogs();
-      else         fetchUserMsgs();
+      if (isAdmin) { fetchDialogs(); } else { fetchUserMsgs(); }
       startPing();
     } else {
       stopPing();
@@ -232,33 +213,22 @@ export function useLawyerNotifications(
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stopPing();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [userId, isOnExpertTab, isAdmin, hasLawyerAccess, fetchAdminDialogs, fetchUserMsgs, doPing]);
+    return () => { stopPing(); document.removeEventListener("visibilitychange", onVisibility); };
+  }, [userId, isOnExpertTab, isAdmin, hasLawyerAccess, fetchDialogs, fetchUserMsgs, doPing]);
 
-  useEffect(() => {
-    if (isOnExpertTab) setUnreadCount(0);
-  }, [isOnExpertTab]);
+  useEffect(() => { if (isOnExpertTab) setUnreadCount(0); }, [isOnExpertTab]);
 
-  const refresh           = useCallback(() => fetchFull(), [fetchFull]);
+  const refreshLawyer     = useCallback(() => fetchFull(), [fetchFull]);
   const clearNotification = useCallback(() => setNotification(null), []);
   const pausePing         = useCallback(() => { pingPausedRef.current = true; }, []);
   const resumePing        = useCallback(() => { pingPausedRef.current = false; }, []);
 
   return {
-    unreadCount,
-    notification,
-    clearNotification,
-    lawyerMessages: msgs,
-    lawyerDialogs: dialogs,
-    lawyerLoading: loading,
-    refreshLawyer: refresh,
-    pausePing,
-    resumePing,
-    selectAdminDialog,
-    selectedAdminUserId,
-    addOptimisticMessage,
+    unreadCount, notification, clearNotification,
+    lawyerMessages: msgs, lawyerDialogs: dialogs,
+    lawyerLoading: loading, msgLoading,
+    refreshLawyer, refreshDialog,
+    pausePing, resumePing,
+    selectAdminDialog, selectedAdminUserId,
   };
 }
