@@ -1,8 +1,13 @@
+import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { AttachmentModal, AttachmentBar, AttachPanel } from "./ExpertAttachPanel";
 import MsgBubble from "./ExpertChatMsgBubble";
 import { EXPERT_NAME } from "./ExpertChatUtils";
 import type { ExpertChatProps } from "./ExpertChatUtils";
+import { subscribeToPush, isPushSupported, isPushGranted } from "@/lib/pushNotifications";
+
+// Таймаут бездействия: 5 мин → автопереход на Chat AI
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function ExpertChat({
   isAdmin, isFreeUser = false, isDialogClosed = false, selectedUserId, currentDialog, lmsgs, loading,
@@ -13,11 +18,64 @@ export default function ExpertChat({
   onAddAttachment, onAddFiles, onRemoveAttachment,
   onViewFullMsg, onCloseFullMsg,
   onBuyLawyerQuestions, onUpgradePlan,
-  onCompleteConsultation, onHideDialog,
+  onCompleteConsultation, onHideDialog, onGoToChat,
   textareaRef, bottomRef, adjustTextarea,
 }: ExpertChatProps) {
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
+
+  // Push: показываем кнопку если push поддерживается но не разрешён / не подписан
+  const [pushNeedsSetup, setPushNeedsSetup] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushDone, setPushDone] = useState(false);
+
+  useEffect(() => {
+    if (!isPushSupported() || isAdmin) return;
+    // Проверяем нужно ли предложить push
+    if (!isPushGranted()) {
+      setPushNeedsSetup(true);
+      return;
+    }
+    // Разрешение есть, но подписки может не быть
+    navigator.serviceWorker.ready.then(reg =>
+      reg.pushManager.getSubscription().then(sub => {
+        if (!sub) setPushNeedsSetup(true);
+      })
+    ).catch(() => {});
+  }, [isAdmin]);
+
+  const handleEnablePush = useCallback(async () => {
+    setPushLoading(true);
+    const ok = await subscribeToPush(true);
+    setPushLoading(false);
+    if (ok) {
+      setPushDone(true);
+      setPushNeedsSetup(false);
+    }
+  }, []);
+
+  // Автопереход на Chat AI через 5 мин бездействия
+  // Бездействие = нет движения мыши, нажатий клавиш, тапов
+  useEffect(() => {
+    if (!onGoToChat) return;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        onGoToChat();
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const events = ["mousemove", "keydown", "touchstart", "click", "scroll"];
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset(); // запускаем таймер сразу
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [onGoToChat]);
 
   return (
     <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}>
@@ -99,6 +157,27 @@ export default function ExpertChat({
                   конс.
                 </span>
               </div>
+            )}
+            {/* Push-кнопка: появляется если уведомления не включены */}
+            {pushNeedsSetup && !pushDone && (
+              <button
+                onClick={handleEnablePush}
+                disabled={pushLoading}
+                title="Включить уведомления о новых сообщениях от юриста"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95 shrink-0"
+                style={{ background: "rgba(15,76,129,0.08)", color: "#0f4c81", border: "1px solid rgba(15,76,129,0.2)" }}
+              >
+                {pushLoading
+                  ? <span className="w-3 h-3 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
+                  : <Icon name="Bell" size={12} />}
+                <span className="hidden sm:inline">Уведомления</span>
+              </button>
+            )}
+            {pushDone && (
+              <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold px-2">
+                <Icon name="BellRing" size={12} />
+                <span className="hidden sm:inline">Включены</span>
+              </span>
             )}
             <button onClick={onRefresh} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
               <Icon name="RefreshCw" size={14} className="text-muted-foreground" />
@@ -448,11 +527,17 @@ export default function ExpertChat({
         </div>
 
         {err && (
-          <div className="px-4 pb-3">
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <Icon name="AlertCircle" size={11} />
-              {err}
-            </p>
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <Icon name="AlertCircle" size={11} className="text-red-500 shrink-0" />
+            <p className="text-xs text-red-500 flex-1">{err}</p>
+            <button
+              onClick={onSend}
+              disabled={sending}
+              className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 shrink-0 underline underline-offset-2 transition-colors"
+            >
+              <Icon name="RotateCcw" size={11} />
+              Повторить
+            </button>
           </div>
         )}
       </div>

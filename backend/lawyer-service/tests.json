@@ -5,5 +5,6 @@
   {"name": "lawyer-messages — unauthorized", "method": "POST", "path": "/", "body": {"action": "lawyer-messages"}, "expectedStatus": 401, "bodyMatcher": "partial"},
   {"name": "lawyer-complete-consultation — unauthorized", "method": "POST", "path": "/", "body": {"action": "lawyer-complete-consultation", "target_user_id": 1}, "expectedStatus": 401, "bodyMatcher": "partial"},
   {"name": "lawyer-close-dialog — unauthorized", "method": "POST", "path": "/", "body": {"action": "lawyer-close-dialog", "target_user_id": 1}, "expectedStatus": 401, "bodyMatcher": "partial"},
+  {"name": "lawyer-ping — unauthorized", "method": "POST", "path": "/", "body": {"action": "lawyer-ping"}, "expectedStatus": 401, "bodyMatcher": "partial"},
   {"name": "unknown action", "method": "POST", "path": "/", "body": {"action": "unknown"}, "expectedStatus": 400, "bodyMatcher": "partial"}
 ]}
