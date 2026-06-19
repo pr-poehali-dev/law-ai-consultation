@@ -154,17 +154,12 @@ export default function ExpertTab({
       .then(() => {
         setSending(false);
         setUploadProgress(0);
-        // Небольшая задержка перед refresh — оптимистичное успевает показаться пользователю
-        setTimeout(() => {
-          if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        }, 300);
+        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
       })
       .catch(() => {
         setSending(false);
         setUploadProgress(0);
-        setTimeout(() => {
-          if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
-        }, 300);
+        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
       });
   };
 

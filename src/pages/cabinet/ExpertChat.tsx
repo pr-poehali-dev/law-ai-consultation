@@ -23,36 +23,6 @@ export default function ExpertChat({
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
 
-  // ── Скролл и кнопка «↓ Новые» ──────────────────────────────────────
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const [newCount, setNewCount] = useState(0);
-  const prevLenRef = useRef(lmsgs.length);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 120);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const added = lmsgs.length - prevLenRef.current;
-    if (added > 0) {
-      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-      if (dist > 120) setNewCount(n => n + added);
-      else el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }
-    prevLenRef.current = lmsgs.length;
-  }, [lmsgs.length]);
-
-  const scrollToBottom = () => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    setShowScrollBtn(false);
-    setNewCount(0);
-  };
-
   // ── Push ────────────────────────────────────────────────────────────
   const [pushNeedsSetup, setPushNeedsSetup] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
@@ -84,9 +54,42 @@ export default function ExpertChat({
     return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)); };
   }, [onGoToChat]);
 
-  return (
-    <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}>
+  // ── Кнопка «↓ Новые» ───────────────────────────────────────────────
+  const msgsContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [newCount, setNewCount] = useState(0);
+  const prevLenRef = useRef(lmsgs.length);
 
+  const handleMsgsScroll = useCallback(() => {
+    const el = msgsContainerRef.current;
+    if (!el) return;
+    setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 120);
+  }, []);
+
+  useEffect(() => {
+    const added = lmsgs.length - prevLenRef.current;
+    prevLenRef.current = lmsgs.length;
+    if (added <= 0) return;
+    const el = msgsContainerRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight > 120) {
+      setNewCount(n => n + added);
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  }, [lmsgs.length]);
+
+  const scrollToBottom = () => {
+    msgsContainerRef.current?.scrollTo({ top: msgsContainerRef.current.scrollHeight, behavior: "smooth" });
+    setShowScrollBtn(false);
+    setNewCount(0);
+  };
+
+  return (
+    <div
+      className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3"
+      style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}
+    >
       {/* ── Шапка ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 sm:gap-3 bg-white rounded-2xl border border-border px-3 sm:px-4 py-3 shadow-sm shrink-0">
         {isAdmin && (
@@ -177,226 +180,206 @@ export default function ExpertChat({
       )}
 
       {/* ── Список сообщений ────────────────────────────────────────────── */}
-      <div className="relative flex-1 min-h-0">
+      {/* Используем overflow-y-auto прямо на flex-элементе с min-h-0 */}
+      <div
+        ref={msgsContainerRef}
+        onScroll={handleMsgsScroll}
+        className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent", position: "relative" }}
+      >
+        <style>{`
+          @keyframes typingDot{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+          @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        `}</style>
+
+        {/* Кнопка «↓ Новые» */}
         {showScrollBtn && (
-          <button onClick={scrollToBottom}
-            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
-            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 16px rgba(15,76,129,0.4)", animation: "fadeInUp .2s ease both" }}>
+          <button
+            onClick={scrollToBottom}
+            className="sticky bottom-3 float-right z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white mb-2"
+            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 16px rgba(15,76,129,0.4)" }}
+          >
             <Icon name="ChevronDown" size={13} />
             {newCount > 0 ? `${newCount} новых` : "Вниз"}
           </button>
         )}
 
-        <div ref={scrollRef} onScroll={handleScroll}
-          className="h-full overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
-
-          <style>{`
-            @keyframes typingDot { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.15)} }
-            @keyframes fadeInUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-          `}</style>
-
-          {loading ? (
-            <div className="flex items-center justify-center h-full min-h-[200px]">
-              <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 border-2 border-navy-200 border-t-navy-600 rounded-full animate-spin" />
+          </div>
+        ) : lmsgs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <div className="w-16 h-16 gradient-navy rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+              <Icon name="MessageSquarePlus" size={24} className="text-gold-400" />
             </div>
-          ) : lmsgs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 text-center">
-              <div className="w-16 h-16 gradient-navy rounded-2xl flex items-center justify-center shadow-lg mx-auto">
-                <Icon name="MessageSquarePlus" size={24} className="text-gold-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-navy-700 mb-1">Начните диалог</p>
-                <p className="text-xs text-muted-foreground max-w-xs">Опишите вашу ситуацию, прикрепите документы или ответ AI-консультанта</p>
-              </div>
-              {!isAdmin && (
-                <button onClick={onToggleAttachPanel}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-navy-50 hover:bg-navy-100 rounded-xl text-xs font-medium text-navy-700 transition-colors border border-navy-200">
-                  <Icon name="Paperclip" size={13} />
-                  Прикрепить файлы или материалы
-                </button>
-              )}
+            <div>
+              <p className="text-sm font-semibold text-navy-700 mb-1">Начните диалог</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Опишите вашу ситуацию, прикрепите документы или ответ AI-консультанта</p>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3 sm:gap-4 pb-2">
-              {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)}
+            {!isAdmin && (
+              <button onClick={onToggleAttachPanel}
+                className="flex items-center gap-2 px-4 py-2.5 bg-navy-50 hover:bg-navy-100 rounded-xl text-xs font-medium text-navy-700 transition-colors border border-navy-200">
+                <Icon name="Paperclip" size={13} />
+                Прикрепить файлы или материалы
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)}
 
-              {/* Воронка free: до ответа */}
-              {isFreeUser && hasSentQuestion && isBlocked && !hasLawyerReply && (
-                <div className="flex justify-start animate-fade-in">
-                  <div className="flex gap-2 sm:gap-3 items-start max-w-[92%] sm:max-w-[85%]">
-                    <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md mt-1">
-                      <Icon name="UserCheck" size={15} className="text-gold-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10.5px] font-semibold text-navy-500 ml-1 mb-1.5">{EXPERT_NAME}</p>
-                      <div className="rounded-2xl rounded-tl-sm shadow-sm mb-2 overflow-hidden"
-                        style={{ background: "linear-gradient(135deg, #0f2044 0%, #1a3260 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <div className="px-4 pt-3.5 pb-3">
-                          <div className="flex items-center gap-2.5 mb-1.5">
-                            <div className="w-6 h-6 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.2)" }}>
-                              <Icon name="CheckCircle" size={13} color="#e8a820" />
-                            </div>
-                            <p className="text-sm font-bold text-white">Юрист получил ваш вопрос</p>
+            {/* Воронка free: до ответа */}
+            {isFreeUser && hasSentQuestion && isBlocked && !hasLawyerReply && (
+              <div className="flex justify-start">
+                <div className="flex gap-2 sm:gap-3 items-start max-w-[92%] sm:max-w-[85%]">
+                  <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md mt-1">
+                    <Icon name="UserCheck" size={15} className="text-gold-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10.5px] font-semibold text-navy-500 ml-1 mb-1.5">{EXPERT_NAME}</p>
+                    <div className="rounded-2xl rounded-tl-sm shadow-sm mb-2 overflow-hidden"
+                      style={{ background: "linear-gradient(135deg, #0f2044 0%, #1a3260 100%)" }}>
+                      <div className="px-4 pt-3.5 pb-3">
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                          <div className="w-6 h-6 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.2)" }}>
+                            <Icon name="CheckCircle" size={13} color="#e8a820" />
                           </div>
-                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>Среднее время ответа — <span className="text-white font-semibold">1–3 часа</span></p>
+                          <p className="text-sm font-bold text-white">Юрист получил ваш вопрос</p>
                         </div>
-                      </div>
-                      <div className="rounded-2xl rounded-tl-sm bg-white border border-slate-100 shadow-sm px-3.5 py-2.5 mb-2">
-                        <div className="flex items-center gap-2">
-                          <Icon name="Smartphone" size={13} className="text-blue-400 shrink-0" />
-                          <p className="text-xs text-slate-500">Добавьте приложение на телефон, чтобы не пропустить ответ</p>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl rounded-tl-sm bg-white border border-slate-100 shadow-sm px-3.5 py-3">
-                        <p className="text-xs font-semibold text-navy-800 mb-2">Пока ждёте — ознакомьтесь с возможностями</p>
-                        <div className="flex flex-col gap-1 mb-2.5">
-                          {["Подготовка документов AI", "Проверка документов юристом", "Полноценная консультация"].map(t => (
-                            <div key={t} className="flex items-center gap-1.5">
-                              <Icon name="Check" size={11} className="text-emerald-500 shrink-0" />
-                              <span className="text-[11px] text-slate-600">{t}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <button onClick={onUpgradePlan}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
-                          style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628" }}>
-                          <Icon name="Sparkles" size={12} color="#0a1628" />
-                          Посмотреть тарифные планы
-                        </button>
+                        <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>Среднее время ответа — <span className="text-white font-semibold">1–3 часа</span></p>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Воронка free: после ответа */}
-              {isFreeUser && hasLawyerReply && isBlocked && (
-                <div className="animate-fade-in mt-2">
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Продолжить работу</span>
-                    <div className="flex-1 h-px bg-slate-200" />
-                  </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-                    <div className="px-4 py-3" style={{ background: "linear-gradient(135deg, #0f2044 0%, #1a3260 100%)" }}>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                          style={{ background: "rgba(232,168,32,0.2)", border: "1px solid rgba(232,168,32,0.25)" }}>
-                          <Icon name="Star" size={13} color="#e8a820" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-white leading-tight">Начните с тарифа «Старт»</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>Всё необходимое для решения вопроса</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-white px-4 py-3">
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-3">
-                        {[
-                          { icon: "UserCheck", text: "1 полная консультация юриста" },
-                          { icon: "FileText", text: "5 документов через AI" },
-                          { icon: "ShieldCheck", text: "Проверка документа юристом" },
-                          { icon: "ScanSearch", text: "Анализ документов через AI" },
-                          { icon: "Bot", text: "30 вопросов к AI-юристу" },
-                          { icon: "Calculator", text: "Калькуляторы и инструменты" },
-                        ].map(item => (
-                          <div key={item.text} className="flex items-start gap-1.5">
-                            <div className="w-4 h-4 rounded-md bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
-                              <Icon name={item.icon as "FileText"} size={10} className="text-emerald-600" />
-                            </div>
-                            <span className="text-[11px] text-slate-600 leading-snug">{item.text}</span>
+                    <div className="rounded-2xl rounded-tl-sm bg-white border border-slate-100 shadow-sm px-3.5 py-3">
+                      <p className="text-xs font-semibold text-navy-800 mb-2">Пока ждёте — ознакомьтесь с возможностями</p>
+                      <div className="flex flex-col gap-1 mb-2.5">
+                        {["Подготовка документов AI", "Проверка документов юристом", "Полноценная консультация"].map(t => (
+                          <div key={t} className="flex items-center gap-1.5">
+                            <Icon name="Check" size={11} className="text-emerald-500 shrink-0" />
+                            <span className="text-[11px] text-slate-600">{t}</span>
                           </div>
                         ))}
                       </div>
                       <button onClick={onUpgradePlan}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mb-1.5 transition-all active:scale-[0.98]"
-                        style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628", boxShadow: "0 3px 14px rgba(232,168,32,0.35)" }}>
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
+                        style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628" }}>
                         <Icon name="Sparkles" size={12} color="#0a1628" />
-                        Оформить тариф «Старт»
-                      </button>
-                      <button onClick={onUpgradePlan}
-                        className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-medium text-slate-500 hover:text-navy-700 transition-colors">
-                        Сравнить все тарифы <Icon name="ChevronRight" size={12} className="text-slate-400" />
+                        Посмотреть тарифные планы
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Воронка исчерпания */}
-              {isBlocked && !isAdmin && !isFreeUser && (
-                <div className="flex justify-start animate-fade-in">
-                  <div className="flex gap-2 sm:gap-3 items-end max-w-[92%] sm:max-w-[80%]">
-                    <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
-                      <Icon name="UserCheck" size={15} className="text-gold-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10.5px] font-semibold text-navy-500 ml-1 mb-1">{EXPERT_NAME}</p>
-                      <div className="rounded-2xl rounded-bl-sm bg-white border border-slate-100 shadow px-4 py-3 mb-2">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                            <Icon name="Lock" size={12} className="text-amber-500" />
-                          </div>
-                          <p className="text-sm font-semibold text-navy-800">Все консультации использованы</p>
-                        </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">Вы можете читать переписку, но отправка новых сообщений недоступна.</p>
+            {/* Воронка free: после ответа */}
+            {isFreeUser && hasLawyerReply && isBlocked && (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Продолжить работу</span>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+                <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+                  <div className="px-4 py-3" style={{ background: "linear-gradient(135deg, #0f2044 0%, #1a3260 100%)" }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(232,168,32,0.2)", border: "1px solid rgba(232,168,32,0.25)" }}>
+                        <Icon name="Star" size={13} color="#e8a820" />
                       </div>
-                      <div className="space-y-2">
-                        <button onClick={onBuyLawyerQuestions}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.98] text-left bg-gradient-to-r from-navy-700 to-navy-800 hover:from-navy-800 hover:to-navy-900 shadow-sm">
-                          <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
-                            <Icon name="UserCheck" size={16} className="text-gold-400" />
+                      <div>
+                        <p className="text-sm font-bold text-white leading-tight">Начните с тарифа «Старт»</p>
+                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>Всё необходимое для решения вопроса</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white px-4 py-3">
+                    <button onClick={onUpgradePlan}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mb-1.5"
+                      style={{ background: "linear-gradient(135deg, #e8a820 0%, #f0c060 100%)", color: "#0a1628", boxShadow: "0 3px 14px rgba(232,168,32,0.35)" }}>
+                      <Icon name="Sparkles" size={12} color="#0a1628" />
+                      Оформить тариф «Старт»
+                    </button>
+                    <button onClick={onUpgradePlan}
+                      className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-medium text-slate-500">
+                      Сравнить все тарифы <Icon name="ChevronRight" size={12} className="text-slate-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Воронка исчерпания */}
+            {isBlocked && !isAdmin && !isFreeUser && (
+              <div className="flex justify-start">
+                <div className="flex gap-2 sm:gap-3 items-end max-w-[92%] sm:max-w-[80%]">
+                  <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
+                    <Icon name="UserCheck" size={15} className="text-gold-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10.5px] font-semibold text-navy-500 ml-1 mb-1">{EXPERT_NAME}</p>
+                    <div className="rounded-2xl rounded-bl-sm bg-white border border-slate-100 shadow px-4 py-3 mb-2">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                          <Icon name="Lock" size={12} className="text-amber-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-navy-800">Все консультации использованы</p>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">Вы можете читать переписку, но отправка новых сообщений недоступна.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <button onClick={onBuyLawyerQuestions}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-gradient-to-r from-navy-700 to-navy-800 shadow-sm">
+                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+                          <Icon name="UserCheck" size={16} className="text-gold-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white leading-tight">+1 консультация юриста</p>
+                          <p className="text-xs text-white/60 mt-0.5">Ответ в течение 1–3 часов</p>
+                        </div>
+                        <span className="text-sm font-bold text-gold-400 shrink-0">990 ₽</span>
+                      </button>
+                      {currentPlanId !== "plan_max" && (
+                        <button onClick={onUpgradePlan}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 bg-white text-left shadow-sm">
+                          <div className="w-9 h-9 bg-navy-50 rounded-xl flex items-center justify-center shrink-0">
+                            <Icon name="TrendingUp" size={16} className="text-navy-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white leading-tight">+1 консультация юриста</p>
-                            <p className="text-xs text-white/60 mt-0.5">Ответ в течение 1–3 часов</p>
+                            <p className="text-sm font-semibold text-navy-800 leading-tight">
+                              {currentPlanId === "plan_starter" ? "Перейти на тариф «Профи»" : "Перейти на тариф «Максимум»"}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {currentPlanId === "plan_starter" ? "+5 консультаций юриста · 100 вопросов AI" : "+10 консультаций юриста · 300 вопросов AI"}
+                            </p>
                           </div>
-                          <span className="text-sm font-bold text-gold-400 shrink-0">990 ₽</span>
+                          <Icon name="ChevronRight" size={14} className="text-slate-400 shrink-0" />
                         </button>
-                        {currentPlanId !== "plan_max" && (
-                          <button onClick={onUpgradePlan}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] text-left shadow-sm">
-                            <div className="w-9 h-9 bg-navy-50 rounded-xl flex items-center justify-center shrink-0">
-                              <Icon name="TrendingUp" size={16} className="text-navy-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-navy-800 leading-tight">
-                                {currentPlanId === "plan_starter" ? "Перейти на тариф «Профи»" : "Перейти на тариф «Максимум»"}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                {currentPlanId === "plan_starter" ? "+5 консультаций юриста · 100 вопросов AI · 20 документов" : "+10 консультаций юриста · 300 вопросов AI · 100 документов"}
-                              </p>
-                            </div>
-                            <Icon name="ChevronRight" size={14} className="text-slate-400 shrink-0" />
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Typing indicator */}
-          {sending && !isAdmin && (
-            <div className="flex gap-2 items-end justify-start mt-3" style={{ animation: "fadeInUp .2s ease both" }}>
-              <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
-                <Icon name="UserCheck" size={15} className="text-gold-400" />
               </div>
-              <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                <span className="flex gap-1 items-center">
-                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0s" }} />
-                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.2s" }} />
-                  <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.4s" }} />
-                </span>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          <div ref={bottomRef} />
-        </div>
+        {/* Typing indicator */}
+        {sending && !isAdmin && (
+          <div className="flex gap-2 items-end justify-start mt-3">
+            <div className="w-9 h-9 gradient-navy rounded-full flex items-center justify-center shrink-0 shadow-md">
+              <Icon name="UserCheck" size={15} className="text-gold-400" />
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+              <span className="flex gap-1 items-center">
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0s" }} />
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.2s" }} />
+                <span className="w-2 h-2 rounded-full bg-navy-400" style={{ animation: "typingDot 1.2s infinite 0.4s" }} />
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
       </div>
 
       {/* ── Панель ввода ────────────────────────────────────────────────── */}
@@ -452,7 +435,7 @@ export default function ExpertChat({
             <Icon name="AlertCircle" size={11} className="text-red-500 shrink-0" />
             <p className="text-xs text-red-500 flex-1">{err}</p>
             <button onClick={onSend} disabled={sending}
-              className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 shrink-0 underline underline-offset-2 transition-colors">
+              className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 shrink-0 underline underline-offset-2">
               <Icon name="RotateCcw" size={11} /> Повторить
             </button>
           </div>
