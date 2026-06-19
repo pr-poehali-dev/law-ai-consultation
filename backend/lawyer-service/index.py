@@ -499,6 +499,19 @@ def handle_lawyer_complete_consultation(body: dict, user_id: int, is_admin: bool
     finally:
         cur.close()
         conn.close()
+
+    # Push пользователю о завершении консультации
+    try:
+        left_text = f"Осталось консультаций: {consultations_left}" if consultations_left > 0 else "Все консультации использованы"
+        _push_to_users(
+            [tid],
+            title="✅ Консультация завершена",
+            body=left_text,
+            url="/cabinet?tab=expert",
+        )
+    except Exception as e:
+        print(f"[LAWYER_COMPLETE] Push не отправлен: {e}")
+
     return _ok({"completed": True, "consultations_left": consultations_left})
 
 

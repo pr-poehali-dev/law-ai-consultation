@@ -13,8 +13,8 @@ export default function PushPromptBanner() {
     if (!isPushSupported()) return;
     if (isPushGranted()) return;
     if (localStorage.getItem(DISMISSED_KEY)) return;
-    // Показываем через 3 сек после входа в кабинет
-    const t = setTimeout(() => setShow(true), 3000);
+    // Показываем через 8 сек — после WelcomeTutorials и других онбординг-модалок
+    const t = setTimeout(() => setShow(true), 8000);
     return () => clearTimeout(t);
   }, []);
 

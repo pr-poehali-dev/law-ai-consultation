@@ -19,6 +19,7 @@ import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
 import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
 import { useLawyerNotifications } from "@/hooks/useLawyerNotifications";
 import LawyerNotificationToast from "@/pages/cabinet/LawyerNotificationToast";
+import PushPromptBanner from "@/components/PushPromptBanner";
 
 type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
 
@@ -213,6 +214,8 @@ export default function Cabinet() {
         setPayment={pay.setPayment}
         setPendingDocType={pay.setPendingDocType}
       />
+
+      <PushPromptBanner />
 
       {lawyerNotification && (
         <LawyerNotificationToast

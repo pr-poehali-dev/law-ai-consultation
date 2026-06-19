@@ -1088,7 +1088,12 @@ def handle_admin_reports(token: str, body: dict) -> dict:
                 (reply_text, report_id)
             )
             conn.commit()
-            # Отправляем email-уведомление пользователю
+            # Получаем user_id для push (уже есть в таблице reports)
+            cur.execute(f"SELECT user_id FROM {SCHEMA}.reports WHERE id = %s", (report_id,))
+            uid_row = cur.fetchone()
+            report_user_id = uid_row[0] if uid_row else None
+
+            # Отправляем email + push пользователю
             if report_row:
                 user_email_to, user_name_to, _ = report_row
                 try:
@@ -1107,6 +1112,19 @@ def handle_admin_reports(token: str, body: dict) -> dict:
                     )
                 except Exception as e:
                     print(f"[REPORT_REPLY] Email не отправлен: {e}")
+
+                # Push — мгновенно, даже если вкладка закрыта
+                if report_user_id:
+                    try:
+                        _push_to_users(
+                            [report_user_id],
+                            title="📩 Ответ на ваше обращение",
+                            body=reply_text[:80],
+                            url="/cabinet?tab=profile",
+                        )
+                    except Exception as e:
+                        print(f"[REPORT_REPLY] Push не отправлен: {e}")
+
             return _ok({"ok": True})
 
         elif action == "close":
@@ -2085,6 +2103,20 @@ def handle_admin_grant(token: str, body: dict) -> dict:
             (target_user_id,)
         )
         upd = cur.fetchone()
+
+        # Push пользователю о начислении
+        if changes:
+            try:
+                push_body = " · ".join(changes[:2])  # максимум 2 строки в body
+                _push_to_users(
+                    [target_user_id],
+                    title="🎁 Вам начислено",
+                    body=push_body,
+                    url="/cabinet",
+                )
+            except Exception as push_err:
+                print(f"[ADMIN_GRANT] Push не отправлен: {push_err}")
+
         return _ok({
             "ok": True,
             "changes": changes,
