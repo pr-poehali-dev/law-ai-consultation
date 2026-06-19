@@ -114,7 +114,7 @@ export async function fetchSafe(
 // Lawyer actions → lawyer-service
 const LAWYER_ACTIONS = new Set([
   "lawyer-send", "lawyer-messages", "lawyer-ping", "lawyer-close-dialog",
-  "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
+  "lawyer-complete-consultation", "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
 ]);
 
 // Actions которые могут занять больше 10с (email, БД + pending orders, SMTP)
