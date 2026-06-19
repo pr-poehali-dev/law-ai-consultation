@@ -113,7 +113,7 @@ self.addEventListener("push", (event) => {
   } else {
     actions.push({ action: "open", title: "Открыть" });
   }
-  actions.push(ACTION_DISMISS);
+
 
   const options = {
     body: data.body,
