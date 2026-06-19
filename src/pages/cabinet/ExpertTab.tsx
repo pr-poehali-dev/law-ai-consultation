@@ -18,12 +18,14 @@ interface ExpertTabProps {
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
   onRefreshLawyer: () => void;
+  onPausePing?: () => void;
+  onResumePing?: () => void;
   onPayClick?: () => void;
   onBuyLawyerQuestions?: () => void;
   onRefreshUser?: () => Promise<void>;
 }
 
-export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer, onPayClick, onBuyLawyerQuestions, onRefreshUser }: ExpertTabProps) {
+export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer, onPausePing, onResumePing, onPayClick, onBuyLawyerQuestions, onRefreshUser }: ExpertTabProps) {
   const [lmsgs, setLmsgs] = useState<LawyerMessage[]>(lawyerMsgs);
   const [dialogs, setDialogs] = useState<LawyerDialog[]>(lawyerDialogs);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -135,18 +137,21 @@ export default function ExpertTab({ user, messages, genDocs, lawyerMsgs, lawyerD
       params.body = params.body + `\n\nТакже прикреплено:\n${extra}`;
     }
 
+    // Останавливаем ping на время отправки — не конкурируем за слоты функции
+    onPausePing?.();
     let res: Awaited<ReturnType<typeof lawyerSend>>;
     try {
       res = await lawyerSend(params);
     } catch {
+      onResumePing?.();
       setErr("Ошибка соединения. Попробуйте ещё раз.");
       setSending(false);
       setUploadProgress(0);
       return;
     }
+    onResumePing?.();
     setUploadProgress(100);
     if (res.error) {
-      // При временных серверных ошибках — не очищаем поле, чтобы можно было повторить
       setErr("Не удалось отправить. Попробуйте ещё раз.");
       setSending(false);
       setUploadProgress(0);

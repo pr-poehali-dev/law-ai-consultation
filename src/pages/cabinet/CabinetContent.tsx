@@ -42,6 +42,8 @@ interface CabinetContentProps {
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
   onRefreshLawyer: () => void;
+  onPausePing?: () => void;
+  onResumePing?: () => void;
 }
 
 export default function CabinetContent({
@@ -52,6 +54,7 @@ export default function CabinetContent({
   setTab, setPayment, setViewDoc, setPendingDocType,
   openPlanModal, openDocChoice, createDocFromChat, navigate,
   lawyerMsgs, lawyerDialogs, lawyerLoading, onRefreshLawyer,
+  onPausePing, onResumePing,
 }: CabinetContentProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [showProOffer, setShowProOffer] = useState(false);
@@ -236,6 +239,8 @@ export default function CabinetContent({
             lawyerDialogs={lawyerDialogs}
             lawyerLoading={lawyerLoading}
             onRefreshLawyer={onRefreshLawyer}
+            onPausePing={onPausePing}
+            onResumePing={onResumePing}
             onPayClick={openPlanModal}
             onBuyLawyerQuestions={() => setPayment({ type: "lawyer_questions", name: "+1 консультация юриста" })}
             onRefreshUser={refreshUser}

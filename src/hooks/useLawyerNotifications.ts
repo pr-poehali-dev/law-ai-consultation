@@ -22,6 +22,8 @@ interface UseLawyerNotificationsResult {
   lawyerDialogs: LawyerDialog[];
   lawyerLoading: boolean;
   refreshLawyer: () => void;
+  pausePing: () => void;
+  resumePing: () => void;
 }
 
 export function useLawyerNotifications(
@@ -37,6 +39,7 @@ export function useLawyerNotifications(
   const lastKnownIdRef = useRef<number>(0);   // last_id из последнего ping/fetch
   const fetchingRef = useRef(false);           // защита от параллельных полных запросов
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pingPausedRef = useRef(false);         // пауза на время отправки сообщения
   const isOnExpertTabRef = useRef(activeTab === "expert");
   isOnExpertTabRef.current = activeTab === "expert";
 
@@ -94,6 +97,7 @@ export function useLawyerNotifications(
   // ─── Лёгкий ping — только MAX(id), не тянем тело сообщений ────────────────
   const doPing = useCallback(async () => {
     if (!userId || document.visibilityState !== "visible") return;
+    if (pingPausedRef.current) return; // не пингуем во время отправки сообщения
     const res = await lawyerPing({ last_id: lastKnownIdRef.current });
     if (res.error) return;
 
@@ -158,6 +162,9 @@ export function useLawyerNotifications(
 
   const refresh = useCallback(() => fetchFull(), [fetchFull]);
   const clearNotification = useCallback(() => setNotification(null), []);
+  // Пауза ping на время отправки — чтобы не конкурировать за слоты функции
+  const pausePing = useCallback(() => { pingPausedRef.current = true; }, []);
+  const resumePing = useCallback(() => { pingPausedRef.current = false; }, []);
 
   return {
     unreadCount,
@@ -167,5 +174,7 @@ export function useLawyerNotifications(
     lawyerDialogs: dialogs,
     lawyerLoading: loading,
     refreshLawyer: refresh,
+    pausePing,
+    resumePing,
   };
 }

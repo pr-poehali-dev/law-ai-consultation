@@ -121,6 +121,8 @@ export default function Cabinet() {
     lawyerDialogs,
     lawyerLoading,
     refreshLawyer,
+    pausePing,
+    resumePing,
   } = useLawyerNotifications(user, tab);
 
   useEffect(() => {
@@ -182,6 +184,8 @@ export default function Cabinet() {
         lawyerDialogs={lawyerDialogs}
         lawyerLoading={lawyerLoading}
         onRefreshLawyer={refreshLawyer}
+        onPausePing={pausePing}
+        onResumePing={resumePing}
       />
 
       <CabinetModals
