@@ -229,37 +229,6 @@ export default function ChatMessageList({
               <PenaltyCalcChatMessage key={i} text={msg.text} onPayClick={onPayClick} />
             );
 
-            // Ошибка с кнопкой повтора
-            if (msg.isError) return (
-              <div key={i} className="flex gap-2.5 items-start" style={{ animation: "ai-msg-in 0.38s cubic-bezier(0.22,1,0.36,1) both" }}>
-                <style>{`@keyframes ai-msg-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
-                <div className="w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 shadow-md" style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}>
-                  <Icon name="AlertCircle" size={13} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="px-4 py-3" style={{ borderRadius: "4px 18px 18px 18px", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(254,242,242,0.8)", boxShadow: "0 1px 8px rgba(239,68,68,0.08)" }}>
-                    <p className="text-[13px] text-red-700 leading-relaxed font-golos">
-                      Сервис временно недоступен. Вопрос не списан — попробуйте ещё раз.
-                    </p>
-                    {msg.retryText && (
-                      <button
-                        onClick={() => onSendMessage?.(msg.retryText!)}
-                        className="mt-3 group flex items-center gap-2.5 transition-all active:scale-95"
-                      >
-                        <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all group-hover:scale-110 group-hover:shadow-md"
-                          style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
-                          <Icon name="RotateCcw" size={14} className="text-white" />
-                        </span>
-                        <span className="text-[13px] font-semibold text-navy-700 group-hover:text-navy-900 transition-colors">
-                          Повторить вопрос
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-
             return (
               <div key={i} className="flex gap-2.5 items-start" style={{ animation: i === lastAiIdx ? "ai-msg-in 0.38s cubic-bezier(0.22,1,0.36,1) both" : undefined }}>
                 <style>{`@keyframes ai-msg-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>

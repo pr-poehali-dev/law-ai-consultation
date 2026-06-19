@@ -1,6 +1,6 @@
 """
 AI-чат юриста — только режимы chat и chat_continue. v2 — расширенный промт с 148 типами документов.
-Таймаут функции: 45 секунд. Внутренний бюджет: DB 4с + LLM 30с + накладные = ~38с.
+Таймаут: 35 секунд.
 """
 import json
 import os
@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=30,  # 30с — оставляем 15с запаса до таймаута функции (45с)
+        timeout=45,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -385,7 +385,7 @@ def handler(event: dict, context) -> dict:
         _is_definitions = is_definitions_query(messages)
         _is_simple = (not _is_case_law) and (not _is_duty) and (not _is_codex) and (not _is_definitions) and is_simple_query(messages)
 
-        _t_summary.join(timeout=8)  # 8с — достаточно для суммаризации файлов
+        _t_summary.join(timeout=12)
         summarized = _summary_result[0] if _summary_result else messages
         clean_messages, had_pd = strip_personal_data(summarized)
 
@@ -459,7 +459,7 @@ def handler(event: dict, context) -> dict:
             for _t in (_t_codex, _t_def, _t_case, _t_duty2):
                 _t.start()
             for _t in (_t_codex, _t_def, _t_case, _t_duty2):
-                _t.join(timeout=4)  # 4с — параллельные запросы к БД практики
+                _t.join(timeout=6)
 
             if _codex_result: _extra_ctx_parts.append(_codex_result[0])
             if _def_result: _extra_ctx_parts.append(_def_result[0])

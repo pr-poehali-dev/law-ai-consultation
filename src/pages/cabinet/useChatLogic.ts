@@ -131,24 +131,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const rawMsg = (overrideText || input).trim();
     if (!rawMsg || typing) return;
 
-    // Retry: если последнее сообщение — ошибка с тем же текстом, убираем её и предыдущий user-msg
-    // чтобы не было дублей в чате
-    if (overrideText) {
-      setMessages(p => {
-        const last = p[p.length - 1];
-        if (last?.isError && last.retryText === overrideText) {
-          // Убираем и ошибку, и user-сообщение перед ней
-          const withoutError = p.slice(0, -1);
-          const prevLast = withoutError[withoutError.length - 1];
-          if (prevLast?.role === "user" && prevLast.text === overrideText) {
-            return withoutError.slice(0, -1);
-          }
-          return withoutError;
-        }
-        return p;
-      });
-    }
-
     // Специальный маркер — данные калькулятора неустойки
     if (rawMsg.startsWith("__PENALTY_DATA__:")) {
       try {
@@ -217,7 +199,14 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const newHist = [...historyRef.current, { role: "user", content: userMsg }];
     setHistory(newHist);
 
-    // Вопрос НЕ списываем здесь — только после успешного ответа AI
+    // Списываем платный вопрос только если не бесплатный дневной
+    let isLastQuestion = false;
+    if (!usingDailyFree && !isPremium) {
+      const consumeResult = await consumeQuestion();
+      isLastQuestion = consumeResult.isLastQuestion;
+    }
+    refreshUser();
+
     const t1 = setTimeout(() => setTypingStatus("Изучаю судебную практику..."), 3000);
     const t2 = setTimeout(() => setTypingStatus("Подбираю нормы законодательства..."), 7000);
     const t3 = setTimeout(() => setTypingStatus("Формирую ответ..."), 12000);
@@ -252,13 +241,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         setCachedAnswer(newHist, aiText, !!truncated, !!needsExpert);
       }
 
-      // Списываем вопрос только после успешного ответа — не теряем при ошибке
-      let isLastQuestion = false;
-      if (!usingDailyFree && !isPremium) {
-        const consumeResult = await consumeQuestion();
-        isLastQuestion = consumeResult.isLastQuestion;
-      }
-
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
       setTyping(false);
       setTypingStatus("");
@@ -269,7 +251,6 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         truncated: !!truncated,
         needsExpert: !!needsExpert,
         personalDataRefused: !!personalDataRefused,
-        isLastQuestion,
       }]);
 
       invalidateUserCache();
@@ -291,13 +272,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setTyping(false);
       setTypingStatus("");
       setChatErr(e instanceof Error ? e.message : "Ошибка соединения");
-      // Сохраняем текст вопроса в retryText — пользователь может повторить без переписывания
-      setMessages((p) => [...p, {
-        role: "ai",
-        text: "",
-        isError: true,
-        retryText: userMsg,
-      }]);
+      setMessages((p) => [...p, { role: "ai", text: "Произошла ошибка. Попробуйте ещё раз." }]);
     }
   };
 
