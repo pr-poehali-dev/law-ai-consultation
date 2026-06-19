@@ -1,1 +1,1 @@
-{"tests": [{"name": "send test push", "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": {"sent": 1}, "bodyMatcher": "partial"}]}
+{"tests": [{"name": "gen keys and test push", "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": {"newPublicKey": "string"}, "bodyMatcher": "partial"}]}
