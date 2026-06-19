@@ -1,17 +1,41 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { subscribeToPush, refreshPushSubscription, isPushSupported, isPushGranted } from "@/lib/pushNotifications";
+import { subscribeToPush, isPushSupported, isPushGranted } from "@/lib/pushNotifications";
 
 const DISMISSED_KEY = "push_banner_dismissed";
+// Версия VAPID ключа — при смене ключа меняем эту строку, чтобы сбросить старые подписки
+const VAPID_VERSION = "v2";
+const VAPID_VER_KEY = "push_vapid_version";
 
-/** Проверяет есть ли активная подписка в браузере */
-async function hasActivePushSubscription(): Promise<boolean> {
+/** Сбрасывает старую подписку если версия ключа изменилась, возвращает нужно ли показать баннер */
+async function checkAndMigrateSubscription(): Promise<"show_banner" | "silent_refresh" | "skip"> {
+  if (!isPushSupported()) return "skip";
+  if (localStorage.getItem(DISMISSED_KEY)) return "skip";
+
+  const storedVersion = localStorage.getItem(VAPID_VER_KEY);
+
   try {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    return !!sub;
+
+    // Версия ключа изменилась — сносим старую подписку, предлагаем пересоздать
+    if (sub && storedVersion !== VAPID_VERSION) {
+      await sub.unsubscribe();
+      localStorage.removeItem(VAPID_VER_KEY);
+      if (isPushGranted()) return "show_banner"; // разрешение есть, просто пересоздадим
+      return "show_banner";
+    }
+
+    // Подписки нет вообще — предлагаем
+    if (!sub) {
+      if (isPushGranted()) return "show_banner"; // разрешение есть, но подписки нет
+      return "show_banner"; // предлагаем включить
+    }
+
+    // Всё хорошо — тихо обновляем на сервере
+    return "silent_refresh";
   } catch {
-    return false;
+    return "skip";
   }
 }
 
@@ -21,25 +45,13 @@ export default function PushPromptBanner() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!isPushSupported()) return;
-    if (localStorage.getItem(DISMISSED_KEY)) return;
-
     const t = setTimeout(async () => {
-      if (isPushGranted()) {  
-        // Разрешение есть — убеждаемся что подписка сохранена на сервере (тихо, без баннера)
-        const hasSub = await hasActivePushSubscription();
-        if (hasSub) {
-          await refreshPushSubscription();
-          return; // всё хорошо, баннер не нужен
-        }
-        // Разрешение есть, но подписки нет — нужно пересоздать, показываем баннер
-        setShow(true);
-      } else {
-        // Разрешение не дано — предлагаем
+      const result = await checkAndMigrateSubscription();
+      if (result === "show_banner") {
         setShow(true);
       }
-    }, 8000);
-
+      // silent_refresh и skip — ничего не показываем
+    }, 3000);
     return () => clearTimeout(t);
   }, []);
 
@@ -50,6 +62,7 @@ export default function PushPromptBanner() {
     const ok = await subscribeToPush(true);
     setLoading(false);
     if (ok) {
+      localStorage.setItem(VAPID_VER_KEY, VAPID_VERSION);
       setDone(true);
       setTimeout(() => setShow(false), 2500);
     } else {
