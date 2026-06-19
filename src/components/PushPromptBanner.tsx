@@ -1,8 +1,19 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { subscribeToPush, isPushSupported, isPushGranted } from "@/lib/pushNotifications";
+import { subscribeToPush, refreshPushSubscription, isPushSupported, isPushGranted } from "@/lib/pushNotifications";
 
 const DISMISSED_KEY = "push_banner_dismissed";
+
+/** Проверяет есть ли активная подписка в браузере */
+async function hasActivePushSubscription(): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  } catch {
+    return false;
+  }
+}
 
 export default function PushPromptBanner() {
   const [show, setShow] = useState(false);
@@ -11,10 +22,24 @@ export default function PushPromptBanner() {
 
   useEffect(() => {
     if (!isPushSupported()) return;
-    if (isPushGranted()) return;
     if (localStorage.getItem(DISMISSED_KEY)) return;
-    // Показываем через 8 сек — после WelcomeTutorials и других онбординг-модалок
-    const t = setTimeout(() => setShow(true), 8000);
+
+    const t = setTimeout(async () => {
+      if (isPushGranted()) {  
+        // Разрешение есть — убеждаемся что подписка сохранена на сервере (тихо, без баннера)
+        const hasSub = await hasActivePushSubscription();
+        if (hasSub) {
+          await refreshPushSubscription();
+          return; // всё хорошо, баннер не нужен
+        }
+        // Разрешение есть, но подписки нет — нужно пересоздать, показываем баннер
+        setShow(true);
+      } else {
+        // Разрешение не дано — предлагаем
+        setShow(true);
+      }
+    }, 8000);
+
     return () => clearTimeout(t);
   }, []);
 
@@ -28,7 +53,6 @@ export default function PushPromptBanner() {
       setDone(true);
       setTimeout(() => setShow(false), 2500);
     } else {
-      // Пользователь отказал — не показываем снова
       localStorage.setItem(DISMISSED_KEY, "1");
       setShow(false);
     }
@@ -42,7 +66,6 @@ export default function PushPromptBanner() {
   return (
     <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
-        {/* Полоска сверху */}
         <div style={{ height: 3, background: "linear-gradient(90deg, #162d5a, #e8a820)" }} />
         <div className="p-4">
           {done ? (
