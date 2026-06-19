@@ -79,9 +79,9 @@ export function useLawyerNotifications(
         setMsgs(prev => {
           const optimistic = prev.filter(m => m.id < 0);
           if (optimistic.length === 0) return serverMsgs;
-          const serverBodies = new Set(serverMsgs.map(m => m.body));
-          const pendingOptimistic = optimistic.filter(m => !serverBodies.has(m.body));
-          return [...serverMsgs, ...pendingOptimistic];
+          const serverBodies = new Set(serverMsgs.map(m => m.body.trim()));
+          const pending = optimistic.filter(m => !serverBodies.has(m.body.trim()));
+          return pending.length > 0 ? [...serverMsgs, ...pending] : serverMsgs;
         });
         if (serverMsgs.length > 0) {
           const lastId = serverMsgs[serverMsgs.length - 1].id;
@@ -120,14 +120,15 @@ export function useLawyerNotifications(
       if (userMsgsVerRef.current !== ver) return;
       if (!res.messages) return;
       const newMsgs = res.messages;
-      // Сохраняем оптимистичные сообщения (id < 0) если сервер ещё не вернул реальные
+      // Если сервер вернул новое сообщение — заменяем полностью.
+      // Если оптимистичные ещё не появились в ответе — сохраняем их.
       setMsgs(prev => {
         const optimistic = prev.filter(m => m.id < 0);
         if (optimistic.length === 0) return newMsgs;
-        // Убираем дубли: если тело оптимистичного совпадает с последним сервером — не добавляем
-        const serverBodies = new Set(newMsgs.map(m => m.body));
-        const pendingOptimistic = optimistic.filter(m => !serverBodies.has(m.body));
-        return [...newMsgs, ...pendingOptimistic];
+        // Убираем оптимистичные чьё тело уже есть в серверном ответе
+        const serverBodies = new Set(newMsgs.map(m => m.body.trim()));
+        const pending = optimistic.filter(m => !serverBodies.has(m.body.trim()));
+        return pending.length > 0 ? [...newMsgs, ...pending] : newMsgs;
       });
       if (newMsgs.length > 0) {
         lastKnownIdRef.current = newMsgs[newMsgs.length - 1].id;

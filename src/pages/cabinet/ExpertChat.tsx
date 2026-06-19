@@ -177,7 +177,7 @@ export default function ExpertChat({
       )}
 
       {/* ── Список сообщений ────────────────────────────────────────────── */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0">
         {showScrollBtn && (
           <button onClick={scrollToBottom}
             className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
@@ -188,7 +188,7 @@ export default function ExpertChat({
         )}
 
         <div ref={scrollRef} onScroll={handleScroll}
-          className="absolute inset-0 overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
+          className="h-full overflow-y-auto rounded-2xl border border-border bg-gradient-to-b from-slate-50/80 to-white p-3 sm:p-5"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
 
           <style>{`

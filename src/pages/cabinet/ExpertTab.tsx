@@ -149,19 +149,22 @@ export default function ExpertTab({
     if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     if (isFreeUser) setSentFreeQuestion(true);
 
-    // 3. Отправляем на сервер — ping НЕ паузируем, он продолжает работать
+    // 3. Отправляем на сервер
     lawyerSend(params)
       .then(() => {
         setSending(false);
         setUploadProgress(0);
-        // Синхронизируем с сервером — оптимистичное заменяется реальным (без дубля)
-        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        // Небольшая задержка перед refresh — оптимистичное успевает показаться пользователю
+        setTimeout(() => {
+          if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        }, 300);
       })
       .catch(() => {
         setSending(false);
         setUploadProgress(0);
-        // При ошибке сети — тоже обновляем (сообщение могло дойти)
-        if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        setTimeout(() => {
+          if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
+        }, 300);
       });
   };
 
