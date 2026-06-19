@@ -122,18 +122,19 @@ const SLOW_ACTIONS = new Set([
   "register", "send-otp", "add-paid-service",
 ]);
 
-async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
+async function apiCall(body: object, timeoutMs = 45000, noRetry = false): Promise<Response> {
   const token = getToken();
   const action = (body as Record<string, unknown>).action as string | undefined;
   const url = LAWYER_ACTIONS.has(action ?? "") ? LAWYER_URL : AUTH_URL;
-  // Медленные actions — 25с, юрист — 30с, остальные — 10с
+  // Юрист — 10с (таймаут платформы 10с), медленные — 25с, остальные — 10с
   let cap = 10000;
-  if (LAWYER_ACTIONS.has(action ?? "")) cap = 30000;
+  if (LAWYER_ACTIONS.has(action ?? "")) cap = 10000;
   else if (SLOW_ACTIONS.has(action ?? "")) cap = 25000;
   const effectiveTimeout = Math.min(timeoutMs, cap);
 
-  // Автоматический retry при 502 (холодный старт функции) — 1 повтор через 1.5с
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // При 502 (перегрузка/холодный старт) — до 3 попыток с паузой 1с, 2с (если не noRetry)
+  const retryDelays = noRetry ? [] : [1000, 2000];
+  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), effectiveTimeout);
     try {
@@ -147,22 +148,20 @@ async function apiCall(body: object, timeoutMs = 45000): Promise<Response> {
         signal: controller.signal,
       });
       clearTimeout(tid);
-      // 502 = холодный старт или временный сбой — повторяем один раз
-      if (res.status === 502 && attempt === 0) {
-        await new Promise(r => setTimeout(r, 1500));
+      if (res.status === 502 && attempt < retryDelays.length) {
+        await new Promise(r => setTimeout(r, retryDelays[attempt]));
         continue;
       }
       return res;
     } catch (e) {
       clearTimeout(tid);
-      if (attempt === 0) {
-        await new Promise(r => setTimeout(r, 1500));
+      if (attempt < retryDelays.length) {
+        await new Promise(r => setTimeout(r, retryDelays[attempt]));
         continue;
       }
       throw e;
     }
   }
-  // fallback (не должен достигаться)
   throw new Error("Нет соединения");
 }
 
@@ -667,10 +666,14 @@ export async function lawyerPing(params?: {
   last_id?: number;
   target_user_id?: number;
 }): Promise<{ last_id?: number; unread?: number; has_new?: boolean; error?: string }> {
-  const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 8000);
-  const data = await res.json();
-  if (!res.ok) return { error: data.error };
-  return data;
+  try {
+    const res = await apiCall({ action: "lawyer-ping", ...(params || {}) }, 5000, true); // noRetry=true — ping не критичен
+    const data = await res.json();
+    if (!res.ok) return { error: data.error };
+    return data;
+  } catch {
+    return { error: "ping failed" };
+  }
 }
 
 export async function lawyerCloseDialog(targetUserId: number): Promise<{ ok?: boolean; error?: string }> {

@@ -37,7 +37,7 @@ def get_conn():
     return psycopg2.connect(
         os.environ["DATABASE_URL"],
         connect_timeout=3,              # БД локальная — 3с достаточно
-        options="-c statement_timeout=8000",  # 8с — защита от зависших запросов
+        options="-c statement_timeout=5000",  # 5с — таймаут функции 10с, запас на остальное
     )
 
 
