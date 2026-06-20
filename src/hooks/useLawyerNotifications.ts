@@ -3,6 +3,7 @@ import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
 const POLL_INTERVAL = 3_000;
+const IDLE_TIMEOUT  = 10 * 60 * 1000; // 10 минут бездействия → стоп polling
 
 export interface LawyerNotification {
   id: number;
@@ -37,6 +38,8 @@ export function useLawyerNotifications(
   const [selectedAdminUserId, setSelectedAdminUserId] = useState<number | null>(null);
 
   const pollRef          = useRef<ReturnType<typeof setInterval> | null>(null);
+  const idleTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleRef          = useRef(false);
   const pausedRef        = useRef(false);
   const fetchingRef      = useRef(false);
   const isOnExpertTabRef = useRef(activeTab === "expert");
@@ -138,7 +141,7 @@ export function useLawyerNotifications(
     }
   }, [isAdmin, fetchDialogs, fetchDialog, fetchUserMsgs]);
 
-  // ── Polling (без ping — только прямые запросы каждые 3с) ─────────────────────
+  // ── Polling + idle-стоп после 10 минут бездействия ───────────────────────────
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
 
@@ -154,14 +157,32 @@ export function useLawyerNotifications(
     };
 
     const stop  = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-    const start = () => { if (!pollRef.current) pollRef.current = setInterval(doPoll, POLL_INTERVAL); };
+    const start = () => { if (!pollRef.current && !idleRef.current) pollRef.current = setInterval(doPoll, POLL_INTERVAL); };
+
+    const resetIdleTimer = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (idleRef.current) {
+        idleRef.current = false;
+        doPoll();
+        if (isOnExpertTab) start();
+      }
+      idleTimerRef.current = setTimeout(() => {
+        idleRef.current = true;
+        stop();
+      }, IDLE_TIMEOUT);
+    };
 
     // Первичная загрузка сразу
     doPoll();
     if (isOnExpertTab) start();
+    resetIdleTimer();
+
+    const ACTIVITY_EVENTS = ["mousemove", "keydown", "touchstart", "click"] as const;
+    ACTIVITY_EVENTS.forEach(e => document.addEventListener(e, resetIdleTimer, { passive: true }));
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
+        resetIdleTimer();
         doPoll();
         if (isOnExpertTab) start();
       } else {
@@ -169,7 +190,13 @@ export function useLawyerNotifications(
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
+
+    return () => {
+      stop();
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      ACTIVITY_EVENTS.forEach(e => document.removeEventListener(e, resetIdleTimer));
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [userId, isOnExpertTab, isAdmin, fetchDialogs, fetchDialog, fetchUserMsgs]);
 
   useEffect(() => { if (isOnExpertTab) setUnreadCount(0); }, [isOnExpertTab]);
