@@ -172,10 +172,16 @@ export function useLawyerNotifications(
       }, IDLE_TIMEOUT);
     };
 
-    // Первичная загрузка сразу
-    doPoll();
-    if (isOnExpertTab) start();
-    resetIdleTimer();
+    // Первичная загрузка сразу (только на вкладке Эксперт — polling, иначе разовый запрос)
+    if (isOnExpertTab) {
+      doPoll();
+      start();
+      resetIdleTimer();
+    } else {
+      doPoll();
+    }
+
+    if (!isOnExpertTab) return () => { stop(); };
 
     const ACTIVITY_EVENTS = ["mousemove", "keydown", "touchstart", "click"] as const;
     ACTIVITY_EVENTS.forEach(e => document.addEventListener(e, resetIdleTimer, { passive: true }));
@@ -184,7 +190,7 @@ export function useLawyerNotifications(
       if (document.visibilityState === "visible") {
         resetIdleTimer();
         doPoll();
-        if (isOnExpertTab) start();
+        start();
       } else {
         stop();
       }
