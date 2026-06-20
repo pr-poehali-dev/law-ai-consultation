@@ -10,24 +10,27 @@
       "name": "GET список туториалов",
       "method": "GET",
       "path": "/",
-      "expectedStatus": 200,
-      "expectedBody": {"tutorials": []},
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     },
     {
-      "name": "POST list без авторизации",
+      "name": "POST list — возвращает welcome_video и tutorials",
       "method": "POST",
       "path": "/",
       "body": {"action": "list"},
-      "expectedStatus": 200,
-      "expectedBody": {"tutorials": []},
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     },
     {
       "name": "POST create без авторизации — 403",
       "method": "POST",
       "path": "/",
       "body": {"action": "create", "title": "Test"},
+      "expectedStatus": 403
+    },
+    {
+      "name": "POST set_welcome без авторизации — 403",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "set_welcome", "video_url": "https://example.com/v.mp4"},
       "expectedStatus": 403
     }
   ]

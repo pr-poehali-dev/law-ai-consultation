@@ -1,7 +1,7 @@
 """
 Управление видео-инструкциями: список, создание, редактирование, удаление, загрузка видео.
 Публичный эндпоинт для списка (GET). Админские — требуют X-Auth-Token.
-Таймаут функции рекомендуется 120с (видео до 10 МБ).
+Таймаут функции рекомендуется 120с (видео до 20 МБ).
 """
 import json
 import os
@@ -9,7 +9,6 @@ import base64
 import time
 import psycopg2
 import boto3
-from botocore.exceptions import ClientError
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
 
@@ -45,16 +44,16 @@ def get_admin_user(token: str):
         conn.close()
 
 
-def upload_video_to_s3(file_b64: str, filename: str) -> str:
+def upload_video_to_s3(file_b64: str, filename: str, is_welcome: bool = False) -> str:
     """Загружает видео в S3, возвращает CDN URL."""
     try:
         file_data = base64.b64decode(file_b64)
     except Exception:
         raise ValueError("Некорректный base64 файла")
 
-    max_size = 12 * 1024 * 1024  # 12 МБ
+    max_size = 20 * 1024 * 1024  # 20 МБ
     if len(file_data) > max_size:
-        raise ValueError("Видео слишком большое (максимум 12 МБ)")
+        raise ValueError("Видео слишком большое (максимум 20 МБ)")
 
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp4"
     allowed_exts = {"mp4", "webm", "mov", "avi", "mkv", "m4v"}
@@ -67,7 +66,8 @@ def upload_video_to_s3(file_b64: str, filename: str) -> str:
     }
     content_type = content_types.get(ext, "video/mp4")
 
-    key = f"tutorials/{int(time.time())}_{filename.replace(' ', '_')}"
+    folder = "welcome" if is_welcome else "tutorials"
+    key = f"{folder}/{int(time.time())}_{filename.replace(' ', '_')}"
     s3 = boto3.client(
         "s3",
         endpoint_url="https://bucket.poehali.dev",
@@ -106,18 +106,25 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""SELECT id, title, description, video_url, sort_order
+                f"""SELECT id, title, description, video_url, sort_order, is_welcome
                     FROM {SCHEMA}.video_tutorials
                     WHERE is_active = TRUE
-                    ORDER BY sort_order ASC, id ASC"""
+                    ORDER BY is_welcome DESC, sort_order ASC, id ASC"""
             )
             rows = cur.fetchall()
-            tutorials = [
-                {"id": r[0], "title": r[1], "description": r[2] or "", "video_url": r[3] or "", "sort_order": r[4]}
-                for r in rows
-            ]
+            welcome_video = None
+            tutorials = []
+            for r in rows:
+                item = {
+                    "id": r[0], "title": r[1], "description": r[2] or "",
+                    "video_url": r[3] or "", "sort_order": r[4], "is_welcome": r[5]
+                }
+                if r[5]:
+                    welcome_video = item
+                else:
+                    tutorials.append(item)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"tutorials": tutorials}, ensure_ascii=False)}
+                    "body": json.dumps({"welcome_video": welcome_video, "tutorials": tutorials}, ensure_ascii=False)}
         finally:
             cur.close()
             conn.close()
@@ -132,18 +139,54 @@ def handler(event: dict, context) -> dict:
     if action == "upload_video":
         file_b64 = body.get("file", "")
         filename = body.get("filename", "video.mp4")
+        is_welcome = bool(body.get("is_welcome", False))
         if not file_b64:
             return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"error": "Файл обязателен"}, ensure_ascii=False)}
         try:
-            cdn_url = upload_video_to_s3(file_b64, filename)
+            cdn_url = upload_video_to_s3(file_b64, filename, is_welcome)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"url": cdn_url}, ensure_ascii=False)}
         except ValueError as e:
             return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"error": str(e)}, ensure_ascii=False)}
 
-    # ── Создать блок ────────────────────────────────────────────────────────
+    # ── Установить приветственное видео (только одно) ───────────────────────
+    if action == "set_welcome":
+        video_url = (body.get("video_url") or "").strip()
+        title = (body.get("title") or "Добро пожаловать!").strip()[:200]
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            # Сбрасываем флаг у всех
+            cur.execute(f"UPDATE {SCHEMA}.video_tutorials SET is_welcome = FALSE WHERE is_welcome = TRUE")
+            if video_url:
+                # Проверяем, есть ли уже запись welcome
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.video_tutorials WHERE is_welcome = TRUE LIMIT 1"
+                )
+                existing = cur.fetchone()
+                if existing:
+                    cur.execute(
+                        f"""UPDATE {SCHEMA}.video_tutorials
+                            SET video_url = %s, title = %s, is_welcome = TRUE, is_active = TRUE, updated_at = NOW()
+                            WHERE id = %s""",
+                        (video_url, title, existing[0])
+                    )
+                else:
+                    cur.execute(
+                        f"""INSERT INTO {SCHEMA}.video_tutorials (title, video_url, is_welcome, sort_order, is_active)
+                            VALUES (%s, %s, TRUE, 0, TRUE)""",
+                        (title, video_url)
+                    )
+            conn.commit()
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"ok": True}, ensure_ascii=False)}
+        finally:
+            cur.close()
+            conn.close()
+
+    # ── Создать обучающий ролик ──────────────────────────────────────────────
     if action == "create":
         title = (body.get("title") or "").strip()[:200]
         description = (body.get("description") or "").strip()
@@ -156,8 +199,8 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""INSERT INTO {SCHEMA}.video_tutorials (title, description, video_url, sort_order)
-                    VALUES (%s, %s, %s, %s) RETURNING id""",
+                f"""INSERT INTO {SCHEMA}.video_tutorials (title, description, video_url, sort_order, is_welcome)
+                    VALUES (%s, %s, %s, %s, FALSE) RETURNING id""",
                 (title, description or None, video_url or None, sort_order)
             )
             new_id = cur.fetchone()[0]
@@ -227,14 +270,14 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         try:
             cur.execute(
-                f"""SELECT id, title, description, video_url, sort_order, is_active
+                f"""SELECT id, title, description, video_url, sort_order, is_active, is_welcome
                     FROM {SCHEMA}.video_tutorials
-                    ORDER BY sort_order ASC, id ASC"""
+                    ORDER BY is_welcome DESC, sort_order ASC, id ASC"""
             )
             rows = cur.fetchall()
             tutorials = [
                 {"id": r[0], "title": r[1], "description": r[2] or "", "video_url": r[3] or "",
-                 "sort_order": r[4], "is_active": r[5]}
+                 "sort_order": r[4], "is_active": r[5], "is_welcome": r[6]}
                 for r in rows
             ]
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
@@ -244,4 +287,4 @@ def handler(event: dict, context) -> dict:
             conn.close()
 
     return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-            "body": json.dumps({"error": f"Неизвестное действие: {action}"}, ensure_ascii=False)}
+            "body": json.dumps({"error": "Неизвестное действие"}, ensure_ascii=False)}
