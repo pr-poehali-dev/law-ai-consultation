@@ -28,61 +28,38 @@ async function apiCall(body: object) {
 // ── Секция: приветственное видео ─────────────────────────────────────────────
 function WelcomeVideoSection() {
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiCall({ action: "list_all" }).then(data => {
       const welcome = data.tutorials?.find((t: Tutorial) => t.is_welcome);
-      if (welcome) setCurrentUrl(welcome.video_url || null);
+      if (welcome?.video_url) { setCurrentUrl(welcome.video_url); setUrlInput(welcome.video_url); }
     });
   }, []);
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (file.size > 20 * 1024 * 1024) {
-      setMsg("Файл слишком большой (макс. 20 МБ)"); return;
-    }
-    if (!file.name.match(/\.(mp4|webm|mov|m4v)$/i)) {
-      setMsg("Допустимые форматы: mp4, webm, mov"); return;
-    }
-
-    setUploading(true);
-    setMsg("Загружаю видео...");
+  const handleSaveUrl = async () => {
+    if (!urlInput.trim()) { setMsg("Введите ссылку на видео"); return; }
+    setSaving(true); setMsg("");
     try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const upload = await apiCall({ action: "upload_video", file: b64, filename: file.name, is_welcome: true });
-      if (!upload.url) { setMsg(upload.error || "Ошибка загрузки"); setUploading(false); return; }
-
-      await apiCall({ action: "set_welcome", video_url: upload.url, title: "Добро пожаловать!" });
-      setCurrentUrl(upload.url);
-      setMsg("Приветственное видео обновлено!");
-    } catch {
-      setMsg("Ошибка загрузки");
-    }
-    setUploading(false);
+      await apiCall({ action: "set_welcome", video_url: urlInput.trim(), title: "Добро пожаловать!" });
+      setCurrentUrl(urlInput.trim());
+      setShowUrlInput(false);
+      setMsg("Приветственное видео сохранено!");
+    } catch { setMsg("Ошибка сохранения"); }
+    setSaving(false);
   };
 
   const handleRemove = async () => {
     if (!confirm("Убрать приветственное видео?")) return;
     await apiCall({ action: "set_welcome", video_url: "" });
-    setCurrentUrl(null);
-    setMsg("Удалено");
+    setCurrentUrl(null); setUrlInput(""); setMsg("Удалено");
   };
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl border border-border shadow-sm p-4 sm:p-6 mb-4">
-      <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" className="hidden" onChange={handleFile} />
-
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 gradient-navy rounded-xl flex items-center justify-center shrink-0">
           <Icon name="Sparkles" size={16} className="text-gold-400" />
@@ -94,24 +71,23 @@ function WelcomeVideoSection() {
       </div>
 
       {msg && (
-        <div className={`mb-3 px-3 py-2 rounded-xl text-xs font-medium ${msg.includes("Ошибка") || msg.includes("большой") || msg.includes("Допустим") ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+        <div className={`mb-3 px-3 py-2 rounded-xl text-xs font-medium ${msg.includes("Ошибка") || msg.includes("Введите") ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
           {msg}
         </div>
       )}
 
       {/* Превью текущего видео */}
-      {currentUrl ? (
-        <div className="mb-4">
+      {currentUrl && !showUrlInput && (
+        <div className="mb-3">
           <div className="relative rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
             <video src={currentUrl} controls playsInline preload="metadata" className="w-full h-full object-cover" />
           </div>
           <div className="flex gap-2 mt-2">
             <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="flex-1 py-2 rounded-xl btn-gold text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
+              onClick={() => setShowUrlInput(true)}
+              className="flex-1 py-2 rounded-xl btn-gold text-xs font-semibold flex items-center justify-center gap-1.5"
             >
-              {uploading ? <><Icon name="Loader" size={12} className="animate-spin" />Загружаю...</> : <><Icon name="Upload" size={12} />Заменить видео</>}
+              <Icon name="Link" size={12} />Изменить ссылку
             </button>
             <button
               onClick={handleRemove}
@@ -121,24 +97,35 @@ function WelcomeVideoSection() {
             </button>
           </div>
         </div>
-      ) : (
-        /* Зона загрузки */
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="w-full border-2 border-dashed border-slate-200 hover:border-navy-300 rounded-2xl p-8 flex flex-col items-center gap-3 transition-colors group disabled:opacity-50"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-navy-50 flex items-center justify-center transition-colors">
-            {uploading
-              ? <Icon name="Loader" size={24} className="text-navy-400 animate-spin" />
-              : <Icon name="Upload" size={24} className="text-slate-400 group-hover:text-navy-500 transition-colors" />
-            }
+      )}
+
+      {/* Форма ввода ссылки */}
+      {(!currentUrl || showUrlInput) && (
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-navy-700 block">
+            Ссылка на видео (CDN или любой прямой URL)
+          </label>
+          <input
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://cdn.poehali.dev/..."
+            className="w-full text-sm border border-border rounded-xl px-3 py-2.5 outline-none focus:border-navy-400"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveUrl}
+              disabled={saving}
+              className="flex-1 py-2 rounded-xl btn-gold text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              {saving ? <><Icon name="Loader" size={12} className="animate-spin" />Сохраняю...</> : <><Icon name="Check" size={12} />Сохранить</>}
+            </button>
+            {showUrlInput && (
+              <button onClick={() => setShowUrlInput(false)} className="px-4 py-2 rounded-xl border border-border text-xs text-slate-600 hover:bg-slate-50">
+                Отмена
+              </button>
+            )}
           </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-navy-700">{uploading ? "Загружаю..." : "Загрузить приветственное видео"}</p>
-            <p className="text-xs text-slate-400 mt-1">MP4, MOV, WebM · 16:9 · до 20 МБ</p>
-          </div>
-        </button>
+        </div>
       )}
     </div>
   );
