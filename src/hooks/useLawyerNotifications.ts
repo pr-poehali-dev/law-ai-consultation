@@ -3,7 +3,7 @@ import { lawyerMessages } from "@/lib/auth";
 import type { User, LawyerMessage, LawyerDialog } from "@/lib/auth";
 
 const POLL_INTERVAL = 3_000;
-const IDLE_TIMEOUT  = 10 * 60 * 1000; // 10 минут бездействия → стоп polling
+const IDLE_TIMEOUT  = 5 * 60 * 1000; // 5 минут бездействия → стоп polling
 
 export interface LawyerNotification {
   id: number;
