@@ -28,7 +28,8 @@ export default function LandingChatMessages({
       ref={chatBoxRef}
       className="overflow-y-auto scrollbar-hide"
       style={{
-        height: "clamp(300px, 42vh, 480px)",
+        flex: "1 1 0",
+        minHeight: 0,
         background: "linear-gradient(180deg, #f8fafd 0%, #f2f5fb 100%)",
         padding: "20px 16px 12px",
         display: "flex",

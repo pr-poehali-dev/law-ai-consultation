@@ -275,10 +275,11 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div
-        className="rounded-3xl overflow-hidden"
+        className="rounded-3xl overflow-hidden flex flex-col"
         style={{
           background: "#ffffff",
           boxShadow: "0 32px 80px rgba(10,22,40,0.55), 0 0 0 1px rgba(255,255,255,0.1)",
+          height: "clamp(480px, 72vh, 680px)",
         }}
       >
         <LandingChatHeader />
