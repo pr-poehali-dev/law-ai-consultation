@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Missing type returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {"title": "Test"},
+      "expectedStatus": 400,
+      "expectedBody": {"error": "type и title обязательны"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -147,95 +147,35 @@ def _send_email(to_email: str, subject: str, body_text: str) -> None:
     raise RuntimeError(f"Не удалось отправить письмо: {last_err}")
 
 
-def _get_vapid_claims():
-    return {"sub": f"mailto:{ADMIN_EMAIL}"}
-
-
-def _send_push_to_subscription(sub: dict, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo") -> bool:
-    """Отправляет Web Push одной подписке. Возвращает True при успехе."""
-    try:
-        from pywebpush import webpush, WebPushException
-        import json as _json
-        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
-        if not vapid_private:
-            return False
-        webpush(
-            subscription_info={
-                "endpoint": sub["endpoint"],
-                "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
-            },
-            data=_json.dumps({"title": title, "body": body, "url": url, "tag": tag}),
-            vapid_private_key=vapid_private,
-            vapid_claims=_get_vapid_claims(),
-            timeout=4,  # 4с достаточно для FCM/APNs; 8с слишком много при синхронном вызове
-        )
-        return True
-    except Exception as push_err:
-        print(f"[PUSH] Ошибка отправки: {push_err}")
-        return False
+PUSH_NOTIFY_URL = "https://functions.poehali.dev/17b3502b-eb4a-4869-b256-a3270fd1b6d2"
 
 
 def _push_to_admin(title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
-    """Отправляет push всем подпискам администраторов."""
-    conn = get_conn()
-    cur = conn.cursor()
+    """Отправляет push всем администраторам через push-notify сервис."""
     try:
-        cur.execute(
-            f"SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM {SCHEMA}.push_subscriptions ps "
-            f"JOIN {SCHEMA}.users u ON u.id = ps.user_id WHERE u.is_admin = TRUE AND ps.auth != 'expired'"
+        import requests
+        requests.post(
+            PUSH_NOTIFY_URL,
+            json={"type": "admin", "title": title, "body": body, "url": url, "tag": tag},
+            timeout=6,
         )
-        rows = cur.fetchall()
-    finally:
-        cur.close()
-        conn.close()
-
-    for row in rows:
-        _send_push_to_subscription({"endpoint": row[1], "p256dh": row[2], "auth": row[3]}, title, body, url, tag)
+    except Exception as e:
+        print(f"[PUSH_ADMIN] {e}")
 
 
 def _push_to_users(user_ids: list, title: str, body: str, url: str = "/cabinet", tag: str = "ii-pravo"):
-    """Отправляет push конкретным пользователям. Помечает истёкшие подписки."""
+    """Отправляет push конкретным пользователям через push-notify сервис."""
     if not user_ids:
         return
-    conn = get_conn()
-    cur = conn.cursor()
     try:
-        placeholders = ",".join(["%s"] * len(user_ids))
-        # Берём только 2 последних подписки на пользователя — экономим вычислительное время
-        # У пользователя обычно 1-2 устройства, старые дублируются не нужны
-        cur.execute(
-            f"SELECT DISTINCT ON (user_id) id, endpoint, p256dh, auth "
-            f"FROM {SCHEMA}.push_subscriptions "
-            f"WHERE user_id IN ({placeholders}) AND auth != 'expired' "
-            f"ORDER BY user_id, id DESC",
-            user_ids,
+        import requests
+        requests.post(
+            PUSH_NOTIFY_URL,
+            json={"type": "users", "user_ids": user_ids, "title": title, "body": body, "url": url, "tag": tag},
+            timeout=6,
         )
-        rows = cur.fetchall()
-    finally:
-        cur.close()
-        conn.close()
-
-    expired = []
-    for row in rows:
-        sub_id, endpoint, p256dh, auth = row
-        ok = _send_push_to_subscription({"endpoint": endpoint, "p256dh": p256dh, "auth": auth}, title, body, url, tag)
-        if not ok:
-            expired.append(sub_id)
-
-    if expired:
-        try:
-            conn2 = get_conn()
-            cur2 = conn2.cursor()
-            placeholders2 = ",".join(["%s"] * len(expired))
-            cur2.execute(
-                f"UPDATE {SCHEMA}.push_subscriptions SET auth = 'expired' WHERE id IN ({placeholders2})",
-                expired,
-            )
-            conn2.commit()
-            cur2.close()
-            conn2.close()
-        except Exception:
-            pass
+    except Exception as e:
+        print(f"[PUSH_USERS] {e}")
 
 
 # ─────────────────────────────────────────────
