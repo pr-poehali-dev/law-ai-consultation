@@ -12,6 +12,7 @@ interface CabinetOverlaysProps {
   showDocChoice: { docTypeId: string; docLabel: string } | null;
   showWelcomeTutorials: boolean;
   docDetails: string;
+  userId?: number;
   onCloseExitIntent: () => void;
   onAcceptExitIntent: () => void;
   onCloseDocSavedToast: () => void;
@@ -27,6 +28,7 @@ export default function CabinetOverlays({
   showDocChoice,
   showWelcomeTutorials,
   docDetails,
+  userId,
   onCloseExitIntent,
   onAcceptExitIntent,
   onCloseDocSavedToast,
@@ -79,7 +81,7 @@ export default function CabinetOverlays({
       )}
 
       {showWelcomeTutorials && (
-        <WelcomeTutorialsModal onClose={onCloseWelcomeTutorials} />
+        <WelcomeTutorialsModal onClose={onCloseWelcomeTutorials} userId={userId} />
       )}
     </>
   );

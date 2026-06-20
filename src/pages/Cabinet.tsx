@@ -128,15 +128,15 @@ export default function Cabinet() {
   } = useLawyerNotifications(user, tab);
 
   useEffect(() => {
-    if (!user || !shouldShowWelcomeTutorials()) return;
+    if (!user || !shouldShowWelcomeTutorials(user.id)) return;
     const params = new URLSearchParams(window.location.search);
     const isPostPayment = params.has("payment") || params.has("inv_id");
     const isPendingDoc = params.get("tab") === "docs";
     if (isPostPayment || isPendingDoc) {
-      localStorage.setItem("tutorials_welcome_seen", "1");
+      localStorage.setItem(`tutorials_welcome_seen_${user.id}`, "1");
       return;
     }
-    const t = setTimeout(() => setShowWelcomeTutorials(true), 3000);
+    const t = setTimeout(() => setShowWelcomeTutorials(true), 1500);
     return () => clearTimeout(t);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,6 +222,7 @@ export default function Cabinet() {
         showDocChoice={showDocChoice}
         showWelcomeTutorials={showWelcomeTutorials}
         docDetails={docs.docDetails}
+        userId={user.id}
         onCloseExitIntent={() => {}}
         onAcceptExitIntent={() => {}}
         onCloseDocSavedToast={() => setDocSavedToast(null)}

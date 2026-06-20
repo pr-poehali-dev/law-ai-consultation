@@ -5,6 +5,10 @@ import func2url from "../../backend/func2url.json";
 const API_URL = (func2url as Record<string, string>)["video-tutorials"];
 const SEEN_KEY = "tutorials_welcome_seen";
 
+export function getSeenKey(userId?: number) {
+  return userId ? `${SEEN_KEY}_${userId}` : SEEN_KEY;
+}
+
 interface Tutorial {
   id: number;
   title: string;
@@ -15,9 +19,10 @@ interface Tutorial {
 
 interface WelcomeTutorialsModalProps {
   onClose: () => void;
+  userId?: number;
 }
 
-export default function WelcomeTutorialsModal({ onClose }: WelcomeTutorialsModalProps) {
+export default function WelcomeTutorialsModal({ onClose, userId }: WelcomeTutorialsModalProps) {
   const [visible, setVisible] = useState(false);
   const [welcomeVideo, setWelcomeVideo] = useState<Tutorial | null>(null);
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
@@ -44,7 +49,7 @@ export default function WelcomeTutorialsModal({ onClose }: WelcomeTutorialsModal
   }, []);
 
   const handleClose = () => {
-    localStorage.setItem(SEEN_KEY, "1");
+    localStorage.setItem(getSeenKey(userId), "1");
     setVisible(false);
     setTimeout(onClose, 280);
   };
@@ -212,6 +217,6 @@ export default function WelcomeTutorialsModal({ onClose }: WelcomeTutorialsModal
   );
 }
 
-export function shouldShowWelcomeTutorials(): boolean {
-  return !localStorage.getItem(SEEN_KEY);
+export function shouldShowWelcomeTutorials(userId?: number): boolean {
+  return !localStorage.getItem(getSeenKey(userId));
 }
