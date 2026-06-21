@@ -39,6 +39,12 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
             ? "bg-gradient-to-br from-navy-700 to-navy-800 text-white rounded-br-sm"
             : "bg-white border border-slate-100 text-navy-800 rounded-bl-sm shadow"
         }`}>
+          {/* Файл от юриста: attachment_type === "file", url в attachment_content */}
+          {msg.attachment_type === "file" && msg.attachment_name && msg.attachment_content && (
+            <FileLink name={msg.attachment_name} url={msg.attachment_content} isMe={isMe} />
+          )}
+
+          {/* Документ или ответ AI — кнопка просмотра */}
           {(msg.attachment_type === "chat_answer" || msg.attachment_type === "document") && msg.attachment_name && (
             <button
               onClick={() => hasContent && setViewAtt(true)}
@@ -69,7 +75,7 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
       </div>
       {isMe && (
         <div className="w-9 h-9 bg-gradient-to-br from-navy-100 to-navy-200 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-navy-700 uppercase shadow-sm border border-navy-200">
-          {isAdmin ? "A" : (text?.[0]?.toUpperCase() ?? "U")}
+          {isAdmin ? "A" : ((text || msg.attachment_name || "U")[0]?.toUpperCase() ?? "U")}
         </div>
       )}
       {viewAtt && msg.attachment_content && (

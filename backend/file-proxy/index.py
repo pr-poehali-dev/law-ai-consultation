@@ -70,6 +70,11 @@ def handler(event: dict, context) -> dict:
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "ppt":  "application/vnd.ms-powerpoint",
         "pdf":  "application/pdf",
+        "zip":  "application/zip",
+        "jpg":  "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png":  "image/png",
+        "txt":  "text/plain",
     }
 
     try:
