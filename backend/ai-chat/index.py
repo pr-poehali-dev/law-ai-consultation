@@ -1,6 +1,6 @@
 """
 AI-чат юриста — только режимы chat и chat_continue. v2 — расширенный промт с 148 типами документов.
-Таймаут функции: 45 секунд. Внутренний бюджет: DB 4с + LLM 30с + накладные = ~38с.
+Таймаут функции: 60 секунд. Внутренний бюджет: DB 4с + LLM 30с + fallback 20с + накладные = ~54с.
 """
 import json
 import os
@@ -481,9 +481,11 @@ def handler(event: dict, context) -> dict:
             else:
                 answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=3000, fast=True, temperature=0.3)
 
-        # Fallback DeepSeek при отказе Яндекса
-        if is_refusal(answer) and not is_system_mode:
-            ds_raw, ds_cut = call_deepseek(SYSTEM_CHAT_DEEPSEEK, summarized, max_tokens=1200, temperature=0.3)
+        # Fallback DeepSeek при отказе Яндекса (только если осталось > 22с бюджета)
+        _elapsed = time.time() - _chat_start
+        if is_refusal(answer) and not is_system_mode and _elapsed < 38:
+            _fallback_timeout = max(15, int(55 - _elapsed))
+            ds_raw, ds_cut = call_deepseek(SYSTEM_CHAT_DEEPSEEK, summarized, max_tokens=1200, temperature=0.3, timeout=_fallback_timeout)
             ds_main, _ = _extract_deepseek_summary(ds_raw)
             answer = ds_main if ds_main else ds_raw
             if ds_cut:
