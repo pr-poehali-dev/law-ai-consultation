@@ -5,6 +5,7 @@ const _f = func2url as Record<string, string>;
 // Маршруты к функциям
 const AUTH_URL = _f["gigachat-proxy"];         // авторизация, регистрация, профиль, business
 const LAWYER_URL = _f["lawyer-service"];        // переписка с юристом
+const LAWYER_UPLOAD_URL = _f["lawyer-upload"];  // загрузка файлов (таймаут 30с)
 const LEGAL_DOCS_URL = _f["legal-docs"];        // управление правовой базой
 const AI_CHAT_URL = _f["ai-chat"];
 const AI_DOCS_URL = _f["ai-docs"];
@@ -111,10 +112,10 @@ export async function fetchSafe(
   throw new Error("Нет соединения с сервером. Попробуйте ещё раз.");
 }
 
-// Lawyer actions → lawyer-service
+// Lawyer actions → lawyer-service (переписка, быстрые операции)
 const LAWYER_ACTIONS = new Set([
   "lawyer-send", "lawyer-messages", "lawyer-ping", "lawyer-close-dialog",
-  "lawyer-complete-consultation", "lawyer-complete-service", "lawyer-upload-file", "lawyer-cleanup-files",
+  "lawyer-complete-consultation", "lawyer-complete-service", "lawyer-cleanup-files",
 ]);
 
 // Actions которые могут занять больше 10с (email, БД + pending orders, SMTP)
@@ -699,7 +700,16 @@ export async function lawyerCompleteService(targetUserId: number, serviceType = 
 }
 
 export async function lawyerUploadFile(file: string, filename: string): Promise<{ url?: string; key?: string; filename?: string; expires_at?: number; error?: string }> {
-  const res = await apiCall({ action: "lawyer-upload-file", file, filename }, 30000);
+  const token = getToken();
+  const res = await fetchSafe(
+    LAWYER_UPLOAD_URL,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+      body: JSON.stringify({ file, filename }),
+    },
+    28000,
+  );
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка загрузки" };
   return data;
