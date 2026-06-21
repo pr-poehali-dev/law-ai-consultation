@@ -49,7 +49,8 @@ def handler(event: dict, context) -> dict:
         }
 
     s3_key = path[idx + len(bucket_marker):]
-    filename = s3_key.split("/")[-1]
+    # Используем явное имя из параметра (если передано), иначе берём из пути
+    filename = params.get("name", "").strip() or s3_key.split("/")[-1]
 
     # Скачиваем из S3 напрямую
     import boto3

@@ -22,43 +22,12 @@ export default function FileLink({ name, url, isMe }: FileLinkProps) {
   const handleDownload = async () => {
     if (dlState === "loading") return;
     const proxyUrl = (func2url as Record<string, string>)["file-proxy"];
-    const href = `${proxyUrl}?url=${encodeURIComponent(url)}`;
+    const href = `${proxyUrl}?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
 
-    // iOS: поведение зависит от типа файла.
-    // PDF — Safari умеет открывать blob напрямую.
-    // DOCX/DOC и прочие — blob Safari игнорирует; нужно открыть window и перенаправить на прокси-URL
-    // (прокси отдаёт Content-Disposition: attachment → iOS предложит «Открыть в...»).
+    // iOS Safari: не поддерживает blob download и атрибут download на <a>.
+    // Единственный надёжный способ — открыть прокси-URL в новой вкладке.
+    // Прокси отдаёт Content-Disposition: attachment → Safari предложит «Открыть в...» / сохранить.
     if (isIOS) {
-      const isPdf = ext === "pdf";
-
-      if (isPdf) {
-        const win = window.open("", "_blank");
-        if (!win) {
-          window.location.href = href;
-          return;
-        }
-        win.document.write(`<html><body style="margin:0;background:#0a1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#e8a820;font-size:16px">Загрузка файла...</body></html>`);
-        setDlState("loading");
-        setDlProgress(0);
-        try {
-          const res = await fetch(href);
-          if (!res.ok) throw new Error(`${res.status}`);
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          win.location.href = blobUrl;
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
-          setDlProgress(100);
-          setDlState("done");
-          setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2000);
-        } catch {
-          win.close();
-          setDlState("error");
-          setTimeout(() => { setDlState("idle"); setDlProgress(0); }, 2500);
-        }
-        return;
-      }
-
-      // DOCX/DOC и другие: Safari не умеет отображать blob — открываем прокси-URL напрямую.
       const win = window.open(href, "_blank");
       if (!win) window.location.href = href;
       setDlState("done");
@@ -66,7 +35,7 @@ export default function FileLink({ name, url, isMe }: FileLinkProps) {
       return;
     }
 
-    // ПК + Android: fetch с прогрессом → blob → скачать без открытия вкладок
+    // ПК + Android: fetch с прогрессом → blob → тихое скачивание
     setDlState("loading");
     setDlProgress(0);
     try {
