@@ -71,8 +71,8 @@ export default function ExpertTab({
     : (!user.isAdmin && consultationsLeft <= 0);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lmsgs]);
+    if (lmsgs.length <= 1) bottomRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [lmsgs.length <= 1]);
 
   const adjustTextarea = () => {
     const ta = textareaRef.current;
