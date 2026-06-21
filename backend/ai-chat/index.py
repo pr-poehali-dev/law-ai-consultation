@@ -1,6 +1,6 @@
 """
 AI-чат юриста — только режимы chat и chat_continue. v2 — расширенный промт с 148 типами документов.
-Таймаут функции: 60 секунд. Внутренний бюджет: DB 4с + LLM 30с + накладные = ~38с.
+Таймаут функции: 60 секунд. Внутренний бюджет: DB 4с + LLM 30с + fallback 20с + накладные = ~54с.
 """
 import json
 import os
@@ -208,6 +208,13 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
     was_cut = choice.get("finish_reason") == "length"
     return text, was_cut
 
+def _extract_deepseek_summary(answer: str) -> tuple:
+    for marker in ("[РЕЗЮМЕ]:", "[РЕЗЮМЕ]"):
+        idx = answer.rfind(marker)
+        if idx != -1:
+            return answer[:idx].strip(), answer[idx + len(marker):].strip()
+    return answer.strip(), ""
+
 def summarize_old_messages(messages: list) -> list:
     if len(messages) <= SUMMARY_THRESHOLD:
         return messages
@@ -238,7 +245,7 @@ def summarize_old_messages(messages: list) -> list:
 
 # ── Промпты (инлайн, чтобы не зависеть от файла prompts.py) ─────────────────
 from prompts import (
-    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW,
+    SYSTEM_CHAT, SYSTEM_CHAT_SIMPLE, SYSTEM_CASE_LAW, SYSTEM_CHAT_DEEPSEEK,
     SYSTEM_CHAT_LANDING_STEP1, SYSTEM_CHAT_LANDING_STEP2,
 )
 from state_duty import is_duty_query, get_duty_context_for_chat
@@ -473,6 +480,17 @@ def handler(event: dict, context) -> dict:
                 answer = call_yandex(SYSTEM_CHAT_SIMPLE, clean_messages, max_tokens=800, fast=True)
             else:
                 answer = call_yandex(SYSTEM_CHAT, clean_messages, max_tokens=3000, fast=True, temperature=0.3)
+
+        # Fallback DeepSeek при отказе Яндекса (только если осталось > 22с бюджета)
+        _elapsed = time.time() - _chat_start
+        if is_refusal(answer) and not is_system_mode and _elapsed < 38:
+            _fallback_timeout = max(15, int(55 - _elapsed))
+            ds_raw, ds_cut = call_deepseek(SYSTEM_CHAT_DEEPSEEK, summarized, max_tokens=1200, temperature=0.3, timeout=_fallback_timeout)
+            ds_main, _ = _extract_deepseek_summary(ds_raw)
+            answer = ds_main if ds_main else ds_raw
+            if ds_cut:
+                truncated = True
+            personal_data_refused = False
 
         truncated = truncated or (len(answer) > 200 and not bool(_RE_TRUNCATED.search(answer.rstrip())))
 
