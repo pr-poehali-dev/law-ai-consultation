@@ -364,6 +364,7 @@ def handler(event: dict, context) -> dict:
             messages = messages[-6:]
 
         is_system_mode = messages and messages[0].get("role") == "system"
+        req_max_tokens = int(body.get("max_tokens", 0))
 
         # Параллельно: сжатие истории + определение маршрута
         _summary_result: list = []
@@ -391,7 +392,8 @@ def handler(event: dict, context) -> dict:
         if is_system_mode:
             custom_system = messages[0].get("content", SYSTEM_CHAT)
             chat_messages = clean_messages[1:]
-            answer = call_yandex(custom_system, chat_messages, max_tokens=2000, fast=True)
+            _sys_max_tokens = req_max_tokens if req_max_tokens > 0 else 2000
+            answer = call_yandex(custom_system, chat_messages, max_tokens=_sys_max_tokens, fast=True)
 
         elif _is_case_law:
             case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)

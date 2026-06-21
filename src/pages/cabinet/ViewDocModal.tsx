@@ -264,7 +264,7 @@ ${docTextClean}
       const res = await fetch(AI_CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ mode: "chat", messages: history }),
+        body: JSON.stringify({ mode: "chat", messages: history, ...(showEditor ? { max_tokens: 4000 } : {}) }),
       });
       const data = res.ok ? await res.json() : {};
       setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Не удалось получить ответ. Попробуйте ещё раз." }]);
