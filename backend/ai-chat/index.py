@@ -172,7 +172,7 @@ def is_case_law_not_found(answer) -> bool:
     low = answer.lower()
     return any(marker in low for marker in _CASE_LAW_NOT_FOUND_MARKERS)
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3, timeout: int = 55) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": "user" if m.get("role") == "user" else "assistant",
@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=timeout,  # 55с — используем весь бюджет таймаута функции (60с)
+        timeout=30,  # 30с — оставляем 15с запаса до таймаута функции (45с)
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
@@ -364,7 +364,6 @@ def handler(event: dict, context) -> dict:
             messages = messages[-6:]
 
         is_system_mode = messages and messages[0].get("role") == "system"
-        req_max_tokens = int(body.get("max_tokens", 0))
 
         # Параллельно: сжатие истории + определение маршрута
         _summary_result: list = []
@@ -392,8 +391,7 @@ def handler(event: dict, context) -> dict:
         if is_system_mode:
             custom_system = messages[0].get("content", SYSTEM_CHAT)
             chat_messages = clean_messages[1:]
-            _sys_max_tokens = req_max_tokens if req_max_tokens > 0 else 2000
-            answer = call_yandex(custom_system, chat_messages, max_tokens=_sys_max_tokens, fast=True)
+            answer = call_yandex(custom_system, chat_messages, max_tokens=2000, fast=True)
 
         elif _is_case_law:
             case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)
