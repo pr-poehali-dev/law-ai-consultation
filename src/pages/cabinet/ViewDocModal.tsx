@@ -385,12 +385,12 @@ ${docTextClean}
           )}
 
           {/* Разделитель между AI-чатом и реквизитами */}
-          {showAiFillChat && hasPlaceholders && (
+          {showAiFillChat && hasPlaceholders && !showEditor && (
             <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
           )}
 
-          {/* ── Правая панель реквизитов (только десктоп) ── */}
-          {hasPlaceholders && (
+          {/* ── Правая панель реквизитов (только десктоп, скрыта в режиме редактора) ── */}
+          {hasPlaceholders && !showEditor && (
             <ViewDocFillPanel
               placeholders={doc.placeholders}
               fillValues={fillValues}
