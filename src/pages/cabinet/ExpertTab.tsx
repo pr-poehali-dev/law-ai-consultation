@@ -9,6 +9,7 @@ import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
 import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
 import { useAttachment } from "./ExpertAttachPanel";
+import { packToZipIfNeeded, totalFilesSize } from "./zipAttachments";
 
 interface ExpertTabProps {
   user: User;
@@ -96,20 +97,47 @@ export default function ExpertTab({
     const uploadedUrls: { name: string; url: string }[] = [];
 
     if (fileAtts.length > 0) {
-      for (let i = 0; i < fileAtts.length; i++) {
-        const f = fileAtts[i];
-        setUploadProgress(Math.round(((i) / fileAtts.length) * 80));
-        const res = await lawyerUploadFile(f.b64, f.name);
-        if (res.error) {
-          setErr(`Ошибка загрузки ${f.name}: ${res.error}`);
+      const needsZip = totalFilesSize(fileAtts) > ZIP_THRESHOLD_BYTES;
+
+      if (needsZip) {
+        // Упаковываем все файлы в ZIP
+        setUploadProgress(20);
+        const zipFile = await packToZipIfNeeded(fileAtts);
+        if (!zipFile) {
+          setErr("Ошибка создания архива");
           sendingRef.current = false;
           setSending(false);
           setUploadProgress(0);
           return;
         }
-        if (res.url) uploadedUrls.push({ name: f.name, url: res.url });
+        setUploadProgress(50);
+        const res = await lawyerUploadFile(zipFile.b64, zipFile.name);
+        if (res.error) {
+          setErr(`Ошибка загрузки архива: ${res.error}`);
+          sendingRef.current = false;
+          setSending(false);
+          setUploadProgress(0);
+          return;
+        }
+        if (res.url) uploadedUrls.push({ name: zipFile.name, url: res.url });
+        setUploadProgress(90);
+      } else {
+        // Загружаем файлы по одному
+        for (let i = 0; i < fileAtts.length; i++) {
+          const f = fileAtts[i];
+          setUploadProgress(Math.round(((i) / fileAtts.length) * 80));
+          const res = await lawyerUploadFile(f.b64, f.name);
+          if (res.error) {
+            setErr(`Ошибка загрузки ${f.name}: ${res.error}`);
+            sendingRef.current = false;
+            setSending(false);
+            setUploadProgress(0);
+            return;
+          }
+          if (res.url) uploadedUrls.push({ name: f.name, url: res.url });
+        }
+        setUploadProgress(90);
       }
-      setUploadProgress(90);
     }
 
     const bodyParts: string[] = [];

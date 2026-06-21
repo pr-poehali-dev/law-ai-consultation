@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
+import { ZIP_THRESHOLD_BYTES } from "./zipAttachments";
 
 const MAX_FILES = 10;
 const MAX_FILE_MB = 10;
@@ -130,6 +131,10 @@ export function AttachmentBar({ attachments, onView, onRemove }: {
   onView: (v: { title: string; content: string; type: string; downloadUrl?: string }) => void;
   onRemove: (index: number) => void;
 }) {
+  const fileAtts = attachments.filter((a): a is FileAttachment => a.type === "file");
+  const totalBytes = fileAtts.reduce((s, f) => s + f.size, 0);
+  const willZip = totalBytes > ZIP_THRESHOLD_BYTES;
+
   return (
     <div className="flex flex-col gap-1.5 shrink-0 animate-fade-in">
       {attachments.map((att, i) => (
@@ -164,6 +169,14 @@ export function AttachmentBar({ attachments, onView, onRemove }: {
           </button>
         </div>
       ))}
+      {willZip && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+          <Icon name="Archive" size={12} className="text-amber-500 shrink-0" />
+          <p className="text-[11px] text-amber-700">
+            Файлы суммарно {(totalBytes / 1024 / 1024).toFixed(1)} МБ — при отправке будут упакованы в ZIP-архив
+          </p>
+        </div>
+      )}
     </div>
   );
 }
