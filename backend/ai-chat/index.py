@@ -172,7 +172,7 @@ def is_case_law_not_found(answer) -> bool:
     low = answer.lower()
     return any(marker in low for marker in _CASE_LAW_NOT_FOUND_MARKERS)
 
-def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3) -> str:
+def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast: bool = False, temperature: float = 0.3, timeout: int = 55) -> str:
     recent = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
     openai_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": "user" if m.get("role") == "user" else "assistant",
@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=30,  # 30с — оставляем 15с запаса до таймаута функции (45с)
+        timeout=timeout,  # 55с — используем весь бюджет таймаута функции (60с)
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
