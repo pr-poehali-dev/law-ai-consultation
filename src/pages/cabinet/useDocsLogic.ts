@@ -224,7 +224,18 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     const updated = { ...currentDoc, filled };
     setCurrentDoc(updated);
     saveGenDocs(genDocs.map((d) => d.id === updated.id ? updated : d));
-    // Не меняем фазу — реквизиты заполняются в предпросмотре, не должны менять фазу
+  };
+
+  const saveEditedContent = (docId: number, newContent: string) => {
+    const now = new Date();
+    const editedAt = `${now.toLocaleDateString("ru-RU")} ${now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
+    const updated = genDocs.map((d) =>
+      d.id === docId ? { ...d, editedContent: newContent, editedAt } : d
+    );
+    saveGenDocs(updated);
+    if (currentDoc?.id === docId) {
+      setCurrentDoc(prev => prev ? { ...prev, editedContent: newContent, editedAt } : prev);
+    }
   };
 
   return {
@@ -241,6 +252,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     generateDocWith,
     continueDoc,
     applyFillValues,
+    saveEditedContent,
     docAttachedFile, setDocAttachedFile,
     docAttachedFiles, setDocAttachedFiles,
   };

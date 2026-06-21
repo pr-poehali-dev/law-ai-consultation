@@ -211,6 +211,13 @@ export default function Cabinet() {
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
         onCloseViewDoc={() => setViewDoc(null)}
+        onSaveEdit={(docId, newContent) => {
+          docs.saveEditedContent(docId, newContent);
+          setViewDoc(prev => prev && prev.id === docId
+            ? { ...prev, editedContent: newContent, editedAt: new Date().toLocaleDateString("ru-RU") + " " + new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) }
+            : prev
+          );
+        }}
         onOpenPlanModal={(_minPlanId) => pay.openPlanModal()}
         onClosePlanModal={pay.closePlanModal}
         onSelectPlan={pay.handleSelectPlan}

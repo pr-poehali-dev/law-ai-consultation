@@ -50,7 +50,10 @@ export default function HistoryTab({ genDocs = [], onOpenDoc }: HistoryTabProps)
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-navy-800 truncate">{doc.name}</p>
-              <p className="text-xs text-muted-foreground">{doc.date}</p>
+              <p className="text-xs text-muted-foreground">
+                {doc.date}
+                {doc.editedAt && <span className="ml-1.5 text-amber-600">· ред. {doc.editedAt}</span>}
+              </p>
             </div>
             <div className="flex gap-1.5 shrink-0">
               {onOpenDoc && (
@@ -63,7 +66,7 @@ export default function HistoryTab({ genDocs = [], onOpenDoc }: HistoryTabProps)
                 </button>
               )}
               <button
-                onClick={() => downloadDoc(doc.name, doc.filled)}
+                onClick={() => downloadDoc(doc.name, doc.editedContent || doc.filled)}
                 className="text-xs text-navy-600 hover:text-navy-800 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center gap-1 border border-border"
               >
                 <Icon name="Download" size={12} />

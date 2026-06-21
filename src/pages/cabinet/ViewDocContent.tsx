@@ -117,6 +117,7 @@ interface ViewDocContentProps {
   prevDocContent: string | null;
   contentRef: React.RefObject<HTMLDivElement>;
   docScrollRef: React.RefObject<HTMLDivElement>;
+  editedAt?: string;
 }
 
 export default function ViewDocContent({
@@ -126,6 +127,7 @@ export default function ViewDocContent({
   prevDocContent,
   contentRef,
   docScrollRef,
+  editedAt,
 }: ViewDocContentProps) {
   const blocks = parseDocBlocks(currentDocContent);
   const hasBlocks = blocks.some(b => b.type !== "ТЕЛО");
@@ -146,6 +148,11 @@ export default function ViewDocContent({
               <>
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <p className="text-[10px] font-medium text-emerald-600">Обновлён AI</p>
+              </>
+            ) : editedAt ? (
+              <>
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <p className="text-[10px] font-medium text-amber-700">ред. {editedAt}</p>
               </>
             ) : (
               <>

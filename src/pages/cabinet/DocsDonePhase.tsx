@@ -51,7 +51,7 @@ export default function DocsDonePhase({
             Открыть
           </button>
           <button
-            onClick={() => onDownload(currentDoc.name, currentDoc.filled)}
+            onClick={() => onDownload(currentDoc.name, currentDoc.editedContent || currentDoc.filled)}
             className="btn-gold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 font-medium"
           >
             <Icon name="Download" size={13} />Скачать .docx
@@ -109,7 +109,10 @@ export default function DocsDonePhase({
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-navy-800 truncate">{doc.name}</div>
-                    <div className="text-xs text-muted-foreground">{doc.date}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {doc.date}
+                      {doc.editedAt && <span className="ml-1.5 text-amber-600">· ред. {doc.editedAt}</span>}
+                    </div>
                   </div>
                   <button onClick={() => onOpenDoc(doc)} className="shrink-0 p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
                     <Icon name="Eye" size={14} />
@@ -123,7 +126,7 @@ export default function DocsDonePhase({
                     Реквизиты
                   </button>
                   <button
-                    onClick={() => onDownload(doc.name, doc.filled)}
+                    onClick={() => onDownload(doc.name, doc.editedContent || doc.filled)}
                     className="flex-1 text-xs text-navy-600 px-2.5 py-2 rounded-lg hover:bg-navy-50 transition-colors flex items-center justify-center gap-1 border border-border"
                   >
                     <Icon name="Download" size={12} />Скачать

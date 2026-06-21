@@ -9,6 +9,7 @@ export interface ViewDocModalProps {
   onApplyFill?: () => void;
   paidQuestions?: number;
   onPayForQuestions?: () => void;
+  onSaveEdit?: (newContent: string) => void;
 }
 
 // Все возможные блоки из промтов (с пробелами, ё, цифрами)

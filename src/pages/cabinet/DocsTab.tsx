@@ -29,6 +29,8 @@ export interface GenDoc {
   placeholders: string[];
   truncated?: boolean;
   recommendations?: DocRecommendationItem[];
+  editedContent?: string;
+  editedAt?: string;
 }
 
 import { DOC_TYPES } from "@/pages/cabinet/docBlocks";

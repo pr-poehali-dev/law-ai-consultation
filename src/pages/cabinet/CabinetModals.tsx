@@ -23,6 +23,7 @@ interface CabinetModalsProps {
   onClosePayment: () => void;
   onPaySuccess: (type: ServiceType) => void;
   onCloseViewDoc: () => void;
+  onSaveEdit?: (docId: number, newContent: string) => void;
   onOpenPlanModal: (minPlanId?: string) => void;
   onClosePlanModal: () => void;
   onSelectPlan: (name: string, id: ServiceType) => void;
@@ -34,7 +35,7 @@ export default function CabinetModals({
   fillValues, onFillChange, onApplyFill,
   paidQuestions, onPayForQuestions,
   onClosePayment, onPaySuccess,
-  onCloseViewDoc, onOpenPlanModal, onClosePlanModal, onSelectPlan,
+  onCloseViewDoc, onSaveEdit, onOpenPlanModal, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [planMinId, setPlanMinId] = useState<string | undefined>(undefined);
@@ -60,6 +61,7 @@ export default function CabinetModals({
           onApplyFill={onApplyFill}
           paidQuestions={paidQuestions}
           onPayForQuestions={onPayForQuestions}
+          onSaveEdit={(newContent) => onSaveEdit?.(viewDoc.id, newContent)}
         />
       )}
 

@@ -18,7 +18,7 @@ import func2url from "../../../backend/func2url.json";
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
-export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -45,7 +45,7 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   const [aiFillTyping, setAiFillTyping] = useState(false);
   const aiFillEndRef = useRef<HTMLDivElement>(null);
   const aiFillInputRef = useRef<HTMLInputElement>(null);
-  const [currentDocContent, setCurrentDocContent] = useState(doc.content);
+  const [currentDocContent, setCurrentDocContent] = useState(doc.editedContent || doc.content);
   const [prevDocContent, setPrevDocContent] = useState<string | null>(null);
   const [docFlash, setDocFlash] = useState(false);
   const docScrollRef = useRef<HTMLDivElement | null>(null);
@@ -317,9 +317,11 @@ ${docTextClean}
                   setDocFlash(true);
                   setTimeout(() => setDocFlash(false), 3000);
                   setShowEditor(false);
+                  onSaveEdit?.(newContent);
                 }}
                 onClose={() => setShowEditor(false)}
                 onOpenAiChat={showAiFillChat ? () => { setShowEditor(false); } : undefined}
+                onAutoSave={(newContent) => onSaveEdit?.(newContent)}
               />
             ) : (
               <ViewDocContent
@@ -329,6 +331,7 @@ ${docTextClean}
                 prevDocContent={prevDocContent}
                 contentRef={contentRef}
                 docScrollRef={docScrollRef}
+                editedAt={doc.editedAt}
               />
             )}
 

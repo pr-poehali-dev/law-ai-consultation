@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, type ReactNode } from "react";
+import { useRef, useCallback, useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/icon";
 import { parseDocBlocks } from "./ViewDocUtils";
 
@@ -7,6 +7,7 @@ interface DocEditorPanelProps {
   onApply: (newContent: string) => void;
   onClose: () => void;
   onOpenAiChat?: () => void;
+  onAutoSave?: (newContent: string) => void;
 }
 
 // Преобразовать HTML-элемент в plain-text, сохраняя переносы строк
@@ -158,14 +159,31 @@ function Sep() {
 
 // ── Основной компонент ─────────────────────────────────────────────────────
 
-export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat }: DocEditorPanelProps) {
+export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat, onAutoSave }: DocEditorPanelProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editorRef.current) return;
     editorRef.current.innerHTML = buildHtml(content);
     editorRef.current.focus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Автосохранение каждые 15 секунд
+  useEffect(() => {
+    if (!onAutoSave) return;
+    const interval = setInterval(() => {
+      if (!editorRef.current) return;
+      const newContent = collectContent(editorRef.current);
+      onAutoSave(newContent);
+      const now = new Date();
+      setAutoSavedAt(`${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`);
+      setAutoSaved(true);
+      setTimeout(() => setAutoSaved(false), 2000);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [onAutoSave]);
 
   const handleApply = useCallback(() => {
     if (!editorRef.current) return;
@@ -246,6 +264,14 @@ export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat
           <option value="Georgia">Georgia</option>
           <option value="Calibri">Calibri</option>
         </select>
+
+        {/* Индикатор автосохранения */}
+        {onAutoSave && (
+          <span className={`ml-auto text-[10px] transition-all duration-500 flex items-center gap-1 ${autoSaved ? "text-emerald-600" : "text-slate-400"}`}>
+            <Icon name={autoSaved ? "CheckCircle" : "Clock"} size={11} />
+            {autoSaved ? "Сохранено" : autoSavedAt ? `авт. ${autoSavedAt}` : "авт. каждые 15с"}
+          </span>
+        )}
       </div>
 
       {/* Редактируемая область */}
