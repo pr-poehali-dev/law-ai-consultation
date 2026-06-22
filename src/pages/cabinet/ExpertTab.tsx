@@ -241,7 +241,7 @@ export default function ExpertTab({
     : "plan_starter";
 
   return (
-    <>
+    <div className="flex-1 flex flex-col min-h-0">
       <ExpertChat
         isAdmin={user.isAdmin}
         isFreeUser={isFreeUser}
@@ -332,6 +332,6 @@ export default function ExpertTab({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
