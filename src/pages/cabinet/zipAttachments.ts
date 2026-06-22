@@ -8,7 +8,7 @@ export interface FileAttachment {
   mimeType: string;
 }
 
-const ZIP_THRESHOLD_BYTES = 4 * 1024 * 1024; // 4 МБ суммарно — порог для ZIP (лимит платформы ~6 МБ с учётом base64)
+const ZIP_THRESHOLD_BYTES = 4 * 1024 * 1024; // >4 МБ суммарно → ZIP (после сжатия укладывается в лимит платформы)
 
 /** Возвращает суммарный размер файловых вложений в байтах */
 export function totalFilesSize(attachments: FileAttachment[]): number {
