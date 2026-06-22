@@ -1,5 +1,6 @@
 import Icon from "@/components/ui/icon";
 import { parseDocBlocks } from "./ViewDocUtils";
+import { downloadDoc } from "@/lib/docUtils";
 
 // Рендер строки основного текста (тело, доводы, описательная часть)
 function BodyLine({ line, i }: { line: string; i: number }) {
@@ -118,6 +119,7 @@ interface ViewDocContentProps {
   contentRef: React.RefObject<HTMLDivElement>;
   docScrollRef: React.RefObject<HTMLDivElement>;
   editedAt?: string;
+  docName?: string;
 }
 
 export default function ViewDocContent({
@@ -128,59 +130,77 @@ export default function ViewDocContent({
   contentRef,
   docScrollRef,
   editedAt,
+  docName,
 }: ViewDocContentProps) {
   const blocks = parseDocBlocks(currentDocContent);
   const hasBlocks = blocks.some(b => b.type !== "ТЕЛО");
 
+  const prevLines = prevDocContent ? new Set(prevDocContent.split("\n")) : null;
+  const changedCount = prevLines
+    ? currentDocContent.split("\n").filter(l => l.trim() && !prevLines.has(l)).length
+    : 0;
+
   return (
     <div className="flex-1 overflow-y-auto" ref={contentRef}>
-      <div className={`px-6 sm:px-8 pt-6 pb-4 border-b transition-all duration-700 ${docFlash ? "bg-gradient-to-b from-emerald-50 to-white border-emerald-100" : "bg-gradient-to-b from-slate-50 to-white border-slate-100"}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-1 h-8 rounded-full bg-gradient-to-b transition-all duration-700 ${docFlash ? "from-emerald-500 to-teal-400" : "from-navy-600 to-navy-400"}`} />
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Юрист AI · Документ</p>
-              <p className="text-xs font-semibold text-navy-700">{docDate}</p>
+      {/* ── Шапка предпросмотра ── */}
+      <div className={`px-4 sm:px-6 pt-4 pb-3 border-b transition-all duration-700 ${docFlash ? "bg-gradient-to-b from-emerald-50 to-white border-emerald-200" : "bg-white border-slate-100"}`}>
+        <div className="flex items-center gap-3">
+          {/* Статус */}
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-700 ${docFlash ? "bg-emerald-100" : "bg-slate-100"}`}>
+            <Icon name={docFlash ? "CheckCheck" : "FileText"} size={15} className={docFlash ? "text-emerald-600" : "text-slate-500"} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {docFlash ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Обновлён AI · {changedCount} строк
+                </span>
+              ) : editedAt ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  Отредактирован · {editedAt}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Готов к использованию
+                </span>
+              )}
+              <span className="text-[10px] text-slate-400">{docDate}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {docFlash ? (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <p className="text-[10px] font-medium text-emerald-600">Обновлён AI</p>
-              </>
-            ) : editedAt ? (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <p className="text-[10px] font-medium text-amber-700">ред. {editedAt}</p>
-              </>
-            ) : (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <p className="text-[10px] font-medium text-emerald-700">Готов к использованию</p>
-              </>
-            )}
-          </div>
+          {/* Кнопка скачать прямо в предпросмотре */}
+          {docName && (
+            <button
+              onClick={() => downloadDoc(docName, currentDocContent)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 active:scale-95 shrink-0"
+              style={{ background: "linear-gradient(135deg,#0a1628,#162d5a)", color: "#f0c060", border: "1px solid rgba(232,168,32,0.3)" }}
+            >
+              <Icon name="Download" size={12} />
+              Скачать
+            </button>
+          )}
         </div>
+
+        {/* Баннер об изменениях */}
+        {docFlash && changedCount > 0 && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-100/60 border border-emerald-200">
+            <Icon name="Sparkles" size={12} className="text-emerald-600 shrink-0" />
+            <p className="text-[11px] text-emerald-700 font-medium">
+              Правка применена — изменения подсвечены зелёным
+            </p>
+          </div>
+        )}
       </div>
 
       <div ref={docScrollRef} className="px-6 sm:px-10 py-6 font-serif" style={{ fontFamily: "'Times New Roman', Georgia, serif", fontSize: "12pt", lineHeight: "1.5" }}>
         {hasBlocks
           ? blocks.map((block, i) => <DocBlock key={i} type={block.type} lines={block.lines} />)
           : (() => {
-              const prevLines = prevDocContent ? new Set(prevDocContent.split("\n")) : null;
-              const changedCount = prevLines ? currentDocContent.split("\n").filter(l => l.trim() && !prevLines.has(l)).length : 0;
               let firstMarked = false;
               return (
                 <div className="space-y-1.5">
-                  {changedCount > 0 && (
-                    <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 sticky top-0 z-10">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      <p className="text-[11px] font-semibold text-emerald-700">
-                        AI внёс изменения: {changedCount} строк обновлено · подсвечено зелёным
-                      </p>
-                    </div>
-                  )}
                   {currentDocContent.split("\n").map((line, i) => {
                     if (!line.trim()) return <div key={i} className="h-2" />;
                     const isChanged = prevLines !== null && !prevLines.has(line);

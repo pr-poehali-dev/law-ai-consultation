@@ -264,10 +264,11 @@ ${docTextClean}
       const res = await fetch(AI_CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ mode: "chat", messages: history }),
+        body: JSON.stringify({ mode: "chat", messages: history, ...(showEditor ? { max_tokens: 2500 } : {}) }),
       });
       const data = res.ok ? await res.json() : {};
-      setAiFillMsgs(prev => [...prev, { role: "ai", text: data.answer || "Не удалось получить ответ. Попробуйте ещё раз." }]);
+      const answerText = data.answer || "Не удалось получить ответ. Попробуйте ещё раз.";
+      setAiFillMsgs(prev => [...prev, { role: "ai", text: answerText }]);
       // Списываем вопрос после успешного ответа
       if (res.ok) await consumeQuestion();
     } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения. Попробуйте ещё раз." }]); }
@@ -338,6 +339,14 @@ ${docTextClean}
       }
       setShowAiFillChat(true);
     }
+  };
+
+  const handleApplyPatch = (patch: string) => {
+    setPrevDocContent(currentDocContent);
+    setCurrentDocContent(patch);
+    setDocFlash(true);
+    setTimeout(() => setDocFlash(false), 3000);
+    onSaveEdit?.(patch);
   };
 
   const handleExpertOfferSuccess = async () => { setShowExpertOffer(false); await handleSendToLawyer(""); };
@@ -416,6 +425,7 @@ ${docTextClean}
                 contentRef={contentRef}
                 docScrollRef={docScrollRef}
                 editedAt={doc.editedAt}
+                docName={doc.name}
               />
             )}
 
@@ -467,6 +477,7 @@ ${docTextClean}
               onClose={() => setShowAiFillChat(false)}
               onInputChange={setAiFillInput}
               onSend={handleAiFillSend}
+              onApplyPatch={showEditor ? handleApplyPatch : undefined}
               onPayForQuestions={onPayForQuestions}
             />
           )}
@@ -502,6 +513,7 @@ ${docTextClean}
           onClose={() => setShowAiFillChat(false)}
           onInputChange={setAiFillInput}
           onSend={handleAiFillSend}
+          onApplyPatch={handleApplyPatch}
           onPayForQuestions={onPayForQuestions}
         />
       )}
