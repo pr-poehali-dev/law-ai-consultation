@@ -48,7 +48,7 @@ export default function ExpertChat({
   }, [onGoToChat]);
 
   return (
-    <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3" style={{ height: "clamp(480px, calc(100svh - 190px), 740px)" }}>
+    <div className="max-w-3xl w-full mx-auto flex flex-col gap-2 sm:gap-3 flex-1 min-h-0 pb-tab-bar md:pb-4">
 
       <ExpertChatHeader
         isAdmin={isAdmin}

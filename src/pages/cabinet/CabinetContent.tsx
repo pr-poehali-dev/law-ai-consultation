@@ -66,7 +66,7 @@ export default function CabinetContent({
   const [showProOffer, setShowProOffer] = useState(false);
   const [showExpertMaxOffer, setShowExpertMaxOffer] = useState(false);
   const [pendingLawyerMsg, setPendingLawyerMsg] = useState<{ text: string; userText?: string } | null>(null);
-  const isFlex = tab === "chat" || tab === "business";
+  const isFlex = tab === "chat" || tab === "business" || tab === "expert";
 
   const handleSendToLawyer = useCallback(async (msgText: string, prevUserText?: string) => {
     if (!user.paidExpert && !user.purchasedPlan && !user.isAdmin) {
