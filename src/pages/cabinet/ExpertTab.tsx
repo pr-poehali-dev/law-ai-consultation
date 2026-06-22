@@ -9,7 +9,7 @@ import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
 import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
 import { useAttachment } from "./ExpertAttachPanel";
-import { packToZipIfNeeded, totalFilesSize } from "./zipAttachments";
+import { packToZipIfNeeded, totalFilesSize, ZIP_THRESHOLD_BYTES } from "./zipAttachments";
 
 interface ExpertTabProps {
   user: User;
@@ -91,6 +91,7 @@ export default function ExpertTab({
     setSending(true);
     setErr("");
     setUploadProgress(0);
+    try {
 
     const fileAtts = attachments.filter(a => a.type === "file") as FileAttachment[];
     const contentAtts = attachments.filter(a => a.type !== "file") as ContentAttachment[];
@@ -197,6 +198,13 @@ export default function ExpertTab({
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
         onResumePing?.();
       });
+    } catch (e) {
+      sendingRef.current = false;
+      setSending(false);
+      setUploadProgress(0);
+      onResumePing?.();
+      setErr("Ошибка при отправке. Попробуйте ещё раз.");
+    }
   };
 
   const handleCompleteConsultation = async () => {
