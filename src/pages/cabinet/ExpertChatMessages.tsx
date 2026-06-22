@@ -10,13 +10,14 @@ type Props = Pick<
   | "onToggleAttachPanel" | "onUpgradePlan" | "onBuyLawyerQuestions"
 > & {
   bottomRef: React.RefObject<HTMLDivElement>;
+  targetUserId?: number;
 };
 
 export default function ExpertChatMessages({
   isAdmin, isFreeUser = false, isBlocked = false, currentPlanId = "plan_starter",
   lmsgs, loading,
   onToggleAttachPanel, onUpgradePlan, onBuyLawyerQuestions,
-  bottomRef,
+  bottomRef, targetUserId,
 }: Props) {
   const hasSentQuestion = isFreeUser && lmsgs.some(m => m.sender === "user");
   const hasLawyerReply = isFreeUser && lmsgs.some(m => m.sender === "admin");
@@ -53,7 +54,7 @@ export default function ExpertChatMessages({
         </div>
       ) : (
         <>
-          {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} />)}
+          {lmsgs.map((m) => <MsgBubble key={m.id} msg={m} isAdmin={isAdmin} targetUserId={targetUserId} />)}
 
           {isFreeUser && hasSentQuestion && isBlocked && !hasLawyerReply && (
             <FunnelFreeBeforeReply onUpgradePlan={onUpgradePlan} />

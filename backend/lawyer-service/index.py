@@ -368,7 +368,7 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
         if is_admin:
             if target_user_id:
                 cur.execute(
-                    f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at "
+                    f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at, edited_content, edited_at "
                     f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
                     (int(target_user_id), limit)
                 )
@@ -399,7 +399,7 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
                 ]})
         else:
             cur.execute(
-                f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at "
+                f"SELECT id, user_id, sender, body, attachment_type, attachment_name, attachment_content, is_read, created_at, edited_content, edited_at "
                 f"FROM {SCHEMA}.lawyer_messages WHERE user_id = %s ORDER BY created_at ASC LIMIT %s",
                 (user_id, limit)
             )
@@ -427,6 +427,8 @@ def handle_lawyer_messages(body: dict, user_id: int, is_admin: bool) -> dict:
             "body": r[3], "attachment_type": r[4],
             "attachment_name": r[5], "attachment_content": r[6], "is_read": r[7],
             "created_at": r[8].isoformat(),
+            "edited_content": r[9] if len(r) > 9 else None,
+            "edited_at": r[10].isoformat() if len(r) > 10 and r[10] else None,
         }
         for r in rows
     ]})
@@ -610,6 +612,56 @@ def handle_lawyer_cleanup_files(token: str) -> dict:
     return _ok({"deleted": len(deleted)})
 
 
+def handle_lawyer_edit_doc(body: dict, user_id: int, is_admin: bool) -> dict:
+    """Юрист сохраняет правку документа. Записывает edited_content в сообщение с документом.
+    Пользователь при следующей загрузке сообщений получает отредактированный документ."""
+    if not is_admin:
+        return _err(403, "Только для юриста")
+
+    target_user_id = body.get("target_user_id")
+    msg_id = body.get("msg_id")          # ID сообщения с документом
+    edited_content = body.get("edited_content", "")
+    att_name = body.get("attachment_name", "")
+
+    if not target_user_id or not msg_id:
+        return _err(400, "Укажите target_user_id и msg_id")
+    if not edited_content:
+        return _err(400, "Пустое содержимое документа")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"UPDATE {SCHEMA}.lawyer_messages "
+            f"SET edited_content=%s, edited_at=NOW() "
+            f"WHERE id=%s AND user_id=%s AND attachment_type='document' "
+            f"RETURNING id, edited_at",
+            (edited_content, int(msg_id), int(target_user_id))
+        )
+        row = cur.fetchone()
+        if not row:
+            return _err(404, "Сообщение не найдено или не является документом")
+        conn.commit()
+        edited_at_iso = row[1].isoformat()
+    finally:
+        cur.close()
+        conn.close()
+
+    # Push пользователю о готовности отредактированного документа
+    try:
+        _push_to_users(
+            [int(target_user_id)],
+            title="📝 Юрист отредактировал документ — ИИ-Право.рф",
+            body=f"Документ «{att_name}» готов к скачиванию с правками юриста",
+            url="/cabinet?tab=expert",
+            tag="lawyer-doc-edit",
+        )
+    except Exception as e:
+        print(f"[PUSH_DOC_EDIT] {e}")
+
+    return _ok({"saved": True, "msg_id": int(msg_id), "edited_at": edited_at_iso})
+
+
 # ─────────────────────────────────────────────
 # Главный обработчик
 # ─────────────────────────────────────────────
@@ -664,6 +716,7 @@ def handler(event: dict, context) -> dict:
         "lawyer-close-dialog",
         "lawyer-complete-consultation",
         "lawyer-upload-file",
+        "lawyer-edit-doc",
     }
 
     if action in TOKEN_REQUIRED_ACTIONS:
@@ -691,6 +744,9 @@ def handler(event: dict, context) -> dict:
 
         if action == "lawyer-upload-file":
             return _result_response(handle_lawyer_upload_file(body, user_id))
+
+        if action == "lawyer-edit-doc":
+            return _result_response(handle_lawyer_edit_doc(body, user_id, is_admin))
 
     # Действия с токеном внутри хендлера (проверяют сами)
     if action == "lawyer-complete-service":

@@ -89,6 +89,7 @@ export default function ExpertChat({
         onUpgradePlan={onUpgradePlan}
         onBuyLawyerQuestions={onBuyLawyerQuestions}
         bottomRef={bottomRef}
+        targetUserId={selectedUserId ?? undefined}
       />
 
       <ExpertChatInput

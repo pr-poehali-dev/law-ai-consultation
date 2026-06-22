@@ -28,25 +28,42 @@ export interface ContentAttachment {
 export type Attachment = FileAttachment | ContentAttachment;
 
 // ── Модальное окно предпросмотра ─────────────────────────────────────
-export function AttachmentModal({ title, content, type, downloadUrl, onClose }: {
+export function AttachmentModal({ title, content, type, downloadUrl, onClose,
+  isAdmin, msgId, targetUserId, editedContent, editedAt,
+}: {
   title: string;
   content: string;
   type: string;
   downloadUrl?: string;
   onClose: () => void;
+  isAdmin?: boolean;
+  msgId?: number;
+  targetUserId?: number;
+  editedContent?: string;
+  editedAt?: string;
 }) {
   const isImage = type === "image";
   const isFile = type === "file";
+  const canEdit = isAdmin && type === "document" && !!msgId && !!targetUserId;
+
+  const [editMode, setEditMode] = useState(false);
+  const [editText, setEditText] = useState(editedContent || content || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+
+  const displayContent = editedContent || content;
 
   const handleDownload = () => {
-    if (downloadUrl) {
+    const src = editMode ? editText : displayContent;
+    if (downloadUrl && !editMode) {
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = title;
       a.target = "_blank";
       a.click();
-    } else if (content) {
-      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    } else if (src) {
+      const blob = new Blob([src], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -54,6 +71,24 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const handleSave = async () => {
+    if (!canEdit || !msgId || !targetUserId) return;
+    setSaving(true);
+    setSaveErr("");
+    const { lawyerEditDoc } = await import("@/lib/auth");
+    const res = await lawyerEditDoc({
+      target_user_id: targetUserId,
+      msg_id: msgId,
+      edited_content: editText,
+      attachment_name: title,
+    });
+    setSaving(false);
+    if (res.error) { setSaveErr(res.error); return; }
+    setSaved(true);
+    setEditMode(false);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   return createPortal(
@@ -64,23 +99,55 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
         {/* Header */}
         <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 shrink-0 border-b border-slate-100">
           <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-            type === "document" ? "bg-navy-800" :
+            type === "document" ? (editMode ? "bg-amber-500" : "bg-navy-800") :
             type === "chat_answer" ? "bg-indigo-600" : "bg-amber-100"
           }`}>
             <Icon
-              name={type === "document" ? "FileText" : type === "chat_answer" ? "Bot" : type === "image" ? "Image" : "File"}
+              name={editMode ? "Pencil" : type === "document" ? "FileText" : type === "chat_answer" ? "Bot" : type === "image" ? "Image" : "File"}
               size={17}
               color={type === "file" ? "#d97706" : "white"}
             />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              {type === "document" ? "Документ" : type === "chat_answer" ? "Ответ AI" : "Файл"}
+              {editMode ? "Редактирование документа" : editedAt ? `Отредактирован юристом · ${editedAt.slice(0,10)}` : type === "document" ? "Документ" : type === "chat_answer" ? "Ответ AI" : "Файл"}
             </p>
             <p className="text-sm font-bold text-navy-900 truncate leading-tight">{title}</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {(downloadUrl || content) && (
+            {saved && (
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
+                <Icon name="CheckCheck" size={11} />Сохранено
+              </span>
+            )}
+            {canEdit && !editMode && (
+              <button
+                onClick={() => { setEditText(editedContent || content || ""); setEditMode(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors"
+              >
+                <Icon name="Pencil" size={12} />
+                Редактировать
+              </button>
+            )}
+            {editMode && (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
+                >
+                  {saving ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Icon name="Save" size={12} />}
+                  Сохранить
+                </button>
+                <button
+                  onClick={() => { setEditMode(false); setSaveErr(""); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors"
+                >
+                  Отмена
+                </button>
+              </>
+            )}
+            {!editMode && (downloadUrl || displayContent) && (
               <button
                 onClick={handleDownload}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-800 text-white rounded-xl text-xs font-semibold hover:bg-navy-700 transition-colors"
@@ -95,9 +162,44 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
           </div>
         </div>
 
+        {/* Ошибка сохранения */}
+        {saveErr && (
+          <div className="shrink-0 px-4 py-2 bg-red-50 border-b border-red-100 text-xs text-red-600 flex items-center gap-2">
+            <Icon name="AlertCircle" size={12} />
+            {saveErr}
+          </div>
+        )}
+
+        {/* Баннер об уже сохранённой правке (для пользователя) */}
+        {!isAdmin && editedContent && editedAt && (
+          <div className="shrink-0 px-4 py-2.5 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+            <Icon name="CheckCircle" size={13} className="text-emerald-600 shrink-0" />
+            <p className="text-xs text-emerald-700 font-medium">
+              Юрист внёс правки · {editedAt.slice(0, 10)} — скачайте обновлённую версию
+            </p>
+            <button
+              onClick={handleDownload}
+              className="ml-auto flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
+            >
+              <Icon name="Download" size={10} />Скачать
+            </button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          {isImage && downloadUrl ? (
+          {editMode ? (
+            <div className="p-4 h-full flex flex-col gap-2">
+              <p className="text-[11px] text-slate-400">Редактируйте текст документа — пользователь увидит правки после сохранения</p>
+              <textarea
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                className="flex-1 w-full border border-slate-200 rounded-xl p-4 text-sm text-navy-800 leading-relaxed resize-none outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 font-mono"
+                style={{ minHeight: "400px" }}
+                placeholder="Текст документа..."
+              />
+            </div>
+          ) : isImage && downloadUrl ? (
             <div className="flex items-center justify-center p-6 min-h-[200px] bg-slate-50">
               <img src={downloadUrl} alt={title} className="max-w-full max-h-[60vh] object-contain rounded-2xl shadow-lg" />
             </div>
@@ -111,13 +213,13 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
                 <p className="text-sm text-muted-foreground">Нажмите «Скачать» для просмотра</p>
               </div>
             </div>
-          ) : type === "document" && content ? (
+          ) : type === "document" && displayContent ? (
             <div className="px-4 sm:px-8 py-5 sm:py-6 bg-white">
-              <DocPreview content={content} fillValues={{}} />
+              <DocPreview content={displayContent} fillValues={{}} />
             </div>
           ) : (
             <div className="p-5 text-sm text-navy-800 whitespace-pre-wrap leading-relaxed font-golos">
-              {content || <span className="text-muted-foreground italic">Содержимое недоступно</span>}
+              {displayContent || <span className="text-muted-foreground italic">Содержимое недоступно</span>}
             </div>
           )}
         </div>

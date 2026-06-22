@@ -623,6 +623,8 @@ export interface LawyerMessage {
   attachment_content?: string;
   is_read: boolean;
   created_at: string;
+  edited_content?: string;
+  edited_at?: string;
 }
 
 export interface LawyerDialog {
@@ -650,6 +652,18 @@ export async function lawyerSend(params: {
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка отправки" };
   return { ok: true };
+}
+
+export async function lawyerEditDoc(params: {
+  target_user_id: number;
+  msg_id: number;
+  edited_content: string;
+  attachment_name?: string;
+}): Promise<{ ok?: boolean; edited_at?: string; error?: string }> {
+  const res = await apiCall({ action: "lawyer-edit-doc", ...params }, 10000, true);
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || "Ошибка сохранения" };
+  return { ok: true, edited_at: data.edited_at };
 }
 
 export async function lawyerMessages(params?: {

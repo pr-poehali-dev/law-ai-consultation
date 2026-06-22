@@ -62,6 +62,29 @@ export function useLawyerNotifications(
     ]);
   }, []);
 
+  // ── Применить правки юриста к localStorage документов ────────────────────────
+  const applyLawyerEdits = useCallback((messages: LawyerMessage[]) => {
+    try {
+      const edited = messages.filter(m => m.attachment_type === "document" && m.edited_content && m.attachment_name);
+      if (!edited.length) return;
+      const saved = localStorage.getItem("cabinet_docs");
+      if (!saved) return;
+      const docs: Array<{ id: number; name: string; editedContent?: string; editedAt?: string; [k: string]: unknown }> = JSON.parse(saved);
+      let changed = false;
+      const now = new Date();
+      const editedAt = `${now.toLocaleDateString("ru-RU")} ${now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
+      const updated = docs.map(doc => {
+        const match = edited.find(m => m.attachment_name && doc.name && m.attachment_name.toLowerCase() === doc.name.toLowerCase());
+        if (!match?.edited_content) return doc;
+        // Не перезаписываем если уже применена эта версия
+        if (doc.editedContent === match.edited_content) return doc;
+        changed = true;
+        return { ...doc, editedContent: match.edited_content, editedAt };
+      });
+      if (changed) localStorage.setItem("cabinet_docs", JSON.stringify(updated));
+    } catch { /* ignore */ }
+  }, []);
+
   // ── Загрузка сообщений пользователя ──────────────────────────────────────────
   const fetchUserMsgs = useCallback(async (force = false) => {
     if (!userId || isAdmin) return;
@@ -72,6 +95,7 @@ export function useLawyerNotifications(
       const res = await lawyerMessages();
       if (!res.messages) return;
       setMsgs(res.messages);
+      applyLawyerEdits(res.messages);
       const unread = res.messages.filter(m => m.sender === "admin" && !m.is_read);
       setUnreadCount(isOnExpertTabRef.current ? 0 : unread.length);
       const adminMsgs = res.messages.filter(m => m.sender === "admin");
@@ -83,7 +107,7 @@ export function useLawyerNotifications(
       fetchingRef.current = false;
       setLoading(false);
     }
-  }, [userId, isAdmin]);
+  }, [userId, isAdmin, applyLawyerEdits]);
 
   // ── Загрузка диалогов (для админа) ───────────────────────────────────────────
   const fetchDialogs = useCallback(async () => {

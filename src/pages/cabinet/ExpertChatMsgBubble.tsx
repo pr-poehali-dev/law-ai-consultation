@@ -8,9 +8,10 @@ import { EXPERT_NAME, fmtTime, parseFileLinks } from "./ExpertChatUtils";
 interface MsgBubbleProps {
   msg: LawyerMessage;
   isAdmin: boolean;
+  targetUserId?: number;
 }
 
-export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
+export default function MsgBubble({ msg, isAdmin, targetUserId }: MsgBubbleProps) {
   const isMe = isAdmin ? msg.sender === "admin" : msg.sender === "user";
   const [viewAtt, setViewAtt] = useState(false);
   const hasContent = !!(msg.attachment_content && msg.attachment_content.length > 5);
@@ -78,12 +79,17 @@ export default function MsgBubble({ msg, isAdmin }: MsgBubbleProps) {
           {isAdmin ? "A" : ((text || msg.attachment_name || "U")[0]?.toUpperCase() ?? "U")}
         </div>
       )}
-      {viewAtt && msg.attachment_content && (
+      {viewAtt && (msg.attachment_content || msg.edited_content) && (
         <AttachmentModal
           title={msg.attachment_name || ""}
-          content={msg.attachment_content}
+          content={msg.attachment_content || ""}
           type={msg.attachment_type || ""}
           onClose={() => setViewAtt(false)}
+          isAdmin={isAdmin}
+          msgId={msg.id}
+          targetUserId={targetUserId ?? msg.user_id}
+          editedContent={msg.edited_content}
+          editedAt={msg.edited_at}
         />
       )}
     </div>
