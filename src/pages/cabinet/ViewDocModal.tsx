@@ -447,7 +447,7 @@ ${docTextClean}
               reportSent={reportSent}
               showEditor={showEditor}
               onSendToLawyer={handleSendToLawyer}
-              onAiEditorClick={showEditor ? () => setShowEditor(false) : handleAiEditorClick}
+              onAiEditorClick={showEditor ? () => { setShowEditor(false); setShowAiFillChat(false); } : handleAiEditorClick}
               onAiFillChatClick={handleOpenAiFillChat}
               onToggleRecs={() => setShowRecs(v => !v)}
               onClose={handleClose}
