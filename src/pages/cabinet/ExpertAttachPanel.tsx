@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { ChatMsg } from "./ChatTab";
@@ -55,7 +56,7 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:rounded-3xl sm:max-w-2xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col overflow-hidden shadow-2xl rounded-t-3xl">
@@ -121,7 +122,8 @@ export function AttachmentModal({ title, content, type, downloadUrl, onClose }: 
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
