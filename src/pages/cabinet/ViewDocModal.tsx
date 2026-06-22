@@ -375,7 +375,7 @@ ${docTextClean}
         onClick={handleClose}
       >
         <div
-          className={`bg-white w-full sm:rounded-3xl flex shadow-2xl transition-all duration-250 ease-out
+          className={`bg-white w-full sm:rounded-3xl flex shadow-2xl transition-all duration-250 ease-out overflow-hidden
             ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-[0.97]"}
             rounded-t-3xl
             max-h-[95dvh] sm:max-h-[90vh]
@@ -383,7 +383,7 @@ ${docTextClean}
           onClick={e => e.stopPropagation()}
         >
           {/* ── Левая/основная часть: документ ── */}
-          <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex flex-col flex-1 min-w-0 min-h-0">
             <ViewDocModalHeader
               docName={doc.name}
               docDate={doc.date}
