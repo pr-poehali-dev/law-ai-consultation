@@ -234,7 +234,7 @@ export function AttachmentBar({ attachments, onView, onRemove }: {
   const willZip = totalBytes > ZIP_THRESHOLD_BYTES;
 
   return (
-    <div className="flex flex-col gap-1.5 shrink-0 animate-fade-in">
+    <div className="flex flex-col gap-1.5 animate-fade-in max-h-40 overflow-y-auto">
       {attachments.map((att, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-2.5 bg-navy-50 border border-navy-200 rounded-2xl">
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
