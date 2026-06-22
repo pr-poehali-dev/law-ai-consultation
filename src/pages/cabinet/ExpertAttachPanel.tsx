@@ -332,9 +332,9 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent,
   };
 
   return (
-    <div className="bg-white border border-border rounded-2xl overflow-hidden shrink-0 animate-fade-in shadow-lg">
+    <div className="bg-white border border-border rounded-2xl overflow-hidden shrink-0 animate-fade-in shadow-lg flex flex-col max-h-72">
       {/* Заголовок */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-slate-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-slate-50 shrink-0">
         <p className="text-xs font-semibold text-navy-700">Прикрепить к сообщению</p>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">{currentCount}/{MAX_FILES} файлов</span>
@@ -344,7 +344,7 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent,
         </div>
       </div>
 
-      <div className="p-3 flex flex-col gap-3">
+      <div className="p-3 flex flex-col gap-3 overflow-y-auto">
         {/* Скрытые input-ы */}
         <input
           ref={fileInputRef}
