@@ -42,6 +42,7 @@ export default function ExpertTab({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [err, setErr] = useState("");
   const [showArchive, setShowArchive] = useState(false);
   const [adminAction, setAdminAction] = useState<"complete" | "hide" | null>(null);
@@ -91,6 +92,7 @@ export default function ExpertTab({
     setSending(true);
     setErr("");
     setUploadProgress(0);
+    setUploadStatus("");
     try {
 
     const fileAtts = attachments.filter(a => a.type === "file") as FileAttachment[];
@@ -103,44 +105,52 @@ export default function ExpertTab({
       if (needsZip) {
         // Упаковываем в ZIP-части по ~3 МБ и загружаем последовательно
         setUploadProgress(10);
+        setUploadStatus("Сжимаем файлы...");
         const parts = await packToZipParts(fileAtts);
         if (!parts || parts.length === 0) {
           setErr("Ошибка создания архива");
           sendingRef.current = false;
           setSending(false);
           setUploadProgress(0);
+          setUploadStatus("");
           return;
         }
         for (let i = 0; i < parts.length; i++) {
           const part = parts[i];
           setUploadProgress(Math.round(10 + ((i / parts.length) * 80)));
+          setUploadStatus(parts.length > 1 ? `Загружаем часть ${i + 1} из ${parts.length}...` : "Загружаем архив...");
           const res = await lawyerUploadFile(part.b64, part.name);
           if (res.error) {
             setErr(`Ошибка загрузки архива (часть ${i + 1}): ${res.error}`);
             sendingRef.current = false;
             setSending(false);
             setUploadProgress(0);
+            setUploadStatus("");
             return;
           }
           if (res.url) uploadedUrls.push({ name: part.name, url: res.url });
         }
         setUploadProgress(90);
+        setUploadStatus("Отправляем...");
       } else {
         // Загружаем файлы по одному
         for (let i = 0; i < fileAtts.length; i++) {
           const f = fileAtts[i];
           setUploadProgress(Math.round((i / fileAtts.length) * 80));
+          setUploadStatus(fileAtts.length > 1 ? `Файл ${i + 1} из ${fileAtts.length}...` : "Загружаем файл...");
           const res = await lawyerUploadFile(f.b64, f.name);
           if (res.error) {
             setErr(`Ошибка загрузки ${f.name}: ${res.error}`);
             sendingRef.current = false;
             setSending(false);
             setUploadProgress(0);
+            setUploadStatus("");
             return;
           }
           if (res.url) uploadedUrls.push({ name: f.name, url: res.url });
         }
         setUploadProgress(90);
+        setUploadStatus("Отправляем...");
       }
     }
 
@@ -191,6 +201,7 @@ export default function ExpertTab({
         sendingRef.current = false;
         setSending(false);
         setUploadProgress(0);
+        setUploadStatus("");
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
         onResumePing?.();
       })
@@ -198,6 +209,7 @@ export default function ExpertTab({
         sendingRef.current = false;
         setSending(false);
         setUploadProgress(0);
+        setUploadStatus("");
         if (onRefreshDialog) { onRefreshDialog(); } else { onRefreshLawyer(); }
         onResumePing?.();
       });
@@ -205,6 +217,7 @@ export default function ExpertTab({
       sendingRef.current = false;
       setSending(false);
       setUploadProgress(0);
+      setUploadStatus("");
       onResumePing?.();
       setErr("Ошибка при отправке. Попробуйте ещё раз.");
     }
@@ -263,6 +276,7 @@ export default function ExpertTab({
         input={input}
         sending={sending}
         uploadProgress={uploadProgress}
+        uploadStatus={uploadStatus}
         err={err}
         attachments={attachments}
         showAttachPanel={showAttachPanel}

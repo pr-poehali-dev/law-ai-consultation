@@ -39,6 +39,7 @@ export interface ExpertChatProps {
   input: string;
   sending: boolean;
   uploadProgress: number;
+  uploadStatus?: string;
   err: string;
   attachments: Attachment[];
   showAttachPanel: boolean;

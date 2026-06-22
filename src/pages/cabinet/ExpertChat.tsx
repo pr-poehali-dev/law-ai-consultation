@@ -10,7 +10,7 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function ExpertChat({
   isAdmin, isFreeUser = false, isDialogClosed = false, selectedUserId, currentDialog, lmsgs, loading,
-  input, sending, uploadProgress, err, attachments, showAttachPanel, viewFullMsg,
+  input, sending, uploadProgress, uploadStatus, err, attachments, showAttachPanel, viewFullMsg,
   aiAnswers, genDocs, isBlocked = false, lawyerQLeft = 0, currentPlanId = "plan_starter",
   onBack, onRefresh, onInputChange, onSend,
   onToggleAttachPanel, onHideAttachPanel,
@@ -99,6 +99,7 @@ export default function ExpertChat({
         input={input}
         sending={sending}
         uploadProgress={uploadProgress}
+        uploadStatus={uploadStatus}
         err={err}
         attachments={attachments}
         showAttachPanel={showAttachPanel}

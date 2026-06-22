@@ -5,7 +5,7 @@ import type { ExpertChatProps } from "./ExpertChatUtils";
 type Props = Pick<
   ExpertChatProps,
   | "isAdmin" | "isBlocked" | "isDialogClosed"
-  | "input" | "sending" | "uploadProgress" | "err"
+  | "input" | "sending" | "uploadProgress" | "uploadStatus" | "err"
   | "attachments" | "showAttachPanel" | "viewFullMsg"
   | "aiAnswers" | "genDocs"
   | "onInputChange" | "onSend"
@@ -17,7 +17,7 @@ type Props = Pick<
 
 export default function ExpertChatInput({
   isAdmin, isBlocked = false, isDialogClosed = false,
-  input, sending, uploadProgress, err,
+  input, sending, uploadProgress, uploadStatus, err,
   attachments, showAttachPanel, viewFullMsg,
   aiAnswers, genDocs,
   onInputChange, onSend,
@@ -32,7 +32,7 @@ export default function ExpertChatInput({
         {sending && uploadProgress > 0 && uploadProgress < 100 && (
           <div className="px-4 pt-3 pb-1">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-[11px] text-muted-foreground">Загрузка файлов...</p>
+              <p className="text-[11px] text-muted-foreground">{uploadStatus || "Загрузка файлов..."}</p>
               <p className="text-[11px] font-semibold text-navy-700 ml-auto">{uploadProgress}%</p>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
