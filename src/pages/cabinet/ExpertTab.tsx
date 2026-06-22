@@ -9,7 +9,7 @@ import ExpertDialogList from "./ExpertDialogList";
 import ExpertChat from "./ExpertChat";
 import type { Attachment, FileAttachment, ContentAttachment } from "./ExpertAttachPanel";
 import { useAttachment } from "./ExpertAttachPanel";
-import { packToZipIfNeeded, totalFilesSize, ZIP_THRESHOLD_BYTES } from "./zipAttachments";
+import { packToZipParts, totalFilesSize, ZIP_THRESHOLD_BYTES } from "./zipAttachments";
 
 interface ExpertTabProps {
   user: User;
@@ -101,32 +101,35 @@ export default function ExpertTab({
       const needsZip = totalFilesSize(fileAtts) > ZIP_THRESHOLD_BYTES;
 
       if (needsZip) {
-        // Упаковываем все файлы в ZIP
-        setUploadProgress(20);
-        const zipFile = await packToZipIfNeeded(fileAtts);
-        if (!zipFile) {
+        // Упаковываем в ZIP-части по ~3 МБ и загружаем последовательно
+        setUploadProgress(10);
+        const parts = await packToZipParts(fileAtts);
+        if (!parts || parts.length === 0) {
           setErr("Ошибка создания архива");
           sendingRef.current = false;
           setSending(false);
           setUploadProgress(0);
           return;
         }
-        setUploadProgress(50);
-        const res = await lawyerUploadFile(zipFile.b64, zipFile.name);
-        if (res.error) {
-          setErr(`Ошибка загрузки архива: ${res.error}`);
-          sendingRef.current = false;
-          setSending(false);
-          setUploadProgress(0);
-          return;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          setUploadProgress(Math.round(10 + ((i / parts.length) * 80)));
+          const res = await lawyerUploadFile(part.b64, part.name);
+          if (res.error) {
+            setErr(`Ошибка загрузки архива (часть ${i + 1}): ${res.error}`);
+            sendingRef.current = false;
+            setSending(false);
+            setUploadProgress(0);
+            return;
+          }
+          if (res.url) uploadedUrls.push({ name: part.name, url: res.url });
         }
-        if (res.url) uploadedUrls.push({ name: zipFile.name, url: res.url });
         setUploadProgress(90);
       } else {
         // Загружаем файлы по одному
         for (let i = 0; i < fileAtts.length; i++) {
           const f = fileAtts[i];
-          setUploadProgress(Math.round(((i) / fileAtts.length) * 80));
+          setUploadProgress(Math.round((i / fileAtts.length) * 80));
           const res = await lawyerUploadFile(f.b64, f.name);
           if (res.error) {
             setErr(`Ошибка загрузки ${f.name}: ${res.error}`);

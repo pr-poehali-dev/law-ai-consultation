@@ -6,11 +6,9 @@ import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
 import { ZIP_THRESHOLD_BYTES, type FileAttachment } from "./zipAttachments";
 
-const MAX_FILES = 10;
+const MAX_FILES = 20;
 const MAX_FILE_MB = 4;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
-const MAX_TOTAL_MB = 8;
-const MAX_TOTAL_BYTES = MAX_TOTAL_MB * 1024 * 1024;
 const ALLOWED_EXTS = ["pdf", "docx", "doc", "jpg", "jpeg", "png", "txt"];
 
 export type { FileAttachment };
@@ -273,7 +271,8 @@ export function AttachmentBar({ attachments, onView, onRemove }: {
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
           <Icon name="Archive" size={12} className="text-amber-500 shrink-0" />
           <p className="text-[11px] text-amber-700">
-            Суммарно {(totalBytes / 1024 / 1024).toFixed(1)} МБ — файлы будут сжаты в ZIP-архив при отправке
+            Суммарно {(totalBytes / 1024 / 1024).toFixed(1)} МБ — файлы будут автоматически сжаты в ZIP
+            {totalBytes > 3 * 1024 * 1024 * 2 ? " и разбиты на части" : ""} при отправке
           </p>
         </div>
       )}
@@ -282,11 +281,10 @@ export function AttachmentBar({ attachments, onView, onRemove }: {
 }
 
 // ── Панель выбора/загрузки материала ─────────────────────────────────
-export function AttachPanel({ aiAnswers, genDocs, currentCount, currentTotalBytes = 0, onSelectContent, onFilesAdded, onClose }: {
+export function AttachPanel({ aiAnswers, genDocs, currentCount, onSelectContent, onFilesAdded, onClose }: {
   aiAnswers: ChatMsg[];
   genDocs: GenDoc[];
   currentCount: number;
-  currentTotalBytes?: number;
   onSelectContent: (att: ContentAttachment) => void;
   onFilesAdded: (files: FileAttachment[]) => void;
   onClose: () => void;
@@ -307,7 +305,6 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, currentTotalByte
     const toProcess = Array.from(fileList).slice(0, remaining);
     const results: FileAttachment[] = [];
     let processed = 0;
-    let runningTotal = currentTotalBytes;
 
     toProcess.forEach(file => {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
@@ -323,13 +320,6 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, currentTotalByte
         if (processed === toProcess.length && results.length > 0) onFilesAdded(results);
         return;
       }
-      if (runningTotal + file.size > MAX_TOTAL_BYTES) {
-        setUploadErr(`Суммарный размер файлов не может превышать ${MAX_TOTAL_MB} МБ`);
-        processed++;
-        if (processed === toProcess.length && results.length > 0) onFilesAdded(results);
-        return;
-      }
-      runningTotal += file.size;
       const reader = new FileReader();
       reader.onload = (e) => {
         const b64 = (e.target?.result as string).split(",")[1] || "";
@@ -402,7 +392,7 @@ export function AttachPanel({ aiAnswers, genDocs, currentCount, currentTotalByte
         </div>
 
         <p className="text-[10px] text-muted-foreground px-1">
-          Суммарно до {MAX_TOTAL_MB} МБ · файлы свыше {MAX_TOTAL_MB / 2} МБ сжимаются в ZIP-архив автоматически
+          До {MAX_FILE_MB} МБ на файл · при суммарном размере свыше 3 МБ файлы сжимаются в ZIP-архивы автоматически
         </p>
 
         {uploadErr && (

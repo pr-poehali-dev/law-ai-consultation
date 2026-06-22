@@ -60,7 +60,6 @@ export default function ExpertChatInput({
               aiAnswers={aiAnswers}
               genDocs={genDocs}
               currentCount={attachments.length}
-              currentTotalBytes={attachments.filter(a => a.type === "file").reduce((s, a) => s + (a as import("./ExpertAttachPanel").FileAttachment).size, 0)}
               onSelectContent={onAddAttachment}
               onFilesAdded={onAddFiles}
               onClose={onHideAttachPanel}
