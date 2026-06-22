@@ -1,5 +1,12 @@
 import JSZip from "jszip";
-import type { FileAttachment } from "./ExpertAttachPanel";
+
+export interface FileAttachment {
+  type: "file";
+  name: string;
+  b64: string;
+  size: number;
+  mimeType: string;
+}
 
 const ZIP_THRESHOLD_BYTES = 10 * 1024 * 1024; // 10 МБ суммарно — порог для ZIP
 

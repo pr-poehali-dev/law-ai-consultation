@@ -4,20 +4,14 @@ import Icon from "@/components/ui/icon";
 import DocPreview from "@/components/DocPreview";
 import type { ChatMsg } from "./ChatTab";
 import type { GenDoc } from "./DocsTab";
-import { ZIP_THRESHOLD_BYTES } from "./zipAttachments";
+import { ZIP_THRESHOLD_BYTES, type FileAttachment } from "./zipAttachments";
 
 const MAX_FILES = 10;
 const MAX_FILE_MB = 10;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const ALLOWED_EXTS = ["pdf", "docx", "doc", "jpg", "jpeg", "png", "txt"];
 
-export interface FileAttachment {
-  type: "file";
-  name: string;
-  b64: string;
-  size: number;
-  mimeType: string;
-}
+export type { FileAttachment };
 
 export interface ContentAttachment {
   type: "chat_answer" | "document";
