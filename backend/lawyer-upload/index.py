@@ -92,8 +92,8 @@ def handler(event: dict, context) -> dict:
     except Exception:
         return _json(400, {"error": "Некорректный base64"})
 
-    if len(file_data) > 20 * 1024 * 1024:
-        return _json(400, {"error": "Файл слишком большой (макс. 20 МБ)"})
+    if len(file_data) > 6 * 1024 * 1024:
+        return _json(400, {"error": "Файл слишком большой (макс. 6 МБ)"})
 
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
     if ext not in ALLOWED_EXTS:
