@@ -141,7 +141,7 @@ export default function ViewDocContent({
     : 0;
 
   return (
-    <div className="flex-1 overflow-y-auto min-h-0" ref={contentRef}>
+    <div className="flex-1 overflow-y-auto" ref={contentRef}>
       {/* ── Шапка предпросмотра ── */}
       <div className={`px-4 sm:px-6 pt-4 pb-3 border-b transition-all duration-700 ${docFlash ? "bg-gradient-to-b from-emerald-50 to-white border-emerald-200" : "bg-white border-slate-100"}`}>
         <div className="flex items-center gap-3">
