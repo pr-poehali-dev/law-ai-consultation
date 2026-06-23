@@ -90,7 +90,7 @@ export default function ViewDocFooter({
           style={{ background: showEditor ? "linear-gradient(135deg,#dc2626,#b91c1c)" : "linear-gradient(135deg,#4f46e5,#7c3aed)", color: "white" }}
         >
           <Icon name={showEditor ? "X" : "PenLine"} size={13} />
-          {showEditor ? "Закрыть редактор" : "Редактирование + AI"}
+          {showEditor ? "Закрыть редактор" : "Редактировать онлайн + AI"}
           {!showEditor && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[9px] font-bold">Профи+</span>}
         </button>
         <p className="text-[10px] text-slate-400 text-center leading-snug">
