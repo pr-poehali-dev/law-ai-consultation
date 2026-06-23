@@ -429,6 +429,7 @@ def handler(event: dict, context) -> dict:
             _def_result: list = []
             _case_law_result: list = []
             _duty_result2: list = []
+            _statute_result: list = []
 
             def _fetch_codex():
                 ctx = get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=_last_user_q)
@@ -444,20 +445,25 @@ def handler(event: dict, context) -> dict:
                 if not _is_simple:
                     ctx = get_legal_context_for_ai("state_duty", max_files=1, max_chars=1500, query=_last_user_q)
                     if ctx: _duty_result2.append(ctx)
+            def _fetch_statute():
+                ctx = get_legal_context_for_ai("statute", max_files=3, max_chars=3000, query=_last_user_q)
+                if ctx: _statute_result.append(ctx)
 
             _t_codex = threading.Thread(target=_fetch_codex, daemon=True)
             _t_def = threading.Thread(target=_fetch_def, daemon=True)
             _t_case = threading.Thread(target=_fetch_case_law, daemon=True)
             _t_duty2 = threading.Thread(target=_fetch_duty2, daemon=True)
-            for _t in (_t_codex, _t_def, _t_case, _t_duty2):
+            _t_statute = threading.Thread(target=_fetch_statute, daemon=True)
+            for _t in (_t_codex, _t_def, _t_case, _t_duty2, _t_statute):
                 _t.start()
-            for _t in (_t_codex, _t_def, _t_case, _t_duty2):
-                _t.join(timeout=4)  # 4с — параллельные запросы к БД практики
+            for _t in (_t_codex, _t_def, _t_case, _t_duty2, _t_statute):
+                _t.join(timeout=4)
 
             if _codex_result: _extra_ctx_parts.append(_codex_result[0])
             if _def_result: _extra_ctx_parts.append(_def_result[0])
             if _case_law_result: _extra_ctx_parts.append(_case_law_result[0])
             if _duty_result2: _extra_ctx_parts.append(_duty_result2[0])
+            if _statute_result: _extra_ctx_parts.append(_statute_result[0])
 
             if _extra_ctx_parts:
                 extra_ctx = "".join(_extra_ctx_parts)
