@@ -542,11 +542,12 @@ def handler(event: dict, context) -> dict:
                 "corporate_staffing", "corporate_accounting",
             }
 
-            # Параллельно запрашиваем все 4 категории правовой базы
+            # Параллельно запрашиваем все 5 категорий правовой базы
             _duty_db_result: list = []
             _case_law_result: list = []
             _definitions_result: list = []
             _codex_result: list = []
+            _statute_result: list = []
 
             def _fetch_duty_db():
                 if doc_type in DUTY_DOC_TYPES:
@@ -561,12 +562,16 @@ def handler(event: dict, context) -> dict:
             def _fetch_codex():
                 if doc_type not in (_MEDIUM_DOC_TYPES | _SHORT_DOC_TYPES):
                     _codex_result.append(get_legal_context_for_ai("codex", max_files=3, max_chars=3000, query=details))
+            def _fetch_statute():
+                if doc_type not in (_MEDIUM_DOC_TYPES | _SHORT_DOC_TYPES):
+                    _statute_result.append(get_legal_context_for_ai("statute", max_files=3, max_chars=3000, query=details))
 
             threads = [
                 threading.Thread(target=_fetch_duty_db, daemon=True),
                 threading.Thread(target=_fetch_case_law, daemon=True),
                 threading.Thread(target=_fetch_definitions, daemon=True),
                 threading.Thread(target=_fetch_codex, daemon=True),
+                threading.Thread(target=_fetch_statute, daemon=True),
             ]
             for t in threads: t.start()
             for t in threads: t.join(timeout=8)
@@ -596,8 +601,9 @@ def handler(event: dict, context) -> dict:
             case_law_block = _case_law_result[0] if _case_law_result else ""
             definitions_block = _definitions_result[0] if _definitions_result else ""
             codex_block = _codex_result[0] if _codex_result else ""
-            extra_context = duty_block + case_law_block + definitions_block + codex_block
-            print(f"[DOC_GEN] Правовая база: duty={bool(duty_block)}, case_law={bool(case_law_block)}, definitions={bool(definitions_block)}, codex={bool(codex_block)}")
+            statute_block = _statute_result[0] if _statute_result else ""
+            extra_context = duty_block + case_law_block + definitions_block + codex_block + statute_block
+            print(f"[DOC_GEN] Правовая база: duty={bool(duty_block)}, case_law={bool(case_law_block)}, definitions={bool(definitions_block)}, codex={bool(codex_block)}, statute={bool(statute_block)}")
 
             # Данные из файлов встраиваются прямо в описание ситуации — без маркеров-скобок
             file_note = ""
