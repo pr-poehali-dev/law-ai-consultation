@@ -234,7 +234,7 @@ export default function ViewDocAiFillChat({
   return (
     <>
       {/* ── Десктоп: колонка справа ── */}
-      <div className="hidden sm:flex flex-col w-80 shrink-0 overflow-hidden" style={{ background: "#f8fafc" }}>
+      <div className={`hidden sm:flex flex-col shrink-0 overflow-hidden ${showEditor ? "w-96" : "w-80"}`} style={{ background: "#f8fafc" }}>
         {/* Шапка */}
         <div className="flex items-center gap-2.5 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
           <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">

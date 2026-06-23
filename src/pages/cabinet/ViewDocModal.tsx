@@ -379,7 +379,7 @@ ${docTextClean}
             ${visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-[0.97]"}
             rounded-t-3xl
             max-h-[95dvh] sm:max-h-[90vh]
-            ${(showAiFillChat || showEditor) ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
+            ${showEditor ? "sm:max-w-6xl" : (showAiFillChat) ? "sm:max-w-5xl" : hasPlaceholders ? "sm:max-w-4xl" : "sm:max-w-2xl"}`}
           onClick={e => e.stopPropagation()}
         >
           {/* ── Левая/основная часть: документ ── */}
