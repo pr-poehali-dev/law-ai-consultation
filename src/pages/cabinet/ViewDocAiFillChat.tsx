@@ -258,21 +258,7 @@ export default function ViewDocAiFillChat({
           </div>
         </div>
 
-        {/* Быстрые подсказки для режима редактора */}
-        {showEditor && aiFillMsgs.length <= 1 && (
-          <div className="shrink-0 px-3 pt-2.5 pb-1 flex flex-col gap-1">
-            {["Исправь юридические ошибки", "Усиль позицию истца", "Добавь ссылки на законы"].map(hint => (
-              <button
-                key={hint}
-                onClick={() => { onInputChange(hint); setTimeout(onSend, 50); }}
-                disabled={aiFillTyping || (paidQuestions ?? 0) <= 0}
-                className="text-left text-[11px] px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-navy-700 hover:border-navy-300 hover:bg-navy-50 transition-colors disabled:opacity-40 truncate"
-              >
-                {hint}
-              </button>
-            ))}
-          </div>
-        )}
+
 
         {/* Сообщения */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5" style={{ minHeight: 0 }}>
