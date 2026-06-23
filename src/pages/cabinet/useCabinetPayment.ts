@@ -122,8 +122,9 @@ export function useCabinetPayment({
             setTab(action.tab);
             if (action.tab === "chat" && action.chatInput?.trim()) {
               setTimeout(() => chatSendMessage(action.chatInput!), 600);
-            } else if (action.tab === "docs") {
-              // переход на вкладку уже выполнен выше — генерацию не запускаем
+            } else if (action.tab === "docs" && action.docTypeId) {
+              const dt = findDocType(action.docTypeId);
+              setTimeout(() => docsGenerateRef.current?.(dt, action.docDetails || ""), 600);
             }
           }
           return;
@@ -172,6 +173,14 @@ export function useCabinetPayment({
     if (pendingDocType && (["document", "business", "plan_starter", "plan_starter_discount", "plan_pro", "plan_max", "plan_max_expert", "subscription_docs"].includes(svcType))) {
       setPendingDocType(null);
       setTab("docs");
+      if (action?.docTypeId) {
+        const dt = findDocType(action.docTypeId);
+        docsSetDocType(dt);
+        if (action.docDetails) docsSetDocDetails(action.docDetails);
+        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || ""), 500);
+      } else {
+        setTimeout(() => docsGenerateDoc(), 400);
+      }
       return;
     }
     setPendingDocType(null);
