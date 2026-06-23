@@ -170,17 +170,7 @@ export default function ViewDocContent({
               <span className="text-[10px] text-slate-400">{docDate}</span>
             </div>
           </div>
-          {/* Кнопка скачать прямо в предпросмотре */}
-          {docName && (
-            <button
-              onClick={() => downloadDoc(docName, currentDocContent)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 active:scale-95 shrink-0"
-              style={{ background: "linear-gradient(135deg,#0a1628,#162d5a)", color: "#f0c060", border: "1px solid rgba(232,168,32,0.3)" }}
-            >
-              <Icon name="Download" size={12} />
-              Скачать
-            </button>
-          )}
+
         </div>
 
         {/* Баннер об изменениях */}
