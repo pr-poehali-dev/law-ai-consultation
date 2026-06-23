@@ -26,14 +26,15 @@ def _get_conn():
     )
 
 
-def _clean_statute_chunk(text: str) -> str:
-    """Убирает служебный мусор ГАРАНТ/КонсультантПлюс из текста закона."""
-    # Убираем блоки "ГАРАНТ: ...", "Информация об изменениях: ...", "См. текст ... редакции"
+def _clean_legal_chunk(text: str) -> str:
+    """Убирает служебный мусор ГАРАНТ/КонсультантПлюс из текста правовых документов."""
     text = re.sub(r"ГАРАНТ:\n[^\n]+\n?", "", text)
     text = re.sub(r"Информация об изменениях:\n[^\n]+\n?", "", text)
-    text = re.sub(r"См\. (текст|предыдущую редакцию|Энциклопедии)[^\n]*\n?", "", text)
+    text = re.sub(r"См\. (текст|предыдущую редакцию|Энциклопедии|схему|комментарии|позиции)[^\n]*\n?", "", text)
     text = re.sub(r"(Федеральным законом|Федеральный закон) от [^\n]+ внесены изменения[^\n]*\n?", "", text)
     text = re.sub(r"(Статья|Часть|Пункт) \S+ изменена? с [^\n]+\n?", "", text)
+    text = re.sub(r"- Федеральный закон от [^\n]+\n?", "", text)
+    text = re.sub(r"в редакции [^\n]+\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -95,8 +96,7 @@ def _get_legal_context_fallback(category: str, max_chunks: int, max_chars: int) 
             header = f"Из документа «{title}{year_label}»:"
             if meta:
                 header += f"\n{meta}"
-            if category == "statute":
-                content = _clean_statute_chunk(content)
+            content = _clean_legal_chunk(content)
             parts.append(f"{header}\n{content[:max_chars]}")
 
         _INSTRUCTIONS = {
@@ -167,8 +167,7 @@ def get_legal_context_for_ai(category: str, max_files: int = 4, max_chars: int =
             header = (f"Из документа «{key}»:" + (f"\n{meta}" if meta else "")
                       if key not in seen else f"(продолжение «{title}»):")
             seen.add(key)
-            if category == "statute":
-                content = _clean_statute_chunk(content)
+            content = _clean_legal_chunk(content)
             parts.append(f"{header}\n{content[:max_chars]}")
 
         _SEARCH_INSTRUCTIONS = {
