@@ -81,17 +81,7 @@ export default function ViewDocFooter({
           </button>
         )}
 
-        {/* Кнопка AI-консультанта по заполнению (скрыта если открыт редактор — там чат уже есть) */}
-        {!showEditor && (
-          <button
-            onClick={onAiFillChatClick}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all active:scale-95 shadow-sm"
-            style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}
-          >
-            <Icon name="MessagesSquare" size={13} />
-            Уточнить у AI-юриста по заполнению
-          </button>
-        )}
+
 
         {/* Кнопка редактора + AI */}
         <button
