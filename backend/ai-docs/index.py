@@ -640,9 +640,9 @@ def handler(event: dict, context) -> dict:
                 "website_terms", "website_privacy", "website_eula",
             }
             if doc_type in _SHORT_DOC_TYPES:
-                _max_tokens = 600
+                _max_tokens = 1200
             elif doc_type in _MEDIUM_DOC_TYPES:
-                _max_tokens = 2000
+                _max_tokens = 3000
             elif doc_type in _EXTRA_LONG_DOC_TYPES:
                 _max_tokens = 8000
             elif doc_type in _LONG_DOC_TYPES:
