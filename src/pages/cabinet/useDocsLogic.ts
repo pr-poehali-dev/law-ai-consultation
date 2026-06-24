@@ -7,7 +7,7 @@ import { DOC_TYPES, type DocType } from "@/pages/cabinet/docBlocks";
 import { ymGoal } from "@/lib/metrika";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-docs"];
-const DOC_TIMEOUT_MS = 120_000;
+const DOC_TIMEOUT_MS = 155_000;
 
 interface UseDocsLogicProps {
   refreshUser: () => Promise<void>;

@@ -674,7 +674,10 @@ def handler(event: dict, context) -> dict:
                 print(f"[DOC_GEN] промт с файлами: {len(raw_prompt)} симв")
 
             # Генерация только через DeepSeek (deepseek-v32 на Yandex Cloud)
-            # Таймаут функции должен быть 120с — DeepSeek берёт 60-90с на большой документ
+            # Динамический таймаут: из 118с вычитаем время потраченное на файлы/правовую базу
+            _elapsed = time.time() - _mode_start
+            _ds_timeout = max(30, int(118 - _elapsed))
+            print(f"[DOC_GEN] elapsed_before_ai={_elapsed:.1f}s deepseek_timeout={_ds_timeout}s")
             answer = ""
             try:
                 answer, was_cut = call_deepseek(
@@ -682,7 +685,7 @@ def handler(event: dict, context) -> dict:
                     [{"role": "user", "content": raw_prompt}],
                     max_tokens=_max_tokens,
                     temperature=0.15,
-                    timeout=115,  # 115с < таймаут функции 120с
+                    timeout=_ds_timeout,
                 )
                 print(f"[DOC_GEN] DeepSeek OK симв={len(answer)} was_cut={was_cut} has_files={has_files}")
             except Exception as e:

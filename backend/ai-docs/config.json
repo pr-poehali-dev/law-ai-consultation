@@ -1,5 +1,5 @@
 {
-  "timeout": 120,
+  "timeout": 150,
   "memory": 256,
   "max_request_body_size_mb": 20
 }
