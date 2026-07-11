@@ -10,6 +10,10 @@ interface DocRecsPanelProps {
   docId?: number | string;
   onClose: () => void;
   onPaymentRequired: () => void;
+  /** Открыть инструмент «Судебная практика» в разделе «Чат с AI» */
+  onOpenCaseLaw?: () => void;
+  /** Открыть инструмент «Госпошлина» в разделе «Чат с AI» */
+  onOpenDuty?: () => void;
 }
 
 type SubMode = "list" | "penalty" | "rec_doc";
@@ -18,6 +22,8 @@ const REC_ICONS: Record<string, string> = {
   penalty_calc: "Calculator",
   state_duty: "Banknote",
   general: "Lightbulb",
+  case_law_check: "Scale",
+  duty_check: "Landmark",
   motion_restore_term: "Clock",
   motion_evidence: "Search",
   motion_witness: "Users",
@@ -33,6 +39,8 @@ function getIcon(rec: DocRecommendationItem) {
   if (rec.type === "general") return "Lightbulb";
   if (rec.type === "state_duty") return "Banknote";
   if (rec.type === "penalty_calc") return "Calculator";
+  if (rec.type === "case_law_check") return "Scale";
+  if (rec.type === "duty_check") return "Landmark";
   return REC_ICONS[rec.doc_type || ""] || "FileText";
 }
 
@@ -51,7 +59,7 @@ function saveDoneMap(docId: number | string | undefined, map: Record<number, boo
   try { localStorage.setItem(key, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
-export default function DocRecsPanel({ recommendations, docContent, docId, onClose, onPaymentRequired }: DocRecsPanelProps) {
+export default function DocRecsPanel({ recommendations, docContent, docId, onClose, onPaymentRequired, onOpenCaseLaw, onOpenDuty }: DocRecsPanelProps) {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<SubMode>("list");
   const [activeRec, setActiveRec] = useState<DocRecommendationItem | null>(null);
@@ -66,6 +74,8 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
 
   const handleAction = (rec: DocRecommendationItem) => {
+    if (rec.type === "case_law_check") { onOpenCaseLaw?.(); return; }
+    if (rec.type === "duty_check") { onOpenDuty?.(); return; }
     if (rec.type === "general" || rec.type === "state_duty") return; // нет действия-панели
     setActiveRec(rec);
     setMode(rec.type === "penalty_calc" ? "penalty" : "rec_doc");
@@ -84,7 +94,7 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
   };
 
   const hasAction = (rec: DocRecommendationItem) =>
-    rec.type === "penalty_calc" || rec.type === "doc";
+    rec.type === "penalty_calc" || rec.type === "doc" || rec.type === "case_law_check" || rec.type === "duty_check";
 
   if (collapsed) {
     return (
@@ -154,9 +164,13 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
                   className={`rounded-xl border p-3 transition-all ${
                     done
                       ? "bg-emerald-50 border-emerald-200"
-                      : isActionable
-                        ? "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm cursor-pointer"
-                        : "bg-slate-50 border-slate-100"
+                      : rec.type === "case_law_check"
+                        ? "bg-emerald-50/50 border-emerald-200 hover:border-emerald-300 hover:shadow-sm cursor-pointer"
+                        : rec.type === "duty_check"
+                          ? "bg-indigo-50/50 border-indigo-200 hover:border-indigo-300 hover:shadow-sm cursor-pointer"
+                          : isActionable
+                            ? "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm cursor-pointer"
+                            : "bg-slate-50 border-slate-100"
                   }`}
                   onClick={isActionable && !done ? () => handleAction(rec) : undefined}
                 >
@@ -165,6 +179,8 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
                       done ? "bg-emerald-100"
                       : rec.type === "general" ? "bg-amber-50"
                       : rec.type === "state_duty" ? "bg-blue-50"
+                      : rec.type === "case_law_check" ? "bg-emerald-100"
+                      : rec.type === "duty_check" ? "bg-indigo-100"
                       : "bg-navy-50"
                     }`}>
                       {done
@@ -172,6 +188,8 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
                         : <Icon name={getIcon(rec)} size={13} className={
                             rec.type === "general" ? "text-amber-600"
                             : rec.type === "state_duty" ? "text-blue-600"
+                            : rec.type === "case_law_check" ? "text-emerald-700"
+                            : rec.type === "duty_check" ? "text-indigo-700"
                             : "text-navy-700"
                           } />
                       }
@@ -184,6 +202,13 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
                         {done && (
                           <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">
                             Выполнено
+                          </span>
+                        )}
+                        {!done && (rec.type === "case_law_check" || rec.type === "duty_check") && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                            rec.type === "case_law_check" ? "text-emerald-700 bg-emerald-100" : "text-indigo-700 bg-indigo-100"
+                          }`}>
+                            Важно
                           </span>
                         )}
                         {!done && !isActionable && (
@@ -204,6 +229,18 @@ export default function DocRecsPanel({ recommendations, docContent, docId, onClo
                         <p className="text-[10px] text-blue-700 leading-relaxed mt-1 font-medium">
                           {rec.duty_note}
                         </p>
+                      )}
+                      {(rec.type === "case_law_check" && !done) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 mt-1.5">
+                          <Icon name="Scale" size={11} />Открыть «Судебная практика»
+                          <Icon name="ArrowRight" size={10} />
+                        </span>
+                      )}
+                      {(rec.type === "duty_check" && !done) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 mt-1.5">
+                          <Icon name="Landmark" size={11} />Открыть «Госпошлина»
+                          <Icon name="ArrowRight" size={10} />
+                        </span>
                       )}
                     </div>
                     {isActionable && !done && (

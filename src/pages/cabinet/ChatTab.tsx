@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import { sendReport, consumeQuestion, hasPurchasedPlan } from "@/lib/auth";
@@ -102,6 +102,17 @@ export default function ChatTab({
   const [activeTool, setActiveTool] = useState<"penalty" | "duty" | "case_law" | "jurisdiction" | null>(null);
   const [showPremiumPopup, setShowPremiumPopup] = useState(false);
   const [showMobileOrganizer, setShowMobileOrganizer] = useState(false);
+
+  // Открытие инструмента «по требованию» — например, из документа (кнопка «Проверьте судебную практику»)
+  useEffect(() => {
+    const pending = localStorage.getItem("pending_chat_tool");
+    if (pending === "case_law" || pending === "duty") {
+      localStorage.removeItem("pending_chat_tool");
+      if (!user.isAdmin && !hasPurchasedPlan(user)) { setShowPremiumPopup(true); return; }
+      setActiveTool(pending);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleQuickAction = (text: string) => {
     // Все инструменты требуют тариф «Старт» и выше

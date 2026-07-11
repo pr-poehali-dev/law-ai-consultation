@@ -11,6 +11,7 @@ export interface ViewDocModalProps {
   onPayForQuestions?: () => void;
   onSaveEdit?: (newContent: string) => void;
   onSaveRecommendations?: (recommendations: GenDoc["recommendations"]) => void;
+  onOpenChatTool?: (tool: "case_law" | "duty") => void;
 }
 
 // Все возможные блоки из промтов (с пробелами, ё, цифрами)

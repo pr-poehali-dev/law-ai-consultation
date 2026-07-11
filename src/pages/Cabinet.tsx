@@ -222,6 +222,11 @@ export default function Cabinet() {
           docs.saveDocRecommendations(docId, recommendations);
           setViewDoc(prev => prev && prev.id === docId ? { ...prev, recommendations } : prev);
         }}
+        onOpenChatTool={(tool) => {
+          localStorage.setItem("pending_chat_tool", tool);
+          setViewDoc(null);
+          handleSetTab("chat");
+        }}
         onOpenPlanModal={(_minPlanId) => pay.openPlanModal()}
         onClosePlanModal={pay.closePlanModal}
         onSelectPlan={pay.handleSelectPlan}

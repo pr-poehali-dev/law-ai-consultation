@@ -10,7 +10,7 @@ import DocsReportModal from "@/pages/cabinet/DocsReportModal";
 export type DocPhase = "form" | "generating" | "filling" | "done";
 
 export interface DocRecommendationItem {
-  type: "penalty_calc" | "doc" | "general" | "state_duty";
+  type: "penalty_calc" | "doc" | "general" | "state_duty" | "case_law_check" | "duty_check";
   title: string;
   reason: string;
   doc_type?: string;

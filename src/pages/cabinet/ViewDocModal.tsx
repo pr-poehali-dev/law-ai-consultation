@@ -18,7 +18,7 @@ import func2url from "../../../backend/func2url.json";
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
-export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit, onSaveRecommendations }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit, onSaveRecommendations, onOpenChatTool }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -539,6 +539,8 @@ ${docTextClean}
           docId={doc.id}
           onClose={() => setShowRecs(false)}
           onPaymentRequired={() => {}}
+          onOpenCaseLaw={() => onOpenChatTool?.("case_law")}
+          onOpenDuty={() => onOpenChatTool?.("duty")}
         />
       )}
 
