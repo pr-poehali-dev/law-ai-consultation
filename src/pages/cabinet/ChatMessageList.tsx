@@ -5,6 +5,7 @@ import { sendReport } from "@/lib/auth";
 import UpsellCard from "@/pages/cabinet/UpsellCard";
 import { AnimatedMessage, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
+import CaseLawResultsCard from "@/pages/cabinet/CaseLawResultsCard";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
 import PenaltyResultMessage from "@/pages/cabinet/PenaltyResultMessage";
@@ -27,6 +28,7 @@ interface ChatMessageListProps {
   creatingDocFromChat?: boolean;
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
   onSendMessage?: (text: string) => void;
+  onSearchCaseLaw?: (aiText: string, msgIdx: number) => void;
 }
 
 // Ключевые слова для показа кнопки «Сообщить о проблеме»
@@ -137,6 +139,7 @@ export default function ChatMessageList({
   creatingDocFromChat,
   onSendToLawyer,
   onSendMessage,
+  onSearchCaseLaw,
 }: ChatMessageListProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -186,6 +189,16 @@ export default function ChatMessageList({
           {messages.map((msg, i) => {
             const isDocRedir = msg.role === "ai" && /раздел[е]?\s+[«"]?Документы[»"]?/i.test(msg.text);
             const doAnim = msg.role === "ai" && !typing && shouldAnimate(i);
+
+            if (msg.isCaseLawSearch) return (
+              <CaseLawResultsCard
+                key={i}
+                query={msg.caseLawQuery}
+                loading={msg.caseLawLoading}
+                error={msg.caseLawError}
+                results={msg.caseLawResults}
+              />
+            );
 
             if (msg.role === "user") {
               // Расчёт неустойки — отдельный компонент
@@ -321,6 +334,16 @@ export default function ChatMessageList({
                             {creatingDocFromChat
                               ? <><span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
                               : <><Icon name="FilePlus" size={12} color="#d97706" />Создать документ</>}
+                          </button>
+                        )}
+                        {onSearchCaseLaw && msg.text.length > 60 && (
+                          <button
+                            onClick={() => { ymGoal("case_law_from_chat_click"); onSearchCaseLaw(msg.text, i); }}
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98]"
+                            style={{ background: "linear-gradient(135deg,rgba(22,101,52,0.1),rgba(34,197,94,0.05))", border: "1px solid rgba(34,197,94,0.3)", color: "#166534" }}
+                          >
+                            <Icon name="Scale" size={12} color="#166534" />
+                            Найти судебную практику по ситуации
                           </button>
                         )}
                         {onSendToLawyer && !msg.isUpsell && msg.text.length > 30 && i > 0 && (

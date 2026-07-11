@@ -8,6 +8,7 @@ import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
+const WEB_SEARCH_URL = (func2url as Record<string, string>)["web-search"];
 const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
 interface UseChatLogicProps {
@@ -332,6 +333,51 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     } finally {
       setTyping(false);
       setTypingStatus("");
+    }
+  };
+
+  /** Поиск судебной практики по конкретному ответу AI прямо в чате */
+  const searchCaseLawForMsg = async (aiText: string, msgIdx: number) => {
+    // Добавляем карточку поиска сразу после сообщения — со статусом загрузки
+    setMessages((p) => [
+      ...p.slice(0, msgIdx + 1),
+      { role: "ai", text: "", isCaseLawSearch: true, caseLawLoading: true },
+      ...p.slice(msgIdx + 1),
+    ]);
+    const insertedIdx = msgIdx + 1;
+
+    try {
+      const token = getToken();
+      // Шаг 1: собираем короткий поисковый запрос через AI
+      const qRes = await fetchSafe(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({ mode: "case_law_query", messages: historyRef.current, ai_answer: aiText }),
+      }, 30_000, 1);
+      const qData = await qRes.json();
+      if (!qRes.ok) throw new Error(qData.error || "Не удалось составить запрос");
+      const searchQuery = (qData.search_query as string || "").trim();
+      if (!searchQuery) throw new Error("Не удалось составить поисковый запрос");
+
+      setMessages((p) => p.map((m, i) => i === insertedIdx ? { ...m, caseLawQuery: searchQuery } : m));
+
+      // Шаг 2: ищем через web-search (та же логика что и кнопка «Судебная практика»)
+      const sRes = await fetch(WEB_SEARCH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({ query: searchQuery, limit: 6 }),
+      });
+      const sData = await sRes.json();
+      if (!sRes.ok || sData.error) throw new Error(sData.error || "Ошибка поиска");
+
+      setMessages((p) => p.map((m, i) => i === insertedIdx
+        ? { ...m, caseLawLoading: false, caseLawResults: sData.results ?? [] }
+        : m));
+      ymGoal("case_law_from_chat");
+    } catch (e) {
+      setMessages((p) => p.map((m, i) => i === insertedIdx
+        ? { ...m, caseLawLoading: false, caseLawError: e instanceof Error ? e.message : "Ошибка поиска" }
+        : m));
     }
   };
 
@@ -805,6 +851,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     fileInputRef,
     sendMessage,
     continueChat,
+    searchCaseLawForMsg,
     handleFileSelect,
     handleFileDrop,
     sendFileAnalysis,

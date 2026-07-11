@@ -330,6 +330,34 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": answer, "suggest_doc_type": suggest}, ensure_ascii=False)}
 
+        # ── Краткий поисковый запрос по судебной практике на основе диалога ─
+        if mode == "case_law_query":
+            messages = body.get("messages", [])
+            ai_answer = body.get("ai_answer", "").strip()
+            if not messages and not ai_answer:
+                return {"statusCode": 400, "headers": CORS,
+                        "body": json.dumps({"error": "messages or ai_answer required"})}
+            last_user_q = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+            clean_pair, _ = strip_personal_data([
+                {"role": "user", "content": last_user_q},
+                {"role": "assistant", "content": ai_answer},
+            ])
+            situation = clean_pair[0].get("content", "")[:800]
+            ai_text = clean_pair[1].get("content", "")[:800]
+            query_prompt = (
+                "На основании ситуации пользователя и ответа юриста сформулируй "
+                "ОДИН короткий поисковый запрос (3-8 слов) для поиска судебной практики "
+                "по сути дела. Без пояснений, без кавычек — только сам запрос.\n\n"
+                f"Ситуация: {situation}\n\nОтвет юриста: {ai_text}"
+            )
+            query_answer, _ = call_deepseek(
+                SYSTEM_CASE_LAW, [{"role": "user", "content": query_prompt}],
+                max_tokens=60, temperature=0.2, timeout=20,
+            )
+            search_query = query_answer.strip().strip('"').strip("«»").split("\n")[0][:150]
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"search_query": search_query}, ensure_ascii=False)}
+
         # ── Продолжение обрезанного ответа ──────────────────────────────────
         if mode == "chat_continue":
             messages = body.get("messages", [])

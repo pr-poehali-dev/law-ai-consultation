@@ -14,7 +14,8 @@ import CaseLawSearchPanel from "@/pages/cabinet/CaseLawSearchPanel";
 import JurisdictionPanel from "@/pages/cabinet/JurisdictionPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; isStreaming?: boolean; isError?: boolean; retryText?: string; }
+export interface CaseLawResult { url: string; title: string; snippet: string; source: string; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; isStreaming?: boolean; isError?: boolean; retryText?: string; isCaseLawSearch?: boolean; caseLawQuery?: string; caseLawResults?: CaseLawResult[]; caseLawLoading?: boolean; caseLawError?: string; }
 
 interface ChatTabProps {
   user: User;
@@ -45,6 +46,7 @@ interface ChatTabProps {
   onRevealAnswer?: (msgIndex: number) => void;
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
   onAddFiles?: (files: { name: string; b64: string; size: string }[]) => void;
+  onSearchCaseLaw?: (aiText: string, msgIdx: number) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -90,7 +92,7 @@ export default function ChatTab({
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
-  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, chatEndRef, fileInputRef,
+  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -291,6 +293,7 @@ export default function ChatTab({
         creatingDocFromChat={creatingDocFromChat}
         onSendToLawyer={onSendToLawyer}
         onSendMessage={onSend}
+        onSearchCaseLaw={onSearchCaseLaw}
       />
 
       {/* Поле ввода + файл */}
