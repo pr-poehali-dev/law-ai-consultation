@@ -223,9 +223,8 @@ export default function Cabinet() {
           setViewDoc(prev => prev && prev.id === docId ? { ...prev, recommendations } : prev);
         }}
         onOpenChatTool={(tool) => {
-          localStorage.setItem("pending_chat_tool", tool);
-          setViewDoc(null);
-          handleSetTab("chat");
+          // Открываем инструмент в новой вкладке браузера — документ остаётся открытым
+          window.open(`/cabinet?tab=chat&tool=${tool}`, "_blank");
         }}
         onOpenPlanModal={(_minPlanId) => pay.openPlanModal()}
         onClosePlanModal={pay.closePlanModal}

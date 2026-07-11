@@ -68,6 +68,11 @@ export function useCabinetInit({
     if (tabParam && ["chat", "docs", "expert", "business", "history", "profile"].includes(tabParam)) {
       setTab(tabParam);
     }
+    // Открытие инструмента чата по ссылке из документа (?tool=case_law|duty) — в новой вкладке браузера
+    const toolParam = searchParams.get("tool");
+    if (toolParam === "case_law" || toolParam === "duty") {
+      localStorage.setItem("pending_chat_tool", toolParam);
+    }
 
     const timeoutId = setTimeout(() => setAuthTimeout(true), 20000);
 
