@@ -342,31 +342,28 @@ export default function ChatMessageList({
                           <button
                             onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                             disabled={creatingDocFromChat}
-                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60"
-                            style={{ background: "linear-gradient(135deg,rgba(232,168,32,0.12),rgba(232,168,32,0.06))", border: "1px solid rgba(232,168,32,0.3)", color: "#92400e" }}
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60 border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                           >
                             {creatingDocFromChat
-                              ? <><span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
-                              : <><Icon name="FilePlus" size={12} color="#d97706" />Создать документ</>}
+                              ? <><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
+                              : <><Icon name="FilePlus" size={12} className="text-slate-500" />Создать документ</>}
                           </button>
                         )}
                         {onSearchCaseLaw && msg.text.length > 60 && (
                           <button
                             onClick={() => { ymGoal("case_law_from_chat_click"); onSearchCaseLaw(msg.text, i); }}
-                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98]"
-                            style={{ background: "linear-gradient(135deg,rgba(22,101,52,0.1),rgba(34,197,94,0.05))", border: "1px solid rgba(34,197,94,0.3)", color: "#166534" }}
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                           >
-                            <Icon name="Scale" size={12} color="#166534" />
+                            <Icon name="Scale" size={12} className="text-slate-500" />
                             Найти судебную практику по ситуации
                           </button>
                         )}
                         {onSendToLawyer && !msg.isUpsell && msg.text.length > 30 && i > 0 && (
                           <button
                             onClick={() => onSendToLawyer(msg.text, prevUserMsg?.text)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-medium transition-all active:scale-[0.98]"
-                            style={{ background: "rgba(15,76,129,0.05)", border: "1px solid rgba(15,76,129,0.12)", color: "#64748b" }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl w-full justify-center text-xs font-medium transition-all active:scale-[0.98] border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300"
                           >
-                            <Icon name="UserCheck" size={12} color="#94a3b8" />
+                            <Icon name="UserCheck" size={12} className="text-slate-400" />
                             Отправить на проверку живому юристу
                           </button>
                         )}
