@@ -336,8 +336,28 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
   };
 
-  /** Поиск судебной практики по конкретному ответу AI прямо в чате */
+  /** Поиск судебной практики по конкретному ответу AI прямо в чате (списывает 1 вопрос) */
   const searchCaseLawForMsg = async (aiText: string, msgIdx: number) => {
+    // Проверяем баланс так же, как перед обычным вопросом
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+
+    const hasDailyFree = getDailyFreeLeft() > 0;
+    const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
+    const hasPurchasedPlan = !!currentUser.purchasedPlan;
+    const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
+    const canAsk = isPremium || canUseDailyFree || currentUser.paidQuestions > 0;
+
+    if (!canAsk) {
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
+      return;
+    }
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
+
     // Добавляем карточку поиска сразу после сообщения — со статусом загрузки
     setMessages((p) => [
       ...p.slice(0, msgIdx + 1),
@@ -373,6 +393,24 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       setMessages((p) => p.map((m, i) => i === insertedIdx
         ? { ...m, caseLawLoading: false, caseLawResults: sData.results ?? [] }
         : m));
+
+      // Списываем вопрос только после успешного поиска
+      if (usingDailyFree) {
+        incrementDailyFreeCount();
+      } else if (!isPremium) {
+        await consumeQuestion();
+      }
+      invalidateUserCache();
+      refreshUser();
+      const left = await getQuestionsLeft();
+      if (left === 0) {
+        setTimeout(() => {
+          setMessages((p) => {
+            if (p.some(m => m.isUpsell)) return p;
+            return [...p, { role: "ai", isUpsell: true, text: "" }];
+          });
+        }, 900);
+      }
       ymGoal("case_law_from_chat");
     } catch (e) {
       setMessages((p) => p.map((m, i) => i === insertedIdx
