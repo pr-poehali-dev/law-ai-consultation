@@ -24,6 +24,7 @@ interface CabinetModalsProps {
   onPaySuccess: (type: ServiceType) => void;
   onCloseViewDoc: () => void;
   onSaveEdit?: (docId: number, newContent: string) => void;
+  onSaveRecommendations?: (docId: number, recommendations: GenDoc["recommendations"]) => void;
   onOpenPlanModal: (minPlanId?: string) => void;
   onClosePlanModal: () => void;
   onSelectPlan: (name: string, id: ServiceType) => void;
@@ -35,7 +36,7 @@ export default function CabinetModals({
   fillValues, onFillChange, onApplyFill,
   paidQuestions, onPayForQuestions,
   onClosePayment, onPaySuccess,
-  onCloseViewDoc, onSaveEdit, onOpenPlanModal, onClosePlanModal, onSelectPlan,
+  onCloseViewDoc, onSaveEdit, onSaveRecommendations, onOpenPlanModal, onClosePlanModal, onSelectPlan,
 }: CabinetModalsProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [planMinId, setPlanMinId] = useState<string | undefined>(undefined);
@@ -62,6 +63,7 @@ export default function CabinetModals({
           paidQuestions={paidQuestions}
           onPayForQuestions={onPayForQuestions}
           onSaveEdit={(newContent) => onSaveEdit?.(viewDoc.id, newContent)}
+          onSaveRecommendations={(recs) => onSaveRecommendations?.(viewDoc.id, recs)}
         />
       )}
 

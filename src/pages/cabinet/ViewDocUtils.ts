@@ -10,6 +10,7 @@ export interface ViewDocModalProps {
   paidQuestions?: number;
   onPayForQuestions?: () => void;
   onSaveEdit?: (newContent: string) => void;
+  onSaveRecommendations?: (recommendations: GenDoc["recommendations"]) => void;
 }
 
 // Все возможные блоки из промтов (с пробелами, ё, цифрами)

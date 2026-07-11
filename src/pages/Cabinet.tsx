@@ -218,6 +218,10 @@ export default function Cabinet() {
             : prev
           );
         }}
+        onSaveRecommendations={(docId, recommendations) => {
+          docs.saveDocRecommendations(docId, recommendations);
+          setViewDoc(prev => prev && prev.id === docId ? { ...prev, recommendations } : prev);
+        }}
         onOpenPlanModal={(_minPlanId) => pay.openPlanModal()}
         onClosePlanModal={pay.closePlanModal}
         onSelectPlan={pay.handleSelectPlan}

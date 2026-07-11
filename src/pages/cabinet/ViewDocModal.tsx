@@ -18,7 +18,7 @@ import func2url from "../../../backend/func2url.json";
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
-export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit, onSaveRecommendations }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -67,12 +67,18 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
     });
   }, []);
 
-  // Фоновый анализ рекомендаций — запускается после показа документа
+  // Фоновый анализ рекомендаций — запускается ОДИН РАЗ за документ.
+  // doc.recommendations === undefined означает «анализ ещё не выполнялся»;
+  // после получения результата (даже пустого) сохраняем его через onSaveRecommendations,
+  // чтобы при повторном открытии документа анализ не запускался заново.
   useEffect(() => {
-    if (doc.recommendations && doc.recommendations.length > 0) {
+    if (doc.recommendations !== undefined) {
       setLiveRecs(doc.recommendations);
-      const t = setTimeout(() => setShowRecs(true), 800);
-      return () => clearTimeout(t);
+      if (doc.recommendations.length > 0) {
+        const t = setTimeout(() => setShowRecs(true), 800);
+        return () => clearTimeout(t);
+      }
+      return;
     }
     const runRecsAnalysis = async () => {
       setRecsAnalyzing(true);
@@ -87,16 +93,19 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
             doc_content: doc.content.slice(0, 2000),
           }),
         });
+        let recs: DocRecommendationItem[] = [];
         if (res.ok) {
           const data = await res.json();
-          const recs: DocRecommendationItem[] = data.recommendations || [];
+          recs = data.recommendations || [];
           if (recs.length > 0) {
             setLiveRecs(recs);
             setShowRecs(true);
           }
+          // Сохраняем результат (даже пустой массив) — анализ больше не повторится
+          onSaveRecommendations?.(recs);
         }
       } catch {
-        // Тихо — анализ рекомендаций не критичен
+        // Тихо — анализ рекомендаций не критичен, при ошибке не сохраняем — попробуем снова при следующем открытии
       } finally {
         setRecsAnalyzing(false);
       }

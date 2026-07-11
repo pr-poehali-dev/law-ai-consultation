@@ -112,7 +112,11 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
       const placeholders: string[] = data.placeholders || [];
       const truncated: boolean = data.truncated || false;
-      const recommendations = data.recommendations || [];
+      // recommendations оставляем undefined, если сервер их не прислал —
+      // так ViewDocModal поймёт, что фоновый анализ ещё не выполнялся, и запустит его
+      const recommendations: GenDoc["recommendations"] = data.recommendations && data.recommendations.length > 0
+        ? data.recommendations
+        : undefined;
       const newDoc: GenDoc = {
         id: Date.now(),
         name: activeType.label,
@@ -238,6 +242,17 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     }
   };
 
+  /** Сохраняет результат анализа рекомендаций — чтобы он не запускался повторно при переоткрытии документа */
+  const saveDocRecommendations = (docId: number, recommendations: GenDoc["recommendations"]) => {
+    const updated = genDocs.map((d) =>
+      d.id === docId ? { ...d, recommendations } : d
+    );
+    saveGenDocs(updated);
+    if (currentDoc?.id === docId) {
+      setCurrentDoc(prev => prev ? { ...prev, recommendations } : prev);
+    }
+  };
+
   return {
     docType, setDocType,
     docPhase, setDocPhase,
@@ -253,6 +268,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     continueDoc,
     applyFillValues,
     saveEditedContent,
+    saveDocRecommendations,
     docAttachedFile, setDocAttachedFile,
     docAttachedFiles, setDocAttachedFiles,
   };
