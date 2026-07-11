@@ -182,10 +182,10 @@ export default function DocsFormPhase({
       <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
         <PlanBanner user={user} mode="docs" onSelectPlan={onSelectPlan} />
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-cormorant font-bold text-2xl text-navy-800">Тип документа</h2>
+          <h2 className="font-cormorant font-bold text-2xl text-navy-800" style={{ fontFamily: "'Times New Roman', Times, serif" }}>Тип документа</h2>
           <PWAInstallButton />
         </div>
-        <p className="text-sm text-muted-foreground mb-4">Выберите нужный тип — справа опишите ситуацию.</p>
+        <p className="text-sm text-muted-foreground mb-4" style={{ fontFamily: "'Times New Roman', Times, serif" }}>Выберите нужный тип — справа опишите ситуацию.</p>
         <DocBlockSelector selectedId={docType.id} onSelect={onDocTypeChange} />
       </div>
 

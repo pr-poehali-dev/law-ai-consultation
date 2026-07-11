@@ -40,7 +40,7 @@ export default function DocBlockSelector({ selectedId, onSelect }: DocBlockSelec
   }, [search]);
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
       {/* Поиск */}
       <div className="relative mb-1">
         <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
