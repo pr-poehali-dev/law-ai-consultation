@@ -7,6 +7,8 @@ interface Props {
   loading?: boolean;
   error?: string;
   results?: CaseLawResult[];
+  assessed?: boolean;
+  onAssessClick?: () => void;
 }
 
 function ResultCard({ r, index }: { r: CaseLawResult; index: number }) {
@@ -50,7 +52,16 @@ function ResultCard({ r, index }: { r: CaseLawResult; index: number }) {
   );
 }
 
-export default function CaseLawResultsCard({ query, loading, error, results }: Props) {
+export default function CaseLawResultsCard({ query, loading, error, results, assessed, onAssessClick }: Props) {
+  const [btnVisible, setBtnVisible] = useState(false);
+  useEffect(() => {
+    if (!loading && !error && results && results.length > 0) {
+      const t = setTimeout(() => setBtnVisible(true), results.length * 220 + 200);
+      return () => clearTimeout(t);
+    }
+    setBtnVisible(false);
+  }, [loading, error, results]);
+
   return (
     <div className="flex gap-2.5 items-start" style={{ animation: "ai-msg-in 0.38s cubic-bezier(0.22,1,0.36,1) both" }}>
       <div className="w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 shadow-md" style={{ background: "linear-gradient(135deg,#166534,#22c55e)" }}>
@@ -100,6 +111,26 @@ export default function CaseLawResultsCard({ query, loading, error, results }: P
           {!loading && !error && results && results.length > 0 && (
             <div>
               {results.map((r, i) => <ResultCard key={i} r={r} index={i} />)}
+            </div>
+          )}
+
+          {!loading && !error && results && results.length > 0 && !assessed && onAssessClick && (
+            <div
+              className="px-3 pb-3 pt-1"
+              style={{
+                opacity: btnVisible ? 1 : 0,
+                transform: btnVisible ? "translateY(0)" : "translateY(8px)",
+                transition: "opacity 0.4s ease, transform 0.4s ease",
+              }}
+            >
+              <button
+                onClick={onAssessClick}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] hover:opacity-90"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", boxShadow: "0 2px 10px rgba(124,58,237,0.25)" }}
+              >
+                <Icon name="Gauge" size={13} color="#fff" />
+                Оценить перспективу дела
+              </button>
             </div>
           )}
         </div>

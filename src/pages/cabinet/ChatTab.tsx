@@ -15,7 +15,7 @@ import JurisdictionPanel from "@/pages/cabinet/JurisdictionPanel";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface CaseLawResult { url: string; title: string; snippet: string; source: string; }
-export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; isStreaming?: boolean; isError?: boolean; retryText?: string; isCaseLawSearch?: boolean; caseLawQuery?: string; caseLawResults?: CaseLawResult[]; caseLawLoading?: boolean; caseLawError?: string; }
+export interface ChatMsg { role: "ai" | "user"; text: string; isFile?: boolean; truncated?: boolean; isUpsell?: boolean; needsExpert?: boolean; personalDataRefused?: boolean; docHint?: DocHint; isLastQuestion?: boolean; fullAnswer?: string; isPenaltyCalc?: boolean; penaltyData?: import("@/pages/cabinet/PenaltyResultMessage").PenaltyData; isStreaming?: boolean; isError?: boolean; retryText?: string; isCaseLawSearch?: boolean; caseLawQuery?: string; caseLawResults?: CaseLawResult[]; caseLawLoading?: boolean; caseLawError?: string; caseLawSourceText?: string; caseLawAssessed?: boolean; isCaseLawAssessment?: boolean; caseLawAssessmentLoading?: boolean; caseLawAssessmentError?: string; }
 
 interface ChatTabProps {
   user: User;
@@ -47,6 +47,7 @@ interface ChatTabProps {
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
   onAddFiles?: (files: { name: string; b64: string; size: string }[]) => void;
   onSearchCaseLaw?: (aiText: string, msgIdx: number) => void;
+  onAssessCaseLaw?: (caseLawMsgIdx: number) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -92,7 +93,7 @@ export default function ChatTab({
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
-  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, chatEndRef, fileInputRef,
+  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, onAssessCaseLaw, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -294,6 +295,7 @@ export default function ChatTab({
         onSendToLawyer={onSendToLawyer}
         onSendMessage={onSend}
         onSearchCaseLaw={onSearchCaseLaw}
+        onAssessCaseLaw={onAssessCaseLaw}
       />
 
       {/* Поле ввода + файл */}

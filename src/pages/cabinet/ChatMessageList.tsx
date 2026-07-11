@@ -6,6 +6,7 @@ import UpsellCard from "@/pages/cabinet/UpsellCard";
 import { AnimatedMessage, TypingIndicator } from "@/pages/cabinet/ChatTextRenderer";
 import type { ChatMsg, DocHint } from "@/pages/cabinet/ChatTab";
 import CaseLawResultsCard from "@/pages/cabinet/CaseLawResultsCard";
+import CaseLawAssessmentCard from "@/pages/cabinet/CaseLawAssessmentCard";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
 import PenaltyResultMessage from "@/pages/cabinet/PenaltyResultMessage";
@@ -29,6 +30,7 @@ interface ChatMessageListProps {
   onSendToLawyer?: (msgText: string, prevUserText?: string) => void;
   onSendMessage?: (text: string) => void;
   onSearchCaseLaw?: (aiText: string, msgIdx: number) => void;
+  onAssessCaseLaw?: (caseLawMsgIdx: number) => void;
 }
 
 // Ключевые слова для показа кнопки «Сообщить о проблеме»
@@ -140,6 +142,7 @@ export default function ChatMessageList({
   onSendToLawyer,
   onSendMessage,
   onSearchCaseLaw,
+  onAssessCaseLaw,
 }: ChatMessageListProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -197,6 +200,17 @@ export default function ChatMessageList({
                 loading={msg.caseLawLoading}
                 error={msg.caseLawError}
                 results={msg.caseLawResults}
+                assessed={msg.caseLawAssessed}
+                onAssessClick={onAssessCaseLaw ? () => onAssessCaseLaw(i) : undefined}
+              />
+            );
+
+            if (msg.isCaseLawAssessment) return (
+              <CaseLawAssessmentCard
+                key={i}
+                text={msg.text}
+                loading={msg.caseLawAssessmentLoading}
+                error={msg.caseLawAssessmentError}
               />
             );
 

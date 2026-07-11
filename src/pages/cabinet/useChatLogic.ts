@@ -361,7 +361,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     // Добавляем карточку поиска сразу после сообщения — со статусом загрузки
     setMessages((p) => [
       ...p.slice(0, msgIdx + 1),
-      { role: "ai", text: "", isCaseLawSearch: true, caseLawLoading: true },
+      { role: "ai", text: "", isCaseLawSearch: true, caseLawLoading: true, caseLawSourceText: aiText },
       ...p.slice(msgIdx + 1),
     ]);
     const insertedIdx = msgIdx + 1;
@@ -415,6 +415,86 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     } catch (e) {
       setMessages((p) => p.map((m, i) => i === insertedIdx
         ? { ...m, caseLawLoading: false, caseLawError: e instanceof Error ? e.message : "Ошибка поиска" }
+        : m));
+    }
+  };
+
+  /** Оценка перспективы дела на основе найденной судебной практики (списывает 1 вопрос) */
+  const assessCaseLawPerspective = async (caseLawMsgIdx: number) => {
+    const caseLawMsg = messages[caseLawMsgIdx];
+    if (!caseLawMsg || !caseLawMsg.caseLawResults || caseLawMsg.caseLawResults.length === 0) return;
+
+    // Проверяем баланс так же, как перед обычным вопросом
+    invalidateUserCache();
+    const currentUser = await getUser();
+    if (!currentUser) return;
+
+    const hasDailyFree = getDailyFreeLeft() > 0;
+    const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
+    const hasPurchasedPlan = !!currentUser.purchasedPlan;
+    const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
+    const canAsk = isPremium || canUseDailyFree || currentUser.paidQuestions > 0;
+
+    if (!canAsk) {
+      setMessages((p) => {
+        if (p.some(m => m.isUpsell)) return p;
+        return [...p, { role: "ai", isUpsell: true, text: "" }];
+      });
+      return;
+    }
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
+
+    // Помечаем карточку поиска как «оценка запущена» — прячем кнопку
+    setMessages((p) => p.map((m, i) => i === caseLawMsgIdx ? { ...m, caseLawAssessed: true } : m));
+
+    // Добавляем карточку оценки сразу после карточки поиска — со статусом загрузки
+    setMessages((p) => [
+      ...p.slice(0, caseLawMsgIdx + 1),
+      { role: "ai", text: "", isCaseLawAssessment: true, caseLawAssessmentLoading: true },
+      ...p.slice(caseLawMsgIdx + 1),
+    ]);
+    const insertedIdx = caseLawMsgIdx + 1;
+
+    try {
+      const token = getToken();
+      const res = await fetchSafe(GIGACHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+        body: JSON.stringify({
+          mode: "case_law_assessment",
+          messages: historyRef.current,
+          ai_answer: caseLawMsg.caseLawSourceText || "",
+          case_results: caseLawMsg.caseLawResults,
+        }),
+      }, 40_000, 1);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Не удалось оценить перспективу дела");
+
+      setMessages((p) => p.map((m, i) => i === insertedIdx
+        ? { ...m, caseLawAssessmentLoading: false, text: data.answer as string }
+        : m));
+
+      // Списываем вопрос только после успешной оценки
+      if (usingDailyFree) {
+        incrementDailyFreeCount();
+      } else if (!isPremium) {
+        await consumeQuestion();
+      }
+      invalidateUserCache();
+      refreshUser();
+      const left = await getQuestionsLeft();
+      if (left === 0) {
+        setTimeout(() => {
+          setMessages((p) => {
+            if (p.some(m => m.isUpsell)) return p;
+            return [...p, { role: "ai", isUpsell: true, text: "" }];
+          });
+        }, 900);
+      }
+      ymGoal("case_law_assessment");
+    } catch (e) {
+      setMessages((p) => p.map((m, i) => i === insertedIdx
+        ? { ...m, caseLawAssessmentLoading: false, caseLawAssessmentError: e instanceof Error ? e.message : "Ошибка оценки" }
         : m));
     }
   };
@@ -890,6 +970,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     sendMessage,
     continueChat,
     searchCaseLawForMsg,
+    assessCaseLawPerspective,
     handleFileSelect,
     handleFileDrop,
     sendFileAnalysis,

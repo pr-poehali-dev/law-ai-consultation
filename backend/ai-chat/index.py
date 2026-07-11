@@ -377,6 +377,64 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"search_query": search_query}, ensure_ascii=False)}
 
+        # ── Оценка перспективы дела на основе найденной судебной практики ───
+        if mode == "case_law_assessment":
+            messages = body.get("messages", [])
+            ai_answer = body.get("ai_answer", "").strip()
+            case_results = body.get("case_results", [])
+            if not case_results:
+                return {"statusCode": 400, "headers": CORS,
+                        "body": json.dumps({"error": "case_results required"})}
+            last_user_q = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+            clean_pair, _ = strip_personal_data([
+                {"role": "user", "content": last_user_q},
+                {"role": "assistant", "content": ai_answer},
+            ])
+            situation = clean_pair[0].get("content", "")[:1000]
+            ai_text = clean_pair[1].get("content", "")[:1000]
+
+            cases_text = "\n\n".join(
+                f"Дело {i+1}: {c.get('title', '')}\n{c.get('snippet', '')[:400]}"
+                for i, c in enumerate(case_results[:6])
+            )
+
+            assessment_system = (
+                "Ты — Илья, юрист с 15-летней практикой. Оцениваешь перспективы дела клиента "
+                "на основании найденной судебной практики.\n\n"
+                "СТРУКТУРА ОТВЕТА (строго):\n"
+                "**Оценка перспективы: [Высокая / Средняя / Низкая]**\n\n"
+                "Далее 3-5 коротких абзацев:\n"
+                "— Что показывает найденная практика (в чью пользу обычно решают такие споры)\n"
+                "— Насколько ситуация клиента похожа на найденные дела, в чём отличия\n"
+                "— Какие факторы усиливают или ослабляют позицию клиента\n"
+                "— Практическая рекомендация: что укрепит позицию в суде\n\n"
+                "ПРАВИЛА:\n"
+                "— Опирайся ТОЛЬКО на присланные дела и ситуацию клиента, не выдумывай других дел\n"
+                "— Если практика неоднозначна — так и скажи, не приукрашивай\n"
+                "— Пиши прямо, без канцелярита и воды\n"
+                "— Максимум 250 слов"
+            )
+            assessment_prompt = (
+                f"Ситуация клиента: {situation}\n\n"
+                f"Мой предыдущий ответ клиенту: {ai_text}\n\n"
+                f"Найденная судебная практика:\n{cases_text}\n\n"
+                "Оцени перспективу дела клиента с учётом этой практики."
+            )
+            try:
+                assessment, _ = call_deepseek(
+                    assessment_system, [{"role": "user", "content": assessment_prompt}],
+                    max_tokens=1200, temperature=0.25, timeout=25,
+                )
+            except Exception as e:
+                print(f"[CASE_LAW_ASSESSMENT] error: {e}")
+                return {"statusCode": 502, "headers": CORS,
+                        "body": json.dumps({"error": "Не удалось оценить перспективу дела"}, ensure_ascii=False)}
+            if not assessment.strip():
+                return {"statusCode": 502, "headers": CORS,
+                        "body": json.dumps({"error": "Не удалось оценить перспективу дела"}, ensure_ascii=False)}
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"answer": assessment}, ensure_ascii=False)}
+
         # ── Продолжение обрезанного ответа ──────────────────────────────────
         if mode == "chat_continue":
             messages = body.get("messages", [])

@@ -34,6 +34,13 @@
       "path": "/",
       "body": {"mode": "case_law_query", "messages": []},
       "expectedStatus": 400
+    },
+    {
+      "name": "case_law_assessment — missing case_results",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "case_law_assessment", "messages": []},
+      "expectedStatus": 400
     }
   ]
 }
