@@ -196,16 +196,22 @@ def call_deepseek(system_prompt: str, messages: list, max_tokens: int = 800, tem
          "content": m.get("content", m.get("text", ""))}
         for m in recent
     ]
-    resp = _http.post(
-        "https://llm.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
-        json={"model": YANDEX_MODEL, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    choice = resp.json()["choices"][0]
-    text = choice["message"]["content"] or ""
-    was_cut = choice.get("finish_reason") == "length"
+    # Retry при пустом ответе (баг DeepSeek — иногда возвращает токены, но пустую строку)
+    text, was_cut = "", False
+    for attempt in range(2):
+        resp = _http.post(
+            "https://llm.api.cloud.yandex.net/v1/chat/completions",
+            headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
+            json={"model": YANDEX_MODEL, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        choice = resp.json()["choices"][0]
+        text = choice["message"]["content"] or ""
+        was_cut = choice.get("finish_reason") == "length"
+        if text.strip():
+            return text, was_cut
+        print(f"[DEEPSEEK] пустой ответ на попытке {attempt+1}, {'retry' if attempt == 0 else 'сдаёмся'}")
     return text, was_cut
 
 def summarize_old_messages(messages: list) -> list:
@@ -344,17 +350,30 @@ def handler(event: dict, context) -> dict:
             ])
             situation = clean_pair[0].get("content", "")[:800]
             ai_text = clean_pair[1].get("content", "")[:800]
+            query_system = (
+                "Ты формулируешь короткие поисковые запросы для поиска судебной практики. "
+                "Отвечай ТОЛЬКО самим запросом (3-8 слов), без пояснений, без кавычек, без вступлений."
+            )
             query_prompt = (
                 "На основании ситуации пользователя и ответа юриста сформулируй "
-                "ОДИН короткий поисковый запрос (3-8 слов) для поиска судебной практики "
-                "по сути дела. Без пояснений, без кавычек — только сам запрос.\n\n"
+                "ОДИН короткий поисковый запрос (3-8 слов) для поиска судебной практики по сути дела.\n\n"
                 f"Ситуация: {situation}\n\nОтвет юриста: {ai_text}"
             )
-            query_answer, _ = call_deepseek(
-                SYSTEM_CASE_LAW, [{"role": "user", "content": query_prompt}],
-                max_tokens=60, temperature=0.2, timeout=20,
-            )
+            try:
+                # timeout=14: 2 попытки × 14с = 28с, укладывается в таймаут функции 35с
+                # max_tokens=500: модель иногда тратит токены на рассуждения перед ответом
+                query_answer, _ = call_deepseek(
+                    query_system, [{"role": "user", "content": query_prompt}],
+                    max_tokens=500, temperature=0.2, timeout=14,
+                )
+            except Exception as e:
+                print(f"[CASE_LAW_QUERY] call_deepseek error: {e}")
+                query_answer = ""
             search_query = query_answer.strip().strip('"').strip("«»").split("\n")[0][:150]
+            if not search_query:
+                # Фолбэк — используем сам вопрос пользователя, обрезанный до разумной длины
+                search_query = situation[:120].strip()
+            print(f"[CASE_LAW_QUERY] situation_len={len(situation)} raw_answer={query_answer!r} final_query={search_query!r}")
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"search_query": search_query}, ensure_ascii=False)}
 
