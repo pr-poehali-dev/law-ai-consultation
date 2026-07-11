@@ -1015,14 +1015,26 @@ def handler(event: dict, context) -> dict:
             )
             recs_raw = []
             try:
-                raw, _ = call_deepseek(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=700, temperature=0.15, timeout=30)
+                # max_tokens=1500: 700 было мало — DeepSeek обрезал JSON на середине (finish=length),
+                # из-за чего json.loads падал и рекомендации терялись
+                raw, was_cut = call_deepseek(rec_sys, [{"role": "user", "content": rec_pr}], max_tokens=1500, temperature=0.15, timeout=30)
                 m = re.search(r'\{[\s\S]*\}', raw)
                 if m:
-                    parsed = json.loads(m.group())
+                    try:
+                        parsed = json.loads(m.group())
+                    except json.JSONDecodeError:
+                        # JSON всё равно обрезан — пробуем вытащить только полные объекты рекомендаций
+                        items = re.findall(r'\{[^{}]*\}', m.group())
+                        parsed = {"recommendations": []}
+                        for it in items:
+                            try:
+                                parsed["recommendations"].append(json.loads(it))
+                            except json.JSONDecodeError:
+                                continue
                     recs_raw = parsed.get("recommendations", [])
                     if not isinstance(recs_raw, list): recs_raw = []
                     recs_raw = recs_raw[:3]
-                    print(f"[DOC_RECS] got {len(recs_raw)} recs")
+                    print(f"[DOC_RECS] got {len(recs_raw)} recs was_cut={was_cut}")
             except Exception as e:
                 print(f"[DOC_RECS] ошибка: {e}")
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
