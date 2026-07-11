@@ -22,6 +22,10 @@ LEGAL_SITES = [
     "ipc.arbitr.ru",
 ]
 
+# Yandex Search API v2: жёсткий лимит на queryText — 400 символов.
+# Оставляем запас под префикс "site:xxx.ru " (до ~20 символов).
+MAX_QUERY_CHARS = 380
+
 PATTERN_ARBITR = re.compile(r"[АA]\d{2}-\d+/\d{2,4}", re.IGNORECASE)
 PATTERN_CIVIL  = re.compile(r"\b(2-|М-|33-|44-)\d+/\d{2,4}")
 PATTERN_VS     = re.compile(r"\d+-[А-ЯA-Z]{2}\d{2}-\d+")
@@ -233,7 +237,7 @@ def handler(event: dict, context) -> dict:
         except Exception:
             return _err(400, "Невалидный JSON")
 
-    query     = (body.get("query") or "").strip()
+    query     = (body.get("query") or "").strip()[:MAX_QUERY_CHARS]
     site_hint = (body.get("site") or "").strip()
     max_res   = min(int(body.get("limit", 8)), 10)
 

@@ -6,6 +6,10 @@ import func2url from "../../../backend/func2url.json";
 const WEB_SEARCH_URL  = (func2url as Record<string, string>)["web-search"];
 const LEGAL_DOCS_URL  = (func2url as Record<string, string>)["legal-docs"];
 
+// Yandex Search API v2 ограничивает поисковый запрос 400 символами (включая служебный префикс site:).
+// Оставляем разумный запас под сам запрос пользователя.
+const MAX_QUERY_LEN = 300;
+
 interface WebResult {
   url: string;
   title: string;
@@ -181,7 +185,8 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             className="flex-1 text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-400 transition-all placeholder:text-slate-400"
             placeholder={`Поиск в «${catInfo.label}»...`}
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            maxLength={MAX_QUERY_LEN}
+            onChange={e => setQuery(e.target.value.slice(0, MAX_QUERY_LEN))}
             onKeyDown={e => e.key === "Enter" && search()}
             autoFocus
           />
@@ -197,8 +202,11 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
             {isLoading ? "Поиск..." : "Найти"}
           </button>
         </div>
-
-
+        {query.length > MAX_QUERY_LEN * 0.8 && (
+          <p className={`text-[10px] text-right -mt-2 ${query.length >= MAX_QUERY_LEN ? "text-red-500 font-semibold" : "text-slate-400"}`}>
+            {query.length}/{MAX_QUERY_LEN}
+          </p>
+        )}
 
         {/* ═══ СЕКЦИЯ: БАЗА КОДЕКСОВ ═══ */}
         {searched && isCodex && (
