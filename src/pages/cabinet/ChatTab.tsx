@@ -117,6 +117,16 @@ export default function ChatTab({
     onSend(text);
   };
 
+  // Поиск судебной практики и оценка перспективы дела из чата — тоже премиум-функции
+  const handleSearchCaseLaw = (aiText: string, msgIdx: number) => {
+    if (!user.isAdmin && !hasPurchasedPlan(user)) { setShowPremiumPopup(true); return; }
+    onSearchCaseLaw?.(aiText, msgIdx);
+  };
+  const handleAssessCaseLaw = (caseLawMsgIdx: number) => {
+    if (!user.isAdmin && !hasPurchasedPlan(user)) { setShowPremiumPopup(true); return; }
+    onAssessCaseLaw?.(caseLawMsgIdx);
+  };
+
   return (
     <div className="max-w-5xl w-full mx-auto flex-1 min-h-0 flex gap-3">
       {showReport && <div className="fixed inset-0 z-40" onClick={() => setShowReport(false)} />}
@@ -294,8 +304,8 @@ export default function ChatTab({
         creatingDocFromChat={creatingDocFromChat}
         onSendToLawyer={onSendToLawyer}
         onSendMessage={onSend}
-        onSearchCaseLaw={onSearchCaseLaw}
-        onAssessCaseLaw={onAssessCaseLaw}
+        onSearchCaseLaw={handleSearchCaseLaw}
+        onAssessCaseLaw={handleAssessCaseLaw}
       />
 
       {/* Поле ввода + файл */}
