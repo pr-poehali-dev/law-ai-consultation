@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { getToken, consumeQuestion } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
+import LegalDocViewer from "@/pages/cabinet/LegalDocViewer";
 
 const WEB_SEARCH_URL  = (func2url as Record<string, string>)["web-search"];
 const LEGAL_DOCS_URL  = (func2url as Record<string, string>)["legal-docs"];
@@ -18,6 +19,8 @@ interface WebResult {
 }
 
 interface DbResult {
+  doc_id?: number;
+  chunk_index?: number;
   title: string;
   filename: string;
   doc_year: number | null;
@@ -72,6 +75,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
   const [webCopied, setWebCopied]   = useState<number | null>(null);
   const [dbCopied, setDbCopied]     = useState<number | null>(null);
   const [searched, setSearched]     = useState(false);
+  const [viewerDoc, setViewerDoc]   = useState<{ id: number; title: string; query: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isCodex = category === "codex" || category === "court_definitions";
@@ -279,20 +283,40 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                         {highlight(r.snippet, query)}
                       </div>
                     )}
-                    <button
-                      onClick={() => copyText(i, `${r.title}\n\n${r.snippet}`, "db")}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                      style={dbCopied === i
-                        ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
-                        : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
-                      <Icon name={dbCopied === i ? "CheckCheck" : "Copy"} size={9} color={dbCopied === i ? "#059669" : "#64748b"} />
-                      {dbCopied === i ? "Скопировано" : "Копировать"}
-                    </button>
+                    <div className="flex gap-1.5">
+                      {r.doc_id != null && (
+                        <button
+                          onClick={() => setViewerDoc({ id: r.doc_id!, title: r.title, query })}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all hover:opacity-80"
+                          style={{ background: "#dbeafe", color: "#1e40af", border: "1px solid rgba(30,64,175,0.2)" }}>
+                          <Icon name="BookOpen" size={9} color="#1e40af" />
+                          Открыть документ
+                        </button>
+                      )}
+                      <button
+                        onClick={() => copyText(i, `${r.title}\n\n${r.snippet}`, "db")}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                        style={dbCopied === i
+                          ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }
+                          : { background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
+                        <Icon name={dbCopied === i ? "CheckCheck" : "Copy"} size={9} color={dbCopied === i ? "#059669" : "#64748b"} />
+                        {dbCopied === i ? "Скопировано" : "Копировать"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        )}
+
+        {viewerDoc && (
+          <LegalDocViewer
+            docId={viewerDoc.id}
+            docTitle={viewerDoc.title}
+            initialQuery={viewerDoc.query}
+            onClose={() => setViewerDoc(null)}
+          />
         )}
 
         {/* ═══ СЕКЦИЯ: ИНТЕРНЕТ-ПОИСК ═══ */}

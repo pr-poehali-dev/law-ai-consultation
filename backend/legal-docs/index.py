@@ -639,8 +639,8 @@ def handle_legal_docs(token: str, body: dict) -> dict:
 
             cur.execute(
                 f"""SELECT
-                        c.content,
-                        d.title, d.filename, d.doc_year, d.court_name, d.case_number,
+                        c.content, c.chunk_index,
+                        d.id, d.title, d.filename, d.doc_year, d.court_name, d.case_number,
                         d.description,
                         ts_rank(c.content_tsv, to_tsquery('russian', %s)) AS rank_or,
                         CASE WHEN c.content_tsv @@ to_tsquery('russian', %s) THEN 2.0 ELSE 0.0 END AS bonus_and,
@@ -686,7 +686,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             seen_titles: dict = {}
             max_per_doc = 3 if category == "codex" else (2 if category == "court_definitions" else 2)
             for row in rows:
-                content, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase, bonus_article = row
+                content, chunk_index, doc_id, title, filename, doc_year, court_name, case_number, description, rank_or, bonus_and, bonus_phrase, bonus_article = row
                 if seen_titles.get(title, 0) >= max_per_doc:
                     continue
                 seen_titles[title] = seen_titles.get(title, 0) + 1
@@ -699,6 +699,8 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     snippet = content[:700]
 
                 results.append({
+                    "doc_id": doc_id,
+                    "chunk_index": chunk_index,
                     "title": title,
                     "filename": filename or title,
                     "doc_year": doc_year,
@@ -718,6 +720,108 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 results = [r for r in results if r["all_terms"] or r["exact_match"]]
 
             return _ok({"results": results, "total": len(results)})
+
+        elif action == "get_document":
+            # Постраничная выдача полного текста документа для режима предпросмотра.
+            # Документы могут быть очень большими (до ~1.8 млн символов) — отдаём порциями по chunk_index.
+            doc_id = body.get("doc_id")
+            if not doc_id:
+                return _err(400, "Укажите doc_id")
+            try:
+                doc_id = int(doc_id)
+            except (TypeError, ValueError):
+                return _err(400, "Некорректный doc_id")
+
+            offset = max(int(body.get("offset", 0)), 0)
+            page_size = min(max(int(body.get("page_size", 20)), 1), 50)
+
+            cur.execute(
+                f"""SELECT id, category, title, filename, description, doc_year,
+                           court_name, case_number, created_at
+                    FROM {SCHEMA}.legal_docs
+                    WHERE id = %s AND is_active = TRUE""",
+                (doc_id,)
+            )
+            doc_row = cur.fetchone()
+            if not doc_row:
+                return _err(404, "Документ не найден")
+            d_id, d_category, d_title, d_filename, d_description, d_year, d_court, d_case_num, d_created = doc_row
+
+            cur.execute(
+                f"""SELECT COUNT(*) FROM {SCHEMA}.legal_doc_chunks
+                    WHERE doc_id = %s AND content != ''""",
+                (doc_id,)
+            )
+            total_chunks = cur.fetchone()[0]
+
+            cur.execute(
+                f"""SELECT chunk_index, content FROM {SCHEMA}.legal_doc_chunks
+                    WHERE doc_id = %s AND content != ''
+                    ORDER BY chunk_index ASC
+                    OFFSET %s LIMIT %s""",
+                (doc_id, offset, page_size)
+            )
+            chunk_rows = cur.fetchall()
+
+            return _ok({
+                "document": {
+                    "id": d_id,
+                    "category": d_category,
+                    "title": d_title,
+                    "filename": d_filename,
+                    "description": d_description or "",
+                    "doc_year": d_year,
+                    "court_name": d_court or "",
+                    "case_number": d_case_num or "",
+                    "created_at": d_created.isoformat() if d_created else "",
+                },
+                "chunks": [{"chunk_index": ci, "content": c} for ci, c in chunk_rows],
+                "total_chunks": total_chunks,
+                "offset": offset,
+                "page_size": page_size,
+                "has_more": offset + page_size < total_chunks,
+            })
+
+        elif action == "search_in_document":
+            # Поиск конкретного фрагмента/статьи внутри уже открытого документа —
+            # возвращает индекс чанка, где встречается запрос, чтобы сразу открыть нужную страницу.
+            doc_id = body.get("doc_id")
+            query = (body.get("query") or "").strip()
+            if not doc_id:
+                return _err(400, "Укажите doc_id")
+            if not query:
+                return _err(400, "Укажите поисковый запрос")
+            try:
+                doc_id = int(doc_id)
+            except (TypeError, ValueError):
+                return _err(400, "Некорректный doc_id")
+
+            import re as _re2
+            normalized = _re2.sub(r"\bст\.\s*(\d)", r"статья \1", query, flags=_re2.IGNORECASE)
+            normalized = _re2.sub(r"\bст\b", "статья", normalized, flags=_re2.IGNORECASE)
+
+            stop_words = {
+                "и","в","на","с","по","для","что","как","это","все","или","но","а","у","из","за",
+                "от","до","при","если","то","не","к","о","об","во","со","же","бы","ли","уже",
+                "еще","ещё","мне","мы","вы","он","она","они","был","быть","есть","так","там",
+            }
+            words = _re2.sub(r"[^\w\s]", " ", normalized.lower()).split()
+            terms = [w for w in words if len(w) > 2 and w not in stop_words] or words
+            if not terms:
+                return _ok({"matches": []})
+            tsquery = " & ".join(f"{t}:*" for t in terms[:10])
+
+            cur.execute(
+                f"""SELECT chunk_index, ts_rank(content_tsv, to_tsquery('russian', %s)) AS rank
+                    FROM {SCHEMA}.legal_doc_chunks
+                    WHERE doc_id = %s AND content != ''
+                        AND content_tsv @@ to_tsquery('russian', %s)
+                    ORDER BY rank DESC
+                    LIMIT 10""",
+                (tsquery, doc_id, tsquery)
+            )
+            matches = [{"chunk_index": ci, "rank": float(r)} for ci, r in cur.fetchall()]
+            return _ok({"matches": matches})
 
         elif action == "upload":
             category = body.get("category", "")
