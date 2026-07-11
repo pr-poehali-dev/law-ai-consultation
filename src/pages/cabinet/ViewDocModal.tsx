@@ -90,7 +90,11 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
           body: JSON.stringify({
             mode: "doc_recommendations",
             doc_name: doc.name,
-            doc_content: doc.content.slice(0, 2000),
+            // Для длинных документов берём начало + конец — иначе AI не видит
+            // просительную часть/подпись в конце и ошибочно решает, что документ обрывается
+            doc_content: doc.content.length <= 4000
+              ? doc.content
+              : `${doc.content.slice(0, 2500)}\n\n[...]\n\n${doc.content.slice(-1500)}`,
           }),
         });
         let recs: DocRecommendationItem[] = [];
