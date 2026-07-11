@@ -192,7 +192,7 @@ export default function DocsFormPhase({
       {/* Правая колонка — форма генерации + история */}
       <div className="flex flex-col gap-4">
         {/* Форма */}
-        <div className="bg-white rounded-3xl border border-border p-6 shadow-sm">
+        <div className="bg-white rounded-3xl border border-border p-6 shadow-sm" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
           <h3 className="font-cormorant font-bold text-2xl text-navy-800 mb-1">
             {docType.label}
           </h3>
