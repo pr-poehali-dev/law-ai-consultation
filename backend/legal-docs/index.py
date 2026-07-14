@@ -12,6 +12,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 import boto3
 import psycopg2
+import psycopg2.extras
 from datetime import datetime
 
 # ─────────────────────────────────────────────
@@ -345,13 +346,13 @@ def _split_by_law_articles(text: str, max_chars: int = 3500) -> list:
 
 
 def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
-    """Нарезает текст и сохраняет чанки в БД с tsvector-индексом."""
+    """Нарезает текст и сохраняет чанки в БД с tsvector-индексом.
+    Вставка пакетная (execute_values) — построчный INSERT для больших кодексов
+    (1000+ статей, напр. ГК РФ) не укладывался в таймаут функции и обрывал индексацию
+    на середине документа, из-за чего часть статей выпадала из поиска."""
     cur = conn.cursor()
-    # Обнуляем старые чанки через UPDATE (не DELETE — политика БД)
-    cur.execute(
-        f"UPDATE {SCHEMA}.legal_doc_chunks SET content = '', content_tsv = NULL WHERE doc_id = %s",
-        (doc_id,)
-    )
+    # Старые чанки удаляем полностью, чтобы не копились дубли chunk_index при повторной индексации
+    cur.execute(f"DELETE FROM {SCHEMA}.legal_doc_chunks WHERE doc_id = %s", (doc_id,))
     # Выбираем стратегию нарезки по категории
     if category == "codex":
         chunks = _split_by_articles(text)
@@ -365,13 +366,16 @@ def _save_chunks(conn, doc_id: int, text: str, category: str = "") -> int:
         print(f"[CHUNKS] doc_id={doc_id} category={category} position_chunks={len(chunks)}")
     else:
         chunks = _split_into_chunks(text)
-    for idx, chunk in enumerate(chunks):
-        cur.execute(
-            f"""INSERT INTO {SCHEMA}.legal_doc_chunks
-                (doc_id, chunk_index, content, content_tsv)
-                VALUES (%s, %s, %s, to_tsvector('russian', %s))""",
-            (doc_id, idx, chunk, chunk)
-        )
+
+    rows = [(doc_id, idx, chunk, chunk) for idx, chunk in enumerate(chunks)]
+    psycopg2.extras.execute_values(
+        cur,
+        f"""INSERT INTO {SCHEMA}.legal_doc_chunks (doc_id, chunk_index, content, content_tsv)
+            VALUES %s""",
+        rows,
+        template="(%s, %s, %s, to_tsvector('russian', %s))",
+        page_size=500,
+    )
     cur.close()
     return len(chunks)
 
