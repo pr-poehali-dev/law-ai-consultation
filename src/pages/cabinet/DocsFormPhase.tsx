@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
@@ -6,14 +6,14 @@ import type { GenDoc } from "@/pages/cabinet/DocsTab";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import DocBlockSelector from "@/pages/cabinet/DocBlockSelector";
 import type { DocType } from "@/pages/cabinet/docBlocks";
+import { compressAttachment, blobToBase64, formatFileSize } from "@/lib/fileCompression";
 
 const MAX_FILES = 3;
 const MAX_FILE_MB = 10;
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
-}
+// Backend отдельно сжимает и режет по лимиту, но нам выгоднее сжать заранее на клиенте —
+// меньше трафика и быстрее уходит запрос. 4 МБ с запасом укладывается в бэкендовые лимиты
+// и не рискует таймаутом при анализе AI.
+const TARGET_FILE_MB = 4;
 
 interface DocsFormPhaseProps {
   user: User;
@@ -52,22 +52,42 @@ export default function DocsFormPhase({
 }: DocsFormPhaseProps) {
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filesProcessing, setFilesProcessing] = useState(false);
+  const [compressNote, setCompressNote] = useState<string | null>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     const remaining = MAX_FILES - attachedFiles.length;
-    files.slice(0, remaining).forEach(file => {
-      if (file.size > MAX_FILE_MB * 1024 * 1024) return;
+    const candidates = files.slice(0, remaining).filter(file => {
+      if (file.size > MAX_FILE_MB * 1024 * 1024) return false;
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      if (!["pdf", "doc", "docx"].includes(ext)) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = (reader.result as string).split(",")[1];
-        onAttachedFilesChange([...attachedFiles, { name: file.name, b64 }].slice(0, MAX_FILES));
-      };
-      reader.readAsDataURL(file);
+      return ["pdf", "doc", "docx"].includes(ext);
     });
+    if (candidates.length === 0) return;
+
+    setFilesProcessing(true);
+    setCompressNote(null);
+    try {
+      const results = await Promise.all(
+        candidates.map(file => compressAttachment(file, TARGET_FILE_MB * 1024 * 1024))
+      );
+      const newFiles = await Promise.all(
+        results.map(async r => ({ name: r.name, b64: await blobToBase64(r.blob) }))
+      );
+      const compressedOnes = results.filter(r => r.wasCompressed);
+      if (compressedOnes.length > 0) {
+        const totalBefore = compressedOnes.reduce((s, r) => s + r.originalSize, 0);
+        const totalAfter = compressedOnes.reduce((s, r) => s + r.finalSize, 0);
+        setCompressNote(
+          `Файл сжат: ${formatFileSize(totalBefore)} → ${formatFileSize(totalAfter)}, суть документа сохранена`
+        );
+        setTimeout(() => setCompressNote(null), 6000);
+      }
+      onAttachedFilesChange([...attachedFiles, ...newFiles].slice(0, MAX_FILES));
+    } finally {
+      setFilesProcessing(false);
+    }
   };
 
   const removeFile = (idx: number) =>
@@ -141,16 +161,24 @@ export default function DocsFormPhase({
             ))}
           </div>
         )}
+        {compressNote && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 border border-blue-200 mb-2">
+            <Icon name="Sparkles" size={11} className="text-blue-500 shrink-0" />
+            <span className="text-[11px] text-blue-700">{compressNote}</span>
+          </div>
+        )}
 
         <div className="flex gap-2 mb-2">
           {attachedFiles.length < MAX_FILES && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={docGenerating}
+              disabled={docGenerating || filesProcessing}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-border bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-50"
             >
-              <Icon name="Paperclip" size={12} />
-              Файл
+              {filesProcessing
+                ? <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
+                : <Icon name="Paperclip" size={12} />}
+              {filesProcessing ? "Сжимаю..." : "Файл"}
             </button>
           )}
           <button
@@ -225,15 +253,23 @@ export default function DocsFormPhase({
                 ))}
               </div>
             )}
+            {compressNote && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 mb-2">
+                <Icon name="Sparkles" size={13} className="text-blue-500 shrink-0" />
+                <span className="text-xs text-blue-700">{compressNote}</span>
+              </div>
+            )}
             {attachedFiles.length < MAX_FILES && (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={docGenerating}
+                disabled={docGenerating || filesProcessing}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border border-dashed border-slate-300 text-slate-400 hover:border-navy-300 hover:text-navy-600 hover:bg-slate-50 transition-colors disabled:opacity-50 w-full"
               >
-                <Icon name="Paperclip" size={12} />
-                Прикрепить документ (PDF, DOC, DOCX) — AI учтёт при генерации
-                {attachedFiles.length > 0 && <span className="ml-auto text-[10px] text-slate-400">{attachedFiles.length}/{MAX_FILES}</span>}
+                {filesProcessing
+                  ? <span className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin shrink-0" />
+                  : <Icon name="Paperclip" size={12} />}
+                {filesProcessing ? "Сжимаю файл до допустимого размера..." : "Прикрепить документ (PDF, DOC, DOCX) — AI учтёт при генерации"}
+                {!filesProcessing && attachedFiles.length > 0 && <span className="ml-auto text-[10px] text-slate-400">{attachedFiles.length}/{MAX_FILES}</span>}
               </button>
             )}
           </div>
