@@ -641,6 +641,12 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                 for num in article_numbers:
                     article_params.append(f"(^|\\n)\\s*[Сс]татья\\.?\\s+{_re.escape(num)}[^\\d]")
 
+            # «Кодексы и законы» на фронте — это единая вкладка, но в БД кодексы (category=codex)
+            # и федеральные законы (category=statute, напр. «О полиции») хранятся раздельно.
+            # Раньше поиск по codex не видел statute — законы никогда не находились. Объединяем.
+            search_categories = ["codex", "statute"] if category == "codex" else [category]
+            cat_placeholder = ", ".join(["%s"] * len(search_categories))
+
             cur.execute(
                 f"""SELECT
                         c.content, c.chunk_index,
@@ -653,7 +659,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     FROM {SCHEMA}.legal_doc_chunks c
                     JOIN {SCHEMA}.legal_docs d ON d.id = c.doc_id
                     WHERE
-                        d.category = %s AND d.is_active = TRUE
+                        d.category IN ({cat_placeholder}) AND d.is_active = TRUE
                         AND c.content != ''
                         AND c.content_tsv @@ to_tsquery('russian', %s)
                     ORDER BY (
@@ -665,7 +671,7 @@ def handle_legal_docs(token: str, body: dict) -> dict:
                     LIMIT %s""",
                 ([tsquery_or, tsquery_and, phrase_orig, phrase_norm]
                  + article_params
-                 + [category, tsquery_or,
+                 + search_categories + [tsquery_or,
                     tsquery_or, tsquery_and, phrase_orig, phrase_norm]
                  + article_params
                  + [limit])
