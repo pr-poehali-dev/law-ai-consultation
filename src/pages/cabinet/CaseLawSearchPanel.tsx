@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import { getToken, consumeQuestion } from "@/lib/auth";
+import { cleanLegalText } from "@/lib/legalTextClean";
 import func2url from "../../../backend/func2url.json";
 import LegalDocViewer from "@/pages/cabinet/LegalDocViewer";
 
@@ -281,7 +282,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                     {r.snippet && (
                       <div className="px-2.5 py-2 rounded-lg text-[11px] text-slate-600 leading-relaxed mb-2"
                         style={{ background: "#f8fafc", border: "1px solid #f1f5f9", maxHeight: "180px", overflowY: "auto" }}>
-                        {highlight(r.snippet, query)}
+                        {highlight(cleanLegalText(r.snippet), query)}
                       </div>
                     )}
                     <div className="flex gap-1.5">
@@ -295,7 +296,7 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
                         </button>
                       )}
                       <button
-                        onClick={() => copyText(i, `${r.title}\n\n${r.snippet}`, "db")}
+                        onClick={() => copyText(i, `${r.title}\n\n${cleanLegalText(r.snippet)}`, "db")}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all"
                         style={dbCopied === i
                           ? { background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)" }

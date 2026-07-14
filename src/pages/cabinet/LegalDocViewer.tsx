@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Icon from "@/components/ui/icon";
 import { getToken } from "@/lib/auth";
+import { splitCleanLines } from "@/lib/legalTextClean";
 import func2url from "../../../backend/func2url.json";
 
 const LEGAL_DOCS_URL = (func2url as Record<string, string>)["legal-docs"];
@@ -106,14 +107,15 @@ function highlight(text: string, query: string, pal: typeof PALETTE.light): Reac
   );
 }
 
-/** Извлекает заголовки статей/глав из чанка для визуального форматирования документа */
+/** Извлекает заголовки статей/глав из чанка для визуального форматирования документа.
+ * Служебный мусор источника (ГАРАНТ, «Информация об изменениях», «См. предыдущую редакцию»
+ * и т.п.) полностью убирается через cleanLegalText — это не часть текста закона. */
 function formatChunkContent(content: string, query: string, fontScale: number, pal: typeof PALETTE.light): React.ReactNode {
-  const lines = content.split(/\n+/).filter(l => l.trim());
+  const lines = splitCleanLines(content);
   return lines.map((line, i) => {
     const trimmed = line.trim();
     const isArticleHeader = /^статья\s+[\d.]/i.test(trimmed);
     const isChapterHeader = /^(глава|раздел)\s+[ivxlc\d]/i.test(trimmed);
-    const isAmendmentNote = /^(информация об изменениях|гарант|см\.\s|см\s|федеральным законом)/i.test(trimmed);
 
     if (isChapterHeader) {
       return (
@@ -129,14 +131,6 @@ function formatChunkContent(content: string, query: string, fontScale: number, p
       return (
         <p key={i} className="font-bold" style={{ color: pal.textTitle, fontSize: `${16.5 * fontScale}px`, marginTop: "24px", marginBottom: "12px", letterSpacing: "-0.01em" }}>
           {highlight(trimmed, query, pal)}
-        </p>
-      );
-    }
-    if (isAmendmentNote) {
-      return (
-        <p key={i} className="italic flex items-start gap-1.5" style={{ color: pal.textMuted, fontSize: `${12 * fontScale}px`, marginBottom: "8px", lineHeight: 1.5 }}>
-          <Icon name="Info" size={11} className="mt-0.5 shrink-0 opacity-60" />
-          <span>{highlight(trimmed, query, pal)}</span>
         </p>
       );
     }
