@@ -5,5 +5,6 @@
   {"name": "legal-docs upload — unauthorized", "method": "POST", "path": "/", "body": {"sub": "upload", "category": "case_law", "title": "test", "file": "dGVzdA==", "filename": "test.pdf"}, "expectedStatus": 401, "bodyMatcher": "partial"},
   {"name": "legal-docs search — unauthorized", "method": "POST", "path": "/", "body": {"sub": "search", "query": "неустойка договор", "category": "case_law"}, "expectedStatus": 401, "bodyMatcher": "partial"},
   {"name": "legal-docs get_document — unauthorized", "method": "POST", "path": "/", "body": {"sub": "get_document", "doc_id": 1}, "expectedStatus": 401, "bodyMatcher": "partial"},
-  {"name": "legal-docs search_in_document — unauthorized", "method": "POST", "path": "/", "body": {"sub": "search_in_document", "doc_id": 1, "query": "тест"}, "expectedStatus": 401, "bodyMatcher": "partial"}
+  {"name": "legal-docs search_in_document — unauthorized", "method": "POST", "path": "/", "body": {"sub": "search_in_document", "doc_id": 1, "query": "тест"}, "expectedStatus": 401, "bodyMatcher": "partial"},
+  {"name": "legal-docs get_toc — unauthorized", "method": "POST", "path": "/", "body": {"sub": "get_toc", "doc_id": 1}, "expectedStatus": 401, "bodyMatcher": "partial"}
 ]}

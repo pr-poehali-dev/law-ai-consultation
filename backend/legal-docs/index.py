@@ -833,6 +833,60 @@ def handle_legal_docs(token: str, body: dict) -> dict:
             matches = [{"chunk_index": ci, "rank": float(r)} for ci, r in cur.fetchall()]
             return _ok({"matches": matches})
 
+        elif action == "get_toc":
+            # Оглавление документа: список глав/статей с их chunk_index для быстрой навигации.
+            # Загружаем только начало каждого чанка (не весь текст) — дёшево даже для документов
+            # с 1000+ статей (напр. ГК РФ).
+            doc_id = body.get("doc_id")
+            if not doc_id:
+                return _err(400, "Укажите doc_id")
+            try:
+                doc_id = int(doc_id)
+            except (TypeError, ValueError):
+                return _err(400, "Некорректный doc_id")
+
+            cur.execute(
+                f"""SELECT chunk_index, LEFT(content, 200)
+                    FROM {SCHEMA}.legal_doc_chunks
+                    WHERE doc_id = %s AND content != ''
+                    ORDER BY chunk_index ASC""",
+                (doc_id,)
+            )
+            rows = cur.fetchall()
+
+            import re as _re3
+            # Чанки часто начинаются с заголовка главы, а сама статья идёт следующей строкой —
+            # поэтому ищем оба паттерна в пределах всего заголовочного фрагмента (не только начало строки).
+            article_re = _re3.compile(r"Статья\s+([\d.]+)\.?\s*([^\n]{0,150})", _re3.IGNORECASE)
+            # «Часть» намеренно исключена — этим словом чаще начинаются служебные пометки
+            # об изменениях («Часть 5 изменена с...»), а не заголовки структурных разделов документа.
+            chapter_re = _re3.compile(r"(Глава|Раздел)\s+([IVXLC\d]+)\.?\s*([^\n]{0,150})", _re3.IGNORECASE)
+
+            toc = []
+            seen_labels = set()
+            for chunk_index, head in rows:
+                head = (head or "").strip()
+                m_chapter = chapter_re.search(head)
+                m_article = article_re.search(head)
+                if m_chapter:
+                    label = f"{m_chapter.group(1).capitalize()} {m_chapter.group(2)}. {m_chapter.group(3).strip()}".rstrip(". ")
+                    key = ("chapter", label)
+                    if key not in seen_labels:
+                        seen_labels.add(key)
+                        toc.append({"chunk_index": chunk_index, "type": "chapter", "label": label})
+                if m_article:
+                    art_title = m_article.group(2).strip()
+                    # Отфильтровываем служебные пометки об изменениях («Статья 5 дополнена частью...»,
+                    # «Статья 12 изменена с...») — это не заголовок статьи, а сноска о поправке.
+                    is_amendment_note = bool(_re3.match(
+                        r"^(дополнена|изменена|утратил|утратила|в редакции)", art_title, _re3.IGNORECASE
+                    ))
+                    if not is_amendment_note:
+                        label = f"Ст. {m_article.group(1)} {art_title}".rstrip(". ")
+                        toc.append({"chunk_index": chunk_index, "type": "article", "label": label})
+
+            return _ok({"toc": toc, "total_chunks": len(rows)})
+
         elif action == "upload":
             category = body.get("category", "")
             subcategory = (body.get("subcategory") or "").strip()
