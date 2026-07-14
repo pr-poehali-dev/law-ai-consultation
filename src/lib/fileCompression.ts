@@ -207,31 +207,54 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
+// Ограничение платформы poehali.dev на загрузку документов — совокупный вес вложений
+// (сырые байты, до base64) должен укладываться в этот бюджет. Backend анализирует лишь
+// первые страницы/символы независимо от веса файла, поэтому таймаут в 150 сек тут ни при
+// чём — узкое место именно приём/передача тела запроса, а не скорость AI-анализа.
+export const PLATFORM_TOTAL_LIMIT_MB = 10;
+
+export interface BatchCompressResult {
+  results: CompressResult[];
+  totalFinalSize: number;
+  /** true — даже после максимального сжатия сумма вложений больше лимита платформы */
+  exceeded: boolean;
+}
+
 /**
- * Сжимает несколько вложений сразу и следит за СОВОКУПНЫМ бюджетом (не только
- * индивидуальным). Если после первого прохода сжатия сумма всё ещё превышает
- * totalTargetBytes, донажимает самые тяжёлые файлы жёстче — так 2-3 крупных PDF
- * гарантированно укладываются в общий лимит, а не только каждый по отдельности.
+ * Сжимает вложения ТОЛЬКО если их совокупный вес превышает лимит платформы —
+ * если сумма и так укладывается, файлы возвращаются как есть без изменений.
+ * При превышении — сжимает в несколько раундов, следя за СОВОКУПНЫМ бюджетом
+ * (а не только индивидуальным), донажимая самые тяжёлые файлы жёстче. Если даже
+ * после этого сумма больше лимита — возвращает exceeded=true, чтобы UI показал
+ * пользователю понятную ошибку вместо тихого обрезания или падения на backend.
  */
 export async function compressAttachmentsBatch(
   files: File[],
-  perFileTargetBytes: number,
-  totalTargetBytes: number
-): Promise<CompressResult[]> {
-  let results = await Promise.all(files.map(f => compressAttachment(f, perFileTargetBytes)));
+  totalTargetBytes: number = PLATFORM_TOTAL_LIMIT_MB * 1024 * 1024
+): Promise<BatchCompressResult> {
+  const totalOriginal = files.reduce((s, f) => s + f.size, 0);
+  if (totalOriginal <= totalTargetBytes) {
+    const results = files.map(f => ({ blob: f as Blob, name: f.name, originalSize: f.size, finalSize: f.size, wasCompressed: false }));
+    return { results, totalFinalSize: totalOriginal, exceeded: false };
+  }
 
+  const perFileTarget = Math.floor(totalTargetBytes / files.length);
+  let results = await Promise.all(files.map(f => compressAttachment(f, perFileTarget)));
   let total = results.reduce((s, r) => s + r.finalSize, 0);
-  if (total <= totalTargetBytes) return results;
 
-  // Второй проход: ужимаем каждый файл пропорционально его доле в общем весе
-  const overshoot = total / totalTargetBytes;
-  results = await Promise.all(
-    files.map((f, i) => {
-      const r = results[i];
-      const stricterTarget = Math.max(300 * 1024, Math.floor(r.finalSize / overshoot));
-      return r.finalSize > stricterTarget ? compressAttachment(f, stricterTarget) : Promise.resolve(r);
-    })
-  );
+  // До 3 донажимов — каждый раз ужимаем самые тяжёлые файлы пропорционально перевесу
+  const MIN_TARGET_BYTES = 250 * 1024;
+  for (let attempt = 0; attempt < 3 && total > totalTargetBytes; attempt++) {
+    const overshoot = total / totalTargetBytes;
+    results = await Promise.all(
+      files.map((f, i) => {
+        const r = results[i];
+        const stricterTarget = Math.max(MIN_TARGET_BYTES, Math.floor(r.finalSize / overshoot));
+        return r.finalSize > stricterTarget ? compressAttachment(f, stricterTarget) : Promise.resolve(r);
+      })
+    );
+    total = results.reduce((s, r) => s + r.finalSize, 0);
+  }
 
-  return results;
+  return { results, totalFinalSize: total, exceeded: total > totalTargetBytes };
 }

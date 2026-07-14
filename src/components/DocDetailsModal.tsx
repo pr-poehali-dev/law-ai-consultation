@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { compressAttachmentsBatch, blobToBase64, formatFileSize } from "@/lib/fileCompression";
+import { compressAttachmentsBatch, blobToBase64, formatFileSize, PLATFORM_TOTAL_LIMIT_MB } from "@/lib/fileCompression";
 
 export interface DocAttachedFile {
   name: string;
@@ -17,12 +17,9 @@ interface DocDetailsModalProps {
 }
 
 const MAX_FILES = 3;
-// Принимаем файлы крупнее платформенного лимита — сжимаем их на клиенте перед отправкой.
+// Принимаем файлы крупнее платформенного лимита — сжимаем их на клиенте перед отправкой,
+// только если СОВОКУПНЫЙ вес вложений превышает лимит платформы.
 const MAX_FILE_MB = 20;
-// Индивидуальный таргет на файл и общий бюджет на все вложения сразу — так 2-3 крупных
-// PDF гарантированно укладываются в лимит запроса, а таймаута AI-анализа хватает с запасом.
-const TARGET_FILE_MB = 4;
-const TOTAL_TARGET_MB = 8;
 const ALLOWED_EXTS = ["pdf", "doc", "docx"];
 
 const formatSize = formatFileSize;
@@ -75,11 +72,7 @@ export default function DocDetailsModal({
     setFilesProcessing(true);
     setCompressNote("");
     try {
-      const results = await compressAttachmentsBatch(
-        candidates,
-        TARGET_FILE_MB * 1024 * 1024,
-        TOTAL_TARGET_MB * 1024 * 1024
-      );
+      const { results, exceeded } = await compressAttachmentsBatch(candidates);
       const newFiles = await Promise.all(
         results.map(async r => ({ name: r.name, b64: await blobToBase64(r.blob), size: formatSize(r.finalSize) }))
       );
@@ -89,6 +82,10 @@ export default function DocDetailsModal({
         const totalAfter = compressedOnes.reduce((s, r) => s + r.finalSize, 0);
         setCompressNote(`Файл сжат: ${formatFileSize(totalBefore)} → ${formatFileSize(totalAfter)}, суть документа сохранена`);
         setTimeout(() => setCompressNote(""), 6000);
+      }
+      if (exceeded) {
+        setFileError(`Размер документов превышен даже после сжатия (лимит платформы — ${PLATFORM_TOTAL_LIMIT_MB} МБ). Приложите файл меньшего размера.`);
+        return;
       }
       setAttachedFiles(prev => [...prev, ...newFiles].slice(0, MAX_FILES));
     } finally {

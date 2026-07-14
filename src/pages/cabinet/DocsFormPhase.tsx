@@ -6,17 +6,13 @@ import type { GenDoc } from "@/pages/cabinet/DocsTab";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import DocBlockSelector from "@/pages/cabinet/DocBlockSelector";
 import type { DocType } from "@/pages/cabinet/docBlocks";
-import { compressAttachmentsBatch, blobToBase64, formatFileSize } from "@/lib/fileCompression";
+import { compressAttachmentsBatch, blobToBase64, formatFileSize, PLATFORM_TOTAL_LIMIT_MB } from "@/lib/fileCompression";
 
 const MAX_FILES = 3;
 // Принимаем файлы крупнее платформенного лимита — сжимаем их на клиенте перед отправкой,
-// поэтому исходный файл может быть больше итогового бюджета запроса.
+// поэтому исходный файл может быть больше итогового бюджета запроса. Сжатие срабатывает
+// автоматически только если СОВОКУПНЫЙ вес вложений превышает лимит платформы.
 const MAX_FILE_MB = 20;
-// Backend анализирует только первые страницы/символы документа независимо от его веса,
-// поэтому сжатие безопасно для смысла. Индивидуальный таргет на файл и общий бюджет
-// на все вложения сразу — так 2-3 крупных PDF гарантированно укладываются в лимит.
-const TARGET_FILE_MB = 4;
-const TOTAL_TARGET_MB = 8;
 
 interface DocsFormPhaseProps {
   user: User;
@@ -57,10 +53,12 @@ export default function DocsFormPhase({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [filesProcessing, setFilesProcessing] = useState(false);
   const [compressNote, setCompressNote] = useState<string | null>(null);
+  const [sizeErr, setSizeErr] = useState<string | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
+    setSizeErr(null);
     const remaining = MAX_FILES - attachedFiles.length;
     const candidates = files.slice(0, remaining).filter(file => {
       if (file.size > MAX_FILE_MB * 1024 * 1024) return false;
@@ -72,11 +70,7 @@ export default function DocsFormPhase({
     setFilesProcessing(true);
     setCompressNote(null);
     try {
-      const results = await compressAttachmentsBatch(
-        candidates,
-        TARGET_FILE_MB * 1024 * 1024,
-        TOTAL_TARGET_MB * 1024 * 1024
-      );
+      const { results, exceeded } = await compressAttachmentsBatch(candidates);
       const newFiles = await Promise.all(
         results.map(async r => ({ name: r.name, b64: await blobToBase64(r.blob) }))
       );
@@ -88,6 +82,10 @@ export default function DocsFormPhase({
           `Файл сжат: ${formatFileSize(totalBefore)} → ${formatFileSize(totalAfter)}, суть документа сохранена`
         );
         setTimeout(() => setCompressNote(null), 6000);
+      }
+      if (exceeded) {
+        setSizeErr(`Размер документов превышен даже после сжатия (лимит платформы — ${PLATFORM_TOTAL_LIMIT_MB} МБ). Приложите файл меньшего размера или уменьшите число страниц.`);
+        return;
       }
       onAttachedFilesChange([...attachedFiles, ...newFiles].slice(0, MAX_FILES));
     } finally {
@@ -170,6 +168,12 @@ export default function DocsFormPhase({
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 border border-blue-200 mb-2">
             <Icon name="Sparkles" size={11} className="text-blue-500 shrink-0" />
             <span className="text-[11px] text-blue-700">{compressNote}</span>
+          </div>
+        )}
+        {sizeErr && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200 mb-2">
+            <Icon name="AlertCircle" size={11} className="text-red-500 shrink-0" />
+            <span className="text-[11px] text-red-700">{sizeErr}</span>
           </div>
         )}
 
@@ -262,6 +266,12 @@ export default function DocsFormPhase({
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 mb-2">
                 <Icon name="Sparkles" size={13} className="text-blue-500 shrink-0" />
                 <span className="text-xs text-blue-700">{compressNote}</span>
+              </div>
+            )}
+            {sizeErr && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 mb-2">
+                <Icon name="AlertCircle" size={13} className="text-red-500 shrink-0" />
+                <span className="text-xs text-red-700">{sizeErr}</span>
               </div>
             )}
             {attachedFiles.length < MAX_FILES && (
