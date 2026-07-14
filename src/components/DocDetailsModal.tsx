@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import { compressAttachmentsBatch, blobToBase64, formatFileSize } from "@/lib/fileCompression";
 
 export interface DocAttachedFile {
   name: string;
@@ -16,14 +17,15 @@ interface DocDetailsModalProps {
 }
 
 const MAX_FILES = 3;
-const MAX_FILE_MB = 10;
+// Принимаем файлы крупнее платформенного лимита — сжимаем их на клиенте перед отправкой.
+const MAX_FILE_MB = 20;
+// Индивидуальный таргет на файл и общий бюджет на все вложения сразу — так 2-3 крупных
+// PDF гарантированно укладываются в лимит запроса, а таймаута AI-анализа хватает с запасом.
+const TARGET_FILE_MB = 4;
+const TOTAL_TARGET_MB = 8;
 const ALLOWED_EXTS = ["pdf", "doc", "docx"];
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
-}
+const formatSize = formatFileSize;
 
 export default function DocDetailsModal({
   docTypeId,
@@ -34,6 +36,8 @@ export default function DocDetailsModal({
   const [situation, setSituation] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<DocAttachedFile[]>([]);
   const [fileError, setFileError] = useState("");
+  const [filesProcessing, setFilesProcessing] = useState(false);
+  const [compressNote, setCompressNote] = useState("");
   const [visible, setVisible] = useState(false);
   const situationRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,23 +57,43 @@ export default function DocDetailsModal({
     el.style.height = Math.min(el.scrollHeight, 180) + "px";
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     setFileError("");
     const remaining = MAX_FILES - attachedFiles.length;
     if (remaining <= 0) { setFileError(`Максимум ${MAX_FILES} файла`); return; }
-    files.slice(0, remaining).forEach(file => {
+
+    const candidates = files.slice(0, remaining).filter(file => {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      if (!ALLOWED_EXTS.includes(ext)) { setFileError("Только PDF, DOC, DOCX"); return; }
-      if (file.size > MAX_FILE_MB * 1024 * 1024) { setFileError(`Файл слишком большой (макс. ${MAX_FILE_MB} МБ)`); return; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = (reader.result as string).split(",")[1];
-        setAttachedFiles(prev => prev.length >= MAX_FILES ? prev : [...prev, { name: file.name, b64, size: formatSize(file.size) }]);
-      };
-      reader.readAsDataURL(file);
+      if (!ALLOWED_EXTS.includes(ext)) { setFileError("Только PDF, DOC, DOCX"); return false; }
+      if (file.size > MAX_FILE_MB * 1024 * 1024) { setFileError(`Файл слишком большой (макс. ${MAX_FILE_MB} МБ)`); return false; }
+      return true;
     });
+    if (candidates.length === 0) return;
+
+    setFilesProcessing(true);
+    setCompressNote("");
+    try {
+      const results = await compressAttachmentsBatch(
+        candidates,
+        TARGET_FILE_MB * 1024 * 1024,
+        TOTAL_TARGET_MB * 1024 * 1024
+      );
+      const newFiles = await Promise.all(
+        results.map(async r => ({ name: r.name, b64: await blobToBase64(r.blob), size: formatSize(r.finalSize) }))
+      );
+      const compressedOnes = results.filter(r => r.wasCompressed);
+      if (compressedOnes.length > 0) {
+        const totalBefore = compressedOnes.reduce((s, r) => s + r.originalSize, 0);
+        const totalAfter = compressedOnes.reduce((s, r) => s + r.finalSize, 0);
+        setCompressNote(`Файл сжат: ${formatFileSize(totalBefore)} → ${formatFileSize(totalAfter)}, суть документа сохранена`);
+        setTimeout(() => setCompressNote(""), 6000);
+      }
+      setAttachedFiles(prev => [...prev, ...newFiles].slice(0, MAX_FILES));
+    } finally {
+      setFilesProcessing(false);
+    }
   };
 
   const handleProceed = () => {
@@ -78,7 +102,7 @@ export default function DocDetailsModal({
     onProceed(q, "", attachedFiles, docTypeId, docLabel);
   };
 
-  const canProceed = situation.trim().length > 0;
+  const canProceed = situation.trim().length > 0 && !filesProcessing;
 
   return (
     <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center">
@@ -163,14 +187,24 @@ export default function DocDetailsModal({
               {attachedFiles.length > 0 && attachedFiles.length < MAX_FILES && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-70"
+                  disabled={filesProcessing}
+                  className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-70 disabled:opacity-50"
                   style={{ color: "#e8a820" }}
                 >
-                  <Icon name="Paperclip" size={10} color="#e8a820" />
-                  Ещё файл
+                  {filesProcessing
+                    ? <span className="w-2.5 h-2.5 border-2 border-amber-300/40 border-t-amber-400 rounded-full animate-spin" />
+                    : <Icon name="Paperclip" size={10} color="#e8a820" />}
+                  {filesProcessing ? "Сжимаю..." : "Ещё файл"}
                 </button>
               )}
             </div>
+
+            {compressNote && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)" }}>
+                <Icon name="Sparkles" size={12} color="#60a5fa" className="shrink-0" />
+                <span className="text-[11px]" style={{ color: "#93c5fd" }}>{compressNote}</span>
+              </div>
+            )}
 
             {/* Прикреплённые файлы */}
             {attachedFiles.length > 0 && (
@@ -200,15 +234,20 @@ export default function DocDetailsModal({
             {attachedFiles.length === 0 && (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.99]"
+                disabled={filesProcessing}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.99] disabled:opacity-70"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)" }}
               >
                 <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
-                  <Icon name="Upload" size={13} color="rgba(255,255,255,0.4)" />
+                  {filesProcessing
+                    ? <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    : <Icon name="Upload" size={13} color="rgba(255,255,255,0.4)" />}
                 </div>
                 <div className="text-left">
-                  <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Прикрепить документ</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }}>PDF, DOC, DOCX · до 10 МБ · AI учтёт при генерации</p>
+                  <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    {filesProcessing ? "Сжимаю файл до допустимого размера..." : "Прикрепить документ"}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }}>PDF, DOC, DOCX · до {MAX_FILE_MB} МБ · AI учтёт при генерации</p>
                 </div>
               </button>
             )}

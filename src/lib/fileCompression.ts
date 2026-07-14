@@ -111,3 +111,32 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
+
+/**
+ * Сжимает несколько вложений сразу и следит за СОВОКУПНЫМ бюджетом (не только
+ * индивидуальным). Если после первого прохода сжатия сумма всё ещё превышает
+ * totalTargetBytes, донажимает самые тяжёлые файлы жёстче — так 2-3 крупных PDF
+ * гарантированно укладываются в общий лимит, а не только каждый по отдельности.
+ */
+export async function compressAttachmentsBatch(
+  files: File[],
+  perFileTargetBytes: number,
+  totalTargetBytes: number
+): Promise<CompressResult[]> {
+  let results = await Promise.all(files.map(f => compressAttachment(f, perFileTargetBytes)));
+
+  let total = results.reduce((s, r) => s + r.finalSize, 0);
+  if (total <= totalTargetBytes) return results;
+
+  // Второй проход: ужимаем каждый файл пропорционально его доле в общем весе
+  const overshoot = total / totalTargetBytes;
+  results = await Promise.all(
+    files.map((f, i) => {
+      const r = results[i];
+      const stricterTarget = Math.max(300 * 1024, Math.floor(r.finalSize / overshoot));
+      return r.finalSize > stricterTarget ? compressAttachment(f, stricterTarget) : Promise.resolve(r);
+    })
+  );
+
+  return results;
+}

@@ -6,14 +6,17 @@ import type { GenDoc } from "@/pages/cabinet/DocsTab";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import DocBlockSelector from "@/pages/cabinet/DocBlockSelector";
 import type { DocType } from "@/pages/cabinet/docBlocks";
-import { compressAttachment, blobToBase64, formatFileSize } from "@/lib/fileCompression";
+import { compressAttachmentsBatch, blobToBase64, formatFileSize } from "@/lib/fileCompression";
 
 const MAX_FILES = 3;
-const MAX_FILE_MB = 10;
-// Backend отдельно сжимает и режет по лимиту, но нам выгоднее сжать заранее на клиенте —
-// меньше трафика и быстрее уходит запрос. 4 МБ с запасом укладывается в бэкендовые лимиты
-// и не рискует таймаутом при анализе AI.
+// Принимаем файлы крупнее платформенного лимита — сжимаем их на клиенте перед отправкой,
+// поэтому исходный файл может быть больше итогового бюджета запроса.
+const MAX_FILE_MB = 20;
+// Backend анализирует только первые страницы/символы документа независимо от его веса,
+// поэтому сжатие безопасно для смысла. Индивидуальный таргет на файл и общий бюджет
+// на все вложения сразу — так 2-3 крупных PDF гарантированно укладываются в лимит.
 const TARGET_FILE_MB = 4;
+const TOTAL_TARGET_MB = 8;
 
 interface DocsFormPhaseProps {
   user: User;
@@ -69,8 +72,10 @@ export default function DocsFormPhase({
     setFilesProcessing(true);
     setCompressNote(null);
     try {
-      const results = await Promise.all(
-        candidates.map(file => compressAttachment(file, TARGET_FILE_MB * 1024 * 1024))
+      const results = await compressAttachmentsBatch(
+        candidates,
+        TARGET_FILE_MB * 1024 * 1024,
+        TOTAL_TARGET_MB * 1024 * 1024
       );
       const newFiles = await Promise.all(
         results.map(async r => ({ name: r.name, b64: await blobToBase64(r.blob) }))
