@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import { getToken, consumeQuestion } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
@@ -310,13 +311,14 @@ export default function CaseLawSearchPanel({ onClose, onSendToChat }: Props) {
           </div>
         )}
 
-        {viewerDoc && (
+        {viewerDoc && createPortal(
           <LegalDocViewer
             docId={viewerDoc.id}
             docTitle={viewerDoc.title}
             initialQuery={viewerDoc.query}
             onClose={() => setViewerDoc(null)}
-          />
+          />,
+          document.body
         )}
 
         {/* ═══ СЕКЦИЯ: ИНТЕРНЕТ-ПОИСК ═══ */}
