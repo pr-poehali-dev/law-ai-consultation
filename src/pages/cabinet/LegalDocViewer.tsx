@@ -5,6 +5,7 @@ import func2url from "../../../backend/func2url.json";
 
 const LEGAL_DOCS_URL = (func2url as Record<string, string>)["legal-docs"];
 const PAGE_SIZE = 20;
+const THEME_KEY = "legal_doc_viewer_theme";
 
 interface DocMeta {
   id: number;
@@ -37,7 +38,62 @@ interface Props {
   onClose: () => void;
 }
 
-function highlight(text: string, query: string): React.ReactNode {
+type Theme = "light" | "dark";
+
+const PALETTE = {
+  light: {
+    bg: "#f8fafc",
+    headerBg: "rgba(255,255,255,0.85)",
+    headerBorder: "rgba(226,232,240,0.8)",
+    searchBg: "rgba(255,255,255,0.6)",
+    searchBorder: "rgba(226,232,240,0.6)",
+    inputBg: "#fff",
+    inputBorder: "#e2e8f0",
+    cardBg: "#fff",
+    cardBorder: "#f1f5f9",
+    textPrimary: "#0f172a",
+    textSecondary: "#334155",
+    textTitle: "#1e293b",
+    textMuted: "#94a3b8",
+    textFaint: "#cbd5e1",
+    tocBg: "#fff",
+    tocBorder: "#e2e8f0",
+    tocHover: "#eff6ff",
+    tocText: "#475569",
+    chipBg: "#f1f5f9",
+    chipHover: "#fff",
+    mark: "#fde68a",
+    markText: "#1e293b",
+    accentText: "#0f4c81",
+  },
+  dark: {
+    bg: "#0b1220",
+    headerBg: "rgba(15,23,42,0.85)",
+    headerBorder: "rgba(51,65,85,0.7)",
+    searchBg: "rgba(15,23,42,0.6)",
+    searchBorder: "rgba(51,65,85,0.5)",
+    inputBg: "#1e293b",
+    inputBorder: "#334155",
+    cardBg: "#111c31",
+    cardBorder: "#1e293b",
+    textPrimary: "#f1f5f9",
+    textSecondary: "#cbd5e1",
+    textTitle: "#f8fafc",
+    textMuted: "#64748b",
+    textFaint: "#475569",
+    tocBg: "#0f172a",
+    tocBorder: "#1e293b",
+    tocHover: "rgba(59,130,246,0.15)",
+    tocText: "#94a3b8",
+    chipBg: "#1e293b",
+    chipHover: "#243044",
+    mark: "#a16207",
+    markText: "#fef3c7",
+    accentText: "#7cb0e8",
+  },
+} as const;
+
+function highlight(text: string, query: string, pal: typeof PALETTE.light): React.ReactNode {
   if (!query.trim()) return text;
   const words = query.trim().split(/\s+/).filter(w => w.length > 2);
   if (!words.length) return text;
@@ -45,13 +101,13 @@ function highlight(text: string, query: string): React.ReactNode {
   const parts = text.split(regex);
   return parts.map((p, i) =>
     regex.test(p)
-      ? <mark key={i} style={{ background: "#fde68a", borderRadius: "3px", padding: "1px 2px" }}>{p}</mark>
+      ? <mark key={i} style={{ background: pal.mark, color: pal.markText, borderRadius: "3px", padding: "1px 2px" }}>{p}</mark>
       : p
   );
 }
 
 /** Извлекает заголовки статей/глав из чанка для визуального форматирования документа */
-function formatChunkContent(content: string, query: string, fontScale: number): React.ReactNode {
+function formatChunkContent(content: string, query: string, fontScale: number, pal: typeof PALETTE.light): React.ReactNode {
   const lines = content.split(/\n+/).filter(l => l.trim());
   return lines.map((line, i) => {
     const trimmed = line.trim();
@@ -63,30 +119,30 @@ function formatChunkContent(content: string, query: string, fontScale: number): 
       return (
         <div key={i} className="flex items-center gap-2.5" style={{ marginTop: "32px", marginBottom: "16px" }}>
           <div className="w-1 h-5 rounded-full shrink-0" style={{ background: "linear-gradient(180deg,#0f4c81,#1a6bb5)" }} />
-          <p className="font-bold uppercase tracking-wide" style={{ color: "#0f4c81", fontSize: `${14 * fontScale}px` }}>
-            {highlight(trimmed, query)}
+          <p className="font-bold uppercase tracking-wide" style={{ color: pal.accentText, fontSize: `${14 * fontScale}px` }}>
+            {highlight(trimmed, query, pal)}
           </p>
         </div>
       );
     }
     if (isArticleHeader) {
       return (
-        <p key={i} className="font-bold" style={{ color: "#0f172a", fontSize: `${16.5 * fontScale}px`, marginTop: "24px", marginBottom: "12px", letterSpacing: "-0.01em" }}>
-          {highlight(trimmed, query)}
+        <p key={i} className="font-bold" style={{ color: pal.textTitle, fontSize: `${16.5 * fontScale}px`, marginTop: "24px", marginBottom: "12px", letterSpacing: "-0.01em" }}>
+          {highlight(trimmed, query, pal)}
         </p>
       );
     }
     if (isAmendmentNote) {
       return (
-        <p key={i} className="italic flex items-start gap-1.5" style={{ color: "#94a3b8", fontSize: `${12 * fontScale}px`, marginBottom: "8px", lineHeight: 1.5 }}>
+        <p key={i} className="italic flex items-start gap-1.5" style={{ color: pal.textMuted, fontSize: `${12 * fontScale}px`, marginBottom: "8px", lineHeight: 1.5 }}>
           <Icon name="Info" size={11} className="mt-0.5 shrink-0 opacity-60" />
-          <span>{highlight(trimmed, query)}</span>
+          <span>{highlight(trimmed, query, pal)}</span>
         </p>
       );
     }
     return (
-      <p key={i} style={{ color: "#334155", fontSize: `${14.5 * fontScale}px`, lineHeight: 1.8, marginBottom: "12px" }}>
-        {highlight(trimmed, query)}
+      <p key={i} style={{ color: pal.textSecondary, fontSize: `${14.5 * fontScale}px`, lineHeight: 1.8, marginBottom: "12px" }}>
+        {highlight(trimmed, query, pal)}
       </p>
     );
   });
@@ -104,14 +160,31 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
   const [searchNoResults, setSearchNoResults] = useState(false);
   const [jumpTarget, setJumpTarget] = useState<number | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
-  const [tocOpen, setTocOpen] = useState(false);
+  // Оглавление теперь открыто по умолчанию — не нужно нажимать кнопку, чтобы его увидеть.
+  const [tocOpen, setTocOpen] = useState(true);
   const [tocFilter, setTocFilter] = useState("");
   const [fontScale, setFontScale] = useState(1);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === "light" || saved === "dark") return saved;
+      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    } catch { return "light"; }
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const chunkRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pal = PALETTE[theme];
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === "light" ? "dark" : "light";
+      try { localStorage.setItem(THEME_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true));
@@ -212,7 +285,6 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
       } catch { break; }
     }
     setJumpTarget(targetIndex);
-    setTocOpen(false);
   }, [chunks, loadPage]);
 
   useEffect(() => {
@@ -221,10 +293,11 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       el.style.transition = "background-color 0.4s ease";
-      el.style.backgroundColor = "rgba(59,130,246,0.1)";
+      el.style.backgroundColor = theme === "dark" ? "rgba(59,130,246,0.18)" : "rgba(59,130,246,0.1)";
       setTimeout(() => { el.style.backgroundColor = "transparent"; }, 2000);
       setJumpTarget(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpTarget, chunks]);
 
   const searchInDoc = async () => {
@@ -284,7 +357,7 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
     <div
       className="fixed inset-0 z-[80] flex flex-col transition-all duration-200 ease-out"
       style={{
-        background: "#f8fafc",
+        background: pal.bg,
         opacity: mounted ? 1 : 0,
         transform: mounted ? "scale(1)" : "scale(0.98)",
       }}
@@ -293,10 +366,10 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
       <div
         className={`flex items-center gap-2 px-3 sm:px-6 py-3 shrink-0 z-20 transition-shadow ${scrolled ? "shadow-md" : ""}`}
         style={{
-          background: "rgba(255,255,255,0.85)",
+          background: pal.headerBg,
           backdropFilter: "blur(16px) saturate(180%)",
           WebkitBackdropFilter: "blur(16px) saturate(180%)",
-          borderBottom: "1px solid rgba(226,232,240,0.8)",
+          borderBottom: `1px solid ${pal.headerBorder}`,
         }}
       >
         <button
@@ -304,10 +377,10 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
           className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-all active:scale-90"
           style={tocOpen
             ? { background: "linear-gradient(135deg,#0f4c81,#1a6bb5)", boxShadow: "0 4px 12px rgba(15,76,129,0.3)" }
-            : { background: "#f1f5f9" }}
+            : { background: pal.chipBg }}
           title="Оглавление"
         >
-          <Icon name="AlignLeft" size={17} color={tocOpen ? "#fff" : "#475569"} />
+          <Icon name="AlignLeft" size={17} color={tocOpen ? "#fff" : pal.tocText} />
         </button>
 
         <div className="w-9 h-9 rounded-2xl items-center justify-center shrink-0 hidden sm:flex"
@@ -316,15 +389,15 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-bold text-slate-800 truncate leading-tight">{meta?.title || docTitle}</p>
+          <p className="text-[14px] font-bold truncate leading-tight" style={{ color: pal.textTitle }}>{meta?.title || docTitle}</p>
           {meta && (
-            <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+            <p className="text-[11px] flex items-center gap-1.5" style={{ color: pal.textMuted }}>
               {meta.doc_year && <span>{meta.doc_year} г.</span>}
-              {meta.doc_year && <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />}
+              {meta.doc_year && <span className="w-0.5 h-0.5 rounded-full" style={{ background: pal.textFaint }} />}
               <span>{totalChunks} фрагментов</span>
               {articlesCount > 0 && (
                 <>
-                  <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />
+                  <span className="w-0.5 h-0.5 rounded-full" style={{ background: pal.textFaint }} />
                   <span>{articlesCount} статей</span>
                 </>
               )}
@@ -332,32 +405,43 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
           )}
         </div>
 
+        {/* Переключатель светлой/тёмной темы */}
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-all active:scale-90"
+          style={{ background: pal.chipBg }}
+          title={theme === "light" ? "Тёмная тема" : "Светлая тема"}
+        >
+          <Icon name={theme === "light" ? "Moon" : "Sun"} size={16} color={pal.tocText} />
+        </button>
+
         {/* Управление шрифтом */}
-        <div className="hidden sm:flex items-center gap-0.5 bg-slate-100 rounded-2xl p-1 shrink-0">
-          <button onClick={() => setFontScale(s => Math.max(0.85, +(s - 0.1).toFixed(2)))} className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-500 hover:bg-white hover:shadow-sm transition-all active:scale-90">
+        <div className="hidden sm:flex items-center gap-0.5 rounded-2xl p-1 shrink-0" style={{ background: pal.chipBg }}>
+          <button onClick={() => setFontScale(s => Math.max(0.85, +(s - 0.1).toFixed(2)))} className="w-7 h-7 rounded-xl flex items-center justify-center transition-all active:scale-90" style={{ color: pal.tocText }}>
             <Icon name="Minus" size={13} />
           </button>
-          <span className="text-[10px] font-semibold text-slate-400 w-9 text-center">{Math.round(fontScale * 100)}%</span>
-          <button onClick={() => setFontScale(s => Math.min(1.4, +(s + 0.1).toFixed(2)))} className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-500 hover:bg-white hover:shadow-sm transition-all active:scale-90">
+          <span className="text-[10px] font-semibold w-9 text-center" style={{ color: pal.textMuted }}>{Math.round(fontScale * 100)}%</span>
+          <button onClick={() => setFontScale(s => Math.min(1.4, +(s + 0.1).toFixed(2)))} className="w-7 h-7 rounded-xl flex items-center justify-center transition-all active:scale-90" style={{ color: pal.tocText }}>
             <Icon name="Plus" size={13} />
           </button>
         </div>
 
-        <button onClick={copyDocLink} className="hidden sm:flex w-10 h-10 rounded-2xl items-center justify-center text-slate-400 hover:bg-slate-100 transition-all active:scale-90 shrink-0" title="Скопировать название и описание">
-          <Icon name={copied ? "CheckCheck" : "Copy"} size={16} color={copied ? "#059669" : undefined} />
+        <button onClick={copyDocLink} className="hidden sm:flex w-10 h-10 rounded-2xl items-center justify-center transition-all active:scale-90 shrink-0" style={{ color: copied ? "#059669" : pal.textMuted }} title="Скопировать название и описание">
+          <Icon name={copied ? "CheckCheck" : "Copy"} size={16} />
         </button>
 
-        <button onClick={handleClose} className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90 shrink-0" title="Закрыть (Esc)">
+        <button onClick={handleClose} className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 shrink-0 hover:bg-red-50 hover:text-red-500" style={{ color: pal.tocText }} title="Закрыть (Esc)">
           <Icon name="X" size={19} />
         </button>
       </div>
 
       {/* Поиск внутри документа */}
-      <div className="flex gap-2 px-3 sm:px-6 py-3 shrink-0 z-10" style={{ background: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(226,232,240,0.6)" }}>
+      <div className="flex gap-2 px-3 sm:px-6 py-3 shrink-0 z-10" style={{ background: pal.searchBg, borderBottom: `1px solid ${pal.searchBorder}` }}>
         <div className="flex-1 relative">
-          <Icon name="Search" size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Icon name="Search" size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: pal.textMuted }} />
           <input
-            className="w-full text-[13px] bg-white border border-slate-200 rounded-2xl pl-10 pr-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all shadow-sm"
+            className="w-full text-[13px] rounded-2xl pl-10 pr-3 py-2.5 outline-none focus:ring-4 transition-all shadow-sm"
+            style={{ background: pal.inputBg, border: `1px solid ${pal.inputBorder}`, color: pal.textPrimary }}
             placeholder="Поиск статьи или фразы в документе..."
             value={query}
             onChange={e => { setQuery(e.target.value); setSearchNoResults(false); }}
@@ -376,8 +460,8 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
         </button>
       </div>
       {searchNoResults && (
-        <div className="px-3 sm:px-6 py-2 shrink-0" style={{ background: "#fffbeb", borderBottom: "1px solid #fde68a" }}>
-          <p className="text-[12px] text-amber-700 flex items-center gap-1.5">
+        <div className="px-3 sm:px-6 py-2 shrink-0" style={{ background: theme === "dark" ? "#3f2d0a" : "#fffbeb", borderBottom: `1px solid ${theme === "dark" ? "#78530f" : "#fde68a"}` }}>
+          <p className="text-[12px] flex items-center gap-1.5" style={{ color: theme === "dark" ? "#fbbf24" : "#b45309" }}>
             <Icon name="SearchX" size={13} />
             Ничего не найдено по запросу «{query}»
           </p>
@@ -386,27 +470,28 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
 
       {/* Прогресс загрузки документа */}
       {!loading && totalChunks > 0 && chunks.length < totalChunks && (
-        <div className="h-[3px] bg-slate-100 shrink-0 overflow-hidden">
+        <div className="h-[3px] shrink-0 overflow-hidden" style={{ background: pal.chipBg }}>
           <div className="h-full transition-all duration-500 rounded-r-full" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg,#0f4c81,#1a6bb5)" }} />
         </div>
       )}
 
       {/* Тело: оглавление + текст */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Оглавление — desktop сайдбар */}
+        {/* Оглавление — desktop сайдбар, открыт по умолчанию */}
         <div
           className="hidden md:flex flex-col shrink-0 overflow-hidden transition-all duration-300 ease-out"
           style={{
             width: tocOpen ? "300px" : "0px",
-            borderRight: tocOpen ? "1px solid #e2e8f0" : "none",
-            background: "#fff",
+            borderRight: tocOpen ? `1px solid ${pal.tocBorder}` : "none",
+            background: pal.tocBg,
           }}
         >
-          <div className="p-3 border-b border-slate-100 shrink-0" style={{ width: "300px" }}>
+          <div className="p-3 shrink-0" style={{ width: "300px", borderBottom: `1px solid ${pal.tocBorder}` }}>
             <div className="relative">
-              <Icon name="Filter" size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Icon name="Filter" size={12} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pal.textMuted }} />
               <input
-                className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 outline-none focus:border-blue-400 focus:bg-white transition-all"
+                className="w-full text-[12px] rounded-xl pl-8 pr-3 py-2 outline-none transition-all"
+                style={{ background: pal.inputBg, border: `1px solid ${pal.inputBorder}`, color: pal.textPrimary }}
                 placeholder="Фильтр по оглавлению..."
                 value={tocFilter}
                 onChange={e => setTocFilter(e.target.value)}
@@ -415,16 +500,20 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
           </div>
           <div className="flex-1 overflow-y-auto py-2" style={{ width: "300px" }}>
             {filteredToc.length === 0 && (
-              <p className="text-[11px] text-slate-400 text-center py-6 px-4">Оглавление недоступно для этого документа</p>
+              <p className="text-[11px] text-center py-6 px-4" style={{ color: pal.textMuted }}>Оглавление недоступно для этого документа</p>
             )}
             {filteredToc.map((t, i) => (
               <button
                 key={`${t.chunk_index}-${i}`}
                 onClick={() => jumpToChunk(t.chunk_index)}
-                className={`w-full text-left px-4 py-2 text-[12.5px] rounded-lg mx-1 transition-colors hover:bg-blue-50 ${
-                  t.type === "chapter" ? "font-bold text-navy-800 mt-2" : "text-slate-600"
-                }`}
-                style={{ width: "calc(300px - 8px)", paddingLeft: t.type === "article" ? "24px" : "16px" }}
+                onMouseEnter={e => { e.currentTarget.style.background = pal.tocHover; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                className={`w-full text-left px-4 py-2 text-[12.5px] rounded-lg mx-1 transition-colors ${t.type === "chapter" ? "font-bold mt-2" : ""}`}
+                style={{
+                  width: "calc(300px - 8px)",
+                  paddingLeft: t.type === "article" ? "24px" : "16px",
+                  color: t.type === "chapter" ? pal.accentText : pal.tocText,
+                }}
               >
                 {t.label}
               </button>
@@ -434,19 +523,20 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
 
         {/* Мобильная версия — полноэкранный оверлей оглавления */}
         {tocOpen && (
-          <div className="md:hidden absolute inset-0 z-30 bg-white flex flex-col animate-in fade-in duration-150">
-            <div className="p-3 border-b border-slate-100 flex items-center gap-2 shrink-0">
+          <div className="md:hidden absolute inset-0 z-30 flex flex-col animate-in fade-in duration-150" style={{ background: pal.tocBg }}>
+            <div className="p-3 flex items-center gap-2 shrink-0" style={{ borderBottom: `1px solid ${pal.tocBorder}` }}>
               <div className="flex-1 relative">
-                <Icon name="Filter" size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Icon name="Filter" size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pal.textMuted }} />
                 <input
                   autoFocus
-                  className="w-full text-[13px] bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 outline-none focus:border-blue-400"
+                  className="w-full text-[13px] rounded-xl pl-9 pr-3 py-2.5 outline-none"
+                  style={{ background: pal.inputBg, border: `1px solid ${pal.inputBorder}`, color: pal.textPrimary }}
                   placeholder="Фильтр по оглавлению..."
                   value={tocFilter}
                   onChange={e => setTocFilter(e.target.value)}
                 />
               </div>
-              <button onClick={() => setTocOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 bg-slate-100 shrink-0">
+              <button onClick={() => setTocOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: pal.chipBg, color: pal.textMuted }}>
                 <Icon name="X" size={16} />
               </button>
             </div>
@@ -455,7 +545,8 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
                 <button
                   key={`${t.chunk_index}-${i}`}
                   onClick={() => jumpToChunk(t.chunk_index)}
-                  className={`w-full text-left px-4 py-2.5 text-[13.5px] hover:bg-blue-50 transition-colors ${t.type === "chapter" ? "font-bold text-navy-800 mt-1.5" : "text-slate-600 pl-6"}`}
+                  className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${t.type === "chapter" ? "font-bold mt-1.5" : "pl-6"}`}
+                  style={{ color: t.type === "chapter" ? pal.accentText : pal.tocText }}
                 >
                   {t.label}
                 </button>
@@ -469,24 +560,24 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
           <div className="max-w-2xl mx-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-24">
-                <span className="w-9 h-9 border-[3px] border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-                <p className="text-[13px] text-slate-400">Загружаю документ...</p>
+                <span className="w-9 h-9 border-[3px] rounded-full animate-spin" style={{ borderColor: pal.chipBg, borderTopColor: "#2563eb" }} />
+                <p className="text-[13px]" style={{ color: pal.textMuted }}>Загружаю документ...</p>
               </div>
             )}
 
             {!loading && error && (
               <div className="flex flex-col items-center justify-center gap-3 text-center py-24 px-6">
-                <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: theme === "dark" ? "#3f1720" : "#fef2f2" }}>
                   <Icon name="AlertCircle" size={26} className="text-red-400" />
                 </div>
-                <p className="text-[13px] text-red-500">{error}</p>
+                <p className="text-[13px] text-red-400">{error}</p>
               </div>
             )}
 
             {!loading && !error && meta && (
-              <div className="rounded-3xl bg-white p-5 sm:p-8 shadow-sm border border-slate-100">
+              <div className="rounded-3xl p-5 sm:p-8 shadow-sm" style={{ background: pal.cardBg, border: `1px solid ${pal.cardBorder}` }}>
                 {meta.description && (
-                  <p className="text-[13px] text-slate-500 mb-6 pb-5 border-b border-slate-100 italic leading-relaxed">{meta.description}</p>
+                  <p className="text-[13px] mb-6 pb-5 italic leading-relaxed" style={{ color: pal.textMuted, borderBottom: `1px solid ${pal.cardBorder}` }}>{meta.description}</p>
                 )}
                 {chunks.map(c => (
                   <div
@@ -494,32 +585,34 @@ export default function LegalDocViewer({ docId, docTitle, initialQuery, onClose 
                     ref={el => { if (el) chunkRefs.current.set(c.chunk_index, el); }}
                     className="rounded-xl -mx-2 px-2"
                   >
-                    {formatChunkContent(c.content, query, fontScale)}
+                    {formatChunkContent(c.content, query, fontScale, pal)}
                   </div>
                 ))}
 
                 {loadingMore && (
                   <div className="flex items-center justify-center gap-2 py-6">
-                    <span className="w-4 h-4 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-                    <p className="text-[12px] text-slate-400">Загружаю ещё...</p>
+                    <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: pal.chipBg, borderTopColor: "#2563eb" }} />
+                    <p className="text-[12px]" style={{ color: pal.textMuted }}>Загружаю ещё...</p>
                   </div>
                 )}
 
                 {!loadingMore && chunks.length < totalChunks && (
                   <button
                     onClick={loadMore}
-                    className="w-full py-3 rounded-2xl text-[12.5px] font-semibold text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all mt-4"
+                    className="w-full py-3 rounded-2xl text-[12.5px] font-semibold transition-all mt-4"
+                    style={{ color: pal.tocText, border: `1px solid ${pal.cardBorder}` }}
                   >
                     Показать ещё ({chunks.length}/{totalChunks})
                   </button>
                 )}
 
                 {chunks.length >= totalChunks && totalChunks > 0 && (
-                  <div className="text-center pt-8 mt-2 border-t border-slate-100">
-                    <p className="text-[11px] text-slate-300 tracking-wide">— конец документа —</p>
+                  <div className="text-center pt-8 mt-2" style={{ borderTop: `1px solid ${pal.cardBorder}` }}>
+                    <p className="text-[11px] tracking-wide" style={{ color: pal.textFaint }}>— конец документа —</p>
                     <button
                       onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[12px] font-semibold text-slate-500 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[12px] font-semibold transition-all active:scale-95"
+                      style={{ color: pal.tocText, border: `1px solid ${pal.cardBorder}` }}
                     >
                       <Icon name="ArrowUp" size={12} />
                       Наверх
