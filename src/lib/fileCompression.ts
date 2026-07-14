@@ -1,5 +1,23 @@
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
+import { jsPDF } from "jspdf";
+import type * as PdfJsLib from "pdfjs-dist";
+
+let _pdfjsLibPromise: Promise<typeof PdfJsLib> | null = null;
+// pdfjs-dist грузится динамически (отдельным чанком) — нужен только для растрового
+// сжатия сканов, которое требуется редко, не стоит тянуть его в основной бандл.
+async function loadPdfJs(): Promise<typeof PdfJsLib> {
+  if (!_pdfjsLibPromise) {
+    _pdfjsLibPromise = (async () => {
+      const lib = await import("pdfjs-dist");
+      // @ts-expect-error — Vite ?url импорт воркера, типов у него нет
+      const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+      lib.GlobalWorkerOptions.workerSrc = workerUrl;
+      return lib;
+    })();
+  }
+  return _pdfjsLibPromise;
+}
 
 /**
  * Автоматическое сжатие вложений (PDF/DOCX) перед отправкой на backend,
@@ -23,6 +41,74 @@ export interface CompressResult {
 // не теряет смысл документа, а лишь убирает бесполезный вес.
 const PDF_PAGE_STEPS = [40, 25, 15, 10, 6];
 
+/**
+ * Растровое сжатие PDF: рендерит каждую страницу в JPEG сниженного качества
+ * и собирает новый PDF из картинок. Единственный способ реально уменьшить вес
+ * PDF-сканов (фото/скан документа) — там вес сидит в разрешении картинок,
+ * а не в количестве страниц, поэтому обрезка страниц (compressPdf) не спасает.
+ */
+async function rasterCompressPdf(file: File, targetBytes: number, maxPages: number): Promise<CompressResult> {
+  const originalSize = file.size;
+  const QUALITY_STEPS: { quality: number; scale: number }[] = [
+    { quality: 0.6, scale: 1.3 },
+    { quality: 0.45, scale: 1.1 },
+    { quality: 0.35, scale: 0.9 },
+    { quality: 0.25, scale: 0.75 },
+  ];
+
+  let pdf: PdfJsLib.PDFDocumentProxy;
+  try {
+    const pdfjsLib = await loadPdfJs();
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  } catch {
+    return { blob: file, name: file.name, originalSize, finalSize: originalSize, wasCompressed: false };
+  }
+
+  const pageCount = Math.min(pdf.numPages, maxPages);
+  let lastBlob: Blob | null = null;
+
+  for (let s = 0; s < QUALITY_STEPS.length; s++) {
+    const { quality, scale } = QUALITY_STEPS[s];
+    const isLastStep = s === QUALITY_STEPS.length - 1;
+    let out: jsPDF | null = null;
+
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+
+      const isLand = canvas.width > canvas.height;
+      const pw = isLand ? 297 : 210, ph = isLand ? 210 : 297;
+      if (!out) {
+        out = new jsPDF({ unit: "mm", format: "a4", orientation: isLand ? "landscape" : "portrait" });
+      } else {
+        out.addPage([pw, ph], isLand ? "landscape" : "portrait");
+      }
+      const imgScale = Math.min(pw / canvas.width, ph / canvas.height);
+      out.addImage(dataUrl, "JPEG", (pw - canvas.width * imgScale) / 2, (ph - canvas.height * imgScale) / 2, canvas.width * imgScale, canvas.height * imgScale, undefined, "FAST");
+    }
+
+    if (!out) continue;
+    const blob = out.output("blob");
+    lastBlob = blob;
+    if (blob.size <= targetBytes || isLastStep) {
+      const note = pageCount < pdf.numPages
+        ? `Отсканированный PDF сжат (кач-во снижено, оставлены первые ${pageCount} из ${pdf.numPages} стр.) — текст остаётся читаемым для AI`
+        : `Отсканированный PDF сжат снижением качества изображений — текст остаётся читаемым для AI`;
+      return { blob, name: file.name, originalSize, finalSize: blob.size, wasCompressed: true, note };
+    }
+  }
+
+  return { blob: lastBlob || file, name: file.name, originalSize, finalSize: (lastBlob || file).size, wasCompressed: true };
+}
+
 async function compressPdf(file: File, targetBytes: number): Promise<CompressResult> {
   const originalSize = file.size;
   if (originalSize <= targetBytes) {
@@ -39,6 +125,7 @@ async function compressPdf(file: File, targetBytes: number): Promise<CompressRes
   }
 
   const totalPages = srcDoc.getPageCount();
+  let bestResult: CompressResult | null = null;
 
   for (const maxPages of PDF_PAGE_STEPS) {
     const isLastStep = maxPages === PDF_PAGE_STEPS[PDF_PAGE_STEPS.length - 1];
@@ -51,17 +138,25 @@ async function compressPdf(file: File, targetBytes: number): Promise<CompressRes
     pages.forEach(p => trimmed.addPage(p));
     const outBytes = await trimmed.save({ useObjectStreams: true });
 
-    if (outBytes.byteLength <= targetBytes || isLastStep) {
+    if (outBytes.byteLength <= targetBytes) {
       const blob = new Blob([outBytes.slice()], { type: "application/pdf" });
       const note = keepCount < totalPages
         ? `Оставлены первые ${keepCount} из ${totalPages} стр. — этого достаточно для анализа AI`
         : undefined;
       return { blob, name: file.name, originalSize, finalSize: blob.size, wasCompressed: true, note };
     }
+    if (isLastStep) {
+      bestResult = { blob: new Blob([outBytes.slice()], { type: "application/pdf" }), name: file.name, originalSize, finalSize: outBytes.byteLength, wasCompressed: keepCount < totalPages };
+    }
   }
 
-  // Недостижимо (цикл всегда возвращает на последнем шаге), но для типобезопасности:
-  return { blob: file, name: file.name, originalSize, finalSize: originalSize, wasCompressed: false };
+  // Обрезка страниц не дала нужного размера (типично для сканов — вес в качестве
+  // картинок, а не в числе страниц) — досжимаем растрово через рендер + JPEG.
+  if (bestResult && bestResult.finalSize > targetBytes) {
+    return rasterCompressPdf(file, targetBytes, Math.min(totalPages, PDF_PAGE_STEPS[PDF_PAGE_STEPS.length - 1]));
+  }
+
+  return bestResult || { blob: file, name: file.name, originalSize, finalSize: originalSize, wasCompressed: false };
 }
 
 async function stripDocxMedia(file: File, targetBytes: number): Promise<CompressResult> {
