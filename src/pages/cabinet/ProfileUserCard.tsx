@@ -190,6 +190,7 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
             { label: "Тариф «Старт»", sub: "30 вопросов AI · 5 документов · 3 вопроса юристу", price: "990 ₽", type: "plan_starter" as ServiceType },
             { label: "Тариф «Профи»", sub: "100 вопросов AI · 20 документов · 5 вопросов юристу", price: "3 990 ₽", type: "plan_pro" as ServiceType, badge: "Хит" },
             { label: "Тариф «Максимум»", sub: "300 вопросов AI · 50 документов · 30 вопросов юристу", price: "5 990 ₽", type: "plan_max" as ServiceType },
+            { label: "Тариф «Корпоративный»", sub: "300 вопросов AI · 100 документов · 20 консультаций юриста", price: "9 990 ₽", type: "plan_corporate" as ServiceType },
             { label: "+1 консультация юриста", sub: "Полная консультация юриста-эксперта", price: "990 ₽", type: "lawyer_questions" as ServiceType },
           ].map((item) => (
             <button
@@ -216,26 +217,6 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
           ))}
         </div>
 
-        {/* Бизнес */}
-        {!bizSubActive && (
-          <div className="mt-3 pt-3 border-t border-border">
-            <button
-              onClick={() => onPay("business_subscription", "Бизнес-тариф")}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl border border-border hover:border-navy-300 hover:bg-navy-50/50 transition-all group"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 bg-navy-50 rounded-xl flex items-center justify-center group-hover:bg-navy-100 transition-colors shrink-0">
-                  <Icon name="Briefcase" size={14} className="text-navy-500" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-navy-800">Бизнес-тариф</span>
-                  <div className="text-xs text-muted-foreground">150 действий/мес · PDF/DOC анализ</div>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-navy-700 shrink-0 ml-2">4 990 ₽/мес</span>
-            </button>
-          </div>
-        )}
       </div>
     </>
   );
