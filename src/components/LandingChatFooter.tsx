@@ -56,7 +56,7 @@ export default function LandingChatFooter() {
       </div>
 
       <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>
-        Документ 290 ₽ · Пакет 30 вопросов + 5 документов за 990 ₽
+        Документ 590 ₽ · Пакет 30 вопросов + 5 документов за 990 ₽
       </p>
     </>
   );

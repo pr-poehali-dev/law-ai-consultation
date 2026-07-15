@@ -103,7 +103,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <div className="flex items-center justify-between pt-2 mb-2.5" style={{ borderTop: "1px solid rgba(232,168,32,0.2)" }}>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 290 ₽</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>1 документ разово = 590 ₽</span>
               <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Выгоднее в 1.5 раза</span>
             </div>
 
@@ -134,7 +134,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
           >
             <div className="flex items-center justify-between w-full">
               <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Только этот документ</span>
-              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>290 ₽</span>
+              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>590 ₽</span>
             </div>
             <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>AI-генерация · скачивание .doc</span>
           </button>

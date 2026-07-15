@@ -3,7 +3,7 @@ import { ServiceType } from "@/components/PaymentModal";
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
   consultation: 990,
-  document: 290,
+  document: 590,
   expert: 990,
   business: 1000,
   subscription_consult: 1990,
