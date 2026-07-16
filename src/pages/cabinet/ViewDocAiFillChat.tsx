@@ -262,10 +262,10 @@ export default function ViewDocAiFillChat({
 
         {/* Сообщения */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5" style={{ minHeight: 0 }}>
-          <MsgList mobile={false} />
+          {MsgList({ mobile: false })}
         </div>
 
-        <InputBar mobile={false} />
+        {InputBar({ mobile: false })}
       </div>
 
       {/* ── Мобиль: шторка снизу (только если редактор закрыт) ── */}
@@ -299,9 +299,9 @@ export default function ViewDocAiFillChat({
               </div>
             </div>
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ minHeight: 0 }}>
-              <MsgList mobile={true} />
+              {MsgList({ mobile: true })}
             </div>
-            <InputBar mobile={true} />
+            {InputBar({ mobile: true })}
           </div>
         </div>
       )}
