@@ -1,6 +1,6 @@
 """
 AI-чат юриста — только режимы chat и chat_continue. v2 — расширенный промт с 148 типами документов.
-Таймаут функции: 60 секунд. Внутренний бюджет: DB 4с + LLM 30с + накладные = ~38с.
+Таймаут функции: 70 секунд. Внутренний бюджет: суммаризация истории до 8с + LLM до 58с = ~66с.
 """
 import json
 import os
@@ -184,7 +184,7 @@ def call_yandex(system_prompt: str, messages: list, max_tokens: int = 1200, fast
         "https://llm.api.cloud.yandex.net/v1/chat/completions",
         headers={"Authorization": f"Api-Key {_IAM_TOKEN}"},
         json={"model": model, "messages": openai_messages, "max_tokens": max_tokens, "temperature": temperature, "stream": False},
-        timeout=47,  # 47с — оставляем 3с запаса до таймаута функции (50с)
+        timeout=58,  # 58с + до 8с на суммаризацию истории = ~66с, запас до таймаута функции (70с)
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
