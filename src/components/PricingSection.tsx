@@ -49,8 +49,8 @@ const USER_PLANS = [
       "Определение подсудности",
     ],
     popular: false,
-    gradient: "",
-    border: "border-border hover:border-navy-200",
+    gradient: "from-emerald-50 to-emerald-100/60",
+    border: "border-emerald-200 hover:border-emerald-300",
   },
   {
     id: "plan_pro",
