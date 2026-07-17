@@ -432,7 +432,7 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                       className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90"
                       style={btnStyle}
                     >
-                      {idx === 0 ? "Начать с тарифа «Старт»" : `Выбрать «${plan.name}»`}
+                      {idx === 0 ? `Начать с тарифа «${plan.name}»` : `Выбрать «${plan.name}»`}
                     </button>
                   )}
                 </div>
