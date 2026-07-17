@@ -36,10 +36,7 @@ export default function LandingChatInput({
             color: "#0a1628",
             boxShadow: "0 4px 16px rgba(232,168,32,0.35)",
           }}
-        >
-          <Icon name="FileText" size={15} color="#0a1628" />
-          Создать документ
-        </button>
+        >Попробовать бесплатно</button>
 
         {/* Кнопка входа/регистрации */}
         <button
