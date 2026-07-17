@@ -27,7 +27,7 @@ export default function LandingChatHeader() {
           />
         </div>
         <div>
-          <p className="text-[13px] font-bold text-white leading-tight">Помощник по созданию документов</p>
+          <p className="text-[13px] font-bold text-white leading-tight">Интеллектуальный юридический помощник</p>
           <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.01em" }}>
             законодательство РФ · онлайн
           </p>
