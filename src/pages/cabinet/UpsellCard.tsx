@@ -1,11 +1,17 @@
 import Icon from "@/components/ui/icon";
+import type { User } from "@/lib/auth";
 
 interface UpsellCardProps {
+  user: User;
+  onTrialClick: () => void;
   onPayClick: () => void;
   onSelectPlan: () => void;
 }
 
-export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps) {
+export default function UpsellCard({ user, onTrialClick, onPayClick, onSelectPlan }: UpsellCardProps) {
+  // Тариф «Пробный» показываем только тем, кто ещё ничего не покупал — это их первый шаг в сервис
+  const showTrial = !user.purchasedPlan;
+
   return (
     <div className="upsell-animate">
       <div className="flex gap-2 items-start">
@@ -55,29 +61,58 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
               {/* Разделитель */}
               <div className="mb-4" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-              {/* Кнопка 1 — пакет Старт */}
-              <button
-                onClick={onPayClick}
-                className="w-full rounded-xl mb-2.5 btn-gold active:scale-95"
-                style={{ padding: "11px 16px" }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(10,22,40,0.2)" }}>
-                      <Icon name="Zap" size={13} className="text-navy-900" />
+              {/* Кнопка 1 — тариф Пробный (только для новых) либо Старт */}
+              {showTrial ? (
+                <button
+                  onClick={onTrialClick}
+                  className="w-full rounded-xl mb-2.5 btn-gold active:scale-95 relative"
+                  style={{ padding: "11px 16px" }}
+                >
+                  <span className="absolute -top-2 left-3 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+                    style={{ background: "#dc2626", color: "#fff" }}>
+                    Самый выгодный старт
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(10,22,40,0.2)" }}>
+                        <Icon name="Sparkles" size={13} className="text-navy-900" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-navy-900 leading-tight">Тариф «Пробный» · 5 вопросов</p>
+                        <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 2 документа · AI-редактор · калькулятор</p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
-                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="text-[20px] font-bold text-navy-900 leading-none">290</span>
+                      <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-[20px] font-bold text-navy-900 leading-none">990</span>
-                    <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onPayClick}
+                  className="w-full rounded-xl mb-2.5 btn-gold active:scale-95"
+                  style={{ padding: "11px 16px" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(10,22,40,0.2)" }}>
+                        <Icon name="Zap" size={13} className="text-navy-900" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
+                        <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="text-[20px] font-bold text-navy-900 leading-none">990</span>
+                      <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              )}
 
               {/* Кнопка 2 — тарифы */}
               <button
@@ -102,7 +137,7 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
                         Тарифы с максимальной выгодой
                       </p>
                       <p className="text-[10.5px] leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        30–300 вопросов + документы
+                        {showTrial ? "От 290 ₽ · вопросы + документы" : "30–300 вопросов + документы"}
                       </p>
                     </div>
                   </div>
@@ -112,7 +147,9 @@ export default function UpsellCard({ onPayClick, onSelectPlan }: UpsellCardProps
 
               {/* Подпись */}
               <p className="mt-3 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-                Оплата через защищённый шлюз · Доступ сразу после оплаты
+                {showTrial
+                  ? "Без риска: попробуйте сервис за 290 ₽ · Доступ сразу после оплаты"
+                  : "Оплата через защищённый шлюз · Доступ сразу после оплаты"}
               </p>
 
             </div>

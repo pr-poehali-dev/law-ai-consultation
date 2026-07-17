@@ -38,6 +38,7 @@ interface ChatTabProps {
   onAttachClick: () => void;
   onRemoveFile: (idx: number) => void;
   onPayClick: () => void;
+  onTrialClick: () => void;
   onExpertClick: () => void;
   onGoToDocs: () => void;
   onSelectPlan: () => void;
@@ -93,7 +94,7 @@ export default function ChatTab({
   attachedFiles, fileUploading, totalLeft, canUploadFiles = false, onUpgradeClick,
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
-  onPayClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, onAssessCaseLaw, chatEndRef, fileInputRef,
+  onPayClick, onTrialClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, onAssessCaseLaw, chatEndRef, fileInputRef,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -306,6 +307,7 @@ export default function ChatTab({
         lastAiIdx={lastAiIdx}
         chatEndRef={chatEndRef}
         onPayClick={onPayClick}
+        onTrialClick={onTrialClick}
         onSelectPlan={onSelectPlan}
         onGoToDocs={onGoToDocs}
         onContinueChat={onContinueChat}

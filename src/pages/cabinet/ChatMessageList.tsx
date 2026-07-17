@@ -20,6 +20,7 @@ interface ChatMessageListProps {
   lastAiIdx: number;
   chatEndRef: React.RefObject<HTMLDivElement>;
   onPayClick: () => void;
+  onTrialClick: () => void;
   onSelectPlan: () => void;
   onGoToDocs: () => void;
   onContinueChat: (partialText: string) => void;
@@ -132,6 +133,7 @@ export default function ChatMessageList({
   lastAiIdx,
   chatEndRef,
   onPayClick,
+  onTrialClick,
   onSelectPlan,
   onGoToDocs,
   onContinueChat,
@@ -248,7 +250,7 @@ export default function ChatMessageList({
             const prevUserMsg = messages.slice(0, i).reverse().find(m => m.role === "user");
 
             if (msg.isUpsell) return (
-              <UpsellCard key={i} onPayClick={onPayClick} onSelectPlan={onSelectPlan} />
+              <UpsellCard key={i} user={user} onPayClick={onPayClick} onTrialClick={onTrialClick} onSelectPlan={onSelectPlan} />
             );
 
             // Калькулятор неустойки — кнопка раскрывает встроенный калькулятор

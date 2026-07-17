@@ -167,6 +167,10 @@ export default function CabinetContent({
               savePendingAction({ tab: "chat", chatInput: chat.input });
               setPayment({ type: "plan_starter", name: "Пакет «Старт»" });
             }}
+            onTrialClick={() => {
+              savePendingAction({ tab: "chat", chatInput: chat.input });
+              setPayment({ type: "document", name: "Тариф «Пробный»" });
+            }}
             onExpertClick={() => {
               if (user.paidExpert || user.isAdmin) {
                 setTab("expert");
