@@ -1,8 +1,5 @@
-import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import DocPickerSheet from "@/components/DocPickerSheet";
-import DocDetailsModal, { type DocAttachedFile } from "@/components/DocDetailsModal";
-import { DOC_BLOCKS } from "@/pages/cabinet/docBlocks";
+import { type DocAttachedFile } from "@/components/DocDetailsModal";
 
 interface LandingChatInputProps {
   lastSuggestDocType?: string;
@@ -11,25 +8,14 @@ interface LandingChatInputProps {
 }
 
 export default function LandingChatInput({
-  lastSuggestDocType,
-  onCreateDoc,
   onLogin,
 }: LandingChatInputProps) {
-  const [showPicker, setShowPicker] = useState(false);
-  const [pendingDoc, setPendingDoc] = useState<{ id: string; label: string } | null>(null);
-
-  const handlePickerSelect = (id: string) => {
-    setShowPicker(false);
-    const fullLabel = DOC_BLOCKS.flatMap(b => b.types).find(t => t.id === id)?.label || id;
-    setPendingDoc({ id, label: fullLabel });
-  };
-
   return (
     <>
       <div className="px-4 pb-4 pt-3 flex flex-col gap-2" style={{ borderTop: "1px solid #edf0f7", background: "#ffffff" }}>
-        {/* Кнопка создания документа */}
+        {/* Кнопка регистрации/входа */}
         <button
-          onClick={() => setShowPicker(true)}
+          onClick={() => onLogin?.()}
           className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98]"
           style={{
             background: "linear-gradient(135deg, #e8a820, #f0c060)",
@@ -62,28 +48,6 @@ export default function LandingChatInput({
           <Icon name="ChevronRight" size={13} color="#94a3b8" />
         </button>
       </div>
-
-      {/* Пикер типа документа */}
-      {showPicker && (
-        <DocPickerSheet
-          onSelect={handlePickerSelect}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
-
-      {/* Детали документа */}
-      {pendingDoc && (
-        <DocDetailsModal
-          docTypeId={pendingDoc.id}
-          docLabel={pendingDoc.label}
-          initialQuery=""
-          onProceed={(query, comment, files, docTypeId, docLabel) => {
-            setPendingDoc(null);
-            onCreateDoc(docTypeId, query, comment, files);
-          }}
-          onClose={() => setPendingDoc(null)}
-        />
-      )}
     </>
   );
 }
