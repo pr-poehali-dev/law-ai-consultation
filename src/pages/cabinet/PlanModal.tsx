@@ -204,7 +204,10 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
 
   const planOrder = ["document", "plan_starter", "plan_pro", "plan_max", "plan_corporate"];
   const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
-  const visiblePlans = minIdx > 0 ? PLANS.filter(p => planOrder.indexOf(p.id) >= minIdx) : PLANS;
+  // Тариф «Пробный» — только для знакомства с сервисом, доступен один раз.
+  // Если пользователь уже что-то покупал — скрываем его из списка.
+  const basePlans = user.purchasedPlan ? PLANS.filter(p => p.id !== "document") : PLANS;
+  const visiblePlans = minIdx > 0 ? basePlans.filter(p => planOrder.indexOf(p.id) >= minIdx) : basePlans;
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10);

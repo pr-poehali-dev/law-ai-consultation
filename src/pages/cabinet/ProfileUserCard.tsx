@@ -187,7 +187,9 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
 
         <div className="space-y-2">
           {[
-            { label: "Тариф «Пробный»", sub: "5 вопросов AI · 2 документа · доступ к тарифу «Старт»", price: "290 ₽", type: "document" as ServiceType },
+            ...(!user.purchasedPlan
+              ? [{ label: "Тариф «Пробный»", sub: "5 вопросов AI · 2 документа · доступ к тарифу «Старт» · разово", price: "290 ₽", type: "document" as ServiceType }]
+              : []),
             { label: "Тариф «Старт»", sub: "30 вопросов AI · 5 документов · 3 вопроса юристу", price: "990 ₽", type: "plan_starter" as ServiceType },
             { label: "Тариф «Профи»", sub: "100 вопросов AI · 20 документов · 5 вопросов юристу", price: "3 990 ₽", type: "plan_pro" as ServiceType, badge: "Хит" },
             { label: "Тариф «Максимум»", sub: "300 вопросов AI · 50 документов · 30 вопросов юристу", price: "5 990 ₽", type: "plan_max" as ServiceType },

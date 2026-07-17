@@ -111,6 +111,26 @@ def _handle(event: dict, context) -> dict:
     description = DESCRIPTIONS[service_type]
 
     conn = get_conn()
+
+    # Тариф «Пробный» — только для знакомства с сервисом, доступен 1 раз на пользователя.
+    # Повторно купить его нельзя — только «Старт» и выше.
+    if service_type == "document" and user_id:
+        cur0 = conn.cursor()
+        try:
+            cur0.execute(
+                f"SELECT purchased_plan FROM {SCHEMA}.users WHERE id = %s",
+                (user_id,)
+            )
+            row = cur0.fetchone()
+            if row and row[0] is not None:
+                return {
+                    "statusCode": 400,
+                    "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"error": "Тариф «Пробный» уже был использован. Выберите тариф «Старт» или выше."}, ensure_ascii=False),
+                }
+        finally:
+            cur0.close()
+
     cur = conn.cursor()
     try:
         cur.execute(
