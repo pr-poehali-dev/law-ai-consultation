@@ -49,7 +49,7 @@ export interface User {
   referralCode: string;
   lawyerQuestionsLeft: number;
   hasFileAnalysis: boolean;
-  purchasedPlan: "starter" | "pro" | "max" | null;
+  purchasedPlan: "trial" | "starter" | "pro" | "max" | null;
   lawyerConsultationsLeft: number;
 }
 

@@ -13,7 +13,7 @@ const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string; m
   lawyer: {
     icon: "UserCheck",
     plan: "Старт",
-    desc: "Вы приобрели подготовку 1 документа. Чтобы отправить его на проверку живому юристу — повысьте тариф до «Старт» или выше.",
+    desc: "Вы приобрели тариф «Пробный». Чтобы отправить документ на проверку живому юристу — повысьте тариф до «Старт» или выше.",
     minPlanId: "plan_starter",
   },
   ai_editor: {

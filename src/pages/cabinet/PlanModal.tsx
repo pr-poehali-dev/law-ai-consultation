@@ -18,6 +18,25 @@ interface Plan {
 
 export const PLANS: Plan[] = [
   {
+    id: "document",
+    name: "Пробный",
+    price: "290",
+    questions: 5,
+    docs: 2,
+    features: [
+      "5 вопросов AI-юристу",
+      "2 документа через систему",
+      "Доступ к тарифу «Старт»: AI-редактор документов",
+      "Поиск судебной практики",
+      "Калькулятор неустойки",
+      "Расчёт госпошлины",
+      "Определение подсудности",
+    ],
+    popular: false,
+    badge: null,
+    color: "light",
+  },
+  {
     id: "plan_starter",
     name: "Старт",
     price: "990",
@@ -122,6 +141,7 @@ export function getActivePlan(user: User): string | null {
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
   if (user.purchasedPlan === "starter") return "plan_starter";
+  if (user.purchasedPlan === "trial") return "document";
   return null;
 }
 
@@ -142,6 +162,7 @@ interface PlanModalProps {
 
 // Иконки для каждого тарифа
 const PLAN_ICONS: Record<string, string> = {
+  document: "Sparkles",
   plan_starter: "Rocket",
   plan_pro: "Zap",
   plan_max: "Crown",
@@ -150,6 +171,11 @@ const PLAN_ICONS: Record<string, string> = {
 
 // Ключевые метрики по тарифу (для визуальных пилюль)
 const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
+  document: [
+    { icon: "MessageCircle", label: "5 вопросов AI" },
+    { icon: "FileText", label: "2 документа" },
+    { icon: "Rocket", label: "Доступ к «Старт»" },
+  ],
   plan_starter: [
     { icon: "MessageCircle", label: "30 вопросов AI" },
     { icon: "FileText", label: "5 документов" },
@@ -176,7 +202,7 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
   const [visible, setVisible] = useState(false);
   const activePlanId = getActivePlan(user);
 
-  const planOrder = ["plan_starter", "plan_pro", "plan_max", "plan_corporate"];
+  const planOrder = ["document", "plan_starter", "plan_pro", "plan_max", "plan_corporate"];
   const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
   const visiblePlans = minIdx > 0 ? PLANS.filter(p => planOrder.indexOf(p.id) >= minIdx) : PLANS;
 

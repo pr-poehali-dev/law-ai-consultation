@@ -20,7 +20,7 @@ CORS = {
 
 DESCRIPTIONS = {
     "consultation":          "Консультация живого юриста активирована",
-    "document":              "+1 документ",
+    "document":              "Тариф «Пробный»: +5 вопросов, +2 документа, доступ к тарифу «Старт»",
     "expert":                "Экспертная проверка юристом",
     "business":              "Бизнес-пакет",
     "subscription_consult":  "Подписка: консультации на 31 день",
@@ -46,7 +46,7 @@ SITE_URL = "https://ии-право.рф"
 # Что получает пользователь по каждому тарифу
 GRANT_DETAILS = {
     "consultation":          "✅ Консультация живого юриста активирована",
-    "document":              "✅ +1 документ добавлен на ваш счёт",
+    "document":              "✅ Тариф «Пробный» активирован\n   • +5 вопросов AI\n   • +2 документа\n   • Доступ ко всем функциям тарифа «Старт» (редактор онлайн, калькулятор неустойки, госпошлина, судебная практика, подсудность)",
     "expert":                "✅ Экспертная проверка юристом активирована",
     "business":              "✅ Бизнес-пакет активирован",
     "subscription_consult":  "✅ Подписка на консультации активирована на 31 день",
@@ -66,7 +66,7 @@ GRANT_DETAILS = {
 
 PLAN_TITLES = {
     "consultation":          "Консультация юриста",
-    "document":              "Документ",
+    "document":              "Тариф «Пробный»",
     "expert":                "Экспертная проверка",
     "business":              "Бизнес-пакет",
     "subscription_consult":  "Подписка на консультации",
@@ -175,8 +175,16 @@ def grant_service(conn, user_id: int, service_type: str):
                 (user_id,)
             )
         elif service_type == "document":
+            # Тариф «Пробный»: +5 вопросов, +2 документа, доступ к функциям тарифа «Старт»
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s",
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 5,
+                        paid_docs = paid_docs + 2,
+                        purchased_plan = CASE
+                            WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
+                            ELSE 'trial'
+                        END
+                    WHERE id = %s""",
                 (user_id,)
             )
         elif service_type == "expert":
