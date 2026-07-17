@@ -194,7 +194,6 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
             { label: "Тариф «Профи»", sub: "100 вопросов AI · 20 документов · 5 вопросов юристу", price: "3 990 ₽", type: "plan_pro" as ServiceType, badge: "Хит" },
             { label: "Тариф «Максимум»", sub: "300 вопросов AI · 50 документов · 30 вопросов юристу", price: "5 990 ₽", type: "plan_max" as ServiceType },
             { label: "Тариф «Корпоративный»", sub: "300 вопросов AI · 100 документов · 20 консультаций юриста", price: "9 990 ₽", type: "plan_corporate" as ServiceType },
-            { label: "+1 консультация юриста", sub: "Полная консультация юриста-эксперта", price: "990 ₽", type: "lawyer_questions" as ServiceType },
           ].map((item) => (
             <button
               key={item.type}
