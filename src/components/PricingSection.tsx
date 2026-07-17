@@ -8,6 +8,28 @@ interface PricingSectionProps {
 
 const USER_PLANS = [
   {
+    id: "document",
+    name: "Пробный",
+    price: "290",
+    oldPrice: "",
+    period: "",
+    desc: "Познакомьтесь с сервисом — минимальный старт",
+    badge: null,
+    lawyerFeature: "",
+    features: [
+      "5 вопросов AI-юристу",
+      "2 документа через систему",
+      "Доступ к тарифу «Старт»",
+      "Поиск судебной практики",
+      "Калькулятор неустойки",
+      "Расчёт госпошлины",
+      "Определение подсудности",
+    ],
+    popular: false,
+    gradient: "",
+    border: "border-border hover:border-navy-200",
+  },
+  {
     id: "plan_starter",
     name: "Старт",
     price: "990",
@@ -123,7 +145,7 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
         </div>
 
         {/* Пользовательские тарифы */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-6 items-stretch">
           {USER_PLANS.map((plan, idx) => (
             <div
               key={plan.id}
