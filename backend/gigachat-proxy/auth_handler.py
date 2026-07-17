@@ -707,27 +707,53 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 30,
-                        paid_docs = paid_docs + 5
+                        paid_docs = paid_docs + 5,
+                        paid_expert = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 1,
+                        purchased_plan = CASE
+                            WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
+                            ELSE 'starter'
+                        END
                     WHERE id = %s""",
                 (user["id"],)
             )
         elif service_type == "plan_pro":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 100,
+                    SET paid_questions = paid_questions + 70,
                         paid_docs = paid_docs + 20,
-                        has_file_analysis = TRUE
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 3,
+                        purchased_plan = CASE
+                            WHEN purchased_plan = 'max' THEN purchased_plan
+                            ELSE 'pro'
+                        END
                     WHERE id = %s""",
                 (user["id"],)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
-            # Тариф Максимум: 300 вопросов, 50 документов, доступ к юристу
+            # Тариф Максимум: 150 вопросов, 50 документов, доступ к юристу
+            cur.execute(
+                f"""UPDATE {SCHEMA}.users
+                    SET paid_questions = paid_questions + 150,
+                        paid_docs = paid_docs + 50,
+                        paid_expert = TRUE,
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 10,
+                        purchased_plan = 'max'
+                    WHERE id = %s""",
+                (user["id"],)
+            )
+        elif service_type == "plan_corporate":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 300,
-                        paid_docs = paid_docs + 50,
+                        paid_docs = paid_docs + 100,
                         paid_expert = TRUE,
-                        has_file_analysis = TRUE
+                        has_file_analysis = TRUE,
+                        lawyer_consultations_left = lawyer_consultations_left + 20,
+                        purchased_plan = 'max'
                     WHERE id = %s""",
                 (user["id"],)
             )
