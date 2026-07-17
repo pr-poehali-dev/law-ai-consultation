@@ -136,7 +136,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
               <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Тариф «Пробный»</span>
               <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>290 ₽</span>
             </div>
-            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>5 вопросов AI · 2 документа · доступ к «Старт»</span>
+            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>5 вопросов AI · 2 документа · AI-редактор · калькулятор</span>
           </button>
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты

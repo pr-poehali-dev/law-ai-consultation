@@ -217,7 +217,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s", (user_id,))
         elif service_type == "document":
-            # Тариф «Пробный»: +5 вопросов, +2 документа, доступ к функциям тарифа «Старт»
+            # Тариф «Пробный»: +5 вопросов, +2 документа, разово
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_questions = paid_questions + 5,
@@ -2137,7 +2137,7 @@ def handle_admin_grant(token: str, body: dict) -> dict:
             "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт (скидка): +30 вопр +5 докум +3 консульт юриста"),
             "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "Тариф Профи: +100 вопр +20 докум +5 консульт юриста"),
             "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 30", "Тариф Максимум: +300 вопр +50 докум +30 консульт юриста"),
-            "document":              ("paid_questions = paid_questions + 5, paid_docs = paid_docs + 2, purchased_plan = CASE WHEN purchased_plan IN ('trial','starter','pro','max') THEN purchased_plan ELSE 'trial' END", "Тариф «Пробный»: +5 вопр +2 докум + доступ к тарифу «Старт»"),
+            "document":              ("paid_questions = paid_questions + 5, paid_docs = paid_docs + 2, purchased_plan = CASE WHEN purchased_plan IN ('trial','starter','pro','max') THEN purchased_plan ELSE 'trial' END", "Тариф «Пробный»: +5 вопр +2 докум"),
             "consultation":          ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
             "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
             "lawyer_questions":      ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
