@@ -83,7 +83,7 @@ export default function DocPickerSheet({ onSelect, onClose }: DocPickerSheetProp
             <div>
               <p className="font-bold text-white text-[14px] leading-tight">Создать документ</p>
               <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
-                {DOC_BLOCKS.reduce((s, b) => s + b.types.length, 0)} шаблонов · от 590 ₽
+                {DOC_BLOCKS.reduce((s, b) => s + b.types.length, 0)} шаблонов · от 290 ₽
               </p>
             </div>
           </div>

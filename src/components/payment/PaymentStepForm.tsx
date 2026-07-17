@@ -3,7 +3,7 @@ import { ServiceType } from "@/components/PaymentModal";
 
 const SERVICE_PRICES: Record<ServiceType, number> = {
   consultation: 990,
-  document: 590,
+  document: 290,
   expert: 990,
   business: 1000,
   subscription_consult: 1990,
@@ -24,7 +24,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
   consultation: "Консультация живого юриста по вашей ситуации",
-  document: "Один юридический документ (исковое, претензия или жалоба)",
+  document: "5 вопросов AI-юристу + 2 документа + доступ к тарифу «Старт»",
   expert: "Консультация живого юриста — разбор ситуации и стратегия действий",
   business: "Подготовка договора и юридических документов для бизнеса",
   subscription_consult: "Безлимитные консультации AI-юриста — 1 месяц",
