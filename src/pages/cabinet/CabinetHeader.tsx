@@ -133,6 +133,7 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
                 className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   tab === t.id ? "bg-white shadow-sm text-navy-800" : "text-muted-foreground hover:text-navy-700"
                 }`}
+                style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
                 <Icon name={t.icon} size={14} />
                 {t.label}
