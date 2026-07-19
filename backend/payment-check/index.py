@@ -61,7 +61,7 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT status, service_type, user_id, payment_id FROM {SCHEMA}.orders WHERE inv_id = %s",
+            f"SELECT status, service_type, user_id, payment_id, amount FROM {SCHEMA}.orders WHERE inv_id = %s",
             (inv_id,)
         )
         row = cur.fetchone()
@@ -76,7 +76,7 @@ def handler(event: dict, context) -> dict:
             "body": json.dumps({"inv_id": inv_id, "paid": False, "status": "not_found"}, ensure_ascii=False),
         }
 
-    db_status, service_type, user_id, payment_id = row
+    db_status, service_type, user_id, payment_id, amount = row
 
     if db_status == "paid":
         return {
@@ -88,6 +88,7 @@ def handler(event: dict, context) -> dict:
                 "status": "paid",
                 "service_type": service_type,
                 "user_id": user_id,
+                "amount": float(amount) if amount is not None else None,
             }, ensure_ascii=False),
         }
 
@@ -118,5 +119,6 @@ def handler(event: dict, context) -> dict:
             "paid": paid,
             "status": "paid" if paid else "pending",
             "service_type": service_type,
+            "amount": (float(amount) if amount is not None else None) if paid else None,
         }, ensure_ascii=False),
     }

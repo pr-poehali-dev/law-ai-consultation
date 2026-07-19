@@ -102,16 +102,17 @@ export function useCabinetPayment({
           chatRemoveUpsell();
           chatRevealFunnel();
           const svcType = data.service_type as ServiceType | undefined;
-          // Цели Метрики для каждого пакета
-          ymGoal("payment_success", { service: svcType });
+          const revenue = typeof data.amount === "number" ? data.amount : undefined;
+          // Цели Метрики для каждого пакета — с суммой платежа (order_price/currency)
+          ymGoal("payment_success", { service: svcType, order_price: revenue, currency: "RUB" });
           if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
-            ymGoal("purchase_plan_starter");
+            ymGoal("purchase_plan_starter", { order_price: revenue, currency: "RUB" });
           } else if (svcType === "plan_pro") {
-            ymGoal("purchase_plan_pro");
+            ymGoal("purchase_plan_pro", { order_price: revenue, currency: "RUB" });
           } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
-            ymGoal("purchase_plan_max");
+            ymGoal("purchase_plan_max", { order_price: revenue, currency: "RUB" });
           } else if (svcType === "document") {
-            ymGoal("purchase_document");
+            ymGoal("purchase_document", { order_price: revenue, currency: "RUB" });
           }
           const label = svcType ? GRANT_LABELS[svcType] : null;
           if (label) {

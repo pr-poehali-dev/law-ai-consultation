@@ -56,6 +56,7 @@ export default function PaymentModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [invId, setInvId] = useState<number | null>(null);
   const [payUrl, setPayUrl] = useState<string>("");
+  const [amount, setAmount] = useState<number | undefined>(undefined);
 
   // Регистрация / вход после оплаты
   const [regMode, setRegMode] = useState<"register" | "login">("register");
@@ -105,6 +106,7 @@ export default function PaymentModal({
 
       setInvId(data.inv_id);
       setPayUrl(data.pay_url);
+      setAmount(typeof data.amount === "number" ? data.amount : parseFloat(data.amount) || undefined);
       setStep("redirected");
 
       // КРИТИЧНО: сохраняем inv_id, service_type и email в localStorage немедленно.
@@ -157,16 +159,16 @@ export default function PaymentModal({
         if (data.paid || data.status === "paid") {
           await addPaidService(serviceType, id);
           localStorage.removeItem("pending_payment");
-          ymGoal("payment_success", { service: serviceType });
-          // Отдельные цели для каждого пакета
+          ymGoal("payment_success", { service: serviceType, order_price: amount, currency: "RUB" });
+          // Отдельные цели для каждого пакета — с суммой платежа
           if (serviceType === "plan_starter" || serviceType === "plan_starter_discount") {
-            ymGoal("purchase_plan_starter");
+            ymGoal("purchase_plan_starter", { order_price: amount, currency: "RUB" });
           } else if (serviceType === "plan_pro") {
-            ymGoal("purchase_plan_pro");
+            ymGoal("purchase_plan_pro", { order_price: amount, currency: "RUB" });
           } else if (serviceType === "plan_max" || serviceType === "plan_max_expert") {
-            ymGoal("purchase_plan_max");
+            ymGoal("purchase_plan_max", { order_price: amount, currency: "RUB" });
           } else if (serviceType === "document") {
-            ymGoal("purchase_document");
+            ymGoal("purchase_document", { order_price: amount, currency: "RUB" });
           }
           const user = await getUser();
           if (!user) {
@@ -217,6 +219,7 @@ export default function PaymentModal({
     if (authError) { setRegError(authError); return; }
 
     // Начисляем услугу теперь, когда пользователь авторизован
+    // (метрика покупки уже учтена в startPolling в момент подтверждения оплаты)
     if (invId) {
       await addPaidService(serviceType, invId);
       localStorage.removeItem("pending_inv_id");
