@@ -9,7 +9,7 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   subscription_consult: 1990,
   subscription_docs: 4990,
   plan_starter: 990,
-  plan_starter_discount: 745,
+  plan_starter_discount: 495,
   plan_pro: 3990,
   plan_max: 5990,
   plan_max_expert: 5990,
@@ -20,6 +20,9 @@ const SERVICE_PRICES: Record<ServiceType, number> = {
   business_actions_60: 6000,
   business_actions_150: 9000,
   lawyer_questions: 990,
+  plan_corporate: 9990,
+  doc_analysis: 99,
+  quick_questions: 35,
 };
 
 const SERVICE_DETAILS: Record<ServiceType, string> = {
@@ -41,6 +44,9 @@ const SERVICE_DETAILS: Record<ServiceType, string> = {
   business_actions_60: "Дополнительно 60 действий к текущему пакету",
   business_actions_150: "Дополнительно 150 действий к текущему пакету",
   lawyer_questions: "+1 консультация живого юриста · ответ в течение 1–3 часов",
+  plan_corporate: "300 вопросов AI + 100 документов + 50 вопросов юристу",
+  doc_analysis: "Разовый анализ загруженного документа AI-юристом",
+  quick_questions: "+3 вопроса AI-юристу",
 };
 
 const SERVICE_BADGE: Partial<Record<ServiceType, string>> = {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { getUser, addPaidService, fetchSafe, register, login } from "@/lib/auth";
-import { ymGoal } from "@/lib/metrika";
+import { ymGoal, claimPurchaseMetric } from "@/lib/metrika";
 import PaymentStepForm from "@/components/payment/PaymentStepForm";
 import PaymentStepStatus from "@/components/payment/PaymentStepStatus";
 import PaymentStepRegister from "@/components/payment/PaymentStepRegister";
@@ -159,16 +159,19 @@ export default function PaymentModal({
         if (data.paid || data.status === "paid") {
           await addPaidService(serviceType, id);
           localStorage.removeItem("pending_payment");
-          ymGoal("payment_success", { service: serviceType, order_price: amount, currency: "RUB" });
-          // Отдельные цели для каждого пакета — с суммой платежа
-          if (serviceType === "plan_starter" || serviceType === "plan_starter_discount") {
-            ymGoal("purchase_plan_starter", { order_price: amount, currency: "RUB" });
-          } else if (serviceType === "plan_pro") {
-            ymGoal("purchase_plan_pro", { order_price: amount, currency: "RUB" });
-          } else if (serviceType === "plan_max" || serviceType === "plan_max_expert") {
-            ymGoal("purchase_plan_max", { order_price: amount, currency: "RUB" });
-          } else if (serviceType === "document") {
-            ymGoal("purchase_document", { order_price: amount, currency: "RUB" });
+          // Отправляем метрику покупки только один раз на inv_id — защита от дублей
+          // при параллельной обработке в новой вкладке (после редиректа с ЮКассы)
+          if (claimPurchaseMetric(id)) {
+            ymGoal("payment_success", { service: serviceType, order_price: amount, currency: "RUB" });
+            if (serviceType === "plan_starter" || serviceType === "plan_starter_discount") {
+              ymGoal("purchase_plan_starter", { order_price: amount, currency: "RUB" });
+            } else if (serviceType === "plan_pro") {
+              ymGoal("purchase_plan_pro", { order_price: amount, currency: "RUB" });
+            } else if (serviceType === "plan_max" || serviceType === "plan_max_expert") {
+              ymGoal("purchase_plan_max", { order_price: amount, currency: "RUB" });
+            } else if (serviceType === "document") {
+              ymGoal("purchase_document", { order_price: amount, currency: "RUB" });
+            }
           }
           const user = await getUser();
           if (!user) {

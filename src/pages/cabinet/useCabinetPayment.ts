@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
 import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
-import { ymGoal } from "@/lib/metrika";
-import { DOC_TYPES, findDocType, type DocType } from "@/pages/cabinet/docBlocks";
+import { ymGoal, claimPurchaseMetric } from "@/lib/metrika";
+import { findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
 const CHECK_URL = "https://functions.poehali.dev/88ec8c1a-44da-48dd-a412-0b5d62f67591";
@@ -103,16 +103,19 @@ export function useCabinetPayment({
           chatRevealFunnel();
           const svcType = data.service_type as ServiceType | undefined;
           const revenue = typeof data.amount === "number" ? data.amount : undefined;
-          // Цели Метрики для каждого пакета — с суммой платежа (order_price/currency)
-          ymGoal("payment_success", { service: svcType, order_price: revenue, currency: "RUB" });
-          if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
-            ymGoal("purchase_plan_starter", { order_price: revenue, currency: "RUB" });
-          } else if (svcType === "plan_pro") {
-            ymGoal("purchase_plan_pro", { order_price: revenue, currency: "RUB" });
-          } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
-            ymGoal("purchase_plan_max", { order_price: revenue, currency: "RUB" });
-          } else if (svcType === "document") {
-            ymGoal("purchase_document", { order_price: revenue, currency: "RUB" });
+          // Отправляем метрику покупки только один раз на inv_id — защита от дублей
+          // при параллельной обработке в нескольких вкладках
+          if (claimPurchaseMetric(invId)) {
+            ymGoal("payment_success", { service: svcType, order_price: revenue, currency: "RUB" });
+            if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
+              ymGoal("purchase_plan_starter", { order_price: revenue, currency: "RUB" });
+            } else if (svcType === "plan_pro") {
+              ymGoal("purchase_plan_pro", { order_price: revenue, currency: "RUB" });
+            } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
+              ymGoal("purchase_plan_max", { order_price: revenue, currency: "RUB" });
+            } else if (svcType === "document") {
+              ymGoal("purchase_document", { order_price: revenue, currency: "RUB" });
+            }
           }
           const label = svcType ? GRANT_LABELS[svcType] : null;
           if (label) {
