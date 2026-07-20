@@ -64,7 +64,11 @@ export default function ExpertTab({
   const loading = lawyerLoading;
 
   const isPaid = user.isAdmin || user.paidExpert;
-  const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null);
+  // Бесплатная предварительная консультация доступна не только тем, кто вообще
+  // не покупал тариф, но и тем, кто купил только «Пробный» (purchasedPlan === "trial") —
+  // этот тариф не даёт платных консультаций юриста, поэтому такие пользователи
+  // должны получить тот же 1 бесплатный вопрос, что и незарегистрированные без тарифа
+  const isFreeUser = !user.isAdmin && !isPaid && (user.purchasedPlan === null || user.purchasedPlan === "trial");
   const isDialogClosed = lmsgs.length > 0 && lmsgs.every(m => (m as LawyerMessage & { is_closed?: boolean }).is_closed);
   const hasSentUserMsg = lmsgs.some(m => m.sender === "user");
   const consultationsLeft = user.lawyerConsultationsLeft ?? 0;
