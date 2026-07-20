@@ -7,21 +7,28 @@ export function ymGoal(goal: string, params?: Record<string, unknown>) {
 }
 
 /**
- * Защита от двойной отправки цели «покупка» за один и тот же платёж.
- * Один платёж (inv_id) может детектироваться параллельно в двух вкладках:
- * исходной (модалка оплаты) и новой (редирект с ЮКассы → регистрация → кабинет).
- * localStorage общий для вкладок одного origin, поэтому первый, кто дойдёт
- * до этой проверки — «занимает» inv_id, остальные пропускают отправку.
- * Возвращает true, если это первый вызов для данного inv_id (нужно отправлять метрику).
+ * Получает ClientID Яндекс.Метрики текущего посетителя (для привязки покупки
+ * к визиту при серверной отправке цели через Measurement Protocol).
+ * Резолвится с таймаутом 1.5с, чтобы не блокировать оформление платежа
+ * если счётчик ещё не успел проинициализироваться.
  */
-export function claimPurchaseMetric(invId: string | number | null | undefined): boolean {
-  if (!invId || typeof window === "undefined") return true;
-  const key = `ym_purchase_done_${invId}`;
-  try {
-    if (localStorage.getItem(key)) return false;
-    localStorage.setItem(key, String(Date.now()));
-    return true;
-  } catch {
-    return true;
-  }
+export function getYmClientId(): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || typeof (window as Record<string, unknown>).ym !== "function") {
+      resolve(null);
+      return;
+    }
+    let done = false;
+    const finish = (id: string | null) => {
+      if (done) return;
+      done = true;
+      resolve(id);
+    };
+    try {
+      (window as Record<string, (...a: unknown[]) => void>).ym(YM_ID, "getClientID", (id: string) => finish(id || null));
+    } catch {
+      finish(null);
+    }
+    setTimeout(() => finish(null), 1500);
+  });
 }

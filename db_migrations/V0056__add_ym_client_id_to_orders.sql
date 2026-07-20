@@ -1,0 +1,2 @@
+ALTER TABLE t_p57945357_law_ai_consultation.orders
+ADD COLUMN IF NOT EXISTS ym_client_id VARCHAR(64) NULL;

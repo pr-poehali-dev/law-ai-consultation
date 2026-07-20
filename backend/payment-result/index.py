@@ -9,8 +9,25 @@ import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 import psycopg2
+import requests
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p57945357_law_ai_consultation")
+
+YM_COUNTER_ID = "108545025"
+YM_COLLECT_URL = "https://mc.yandex.ru/collect"
+
+# service_type -> название специфичной цели в Яндекс.Метрике (совпадает с целями,
+# которые раньше отправлялись из браузера — чтобы не создавать новые цели в интерфейсе).
+# Для остальных тарифов (не входящих в этот список) отправляется только общая
+# цель payment_success — её достаточно, т.к. она уже несёт service_type и order_price.
+YM_GOALS = {
+    "document":              "purchase_document",
+    "plan_starter":          "purchase_plan_starter",
+    "plan_starter_discount": "purchase_plan_starter",
+    "plan_pro":               "purchase_plan_pro",
+    "plan_max":               "purchase_plan_max",
+    "plan_max_expert":        "purchase_plan_max",
+}
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -140,6 +157,63 @@ def send_payment_confirmation(to_email: str, user_name: str, service_type: str, 
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
+
+
+def send_ym_purchase_goal(service_type: str, amount: float, inv_id: int, ym_client_id: str | None) -> None:
+    """
+    Отправляет данные о покупке в Яндекс.Метрику напрямую с сервера через Measurement Protocol
+    (mc.yandex.ru/collect). Работает НАДЁЖНО — в отличие от отправки из браузера, не зависит
+    от того, дожил ли пользователь до экрана подтверждения оплаты (закрыл вкладку, потерял
+    связь и т.д.), т.к. вызывается прямо из вебхука ЮКассы сразу при подтверждении оплаты.
+
+    Отправляем 2 хита:
+    1. Цель (event) — специфичная для тарифа (совпадает с целями, которые раньше слались
+       из браузера, чтобы не плодить новые цели в интерфейсе Метрики) + payment_success.
+    2. Ecommerce-покупку (pa=purchase) — чтобы сумма корректно попадала в отчёты по деньгам
+       (ti — id транзакции, tr — доход, cu — валюта).
+    """
+    token = os.environ.get("YANDEX_METRIKA_MP_TOKEN", "").strip()
+    if not token:
+        print("[PAYMENT] YM: YANDEX_METRIKA_MP_TOKEN не задан — данные в Метрику не отправлены")
+        return
+
+    client_id = ym_client_id or "0"
+    goals = ["payment_success"]
+    specific = YM_GOALS.get(service_type)
+    if specific:
+        goals.append(specific)
+
+    for goal in goals:
+        try:
+            params = {
+                "tid": YM_COUNTER_ID,
+                "cid": client_id,
+                "t": "event",
+                "ea": goal,
+                "el": service_type,
+                "ev": int(round(amount)),
+                "ms": token,
+            }
+            resp = requests.get(YM_COLLECT_URL, params=params, timeout=8)
+            print(f"[PAYMENT] YM goal '{goal}' sent, status={resp.status_code}")
+        except Exception as e:
+            print(f"[PAYMENT] YM WARN: не удалось отправить цель '{goal}': {e}")
+
+    try:
+        params = {
+            "tid": YM_COUNTER_ID,
+            "cid": client_id,
+            "t": "event",
+            "pa": "purchase",
+            "ti": str(inv_id),
+            "tr": amount,
+            "cu": "RUB",
+            "ms": token,
+        }
+        resp = requests.get(YM_COLLECT_URL, params=params, timeout=8)
+        print(f"[PAYMENT] YM ecommerce purchase sent, status={resp.status_code}")
+    except Exception as e:
+        print(f"[PAYMENT] YM WARN: не удалось отправить ecommerce-покупку: {e}")
 
 
 def write_billing_log(conn, user_id: int, user_email: str, service_type: str, amount: float, payment_id: str):
@@ -343,18 +417,22 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT id, user_id, user_email, service_type, amount, status, service_credited FROM {SCHEMA}.orders WHERE inv_id = %s",
+            f"SELECT id, user_id, user_email, service_type, amount, status, service_credited, ym_client_id FROM {SCHEMA}.orders WHERE inv_id = %s",
             (inv_id,)
         )
         row = cur.fetchone()
         if not row:
             return {"statusCode": 404, "headers": CORS, "body": f"Order not found: {inv_id}"}
 
-        order_id, db_user_id, db_user_email, db_service_type, db_amount, db_status, db_service_credited = row
+        order_id, db_user_id, db_user_email, db_service_type, db_amount, db_status, db_service_credited, db_ym_client_id = row
 
         if db_status == "paid" and db_service_credited:
             # Уже оплачено И зачислено — идемпотентный ответ
             return {"statusCode": 200, "headers": CORS, "body": "ok"}
+
+        # Метрику отправляем только при ПЕРВОМ переходе заказа в статус paid —
+        # ЮКасса может повторить вебхук, а цель покупки должна улететь ровно один раз
+        was_already_paid = (db_status == "paid")
 
         # Помечаем как оплачен, но service_credited пока FALSE — выставим после начисления
         cur.execute(
@@ -362,6 +440,10 @@ def handler(event: dict, context) -> dict:
             (payment_id, order_id)
         )
         conn.commit()
+
+        if not was_already_paid:
+            effective_amount_for_metric = float(db_amount) if db_amount else amount_val
+            send_ym_purchase_goal(db_service_type or service_type, effective_amount_for_metric, inv_id, db_ym_client_id)
 
         effective_user_id = db_user_id
         if not effective_user_id and user_id_str:

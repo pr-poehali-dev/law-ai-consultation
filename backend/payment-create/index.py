@@ -96,6 +96,7 @@ def _handle(event: dict, context) -> dict:
     service_type = body.get("service_type", "consultation")
     user_email = (body.get("email") or "").strip().lower()
     user_id = body.get("user_id")
+    ym_client_id = (body.get("ym_client_id") or "").strip()[:64] or None
     return_url = body.get("return_url", "https://ии-право.рф/cabinet?payment=success")
 
     if service_type not in PRICES:
@@ -134,10 +135,10 @@ def _handle(event: dict, context) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""INSERT INTO {SCHEMA}.orders (inv_id, user_id, user_email, service_type, amount, status)
-                VALUES (nextval('{SCHEMA}.orders_id_seq'), %s, %s, %s, %s, 'pending')
+            f"""INSERT INTO {SCHEMA}.orders (inv_id, user_id, user_email, service_type, amount, status, ym_client_id)
+                VALUES (nextval('{SCHEMA}.orders_id_seq'), %s, %s, %s, %s, 'pending', %s)
                 RETURNING id""",
-            (user_id, user_email, service_type, amount)
+            (user_id, user_email, service_type, amount, ym_client_id)
         )
         inv_id = cur.fetchone()[0]
         cur.execute(

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
 import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
-import { ymGoal, claimPurchaseMetric } from "@/lib/metrika";
 import { findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
@@ -102,21 +101,8 @@ export function useCabinetPayment({
           chatRemoveUpsell();
           chatRevealFunnel();
           const svcType = data.service_type as ServiceType | undefined;
-          const revenue = typeof data.amount === "number" ? data.amount : undefined;
-          // Отправляем метрику покупки только один раз на inv_id — защита от дублей
-          // при параллельной обработке в нескольких вкладках
-          if (claimPurchaseMetric(invId)) {
-            ymGoal("payment_success", { service: svcType, order_price: revenue, currency: "RUB" });
-            if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
-              ymGoal("purchase_plan_starter", { order_price: revenue, currency: "RUB" });
-            } else if (svcType === "plan_pro") {
-              ymGoal("purchase_plan_pro", { order_price: revenue, currency: "RUB" });
-            } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
-              ymGoal("purchase_plan_max", { order_price: revenue, currency: "RUB" });
-            } else if (svcType === "document") {
-              ymGoal("purchase_document", { order_price: revenue, currency: "RUB" });
-            }
-          }
+          // Метрика покупки отправляется НАДЁЖНО с сервера (webhook payment-result
+          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента
           const label = svcType ? GRANT_LABELS[svcType] : null;
           if (label) {
             setSuccessToast(label);
@@ -153,18 +139,8 @@ export function useCabinetPayment({
     chatRevealFunnel();
     setPayment(null);
 
-    // Цели Метрики для каждого пакета (залогиненный пользователь через PaymentModal)
-    ymGoal("payment_success", { service: svcType });
-    if (svcType === "plan_starter" || svcType === "plan_starter_discount") {
-      ymGoal("purchase_plan_starter");
-    } else if (svcType === "plan_pro") {
-      ymGoal("purchase_plan_pro");
-    } else if (svcType === "plan_max" || svcType === "plan_max_expert") {
-      ymGoal("purchase_plan_max");
-    } else if (svcType === "document") {
-      ymGoal("purchase_document");
-    }
-
+    // Метрика покупки отправляется НАДЁЖНО с сервера (webhook payment-result
+    // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента
     const label = GRANT_LABELS[svcType];
     if (label) {
       setSuccessToast(label);

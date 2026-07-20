@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { getUser, addPaidService, fetchSafe, register, login } from "@/lib/auth";
-import { ymGoal, claimPurchaseMetric } from "@/lib/metrika";
+import { getYmClientId } from "@/lib/metrika";
 import PaymentStepForm from "@/components/payment/PaymentStepForm";
 import PaymentStepStatus from "@/components/payment/PaymentStepStatus";
 import PaymentStepRegister from "@/components/payment/PaymentStepRegister";
@@ -56,7 +56,6 @@ export default function PaymentModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [invId, setInvId] = useState<number | null>(null);
   const [payUrl, setPayUrl] = useState<string>("");
-  const [amount, setAmount] = useState<number | undefined>(undefined);
 
   // Регистрация / вход после оплаты
   const [regMode, setRegMode] = useState<"register" | "login">("register");
@@ -89,6 +88,7 @@ export default function PaymentModal({
 
     try {
       const user = await getUser();
+      const ymClientId = await getYmClientId();
       const res = await fetchSafe(CREATE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,6 +96,7 @@ export default function PaymentModal({
           service_type: serviceType,
           email,
           user_id: user?.id ?? null,
+          ym_client_id: ymClientId,
           return_url: user
             ? `${window.location.origin}/cabinet?payment=success`
             : `${window.location.origin}/?payment=success`,
@@ -106,7 +107,6 @@ export default function PaymentModal({
 
       setInvId(data.inv_id);
       setPayUrl(data.pay_url);
-      setAmount(typeof data.amount === "number" ? data.amount : parseFloat(data.amount) || undefined);
       setStep("redirected");
 
       // КРИТИЧНО: сохраняем inv_id, service_type и email в localStorage немедленно.
@@ -159,20 +159,8 @@ export default function PaymentModal({
         if (data.paid || data.status === "paid") {
           await addPaidService(serviceType, id);
           localStorage.removeItem("pending_payment");
-          // Отправляем метрику покупки только один раз на inv_id — защита от дублей
-          // при параллельной обработке в новой вкладке (после редиректа с ЮКассы)
-          if (claimPurchaseMetric(id)) {
-            ymGoal("payment_success", { service: serviceType, order_price: amount, currency: "RUB" });
-            if (serviceType === "plan_starter" || serviceType === "plan_starter_discount") {
-              ymGoal("purchase_plan_starter", { order_price: amount, currency: "RUB" });
-            } else if (serviceType === "plan_pro") {
-              ymGoal("purchase_plan_pro", { order_price: amount, currency: "RUB" });
-            } else if (serviceType === "plan_max" || serviceType === "plan_max_expert") {
-              ymGoal("purchase_plan_max", { order_price: amount, currency: "RUB" });
-            } else if (serviceType === "document") {
-              ymGoal("purchase_document", { order_price: amount, currency: "RUB" });
-            }
-          }
+          // Метрика покупки отправляется НАДЁЖНО с сервера (webhook payment-result
+          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента
           const user = await getUser();
           if (!user) {
             // Незарегистрированный — показываем форму регистрации
