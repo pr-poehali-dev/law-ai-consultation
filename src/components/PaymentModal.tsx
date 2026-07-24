@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { getUser, addPaidService, fetchSafe, register, login } from "@/lib/auth";
-import { getYmClientId } from "@/lib/metrika";
+import { getYmClientId, vkPurchaseGoal, claimVkPurchase } from "@/lib/metrika";
 import PaymentStepForm from "@/components/payment/PaymentStepForm";
 import PaymentStepStatus from "@/components/payment/PaymentStepStatus";
 import PaymentStepRegister from "@/components/payment/PaymentStepRegister";
@@ -159,8 +159,14 @@ export default function PaymentModal({
         if (data.paid || data.status === "paid") {
           await addPaidService(serviceType, id);
           localStorage.removeItem("pending_payment");
-          // Метрика покупки отправляется НАДЁЖНО с сервера (webhook payment-result
-          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента
+          // Метрика Яндекса отправляется НАДЁЖНО с сервера (webhook payment-result
+          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента.
+          // Цель VK Рекламы шлём отсюда — у VK нет серверного Measurement Protocol,
+          // событие формируется только через JS-пиксель в браузере.
+          if (claimVkPurchase(id)) {
+            const revenue = typeof data.amount === "number" ? data.amount : parseFloat(data.amount) || 0;
+            vkPurchaseGoal(serviceType, revenue);
+          }
           const user = await getUser();
           if (!user) {
             // Незарегистрированный — показываем форму регистрации

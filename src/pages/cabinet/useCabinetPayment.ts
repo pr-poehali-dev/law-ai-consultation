@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ServiceType } from "@/components/PaymentModal";
 import { getUser, type User, fetchSafe, invalidateUserCache } from "@/lib/auth";
+import { vkPurchaseGoal, claimVkPurchase } from "@/lib/metrika";
 import { findDocType, type DocType } from "@/pages/cabinet/docBlocks";
 
 const PENDING_ACTION_KEY = "cabinet_pending_action";
@@ -101,8 +102,13 @@ export function useCabinetPayment({
           chatRemoveUpsell();
           chatRevealFunnel();
           const svcType = data.service_type as ServiceType | undefined;
-          // Метрика покупки отправляется НАДЁЖНО с сервера (webhook payment-result
-          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента
+          // Метрика Яндекса отправляется НАДЁЖНО с сервера (webhook payment-result
+          // → Measurement Protocol), не зависит от того, дожил ли браузер до этого момента.
+          // Цель VK Рекламы шлём отсюда — у VK нет серверного Measurement Protocol.
+          if (svcType && claimVkPurchase(invId)) {
+            const revenue = typeof data.amount === "number" ? data.amount : parseFloat(data.amount) || 0;
+            vkPurchaseGoal(svcType, revenue);
+          }
           const label = svcType ? GRANT_LABELS[svcType] : null;
           if (label) {
             setSuccessToast(label);
