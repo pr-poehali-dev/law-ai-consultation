@@ -199,19 +199,26 @@ export default function VideoTutorialsAdmin() {
 
     setUploadingId(id); setMsg("Загружаю видео...");
     try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const data = await apiCall({ action: "upload_video", file: b64, filename: file.name });
-      if (data.url) {
-        await apiCall({ action: "update", id, video_url: data.url });
-        setMsg("Видео загружено!"); await load();
-      } else {
-        setMsg(data.error || "Ошибка загрузки");
+      // 1. Получаем presigned URL — видео льётся напрямую в S3 из браузера,
+      // минуя тело cloud-функции (у неё лимит на размер payload, а видео
+      // в base64 легко превышает несколько МБ)
+      const urlData = await apiCall({ action: "get_upload_url", filename: file.name });
+      if (!urlData.upload_url) {
+        setMsg(urlData.error || "Ошибка загрузки");
+        setUploadingId(null);
+        return;
       }
+      // 2. PUT самого файла напрямую в S3
+      const putRes = await fetch(urlData.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": urlData.content_type || file.type || "video/mp4" },
+        body: file,
+      });
+      if (!putRes.ok) { setMsg("Ошибка загрузки видео в хранилище"); setUploadingId(null); return; }
+
+      // 3. Сохраняем итоговую CDN-ссылку в записи ролика
+      await apiCall({ action: "update", id, video_url: urlData.cdn_url });
+      setMsg("Видео загружено!"); await load();
     } catch { setMsg("Ошибка загрузки"); }
     setUploadingId(null);
   };

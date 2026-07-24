@@ -32,6 +32,13 @@
       "path": "/",
       "body": {"action": "set_welcome", "video_url": "https://example.com/v.mp4"},
       "expectedStatus": 403
+    },
+    {
+      "name": "POST get_upload_url без авторизации — 403",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "get_upload_url", "filename": "test.mp4"},
+      "expectedStatus": 403
     }
   ]
 }

@@ -1,11 +1,12 @@
 """
 Управление видео-инструкциями: список, создание, редактирование, удаление, загрузка видео.
 Публичный эндпоинт для списка (GET). Админские — требуют X-Auth-Token.
-Таймаут функции рекомендуется 120с (видео до 20 МБ).
+Видео до 20 МБ загружается НАПРЯМУЮ в S3 из браузера через presigned URL
+(get_upload_url отдаёт ссылку, дальше PUT идёт мимо тела этой функции) —
+так обходим лимит на размер payload cloud-функции.
 """
 import json
 import os
-import base64
 import time
 import psycopg2
 import boto3
@@ -44,44 +45,43 @@ def get_admin_user(token: str):
         conn.close()
 
 
-def upload_video_to_s3(file_b64: str, filename: str, is_welcome: bool = False) -> str:
-    """Загружает видео в S3, возвращает CDN URL."""
-    try:
-        file_data = base64.b64decode(file_b64)
-    except Exception:
-        raise ValueError("Некорректный base64 файла")
+ALLOWED_VIDEO_EXTS = {"mp4", "webm", "mov", "avi", "mkv", "m4v"}
+VIDEO_CONTENT_TYPES = {
+    "mp4": "video/mp4", "webm": "video/webm", "mov": "video/quicktime",
+    "avi": "video/x-msvideo", "mkv": "video/x-matroska", "m4v": "video/mp4",
+}
 
-    max_size = 20 * 1024 * 1024  # 20 МБ
-    if len(file_data) > max_size:
-        raise ValueError("Видео слишком большое (максимум 20 МБ)")
 
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp4"
-    allowed_exts = {"mp4", "webm", "mov", "avi", "mkv", "m4v"}
-    if ext not in allowed_exts:
-        raise ValueError(f"Недопустимый формат: {ext}. Допустимые: mp4, webm, mov")
-
-    content_types = {
-        "mp4": "video/mp4", "webm": "video/webm", "mov": "video/quicktime",
-        "avi": "video/x-msvideo", "mkv": "video/x-matroska", "m4v": "video/mp4",
-    }
-    content_type = content_types.get(ext, "video/mp4")
-
-    folder = "welcome" if is_welcome else "tutorials"
-    key = f"{folder}/{int(time.time())}_{filename.replace(' ', '_')}"
-    s3 = boto3.client(
+def get_s3():
+    return boto3.client(
         "s3",
         endpoint_url="https://bucket.poehali.dev",
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
     )
-    s3.put_object(
-        Bucket="files",
-        Key=key,
-        Body=file_data,
-        ContentType=content_type,
+
+
+def create_upload_url(filename: str, is_welcome: bool = False) -> dict:
+    """
+    Генерирует presigned URL для ПРЯМОЙ загрузки видео с браузера в S3 (PUT),
+    минуя тело cloud-функции — видео до 20 МБ в base64 (~27 МБ) не проходит
+    через лимит на размер payload функции, поэтому файл льётся напрямую в S3.
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp4"
+    if ext not in ALLOWED_VIDEO_EXTS:
+        raise ValueError(f"Недопустимый формат: {ext}. Допустимые: mp4, webm, mov")
+    content_type = VIDEO_CONTENT_TYPES.get(ext, "video/mp4")
+
+    folder = "welcome" if is_welcome else "tutorials"
+    key = f"{folder}/{int(time.time())}_{filename.replace(' ', '_')}"
+    s3 = get_s3()
+    upload_url = s3.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": "files", "Key": key, "ContentType": content_type},
+        ExpiresIn=600,
     )
     cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
-    return cdn_url
+    return {"upload_url": upload_url, "cdn_url": cdn_url, "content_type": content_type}
 
 
 def handler(event: dict, context) -> dict:
@@ -135,18 +135,14 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 403, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": "Доступ запрещён"}, ensure_ascii=False)}
 
-    # ── Загрузка видео в S3 ─────────────────────────────────────────────────
-    if action == "upload_video":
-        file_b64 = body.get("file", "")
+    # ── Получить presigned URL для прямой загрузки видео в S3 из браузера ────
+    if action == "get_upload_url":
         filename = body.get("filename", "video.mp4")
         is_welcome = bool(body.get("is_welcome", False))
-        if not file_b64:
-            return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"error": "Файл обязателен"}, ensure_ascii=False)}
         try:
-            cdn_url = upload_video_to_s3(file_b64, filename, is_welcome)
+            result = create_upload_url(filename, is_welcome)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"url": cdn_url}, ensure_ascii=False)}
+                    "body": json.dumps(result, ensure_ascii=False)}
         except ValueError as e:
             return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"error": str(e)}, ensure_ascii=False)}
