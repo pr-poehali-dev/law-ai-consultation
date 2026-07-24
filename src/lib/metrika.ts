@@ -39,43 +39,43 @@ export function getYmClientId(): Promise<string | null> {
 
 const VK_PIXEL_ID = 3769879;
 
-// service_type -> название именованной цели в VK Рекламе — по одной цели на каждый
-// тариф, чтобы в кабинете VK Рекламы можно было считать конверсии и настраивать
-// оптимизацию отдельно по каждому тарифу (зеркалирует YM_GOALS в backend/payment-result).
-const VK_GOALS: Record<string, string> = {
-  document:               "purchase_document",
-  plan_starter:           "purchase_plan_starter",
-  plan_starter_discount:  "purchase_plan_starter",
-  plan_pro:               "purchase_plan_pro",
-  plan_max:                "purchase_plan_max",
-  plan_max_expert:         "purchase_plan_max",
-  plan_corporate:          "purchase_plan_corporate",
-  consultation:            "purchase_consultation",
-  expert:                  "purchase_expert",
-  lawyer_questions:        "purchase_lawyer_questions",
-  business:                "purchase_business",
-  business_subscription:   "purchase_business_subscription",
-  subscription_consult:    "purchase_subscription_consult",
-  subscription_docs:       "purchase_subscription_docs",
+// service_type -> именованная цель для основных 4 тарифов в VK Рекламе.
+// Названия и суммы заданы напрямую (как настроено в кабинете VK Рекламы),
+// а не берутся из фактической цены платежа.
+const VK_TARIFF_GOALS: Record<string, { goal: string; value?: number }> = {
+  document:               { goal: "Probnii", value: 290 },
+  plan_starter:           { goal: "Start", value: 990 },
+  plan_starter_discount:  { goal: "Start", value: 990 },
+  plan_pro:               { goal: "Profi", value: 3990 },
+  plan_max:               { goal: "Max" },
+  plan_max_expert:        { goal: "Max" },
 };
 
 /**
- * Отправляет цели «покупка» в пиксель VK Рекламы (Top.Mail.Ru) — 2 события:
- * общую "purchase" (для всех тарифов, с product_id = service_type) и, если
- * для тарифа заведена именованная цель (VK_GOALS), ещё и её.
+ * Отправляет цели «покупка» в пиксель VK Рекламы (Top.Mail.Ru):
+ * 1) общую цель "purchase" (для всех тарифов и услуг, с фактической суммой оплаты);
+ * 2) для 4 основных тарифов — ещё именованную цель (Probnii/Start/Profi/Max)
+ *    с фиксированной суммой, как настроено в кабинете VK Рекламы.
  */
 export function vkPurchaseGoal(serviceType: string, amount: number) {
   if (typeof window === "undefined") return;
   const w = window as unknown as { _tmr?: unknown[] };
   w._tmr = w._tmr || [];
-  const goals = ["purchase", VK_GOALS[serviceType]].filter(Boolean) as string[];
-  for (const goal of goals) {
+  w._tmr.push({
+    type: "reachGoal",
+    id: VK_PIXEL_ID,
+    value: amount,
+    goal: "purchase",
+    params: { product_id: serviceType },
+  });
+
+  const tariffGoal = VK_TARIFF_GOALS[serviceType];
+  if (tariffGoal) {
     w._tmr.push({
       type: "reachGoal",
       id: VK_PIXEL_ID,
-      value: amount,
-      goal,
-      params: { product_id: serviceType },
+      goal: tariffGoal.goal,
+      ...(tariffGoal.value !== undefined ? { value: tariffGoal.value } : {}),
     });
   }
 }

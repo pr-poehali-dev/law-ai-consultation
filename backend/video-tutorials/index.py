@@ -99,7 +99,7 @@ def upload_chunk(upload_id: str, part_number: int, chunk_b64: str) -> None:
     if not chunk_data:
         raise ValueError("Пустая часть файла")
 
-    max_chunk = 6 * 1024 * 1024
+    max_chunk = 3 * 1024 * 1024
     if len(chunk_data) > max_chunk:
         raise ValueError("Часть файла слишком большая")
 

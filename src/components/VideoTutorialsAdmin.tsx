@@ -190,9 +190,10 @@ export default function VideoTutorialsAdmin() {
     await apiCall({ action: "delete", id }); await load();
   };
 
-  // Размер одной части: с запасом под base64 (+33%) под лимит тела запроса
-  // облачной функции (~6 МБ) — 3 МБ raw → ~4 МБ base64, гарантированно проходит
-  const CHUNK_SIZE = 3 * 1024 * 1024;
+  // Размер одной части: реальный лимит тела запроса к cloud-функции — 3.5 МБ
+  // (проверено на практике: "request entity is larger than limits (3670016)").
+  // 2 МБ raw → ~2.7 МБ base64 — с запасом проходит под лимит.
+  const CHUNK_SIZE = 2 * 1024 * 1024;
 
   const readChunkAsB64 = (blob: Blob): Promise<string> =>
     new Promise((resolve, reject) => {
