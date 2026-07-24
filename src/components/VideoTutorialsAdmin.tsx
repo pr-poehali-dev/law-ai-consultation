@@ -322,7 +322,7 @@ export default function VideoTutorialsAdmin() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => { uploadForId.current = t.id; fileRef.current?.click(); }}
+                    onClick={() => { uploadForId.current = t.id; fileInputRef.current?.click(); }}
                     disabled={uploadingId !== null}
                     className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-40"
                     title="Загрузить видео"
