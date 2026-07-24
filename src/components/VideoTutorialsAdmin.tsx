@@ -139,6 +139,7 @@ export default function VideoTutorialsAdmin() {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [msg, setMsg] = useState("");
 
   const [formTitle, setFormTitle] = useState("");
@@ -189,6 +190,18 @@ export default function VideoTutorialsAdmin() {
     await apiCall({ action: "delete", id }); await load();
   };
 
+  // Размер одной части: с запасом под base64 (+33%) под лимит тела запроса
+  // облачной функции (~6 МБ) — 3 МБ raw → ~4 МБ base64, гарантированно проходит
+  const CHUNK_SIZE = 3 * 1024 * 1024;
+
+  const readChunkAsB64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const id = uploadForId.current;
@@ -197,30 +210,50 @@ export default function VideoTutorialsAdmin() {
 
     if (file.size > 20 * 1024 * 1024) { setMsg("Файл слишком большой (макс. 20 МБ)"); return; }
 
-    setUploadingId(id); setMsg("Загружаю видео...");
+    setUploadingId(id); setUploadProgress(0); setMsg("Загружаю видео...");
     try {
-      // 1. Получаем presigned URL — видео льётся напрямую в S3 из браузера,
-      // минуя тело cloud-функции (у неё лимит на размер payload, а видео
-      // в base64 легко превышает несколько МБ)
-      const urlData = await apiCall({ action: "get_upload_url", filename: file.name });
-      if (!urlData.upload_url) {
-        setMsg(urlData.error || "Ошибка загрузки");
+      // 1. Открываем загрузку по частям — прямой PUT в S3 из браузера
+      // блокируется анти-DDoS защитой хранилища, а видео целиком (base64 ~27 МБ)
+      // не проходит через лимит тела запроса к cloud-функции (~6 МБ)
+      const startData = await apiCall({ action: "upload_start", filename: file.name });
+      if (!startData.upload_id || !startData.key) {
+        setMsg(startData.error || "Ошибка загрузки");
         setUploadingId(null);
         return;
       }
-      // 2. PUT самого файла напрямую в S3
-      const putRes = await fetch(urlData.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": urlData.content_type || file.type || "video/mp4" },
-        body: file,
-      });
-      if (!putRes.ok) { setMsg("Ошибка загрузки видео в хранилище"); setUploadingId(null); return; }
+      const { upload_id, key } = startData;
 
-      // 3. Сохраняем итоговую CDN-ссылку в записи ролика
-      await apiCall({ action: "update", id, video_url: urlData.cdn_url });
+      // 2. Режем файл на части и грузим последовательно
+      const totalParts = Math.ceil(file.size / CHUNK_SIZE);
+      for (let i = 0; i < totalParts; i++) {
+        const start = i * CHUNK_SIZE;
+        const chunkBlob = file.slice(start, start + CHUNK_SIZE);
+        const chunkB64 = await readChunkAsB64(chunkBlob);
+        const partRes = await apiCall({ action: "upload_chunk", upload_id, part_number: i + 1, chunk: chunkB64 });
+        if (partRes.error) {
+          setMsg(`Ошибка загрузки части ${i + 1} из ${totalParts}: ${partRes.error}`);
+          setUploadingId(null);
+          return;
+        }
+        setUploadProgress(Math.round(((i + 1) / totalParts) * 90));
+        setMsg(`Загружаю видео... часть ${i + 1} из ${totalParts}`);
+      }
+
+      // 3. Завершаем — сервер склеивает части в единый файл
+      setMsg("Собираю видео...");
+      const completeData = await apiCall({ action: "upload_complete", upload_id, key, total_parts: totalParts, filename: file.name });
+      if (!completeData.url) {
+        setMsg(completeData.error || "Ошибка загрузки");
+        setUploadingId(null);
+        return;
+      }
+
+      // 4. Сохраняем итоговую CDN-ссылку в записи ролика
+      await apiCall({ action: "update", id, video_url: completeData.url });
+      setUploadProgress(100);
       setMsg("Видео загружено!"); await load();
     } catch { setMsg("Ошибка загрузки"); }
-    setUploadingId(null);
+    setUploadingId(null); setUploadProgress(0);
   };
 
   return (
@@ -325,7 +358,11 @@ export default function VideoTutorialsAdmin() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-navy-800 truncate">{t.title}</p>
-                  {t.description && <p className="text-[11px] text-slate-400 truncate">{t.description}</p>}
+                  {uploadingId === t.id ? (
+                    <div className="w-full h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                      <div className="h-full bg-navy-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  ) : t.description && <p className="text-[11px] text-slate-400 truncate">{t.description}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button

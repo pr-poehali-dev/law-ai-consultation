@@ -1,13 +1,15 @@
 """
 Управление видео-инструкциями: список, создание, редактирование, удаление, загрузка видео.
 Публичный эндпоинт для списка (GET). Админские — требуют X-Auth-Token.
-Видео до 20 МБ загружается НАПРЯМУЮ в S3 из браузера через presigned URL
-(get_upload_url отдаёт ссылку, дальше PUT идёт мимо тела этой функции) —
-так обходим лимит на размер payload cloud-функции.
+Видео до 20 МБ грузится ЧАСТЯМИ по ~4 МБ (S3 multipart upload) — тело одного
+HTTP-запроса к cloud-функции ограничено ~6 МБ, а прямой PUT с браузера в S3
+блокируется анти-DDoS защитой хранилища (CORS preflight не проходит),
+поэтому каждая часть идёт через саму эту функцию.
 """
 import json
 import os
 import time
+import base64
 import psycopg2
 import boto3
 
@@ -61,27 +63,86 @@ def get_s3():
     )
 
 
-def create_upload_url(filename: str, is_welcome: bool = False) -> dict:
+def _video_key(filename: str, is_welcome: bool) -> str:
+    folder = "welcome" if is_welcome else "tutorials"
+    safe_name = filename.replace(" ", "_")
+    return f"{folder}/{int(time.time())}_{safe_name}"
+
+
+def _cdn_url(key: str) -> str:
+    return f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
+
+
+def start_chunked_upload(filename: str, is_welcome: bool = False) -> dict:
     """
-    Генерирует presigned URL для ПРЯМОЙ загрузки видео с браузера в S3 (PUT),
-    минуя тело cloud-функции — видео до 20 МБ в base64 (~27 МБ) не проходит
-    через лимит на размер payload функции, поэтому файл льётся напрямую в S3.
+    Начинает загрузку видео частями. S3 multipart upload здесь не подходит —
+    у него минимальный размер части 5 МБ (кроме последней), а наши части ограничены
+    ~3-4 МБ (лимит тела запроса к cloud-функции). Поэтому части временно складываются
+    как обычные объекты S3 (put_object — без ограничения на минимальный размер),
+    а на шаге complete_chunked_upload сервер сам скачивает их и склеивает в памяти —
+    для запроса функция→S3 лимита на размер тела нет, это не HTTP-gateway вызов клиента.
     """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp4"
     if ext not in ALLOWED_VIDEO_EXTS:
         raise ValueError(f"Недопустимый формат: {ext}. Допустимые: mp4, webm, mov")
+    upload_id = f"{int(time.time())}_{os.urandom(4).hex()}"
+    key = _video_key(filename, is_welcome)
+    return {"upload_id": upload_id, "key": key}
+
+
+def upload_chunk(upload_id: str, part_number: int, chunk_b64: str) -> None:
+    """Складывает одну часть видео как временный объект в S3."""
+    try:
+        chunk_data = base64.b64decode(chunk_b64)
+    except Exception:
+        raise ValueError("Некорректный base64 части файла")
+    if not chunk_data:
+        raise ValueError("Пустая часть файла")
+
+    max_chunk = 6 * 1024 * 1024
+    if len(chunk_data) > max_chunk:
+        raise ValueError("Часть файла слишком большая")
+
+    s3 = get_s3()
+    tmp_key = f"tmp_uploads/{upload_id}/{part_number:05d}"
+    s3.put_object(Bucket="files", Key=tmp_key, Body=chunk_data)
+
+
+def complete_chunked_upload(upload_id: str, key: str, total_parts: int, filename: str) -> str:
+    """Скачивает все временные части, склеивает в памяти и заливает единым файлом
+    под финальным ключом. Затем удаляет временные части."""
+    if total_parts <= 0:
+        raise ValueError("Нет частей для сборки")
+
+    max_total = 20 * 1024 * 1024
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp4"
     content_type = VIDEO_CONTENT_TYPES.get(ext, "video/mp4")
 
-    folder = "welcome" if is_welcome else "tutorials"
-    key = f"{folder}/{int(time.time())}_{filename.replace(' ', '_')}"
     s3 = get_s3()
-    upload_url = s3.generate_presigned_url(
-        "put_object",
-        Params={"Bucket": "files", "Key": key, "ContentType": content_type},
-        ExpiresIn=600,
-    )
-    cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
-    return {"upload_url": upload_url, "cdn_url": cdn_url, "content_type": content_type}
+    chunks = []
+    total_size = 0
+    tmp_keys = []
+    for i in range(1, total_parts + 1):
+        tmp_key = f"tmp_uploads/{upload_id}/{i:05d}"
+        tmp_keys.append(tmp_key)
+        obj = s3.get_object(Bucket="files", Key=tmp_key)
+        data = obj["Body"].read()
+        total_size += len(data)
+        if total_size > max_total:
+            raise ValueError("Видео слишком большое (максимум 20 МБ)")
+        chunks.append(data)
+
+    full_data = b"".join(chunks)
+    s3.put_object(Bucket="files", Key=key, Body=full_data, ContentType=content_type)
+
+    # Подчищаем временные части — не критично для успеха, поэтому не роняем запрос
+    for tmp_key in tmp_keys:
+        try:
+            s3.delete_object(Bucket="files", Key=tmp_key)
+        except Exception:
+            pass
+
+    return _cdn_url(key)
 
 
 def handler(event: dict, context) -> dict:
@@ -135,14 +196,47 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 403, "headers": {**CORS, "Content-Type": "application/json"},
                 "body": json.dumps({"error": "Доступ запрещён"}, ensure_ascii=False)}
 
-    # ── Получить presigned URL для прямой загрузки видео в S3 из браузера ────
-    if action == "get_upload_url":
+    # ── Загрузка видео частями: старт ─────────────────────────────────────────
+    if action == "upload_start":
         filename = body.get("filename", "video.mp4")
         is_welcome = bool(body.get("is_welcome", False))
         try:
-            result = create_upload_url(filename, is_welcome)
+            result = start_chunked_upload(filename, is_welcome)
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps(result, ensure_ascii=False)}
+        except ValueError as e:
+            return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"error": str(e)}, ensure_ascii=False)}
+
+    # ── Загрузка видео частями: одна часть (~3-4 МБ) ──────────────────────────
+    if action == "upload_chunk":
+        upload_id = body.get("upload_id", "")
+        part_number = int(body.get("part_number", 0))
+        chunk_b64 = body.get("chunk", "")
+        if not upload_id or part_number <= 0:
+            return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"error": "upload_id и part_number обязательны"}, ensure_ascii=False)}
+        try:
+            upload_chunk(upload_id, part_number, chunk_b64)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"ok": True}, ensure_ascii=False)}
+        except ValueError as e:
+            return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"error": str(e)}, ensure_ascii=False)}
+
+    # ── Загрузка видео частями: завершение (склейка) ──────────────────────────
+    if action == "upload_complete":
+        upload_id = body.get("upload_id", "")
+        key = body.get("key", "")
+        total_parts = int(body.get("total_parts", 0))
+        filename = body.get("filename", "video.mp4")
+        if not upload_id or not key or total_parts <= 0:
+            return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"error": "upload_id, key и total_parts обязательны"}, ensure_ascii=False)}
+        try:
+            cdn_url = complete_chunked_upload(upload_id, key, total_parts, filename)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"url": cdn_url}, ensure_ascii=False)}
         except ValueError as e:
             return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"error": str(e)}, ensure_ascii=False)}

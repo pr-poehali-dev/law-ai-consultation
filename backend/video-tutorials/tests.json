@@ -34,10 +34,10 @@
       "expectedStatus": 403
     },
     {
-      "name": "POST get_upload_url без авторизации — 403",
+      "name": "POST upload_start без авторизации — 403",
       "method": "POST",
       "path": "/",
-      "body": {"action": "get_upload_url", "filename": "test.mp4"},
+      "body": {"action": "upload_start", "filename": "test.mp4"},
       "expectedStatus": 403
     }
   ]
