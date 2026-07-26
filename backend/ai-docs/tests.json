@@ -43,6 +43,20 @@
       "expectedStatus": 400
     },
     {
+      "name": "file_chunk_start — возвращает upload_id",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_chunk_start"},
+      "expectedStatus": 200
+    },
+    {
+      "name": "file_chunk_upload — missing params",
+      "method": "POST",
+      "path": "/",
+      "body": {"mode": "file_chunk_upload"},
+      "expectedStatus": 400
+    },
+    {
       "name": "file_cleanup",
       "method": "POST",
       "path": "/",

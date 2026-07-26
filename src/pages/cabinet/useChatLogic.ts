@@ -553,12 +553,10 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
 
     if (!isImage && !isDoc) return Promise.resolve(null);
 
-    // Лимит: документы 5МБ, фото 5МБ.
-    // ВАЖНО: 5 файлов × 5МБ × 1.33 base64 = ~33МБ — слишком много для платформы (~10МБ лимит).
-    // Платформа режет запрос молча. 3 файла по 5МБ = ~20МБ — тоже на грани.
-    // Безопасный расчёт: лимит платформы ~10МБ ÷ 1.33 ÷ MAX_ATTACHED = ~1.5МБ/файл при 5.
-    // Но при 1-3 файлах допускаем до 5МБ (3 × 5 × 1.33 = ~20МБ — граница).
-    const maxMb = 5;
+    // Лимит документов — 10 МБ (совпадает с MAX_FILE_MB на бэкенде). Большие
+    // файлы отправляются частями (см. sendFileAnalysis), поэтому размер одного
+    // HTTP-запроса к платформе больше не ограничивает размер файла.
+    const maxMb = 10;
     if (file.size > maxMb * 1024 * 1024) return Promise.resolve(null);
 
     if (isImage) {
@@ -606,7 +604,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (valid.length) {
         setAttachedFiles((prev) => [...prev, ...valid].slice(0, MAX_ATTACHED));
       } else {
-        setChatErr("Допустимые форматы: PDF/DOCX до 1.5 МБ, фото JPG/PNG до 5 МБ.");
+        setChatErr("Допустимые форматы: PDF/DOCX/TXT и фото JPG/PNG, до 10 МБ каждый.");
       }
       setFileUploading(false);
     });
@@ -686,16 +684,46 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       refreshUser();
 
       const token = getToken();
-      // Платформа режет запросы > ~7 МБ (JSON + заголовки + base64 overhead 1.33x).
-      // Безопасная граница — 4.5 МБ суммарного b64.
-      const PLATFORM_LIMIT_BYTES = 4.5 * 1024 * 1024;
-      const totalB64 = files.reduce((sum, f) => sum + f.b64.length, 0);
-      if (totalB64 > PLATFORM_LIMIT_BYTES) {
-        const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
-        throw new Error(
-          `Файлы слишком большие (${totalMb} МБ суммарно). ` +
-          `Попробуйте уменьшить количество файлов или их размер — максимум ~4 МБ суммарно.`
-        );
+      // Тело одного HTTP-запроса к cloud-функции ограничено ~3.5 МБ (проверено
+      // на практике). Файлы, чей base64 превышает безопасную границу, грузим
+      // частями через file_chunk_start/file_chunk_upload — сервер сам соберёт
+      // их перед анализом. Небольшие файлы, как и раньше, идут одним запросом.
+      const CHUNK_SAFE_B64 = 2.5 * 1024 * 1024; // ~1.9 МБ исходного файла на часть
+
+      const filePayloads: (
+        | { file: string; filename: string }
+        | { upload_id: string; total_parts: number; filename: string }
+      )[] = [];
+
+      for (const f of files) {
+        if (f.b64.length <= CHUNK_SAFE_B64) {
+          filePayloads.push({ file: f.b64, filename: f.name });
+          continue;
+        }
+        // Большой файл — грузим частями
+        const startRes = await fetchSafe(AI_DOCS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+          body: JSON.stringify({ mode: "file_chunk_start" }),
+        }, 20_000, 0);
+        const startData = await startRes.json();
+        if (!startData.upload_id) throw new Error(`Не удалось начать загрузку файла «${f.name}»`);
+        const uploadId = startData.upload_id as string;
+
+        // Режем base64-строку по границе символов, кратной 4 (валидный base64)
+        const CHARS_PER_CHUNK = Math.floor(CHUNK_SAFE_B64 / 4) * 4;
+        const totalParts = Math.ceil(f.b64.length / CHARS_PER_CHUNK);
+        for (let i = 0; i < totalParts; i++) {
+          const chunk = f.b64.slice(i * CHARS_PER_CHUNK, (i + 1) * CHARS_PER_CHUNK);
+          const chunkRes = await fetchSafe(AI_DOCS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
+            body: JSON.stringify({ mode: "file_chunk_upload", upload_id: uploadId, part_number: i + 1, chunk }),
+          }, 30_000, 0);
+          const chunkData = await chunkRes.json();
+          if (chunkData.error) throw new Error(`Ошибка загрузки файла «${f.name}»: ${chunkData.error}`);
+        }
+        filePayloads.push({ upload_id: uploadId, total_parts: totalParts, filename: f.name });
       }
 
       const res = await fetchSafe(AI_DOCS_URL, {
@@ -704,7 +732,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         body: JSON.stringify({
           mode: "file_analyze",
           comment,
-          files: files.map(f => ({ file: f.b64, filename: f.name })),
+          files: filePayloads,
         }),
       }, 115_000, 0);
       const data = await res.json();

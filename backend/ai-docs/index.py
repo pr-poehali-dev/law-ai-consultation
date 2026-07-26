@@ -140,6 +140,40 @@ def cleanup_temp_files(s3) -> list:
         pass
     return deleted
 
+# ── Загрузка больших файлов частями ────────────────────────────────────────
+# Тело одного HTTP-запроса к cloud-функции ограничено ~3.5 МБ (проверено на
+# практике). Файл в base64 растёт на ~33%, поэтому уже документ ~2.6 МБ не
+# проходит одним запросом. Для таких файлов фронтенд режет его на части и
+# шлёт их последовательно (file_chunk_start → file_chunk_upload × N), а
+# затем в file_analyze передаёт не сам файл, а ссылку на части — сервер сам
+# собирает их из временного хранилища S3 (без ограничения на размер тела,
+# т.к. это внутренний вызов сервер→S3, а не HTTP-запрос от клиента).
+CHUNK_PREFIX = f"{FILE_PREFIX}chunks/"
+
+
+def start_chunk_upload() -> str:
+    return f"{int(time.time())}_{os.urandom(4).hex()}"
+
+
+def save_chunk(s3, upload_id: str, part_number: int, data: bytes) -> None:
+    key = f"{CHUNK_PREFIX}{upload_id}/{part_number:05d}"
+    s3.put_object(Bucket=FILE_BUCKET, Key=key, Body=data)
+
+
+def assemble_chunks(s3, upload_id: str, total_parts: int) -> bytes:
+    parts_data = []
+    for i in range(1, total_parts + 1):
+        key = f"{CHUNK_PREFIX}{upload_id}/{i:05d}"
+        obj = s3.get_object(Bucket=FILE_BUCKET, Key=key)
+        parts_data.append(obj["Body"].read())
+    full_data = b"".join(parts_data)
+    for i in range(1, total_parts + 1):
+        try:
+            s3.delete_object(Bucket=FILE_BUCKET, Key=f"{CHUNK_PREFIX}{upload_id}/{i:05d}")
+        except Exception:
+            pass
+    return full_data
+
 def extract_pdf_text(data: bytes, char_limit: int = 8000) -> str:
     import PyPDF2
     reader = PyPDF2.PdfReader(io.BytesIO(data))
@@ -379,6 +413,30 @@ def handler(event: dict, context) -> dict:
     mode = body.get("mode", "")
 
     try:
+        # ── Загрузка большого файла частями: старт ───────────────────────────
+        if mode == "file_chunk_start":
+            upload_id = start_chunk_upload()
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"upload_id": upload_id}, ensure_ascii=False)}
+
+        # ── Загрузка большого файла частями: одна часть (~2.5 МБ) ────────────
+        if mode == "file_chunk_upload":
+            upload_id = body.get("upload_id", "")
+            part_number = int(body.get("part_number", 0))
+            chunk_b64 = body.get("chunk", "")
+            if not upload_id or part_number <= 0 or not chunk_b64:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "upload_id, part_number и chunk обязательны"}, ensure_ascii=False)}
+            try:
+                chunk_data = base64.b64decode(chunk_b64)
+            except Exception:
+                return {"statusCode": 400, "headers": {**CORS, "Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Некорректный base64 части файла"}, ensure_ascii=False)}
+            s3 = get_s3()
+            save_chunk(s3, upload_id, part_number, chunk_data)
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"ok": True}, ensure_ascii=False)}
+
         # ── Очистка временных файлов ─────────────────────────────────────────
         if mode == "file_cleanup":
             s3 = get_s3()
@@ -725,6 +783,19 @@ def handler(event: dict, context) -> dict:
                         "body": json.dumps({"error": "file required"}, ensure_ascii=False)}
             if len(raw_files) > 3:
                 raw_files = raw_files[:3]
+
+            # Большой файл (не проходит одним запросом) пришёл по частям —
+            # собираем его из временного хранилища S3 перед анализом.
+            _s3_assemble = None
+            for fi in raw_files:
+                if fi.get("upload_id") and fi.get("total_parts"):
+                    if _s3_assemble is None:
+                        _s3_assemble = get_s3()
+                    try:
+                        assembled = assemble_chunks(_s3_assemble, fi["upload_id"], int(fi["total_parts"]))
+                        fi["file"] = base64.b64encode(assembled).decode("utf-8")
+                    except Exception:
+                        fi["file"] = ""
 
             extract_results = [None] * len(raw_files)
 

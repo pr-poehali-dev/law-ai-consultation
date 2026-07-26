@@ -118,10 +118,12 @@ export default function ImageToPdfConverter({ onClose, onSendToAI }: Props) {
       list.push({ name: f.file.name, b64, size: `${Math.round(f.file.size / 1024 / 102.4) / 10} МБ` });
     }
 
-    const totalB64 = list.reduce((sum, f) => sum + f.b64.length, 0);
-    if (totalB64 > 4.5 * 1024 * 1024) {
-      const totalMb = (totalB64 / 1024 / 1024).toFixed(1);
-      setError(`Суммарный размер пакетов ${totalMb} МБ — превышает лимит (~4.5 МБ). Загружайте документы меньшего размера или по одному через обычную загрузку.`);
+    // Большие файлы грузятся частями на стороне useChatLogic (sendFileAnalysis) —
+    // здесь достаточно проверить лимит на один файл (совпадает с бэкендом, 10 МБ).
+    const MAX_FILE_B64 = 10 * 1024 * 1024 * 4 / 3;
+    const oversized = list.find(f => f.b64.length > MAX_FILE_B64);
+    if (oversized) {
+      setError(`Файл «${oversized.name}» превышает лимит 10 МБ. Уменьшите его размер.`);
       setSendingToAI(false);
       return;
     }
