@@ -17,7 +17,7 @@ from prompts import (
     SYSTEM_DOC_BY_TYPE, REFUSAL_MARKERS, LEGAL_QUALITY_ADDON,
 )
 # doc_blocks.py — промты прямо в ai-docs, без зависимости от gigachat-proxy/prompts (пакет vs файл)
-from doc_blocks import get_system_prompt, get_doc_label, BLOCK_BY_DOC_TYPE
+from doc_blocks import get_system_prompt, get_doc_label, BLOCK_BY_DOC_TYPE, ALL_SUBTYPES
 _BLOCK_ROUTER_OK = True
 print("[INIT] doc_blocks OK")
 from state_duty import is_duty_query, get_duty_context_for_doc, DUTY_DOC_TYPES
@@ -475,13 +475,27 @@ def handler(event: dict, context) -> dict:
             details = body.get("details", "").strip()
             file_b64 = body.get("file", "")
             filename = body.get("filename", "")
+            # custom_label — точное название документа из рекомендации AI в чате
+            # (см. src/pages/cabinet/DocFromChatModal.tsx). Если задан — имеет приоритет
+            # над каталожным label, чтобы сгенерированный документ ГАРАНТИРОВАННО
+            # назывался и составлялся именно как назвал AI, даже если такого doc_type
+            # нет в каталоге DOC_TYPES фронтенда (тогда используется универсальный
+            # промт SYSTEM_DOC_GENERATE — он не привязан к конкретному типу).
+            custom_label = body.get("custom_label", "").strip()
             if not details:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "details required"})}
 
-            label = get_doc_label(doc_type)
+            label = custom_label if custom_label else get_doc_label(doc_type)
             sp = get_system_prompt(doc_type, LEGAL_QUALITY_ADDON)
             system_prompt = sp if sp else SYSTEM_DOC_BY_TYPE.get(doc_type, SYSTEM_DOC_GENERATE)
-            print(f"[DOC_GEN] system_prompt len={len(system_prompt)} doc_type={doc_type} has_block={'YES' if sp else 'FALLBACK'}")
+            if custom_label:
+                system_prompt = system_prompt + (
+                    f"\n\n[ТОЧНОЕ НАЗВАНИЕ ДОКУМЕНТА] Пользователь запросил именно: «{custom_label}». "
+                    f"Заголовок документа в блоке [ЗАГОЛОВОК] должен точно соответствовать этому названию "
+                    f"(в подходящем падеже/регистре, ЗАГЛАВНЫМИ буквами), даже если это отличается от типового "
+                    f"названия для данной категории документов."
+                )
+            print(f"[DOC_GEN] system_prompt len={len(system_prompt)} doc_type={doc_type} custom_label={'YES' if custom_label else 'NO'} has_block={'YES' if sp else 'FALLBACK'}")
             if doc_type in DUTY_DOC_TYPES:
                 system_prompt = system_prompt + (
                     "\n\n[ВАЖНО О ГОСПОШЛИНЕ] Используй ТОЛЬКО ставки из правовой базы. "
@@ -908,13 +922,19 @@ def handler(event: dict, context) -> dict:
                     print(f"[FILE_ANALYZE] Поток упал: {_ae}")
 
             def _do_hint():
-                doc_types_list = "claim — исковое заявление, pretension — досудебная претензия, complaint — жалоба, application — заявление/ходатайство, notification — уведомление, order — приказ, contract — договор ГПХ, business_contract — коммерческий договор, court_speech — судебная речь, response_to_claim — отзыв на исковое заявление, objection — возражение, appeal — апелляционная жалоба, cassation — кассационная жалоба, supervisory — надзорная жалоба"
+                # ВАЖНО: список должен содержать ТОЛЬКО реальные id из ALL_SUBTYPES —
+                # раньше здесь был обобщённый список из 14 типов, 6 из которых
+                # (complaint, application, notification, order, business_contract,
+                # objection) не существуют на фронтенде вовсе. Если AI выбирал такой
+                # id, фронтенд не находил совпадение и использовал заведомо неверный
+                # системный промт генерации.
+                doc_types_list = ", ".join(f"{k} — {v}" for k, v in ALL_SUBTYPES.items())
                 doc_intro = f"Пользователь загрузил {n_files} документа" if n_files > 1 else "Пользователь загрузил документ"
                 if comment:
                     hint_prompt = (
                         f"Ты — помощник юриста. {doc_intro} и ЯВНО УКАЗАЛ какой документ нужно составить.\n\n"
                         f"ЗАПРОС ПОЛЬЗОВАТЕЛЯ (ПРИОРИТЕТ): {comment}\n\n"
-                        f"Доступные типы документов: {doc_types_list}\n\n"
+                        f"Доступные типы документов (верни id СТРОГО из этого списка, не придумывай новые): {doc_types_list}\n\n"
                         f"Текст документа:\n{combined_text[:3000]}\n\n"
                         f"Ответь СТРОГО в JSON:\n"
                         f'{{"doc_type": "id_типа", "details": "подробное описание для генерации", "doc_label": "название на русском"}}'
@@ -922,7 +942,7 @@ def handler(event: dict, context) -> dict:
                 else:
                     hint_prompt = (
                         f"Ты — помощник юриста. {doc_intro}. Определи какой ответный документ нужно составить.\n"
-                        f"Доступные типы: {doc_types_list}\n\nТекст:\n{combined_text[:5000]}\n\n"
+                        f"Доступные типы (верни id СТРОГО из этого списка, не придумывай новые): {doc_types_list}\n\nТекст:\n{combined_text[:5000]}\n\n"
                         f"Ответь СТРОГО в JSON:\n"
                         f'{{"doc_type": "id_типа", "details": "подробное описание", "doc_label": "название на русском"}}'
                     )
@@ -937,7 +957,15 @@ def handler(event: dict, context) -> dict:
                     raw = resp.json()["choices"][0]["message"]["content"]
                     match = re.search(r'\{[\s\S]*\}', raw)
                     if match:
-                        hint_result[0] = json.loads(match.group())
+                        parsed = json.loads(match.group())
+                        # Если AI всё же вернул id не из списка — не пытаемся его
+                        # использовать как doc_type (система выберет fallback-промт
+                        # SYSTEM_DOC_GENERATE на этапе doc_generate по custom_label),
+                        # но doc_label из ответа AI сохраняем как есть — именно он
+                        # определяет итоговое название документа на фронтенде.
+                        if parsed.get("doc_type") not in ALL_SUBTYPES:
+                            parsed["doc_type"] = "claim"
+                        hint_result[0] = parsed
                 except Exception:
                     pass
 

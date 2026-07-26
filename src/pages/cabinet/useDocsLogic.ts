@@ -47,16 +47,21 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     localStorage.setItem("cabinet_docs", JSON.stringify(docs));
   };
 
-  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string, fromChat = false, overrideFiles?: { name: string; b64: string }[]) => {
+  const _runGenerate = async (overrideType?: DocType, overrideDetails?: string, fromChat = false, overrideFiles?: { name: string; b64: string }[], customLabel?: string) => {
     const activeType = overrideType ?? docType;
     const activeDetails = overrideDetails ?? docDetails;
+    // customLabel — точное название документа, названное AI в рекомендации чата
+    // (см. docNameExtractor.ts). Если задано, оно имеет приоритет над activeType.label
+    // и передаётся на backend как custom_label — так итоговый документ гарантированно
+    // соответствует названию, а не типу, который просто ближе всего подобрался по id.
+    const displayLabel = customLabel?.trim() || activeType.label;
 
     if (!activeDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
 
     invalidateUserCache();
     const canDoc = await canUseDoc();
     if (!canDoc) {
-      onPaymentRequired(activeType.serviceType, activeType.label, activeType);
+      onPaymentRequired(activeType.serviceType, displayLabel, activeType);
       return;
     }
 
@@ -71,7 +76,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       invalidateUserCache();
       const stillCan = await canUseDoc();
       if (!stillCan) {
-        onPaymentRequired(activeType.serviceType, activeType.label, activeType);
+        onPaymentRequired(activeType.serviceType, displayLabel, activeType);
         setDocGenerating(false);
         setDocPhase("form");
         return;
@@ -84,6 +89,13 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         doc_type: activeType.id,
         details: activeDetails,
       };
+      // Точное название документа из рекомендации AI в чате — backend сгенерирует
+      // документ именно под этим названием (с заголовком customLabel), даже если
+      // такого типа нет в каталоге DOC_TYPES (тогда используется универсальный
+      // экспертный промт SYSTEM_DOC_GENERATE вместо блока конкретного типа).
+      if (customLabel?.trim()) {
+        reqBody.custom_label = customLabel.trim();
+      }
       // Файлы: overrideFiles (из лендинга/кабинета) или docAttachedFiles (из UI кабинета) или одиночный docAttachedFile
       const activeFiles = overrideFiles ?? (docAttachedFiles.length > 0 ? docAttachedFiles : null);
       if (activeFiles && activeFiles.length > 0) {
@@ -119,7 +131,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
         : undefined;
       const newDoc: GenDoc = {
         id: Date.now(),
-        name: activeType.label,
+        name: displayLabel,
         content: data.answer,
         filled: data.answer,
         date: new Date().toLocaleDateString("ru-RU"),
@@ -140,7 +152,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
       setDocPhase(placeholders.length > 0 ? "filling" : "done");
       ymGoal("doc_generated", { doc_type: activeType.id });
       if (onDocGenerated) onDocGenerated(newDoc);
-      if (onDocSaved) onDocSaved(activeType.label);
+      if (onDocSaved) onDocSaved(displayLabel);
 
       refreshUser().catch(() => {});
 
@@ -162,9 +174,10 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
 
   const generateDoc = () => _runGenerate();
 
-  // fromChat=true — передаём историю чата как контекст (вызов из чата AI)
-  const generateDocWith = (dt: DocType, details: string, files?: { name: string; b64: string }[]) =>
-    _runGenerate(dt, details, true, files);
+  // fromChat=true — передаём историю чата как контекст (вызов из чата AI).
+  // customLabel — точное название документа из рекомендации AI (см. DocFromChatModal).
+  const generateDocWith = (dt: DocType, details: string, files?: { name: string; b64: string }[], customLabel?: string) =>
+    _runGenerate(dt, details, true, files, customLabel);
 
   const continueDoc = async () => {
     if (!currentDoc) return;

@@ -12,6 +12,9 @@ export type PendingAction = {
   chatInput?: string;
   docDetails?: string;
   docTypeId?: string;
+  /** Точное название документа из рекомендации AI в чате — сохраняется через
+   * весь цикл оплаты, чтобы после оплаты сгенерировался именно этот документ. */
+  docCustomLabel?: string;
 };
 
 export function savePendingAction(action: PendingAction) {
@@ -63,7 +66,7 @@ interface UseCabinetPaymentParams {
   docsGenerateDoc: () => void;
   docsSetDocType: (dt: DocType) => void;
   docsSetDocDetails: (v: string) => void;
-  docsGenerateDocWith: (dt: DocType, details: string, files?: { name: string; b64: string }[]) => void;
+  docsGenerateDocWith: (dt: DocType, details: string, files?: { name: string; b64: string }[], customLabel?: string) => void;
 }
 
 export function useCabinetPayment({
@@ -163,7 +166,7 @@ export function useCabinetPayment({
         const dt = findDocType(action.docTypeId);
         docsSetDocType(dt);
         if (action.docDetails) docsSetDocDetails(action.docDetails);
-        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || ""), 500);
+        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || "", undefined, action.docCustomLabel), 500);
       } else {
         setTimeout(() => docsGenerateDoc(), 400);
       }
@@ -179,7 +182,7 @@ export function useCabinetPayment({
         const dt = findDocType(action.docTypeId);
         docsSetDocType(dt);
         if (action.docDetails) docsSetDocDetails(action.docDetails);
-        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || ""), 500);
+        setTimeout(() => docsGenerateDocWith(dt, action.docDetails || "", undefined, action.docCustomLabel), 500);
       }
     }
   };

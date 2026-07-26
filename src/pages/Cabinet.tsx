@@ -17,6 +17,7 @@ import { useCabinetInit } from "@/pages/cabinet/useCabinetInit";
 import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
 import CabinetLoadingScreen from "@/pages/cabinet/CabinetLoadingScreen";
 import CabinetOverlays from "@/pages/cabinet/CabinetOverlays";
+import DocFromChatModal from "@/pages/cabinet/DocFromChatModal";
 import { useLawyerNotifications } from "@/hooks/useLawyerNotifications";
 
 import PushPromptBanner from "@/components/PushPromptBanner";
@@ -91,7 +92,7 @@ export default function Cabinet() {
     docsGenerateDocWith: docs.generateDocWith,
   });
 
-  const { creatingDocFromChat, createDocFromChat } = useCabinetDocFromChat({
+  const { creatingDocFromChat, createDocFromChat, docDraft, confirmDocFromChat, closeDocDraft } = useCabinetDocFromChat({
     user,
     tab,
     setTab: handleSetTab,
@@ -246,6 +247,16 @@ export default function Cabinet() {
         setPayment={pay.setPayment}
         setPendingDocType={pay.setPendingDocType}
       />
+
+      {docDraft && (
+        <DocFromChatModal
+          initialLabel={docDraft.label}
+          loadingLabel={docDraft.loadingLabel}
+          generating={docs.docGenerating}
+          onConfirm={confirmDocFromChat}
+          onClose={closeDocDraft}
+        />
+      )}
 
       <PushPromptBanner />
 

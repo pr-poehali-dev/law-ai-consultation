@@ -59,14 +59,17 @@ export default function CabinetOverlays({
           onChooseDoc={() => {
             const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
             onCloseDocChoice();
-            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails });
-            setPayment({ type: "document", name: dt.label });
+            // docCustomLabel сохраняет ТОЧНОЕ название документа из рекомендации AI —
+            // даже если docTypeId не нашёлся в каталоге (dt тогда = DOC_TYPES[0]),
+            // после оплаты сгенерируется документ именно под этим названием.
+            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails, docCustomLabel: showDocChoice.docLabel });
+            setPayment({ type: "document", name: showDocChoice.docLabel });
             setPendingDocType(dt);
           }}
           onChoosePlan={(planId) => {
             const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
             onCloseDocChoice();
-            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails });
+            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails, docCustomLabel: showDocChoice.docLabel });
             const id = (planId || "plan_starter") as ServiceType;
             const nameMap: Record<string, string> = {
               plan_starter: "Тариф «Старт»",
