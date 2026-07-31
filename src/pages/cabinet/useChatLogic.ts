@@ -135,7 +135,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     localStorage.setItem("cabinet_history", JSON.stringify(history));
   }, [history]);
 
-  const sendMessage = async (overrideText?: string) => {
+  const sendMessage = async (overrideText?: string, docContext?: { systemPrompt: string; maxTokens?: number }) => {
     const rawMsg = (overrideText || input).trim();
     if (!rawMsg || typing) return;
 
@@ -246,10 +246,16 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
         needsExpert = cached.needs_expert;
         personalDataRefused = undefined;
       } else {
+        // Контекст документа (при отправке из редактора) добавляется ТОЛЬКО в запрос к AI —
+        // в newHist/localStorage сохраняется чистый текст без служебной вставки, поэтому
+        // общая история чата выглядит одинаково и в «Чат с AI», и в панели документа.
+        const reqMessages = docContext
+          ? [{ role: "system", content: docContext.systemPrompt }, ...newHist]
+          : newHist;
         const res = await fetchSafe(GIGACHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-          body: JSON.stringify({ mode: "chat", messages: newHist }),
+          body: JSON.stringify({ mode: "chat", messages: reqMessages, ...(docContext?.maxTokens ? { max_tokens: docContext.maxTokens } : {}) }),
         }, 90_000, 1, () => setTypingStatus("Переподключаемся..."));
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Ошибка сервера");

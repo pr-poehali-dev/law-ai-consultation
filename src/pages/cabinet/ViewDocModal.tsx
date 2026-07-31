@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
-import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, consumeQuestion, hasActiveSubscription } from "@/lib/auth";
+import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, hasActiveSubscription } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
@@ -10,15 +10,14 @@ import ViewDocContent from "./ViewDocContent";
 import ViewDocFooter from "./ViewDocFooter";
 import DocEditorPanel from "./DocEditorPanel";
 import ViewDocModalHeader from "./ViewDocModalHeader";
-import ViewDocAiFillChat, { type AiFillMsg } from "./ViewDocAiFillChat";
+import ViewDocChatPanel from "./ViewDocChatPanel";
 import ViewDocFillPanel from "./ViewDocFillPanel";
 import type { ViewDocModalProps } from "./ViewDocUtils";
 import func2url from "../../../backend/func2url.json";
 
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
-const AI_CHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 
-export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit, onSaveRecommendations, onOpenChatTool }: ViewDocModalProps) {
+export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues, onFillChange, onApplyFill, paidQuestions = 0, onPayForQuestions, onSaveEdit, onSaveRecommendations, onOpenChatTool, chat, autoOpenEditor }: ViewDocModalProps) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -37,18 +36,18 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
   const hasRecs = liveRecs.length > 0;
   const [showRecs, setShowRecs] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
+  const [showEditor, setShowEditor] = useState(!!autoOpenEditor);
   const [showFillPanel, setShowFillPanel] = useState(false);
-  const [showAiFillChat, setShowAiFillChat] = useState(false);
-  const [aiFillMsgs, setAiFillMsgs] = useState<AiFillMsg[]>([]);
-  const [aiFillInput, setAiFillInput] = useState("");
-  const [aiFillTyping, setAiFillTyping] = useState(false);
+  // Единый чат пользователя (тот же, что в разделе «Чат с AI») — используется панелью
+  // справа вместо отдельной локальной истории, чтобы переписка была общей везде.
+  const [showAiFillChat, setShowAiFillChat] = useState(!!autoOpenEditor);
   const aiFillEndRef = useRef<HTMLDivElement>(null);
   const aiFillInputRef = useRef<HTMLInputElement>(null);
   const [currentDocContent, setCurrentDocContent] = useState(doc.editedContent || doc.content);
   const [prevDocContent, setPrevDocContent] = useState<string | null>(null);
   const [docFlash, setDocFlash] = useState(false);
   const docScrollRef = useRef<HTMLDivElement | null>(null);
+  const injectedGreetingRef = useRef(false);
 
   // Toast-уведомление
   const [toastType, setToastType] = useState<"lawyer_prompt" | "need_starter" | "need_consultation" | null>(null);
@@ -133,45 +132,8 @@ export default function ViewDocModal({ doc, onClose, onOpenPlanModal, fillValues
     setTimeout(onClose, 250);
   };
 
-  const handleOpenAiFillChat = async () => {
-    const user = await getUser();
-    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
-    const hasAccess = user?.isAdmin
-      || !!user?.purchasedPlan
-      || (user?.paidQuestions ?? 0) >= 30
-      || (user?.paidDocs ?? 0) >= 5
-      || hasActiveSubscription(user!, "consult")
-      || hasActiveSubscription(user!, "docs");
-    if (!hasAccess) {
-      setToastType("need_starter");
-      return;
-    }
-    if (aiFillMsgs.length === 0) {
-      setAiFillMsgs([{ role: "ai", text: `Привет! Я изучил документ «${doc.name}» и готов помочь. Могу объяснить что писать в полях, разъяснить правовые нормы, оценить риски или ответить на любой вопрос по этому документу.` }]);
-    }
-    setShowAiFillChat(true);
-    setTimeout(() => aiFillInputRef.current?.focus(), 200);
-  };
-
-  const handleAiFillSend = async () => {
-    const text = aiFillInput.trim();
-    if (!text || aiFillTyping) return;
-    if ((paidQuestions ?? 0) <= 0) { onPayForQuestions?.(); return; }
-    setAiFillMsgs(prev => [...prev, { role: "user", text }]);
-    setAiFillInput("");
-    setAiFillTyping(true);
-    try {
-      const token = getToken();
-      // Берём актуальный текст с уже заполненными реквизитами (если есть), иначе шаблон
-      const sourceText = currentDocContent || doc.content;
-      const docTextClean = sourceText
-        .replace(/\{\{[^}]+\}\}/g, "[не заполнено]")
-        .replace(/^\[([А-ЯA-Z_]+)\]$/gm, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim()
-        .slice(0, 6000);
-      const systemPrompt = showEditor
-        ? `Ты — Высококвалифицированный юридический аналитик-редактор с 25-летним опытом в арбитражном процессе и договорной работе.
+  // Системный промт для юридического аналитика-редактора (5 этапов проверки документа)
+  const buildEditorSystemPrompt = (docTextClean: string) => `Ты — Высококвалифицированный юридический аналитик-редактор с 25-летним опытом в арбитражном процессе и договорной работе.
 
 Твоя компетенция:
 - Гражданский кодекс РФ (части 1–4) — знание на уровне судьи ВАС РФ.
@@ -253,8 +215,9 @@ ${docTextClean}
 5. Длинные абзацы — каждый пункт нумерованным элементом.
 6. «Золотая середина», если это ухудшает позицию пользователя.
 
-Отвечай строго по-русски. После первого запроса сначала кратко подтверди тип документа и роль пользователя, затем последовательно выдай все 6 этапов без пропусков.`
-        : `Ты опытный AI-юрист с глубоким знанием российского законодательства. Пользователь работает с документом «${doc.name}».
+Отвечай строго по-русски. После первого запроса сначала кратко подтверди тип документа и роль пользователя, затем последовательно выдай все 6 этапов без пропусков.`;
+
+  const buildConsultSystemPrompt = (docTextClean: string) => `Ты опытный AI-юрист с глубоким знанием российского законодательства. Пользователь работает с документом «${doc.name}».
 
 Полный текст документа:
 ---
@@ -269,28 +232,58 @@ ${docTextClean}
 - Давать рекомендации по улучшению документа
 
 Отвечай чётко, по-русски, со ссылками на законы где уместно. Не уходи от темы этого документа.`;
-      const history = [
-        { role: "system", content: systemPrompt },
-        ...aiFillMsgs.map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
-        { role: "user", content: text },
-      ];
-      const res = await fetch(AI_CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { "X-Auth-Token": token } : {}) },
-        body: JSON.stringify({ mode: "chat", messages: history, ...(showEditor ? { max_tokens: 2500 } : {}) }),
-      });
-      const data = res.ok ? await res.json() : {};
-      const answerText = data.answer || "Не удалось получить ответ. Попробуйте ещё раз.";
-      setAiFillMsgs(prev => [...prev, { role: "ai", text: answerText }]);
-      // Списываем вопрос после успешного ответа
-      if (res.ok) await consumeQuestion();
-    } catch { setAiFillMsgs(prev => [...prev, { role: "ai", text: "Нет соединения. Попробуйте ещё раз." }]); }
-    finally { setAiFillTyping(false); }
+
+  const getCleanDocText = () => {
+    const sourceText = currentDocContent || doc.content;
+    return sourceText
+      .replace(/\{\{[^}]+\}\}/g, "[не заполнено]")
+      .replace(/^\[([А-ЯA-Z_]+)\]$/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, 6000);
+  };
+
+  const handleOpenAiFillChat = async () => {
+    const user = await getUser();
+    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
+    const hasAccess = user?.isAdmin
+      || !!user?.purchasedPlan
+      || (user?.paidQuestions ?? 0) >= 30
+      || (user?.paidDocs ?? 0) >= 5
+      || hasActiveSubscription(user!, "consult")
+      || hasActiveSubscription(user!, "docs");
+    if (!hasAccess) {
+      setToastType("need_starter");
+      return;
+    }
+    // Единая история — приветствие о документе добавляется только один раз за сессию модалки
+    if (!injectedGreetingRef.current) {
+      injectedGreetingRef.current = true;
+      chat.injectAiMessage(`Привет! Я изучил документ «${doc.name}» и готов помочь. Могу объяснить что писать в полях, разъяснить правовые нормы, оценить риски или ответить на любой вопрос по этому документу.`);
+    }
+    setShowAiFillChat(true);
+    setTimeout(() => aiFillInputRef.current?.focus(), 200);
+  };
+
+  const handleAiFillSend = (text: string) => {
+    if (!text.trim() || chat.typing) return;
+    if ((paidQuestions ?? 0) <= 0) { onPayForQuestions?.(); return; }
+    const docTextClean = getCleanDocText();
+    const systemPrompt = showEditor ? buildEditorSystemPrompt(docTextClean) : buildConsultSystemPrompt(docTextClean);
+    chat.sendMessage(text, { systemPrompt, maxTokens: showEditor ? 2500 : undefined });
   };
 
   useEffect(() => {
     setTimeout(() => aiFillEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
-  }, [aiFillMsgs]);
+  }, [chat.messages]);
+
+  // Автооткрытие редактора + чата сразу после генерации документа — без промежуточного клика
+  useEffect(() => {
+    if (autoOpenEditor) {
+      handleOpenAiFillChat();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCloseReport = () => { setReportOpen(false); setReportSent(false); setReportText(""); };
 
@@ -347,8 +340,9 @@ ${docTextClean}
     setShowRecs(false);
     // Открываем AI-чат если ещё не открыт
     if (!showAiFillChat) {
-      if (aiFillMsgs.length === 0) {
-        setAiFillMsgs([{ role: "ai", text: `Документ «${doc.name}» загружен. Я — юридический аналитик-редактор. Укажите вашу процессуальную роль (истец / ответчик / заказчик / исполнитель и т.д.) и специальные пожелания — после этого приступлю к полному анализу по 6 этапам: квалификация, редактура, судебная практика, гэп-анализ, заключение, чек-лист.` }]);
+      if (!injectedGreetingRef.current) {
+        injectedGreetingRef.current = true;
+        chat.injectAiMessage(`Документ «${doc.name}» загружен. Я — юридический аналитик-редактор. Укажите вашу процессуальную роль (истец / ответчик / заказчик / исполнитель и т.д.) и специальные пожелания — после этого приступлю к полному анализу по 6 этапам: квалификация, редактура, судебная практика, гэп-анализ, заключение, чек-лист.`);
       }
       setShowAiFillChat(true);
     }
@@ -476,19 +470,16 @@ ${docTextClean}
             <div className="hidden sm:block w-px shrink-0 self-stretch" style={{ background: "linear-gradient(to bottom, transparent 0%, #cbd5e1 20%, #cbd5e1 80%, transparent 100%)" }} />
           )}
 
-          {/* ── AI-чат по заполнению (десктоп-колонка) ── */}
+          {/* ── AI-чат по заполнению (десктоп-колонка) — единая история из «Чат с AI» ── */}
           {showAiFillChat && (
-            <ViewDocAiFillChat
+            <ViewDocChatPanel
+              chat={chat}
               docName={doc.name}
               paidQuestions={paidQuestions}
-              aiFillMsgs={aiFillMsgs}
-              aiFillInput={aiFillInput}
-              aiFillTyping={aiFillTyping}
               showEditor={showEditor}
               aiFillEndRef={aiFillEndRef}
               aiFillInputRef={aiFillInputRef}
               onClose={() => setShowAiFillChat(false)}
-              onInputChange={setAiFillInput}
               onSend={handleAiFillSend}
               onApplyPatch={showEditor ? handleApplyPatch : undefined}
               onPayForQuestions={onPayForQuestions}
@@ -514,17 +505,14 @@ ${docTextClean}
 
       {/* ── Мобильный AI-чат по заполнению (шторка снизу) — скрыт при открытом редакторе ── */}
       {showAiFillChat && !showEditor && (
-        <ViewDocAiFillChat
+        <ViewDocChatPanel
+          chat={chat}
           docName={doc.name}
           paidQuestions={paidQuestions}
-          aiFillMsgs={aiFillMsgs}
-          aiFillInput={aiFillInput}
-          aiFillTyping={aiFillTyping}
           showEditor={showEditor}
           aiFillEndRef={aiFillEndRef}
           aiFillInputRef={aiFillInputRef}
           onClose={() => setShowAiFillChat(false)}
-          onInputChange={setAiFillInput}
           onSend={handleAiFillSend}
           onApplyPatch={handleApplyPatch}
           onPayForQuestions={onPayForQuestions}

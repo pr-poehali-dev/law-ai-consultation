@@ -36,6 +36,9 @@ export default function Cabinet() {
     setTab(t);
   };
   const [viewDoc, setViewDoc] = useState<GenDoc | null>(null);
+  // true только когда документ открывается СРАЗУ после генерации — тогда ViewDocModal
+  // сразу активирует режим редактора + AI-чат, без промежуточного клика пользователя
+  const [viewDocAutoOpenEditor, setViewDocAutoOpenEditor] = useState(false);
 
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
@@ -62,6 +65,7 @@ export default function Cabinet() {
     },
     onDocGenerated: (doc) => {
       handleSetTab("docs");
+      setViewDocAutoOpenEditor(true);
       setViewDoc(doc);
     },
     onDocSaved: (docName) => setDocSavedToast(docName),
@@ -202,6 +206,7 @@ export default function Cabinet() {
         user={user}
         payment={pay.payment}
         viewDoc={viewDoc}
+        viewDocAutoOpenEditor={viewDocAutoOpenEditor}
         showPlanModal={pay.showPlanModal}
         successToast={pay.successToast}
         errorToast={pay.errorToast}
@@ -213,7 +218,8 @@ export default function Cabinet() {
         onPayForQuestions={() => pay.setPayment({ type: "quick_questions", name: "+3 вопроса AI-юристу" })}
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
-        onCloseViewDoc={() => setViewDoc(null)}
+        onCloseViewDoc={() => { setViewDoc(null); setViewDocAutoOpenEditor(false); }}
+        chat={chat}
         onSaveEdit={(docId, newContent) => {
           docs.saveEditedContent(docId, newContent);
           setViewDoc(prev => prev && prev.id === docId

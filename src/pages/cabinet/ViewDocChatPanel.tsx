@@ -1,24 +1,18 @@
 import { useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
+import type { useChatLogic } from "@/pages/cabinet/useChatLogic";
+import { LegalText } from "@/pages/cabinet/ChatTextRenderer";
 
-export interface AiFillMsg {
-  role: "user" | "ai";
-  text: string;
-  patch?: string; // новый текст документа от AI
-}
-
-interface ViewDocAiFillChatProps {
+interface ViewDocChatPanelProps {
+  /** Единый чат пользователя — тот же, что в разделе «Чат с AI» */
+  chat: ReturnType<typeof useChatLogic>;
   docName: string;
   paidQuestions: number;
-  aiFillMsgs: AiFillMsg[];
-  aiFillInput: string;
-  aiFillTyping: boolean;
   showEditor: boolean;
   aiFillEndRef: React.RefObject<HTMLDivElement>;
   aiFillInputRef: React.RefObject<HTMLInputElement>;
   onClose: () => void;
-  onInputChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (text: string) => void;
   onApplyPatch?: (patch: string) => void;
   onPayForQuestions?: () => void;
 }
@@ -32,19 +26,18 @@ function extractPatch(text: string): string | null {
   return null;
 }
 
-// Рендер сообщения AI с подсветкой патча
+// Рендер сообщения AI: обычный текст через LegalText (как в основном чате), патч — отдельным блоком
 function AiMsgBubble({
   text,
-  patch,
   onApply,
   compact,
 }: {
   text: string;
-  patch?: string;
   onApply?: (p: string) => void;
   compact: boolean;
 }) {
   const [applied, setApplied] = useState(false);
+  const patch = extractPatch(text);
 
   const handleApply = () => {
     if (!patch || !onApply) return;
@@ -52,17 +45,17 @@ function AiMsgBubble({
     setApplied(true);
   };
 
-  // Разбиваем текст на части: до блока и сам блок
+  // Разбиваем текст на части: до блока и сам блок (код/патч не должен идти через LegalText)
   const parts = text.split(/```[\w]*\n?[\s\S]+?```/g);
   const blocks = [...text.matchAll(/```[\w]*\n?([\s\S]+?)```/g)].map(m => m[1].trim());
 
   return (
-    <div className={`${compact ? "px-3 py-2.5 rounded-2xl rounded-tl-sm text-sm" : "px-3 py-2 rounded-xl rounded-tl-sm text-xs"} text-navy-800 bg-white border border-slate-200 leading-relaxed max-w-[88%]`}>
+    <div className={`${compact ? "px-3.5 py-2.5 rounded-2xl rounded-tl-sm" : "px-3 py-2.5 rounded-xl rounded-tl-sm"} bg-white border border-slate-200 leading-relaxed max-w-[92%] shadow-sm`}>
       {blocks.length > 0 ? (
         <>
           {parts.map((part, i) => (
             <span key={i}>
-              {part && <span className="whitespace-pre-wrap">{part}</span>}
+              {part.trim() && <LegalText text={part} />}
               {blocks[i] && (
                 <div className="my-2 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50/50">
                   <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-100/70 border-b border-emerald-200">
@@ -88,59 +81,64 @@ function AiMsgBubble({
           ))}
         </>
       ) : (
-        <span className="whitespace-pre-wrap">{text}</span>
+        <LegalText text={text} />
       )}
 
       {/* Патч без code-блока но с маркером "ИСПРАВЛЕННЫЙ ТЕКСТ:" */}
-      {patch && blocks.length === 0 && (
+      {patch && blocks.length === 0 && onApply && (
         <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-2">
-          {onApply && (
-            <button
-              onClick={handleApply}
-              disabled={applied}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all ${applied ? "bg-emerald-500 text-white" : "bg-emerald-50 border border-emerald-400 text-emerald-700 hover:bg-emerald-500 hover:text-white"}`}
-            >
-              <Icon name={applied ? "Check" : "Sparkles"} size={11} />
-              {applied ? "Правка применена" : "Применить правку к документу"}
-            </button>
-          )}
+          <button
+            onClick={handleApply}
+            disabled={applied}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all ${applied ? "bg-emerald-500 text-white" : "bg-emerald-50 border border-emerald-400 text-emerald-700 hover:bg-emerald-500 hover:text-white"}`}
+          >
+            <Icon name={applied ? "Check" : "Sparkles"} size={11} />
+            {applied ? "Правка применена" : "Применить правку к документу"}
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-export default function ViewDocAiFillChat({
-  docName,
-  paidQuestions,
-  aiFillMsgs,
-  aiFillInput,
-  aiFillTyping,
-  showEditor,
-  aiFillEndRef,
-  aiFillInputRef,
-  onClose,
-  onInputChange,
-  onSend,
-  onApplyPatch,
-  onPayForQuestions,
-}: ViewDocAiFillChatProps) {
+/**
+ * Панель AI-редактора/консультанта справа от документа — визуально и функционально
+ * идентична разделу «Чат с AI»: показывает ЕДИНУЮ историю переписки пользователя
+ * (chat.messages из useChatLogic), а не отдельный локальный чат документа.
+ */
+export default function ViewDocChatPanel({
+  chat, docName, paidQuestions, showEditor, aiFillEndRef, aiFillInputRef, onClose, onSend, onApplyPatch, onPayForQuestions,
+}: ViewDocChatPanelProps) {
   const inputDesktopRef = useRef<HTMLInputElement>(null);
+  const [localInput, setLocalInput] = useState("");
+
+  const handleSubmit = () => {
+    const text = localInput.trim();
+    if (!text) return;
+    setLocalInput("");
+    onSend(text);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) onSend();
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
+
+  // Единая история — показываем все содержательные сообщения (пропускаем служебные виджеты,
+  // которые не имеют смысла в узкой боковой панели: апсейл, карточки поиска практики и т.п.)
+  const visibleMessages = chat.messages.filter(m =>
+    m.text && !m.isUpsell && !m.isCaseLawSearch && !m.isCaseLawAssessment && !m.isPenaltyCalc
+  );
 
   const MsgList = ({ mobile }: { mobile: boolean }) => (
     <>
-      {aiFillMsgs.map((msg, i) => (
+      {visibleMessages.map((msg, i) => (
         <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
           {msg.role === "ai" && (
             <div
               className={`${mobile ? "w-6 h-6 rounded-lg" : "w-5 h-5 rounded-md"} flex items-center justify-center shrink-0 mt-0.5`}
               style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
             >
-              <Icon name="Bot" size={mobile ? 12 : 10} color="white" />
+              <Icon name="Scale" size={mobile ? 12 : 10} color="white" />
             </div>
           )}
           {msg.role === "user" ? (
@@ -151,23 +149,18 @@ export default function ViewDocAiFillChat({
               {msg.text}
             </div>
           ) : (
-            <AiMsgBubble
-              text={msg.text}
-              patch={msg.patch ?? extractPatch(msg.text) ?? undefined}
-              onApply={onApplyPatch}
-              compact={mobile}
-            />
+            <AiMsgBubble text={msg.text} onApply={onApplyPatch} compact={mobile} />
           )}
         </div>
       ))}
 
-      {aiFillTyping && (
+      {chat.typing && (
         <div className="flex justify-start gap-2">
           <div
             className={`${mobile ? "w-6 h-6 rounded-lg" : "w-5 h-5 rounded-md"} flex items-center justify-center shrink-0`}
             style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
           >
-            <Icon name="Bot" size={mobile ? 12 : 10} color="white" />
+            <Icon name="Scale" size={mobile ? 12 : 10} color="white" />
           </div>
           <div className={`${mobile ? "px-3.5 py-3 rounded-2xl rounded-tl-sm" : "px-3 py-2 rounded-xl rounded-tl-sm"} bg-white border border-slate-200 flex items-center gap-1`}>
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -202,23 +195,23 @@ export default function ViewDocAiFillChat({
         <input
           ref={mobile ? aiFillInputRef : inputDesktopRef}
           type="text"
-          value={aiFillInput}
-          onChange={e => onInputChange(e.target.value)}
+          value={localInput}
+          onChange={e => setLocalInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={showEditor ? "Попросить исправить, дополнить…" : "Спросить по документу…"}
-          disabled={(paidQuestions ?? 0) <= 0 || aiFillTyping}
+          disabled={(paidQuestions ?? 0) <= 0 || chat.typing}
           className="flex-1 bg-slate-100 rounded-xl px-3 py-2 text-xs outline-none disabled:opacity-50 transition-colors"
           style={{ border: "1.5px solid transparent" }}
           onFocus={e => { e.target.style.borderColor = "#1a6bb5"; e.target.style.background = "white"; }}
           onBlur={e => { e.target.style.borderColor = "transparent"; e.target.style.background = "#f1f5f9"; }}
         />
         <button
-          onClick={onSend}
-          disabled={!aiFillInput.trim() || aiFillTyping || (paidQuestions ?? 0) <= 0}
+          onClick={handleSubmit}
+          disabled={!localInput.trim() || chat.typing || (paidQuestions ?? 0) <= 0}
           className="w-8 h-8 rounded-xl flex items-center justify-center disabled:opacity-40 shrink-0 transition-all active:scale-95"
           style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
         >
-          {aiFillTyping
+          {chat.typing
             ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
             : <Icon name="Send" size={12} color="white" />}
         </button>
@@ -238,10 +231,10 @@ export default function ViewDocAiFillChat({
         {/* Шапка */}
         <div className="flex items-center gap-2.5 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
           <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <Icon name={showEditor ? "Pencil" : "Bot"} size={14} color="white" />
+            <Icon name={showEditor ? "Pencil" : "Scale"} size={14} color="white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-white">{showEditor ? "AI-редактор" : "AI-юрист"}</p>
+            <p className="text-xs font-bold text-white">{showEditor ? "AI-редактор" : "Правосудик"}</p>
             <p className="text-[10px] text-white/55 truncate">{showEditor ? "правка и анализ документа" : "по заполнению реквизитов"}</p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -258,9 +251,7 @@ export default function ViewDocAiFillChat({
           </div>
         </div>
 
-
-
-        {/* Сообщения */}
+        {/* Сообщения — единая история переписки */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5" style={{ minHeight: 0 }}>
           {MsgList({ mobile: false })}
         </div>
@@ -282,10 +273,10 @@ export default function ViewDocAiFillChat({
             </div>
             <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}>
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <Icon name="Bot" size={16} color="white" />
+                <Icon name="Scale" size={16} color="white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white">AI-юрист</p>
+                <p className="text-sm font-bold text-white">Правосудик</p>
                 <p className="text-[10px] text-white/60 truncate">По заполнению: {docName}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

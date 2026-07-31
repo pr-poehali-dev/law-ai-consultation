@@ -5,12 +5,15 @@ import ViewDocModal from "@/pages/cabinet/ViewDocModal";
 import PlanModal from "@/pages/cabinet/PlanModal";
 import type { User } from "@/lib/auth";
 import type { GenDoc } from "@/pages/cabinet/DocsTab";
+import type { useChatLogic } from "@/pages/cabinet/useChatLogic";
 
 
 interface CabinetModalsProps {
   user: User;
   payment: { type: ServiceType; name: string } | null;
   viewDoc: GenDoc | null;
+  /** true — документ только что сгенерирован, открыть сразу редактор + чат */
+  viewDocAutoOpenEditor?: boolean;
   showPlanModal: boolean;
   successToast: string | null;
   errorToast: string | null;
@@ -29,15 +32,20 @@ interface CabinetModalsProps {
   onOpenPlanModal: (minPlanId?: string) => void;
   onClosePlanModal: () => void;
   onSelectPlan: (name: string, id: ServiceType) => void;
+  /** Единый чат пользователя — передаётся в ViewDocModal, чтобы панель AI-редактора
+   * использовала ту же историю переписки, что и раздел «Чат с AI». */
+  chat: ReturnType<typeof useChatLogic>;
 }
 
 export default function CabinetModals({
-  user, payment, viewDoc, showPlanModal,
+  user, payment, viewDoc, viewDocAutoOpenEditor,
+  showPlanModal,
   successToast, errorToast,
   fillValues, onFillChange, onApplyFill,
   paidQuestions, onPayForQuestions,
   onClosePayment, onPaySuccess,
   onCloseViewDoc, onSaveEdit, onSaveRecommendations, onOpenChatTool, onOpenPlanModal, onClosePlanModal, onSelectPlan,
+  chat,
 }: CabinetModalsProps) {
   const [showExpertOffer, setShowExpertOffer] = useState(false);
   const [planMinId, setPlanMinId] = useState<string | undefined>(undefined);
@@ -66,6 +74,8 @@ export default function CabinetModals({
           onSaveEdit={(newContent) => onSaveEdit?.(viewDoc.id, newContent)}
           onSaveRecommendations={(recs) => onSaveRecommendations?.(viewDoc.id, recs)}
           onOpenChatTool={onOpenChatTool}
+          chat={chat}
+          autoOpenEditor={viewDocAutoOpenEditor}
         />
       )}
 

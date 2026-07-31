@@ -1,4 +1,5 @@
 import type { GenDoc } from "@/pages/cabinet/DocsTab";
+import type { useChatLogic } from "@/pages/cabinet/useChatLogic";
 
 export interface ViewDocModalProps {
   doc: GenDoc;
@@ -12,6 +13,11 @@ export interface ViewDocModalProps {
   onSaveEdit?: (newContent: string) => void;
   onSaveRecommendations?: (recommendations: GenDoc["recommendations"]) => void;
   onOpenChatTool?: (tool: "case_law" | "duty") => void;
+  /** Единый чат пользователя (тот же, что в разделе «Чат с AI») — используется
+   * панелью AI-редактора справа, чтобы история переписки была общей везде. */
+  chat: ReturnType<typeof useChatLogic>;
+  /** true — документ только что сгенерирован, сразу открыть редактор + чат без клика */
+  autoOpenEditor?: boolean;
 }
 
 // Все возможные блоки из промтов (с пробелами, ё, цифрами)

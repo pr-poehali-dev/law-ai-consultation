@@ -548,7 +548,8 @@ def handler(event: dict, context) -> dict:
         if is_system_mode:
             custom_system = messages[0].get("content", SYSTEM_CHAT)
             chat_messages = clean_messages[1:]
-            answer = call_yandex(custom_system, chat_messages, max_tokens=2000, fast=True)
+            _custom_max_tokens = body.get("max_tokens")
+            answer = call_yandex(custom_system, chat_messages, max_tokens=_custom_max_tokens or 2000, fast=True)
 
         elif _is_case_law:
             case_law_db_ctx = get_legal_context_for_ai("case_law", max_files=3, max_chars=5000, query=_last_user_q)
