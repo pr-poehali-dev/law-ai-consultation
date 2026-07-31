@@ -5,8 +5,7 @@ import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
-// Локальная копия с удалённым чёрным фоном (chroma key → альфа-канал VP9) — оригинал был на чёрном фоне.
-const ROBOT_VIDEO_URL = "/assets/robot-doc-hint.webm";
+const ROBOT_IMAGE_URL = "/assets/robot-doc-hint.png";
 
 interface DocFromChatPopoverProps {
   /** Кнопка-триггер «Создать документ» — попап позиционируется относительно неё */
@@ -53,7 +52,6 @@ export default function DocFromChatPopover({
   const [hintLoading, setHintLoading] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLTextAreaElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => { setLabel(initialLabel); }, [initialLabel]);
 
@@ -135,10 +133,6 @@ export default function DocFromChatPopover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchorEl, loadingLabel, hint, hintLoading]);
 
-  useEffect(() => {
-    videoRef.current?.play().catch(() => {});
-  }, []);
-
   const handleClose = () => {
     if (generating) return;
     setVisible(false);
@@ -188,21 +182,40 @@ export default function DocFromChatPopover({
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Робот — крупный, без фона, выступает за левый верхний край карточки */}
-        <video
-          ref={videoRef}
-          src={ROBOT_VIDEO_URL}
-          autoPlay
-          loop
-          muted
-          playsInline
+        {/* Робот — крупный, без фона, выступает за левый верхний край карточки, «машет» поднятым пальцем */}
+        <style>{`
+          @keyframes robot-wave {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-9deg); }
+            30% { transform: rotate(7deg); }
+            45% { transform: rotate(-6deg); }
+            60% { transform: rotate(4deg); }
+            75%, 95% { transform: rotate(0deg); }
+          }
+          @keyframes robot-bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+          }
+        `}</style>
+        <div
           className="absolute pointer-events-none select-none"
           style={{
-            width: 92, height: 85,
-            left: -34, top: -40,
-            filter: "drop-shadow(0 6px 14px rgba(15,23,42,0.18))",
+            width: 108, height: 105,
+            left: -42, top: -46,
+            animation: "robot-bob 2.6s ease-in-out infinite",
           }}
-        />
+        >
+          <img
+            src={ROBOT_IMAGE_URL}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{
+              filter: "drop-shadow(0 8px 16px rgba(15,23,42,0.2))",
+              transformOrigin: "78% 85%",
+              animation: "robot-wave 2.6s ease-in-out infinite",
+            }}
+          />
+        </div>
 
         <div className="rounded-3xl overflow-hidden flex flex-col flex-1 min-h-0">
           <div className="shrink-0" style={{ height: 3, background: "linear-gradient(90deg,#0f4c81,#1a6bb5,#e8a820)" }} />
