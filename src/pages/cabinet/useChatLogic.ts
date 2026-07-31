@@ -9,7 +9,7 @@ import { getCachedAnswer, setCachedAnswer } from "@/lib/chatCache";
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
 const AI_DOCS_URL = (func2url as Record<string, string>)["ai-docs"];
 const WEB_SEARCH_URL = (func2url as Record<string, string>)["web-search"];
-const WELCOME = "Добрый день! Я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
+const WELCOME = "Добрый день! Меня зовут Правосудик, я AI-юрист, обученный на реальной судебной практике РФ.\n\nЗадайте ваш правовой вопрос — отвечу со ссылками на законы.";
 
 interface UseChatLogicProps {
   refreshUser: () => Promise<void>;
