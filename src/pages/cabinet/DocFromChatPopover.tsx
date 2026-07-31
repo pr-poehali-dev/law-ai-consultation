@@ -5,8 +5,8 @@ import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
-// Фон видео перекрашен из чёрного в белый (flood-fill по кадрам) — сам робот не тронут.
-const ROBOT_VIDEO_URL = "/assets/robot-doc-hint.webm";
+// Пробный вариант: оригинальное видео как есть, вписанное в круглую рамку.
+const ROBOT_VIDEO_URL = "https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/8633f71c-21e2-4159-a7e7-e337a4fe92ec.webm";
 
 interface DocFromChatPopoverProps {
   initialLabel: string;
