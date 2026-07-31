@@ -11,6 +11,8 @@ const GEN_STATUSES = [
   "Финальная проверка...",
 ];
 
+const ROBOT_VIDEO_URL = "https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/535fc4f7-aa74-447e-9d38-42b87776df2b.webm";
+
 export default function DocsGeneratingOverlay({ docLabel, retrying }: { docLabel: string; retrying?: boolean }) {
   const [statusIdx, setStatusIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -28,12 +30,25 @@ export default function DocsGeneratingOverlay({ docLabel, retrying }: { docLabel
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
-        {/* Иконка */}
+        {/* Робот-помощник в круглой рамке */}
         <div className="relative w-20 h-20 mx-auto mb-6">
           <div className={`absolute inset-0 rounded-full ${retrying ? "bg-amber-400/20" : "bg-gold-400/20"} animate-ping`} />
           <div className={`absolute inset-2 rounded-full ${retrying ? "bg-amber-400/30" : "bg-gold-400/30"} animate-pulse`} />
-          <div className="relative w-20 h-20 gradient-navy rounded-full flex items-center justify-center shadow-lg">
-            <Icon name={retrying ? "RefreshCw" : "FileText"} size={32} className={`text-gold-400 ${retrying ? "animate-spin" : ""}`} />
+          <div className="relative w-20 h-20 rounded-full overflow-hidden shadow-lg">
+            {retrying ? (
+              <div className="w-full h-full gradient-navy flex items-center justify-center">
+                <Icon name="RefreshCw" size={32} className="text-gold-400 animate-spin" />
+              </div>
+            ) : (
+              <video
+                src={ROBOT_VIDEO_URL}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
         </div>
 
