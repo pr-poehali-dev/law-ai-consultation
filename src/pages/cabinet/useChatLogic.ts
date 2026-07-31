@@ -22,7 +22,14 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       const saved = localStorage.getItem("cabinet_messages");
       if (saved) {
         const parsed: ChatMsg[] = JSON.parse(saved);
-        return parsed.filter(m => !m.isUpsell);
+        const filtered = parsed.filter(m => !m.isUpsell);
+        // У пользователей, зашедших до переименования бота, первое сообщение
+        // в localStorage — старый текст приветствия без имени «Правосудик».
+        // Подменяем его на актуальный, не трогая остальную историю переписки.
+        if (filtered[0]?.role === "ai" && !filtered[0].text.includes("Правосудик")) {
+          filtered[0] = { ...filtered[0], text: WELCOME };
+        }
+        return filtered;
       }
       // Нет сохранённых сообщений — пробуем перенести историю с лендинга
       const landingRaw = localStorage.getItem("landing_chat_history");
