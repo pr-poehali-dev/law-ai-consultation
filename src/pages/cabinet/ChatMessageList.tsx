@@ -429,6 +429,8 @@ export default function ChatMessageList({
           generating={!!docGenerating}
           onConfirm={onConfirmDocDraft}
           onClose={onCloseDocDraft}
+          aiText={docDraft.aiText}
+          userText={docDraft.userText}
         />
       )}
     </div>

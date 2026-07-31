@@ -44,6 +44,9 @@ export interface DocFromChatDraft {
   /** true, пока идёт fallback-запрос определения типа (когда нет docHint и не
    * удалось распарсить название из текста рекомендации) */
   loadingLabel: boolean;
+  /** Исходный ответ AI и сообщение пользователя — контекст для короткой AI-рекомендации в попапе */
+  aiText: string;
+  userText: string;
 }
 
 export function useCabinetDocFromChat({
@@ -98,7 +101,7 @@ export function useCabinetDocFromChat({
           : docHint.details;
         const docTypeId = DOC_TYPES.some(d => d.id === docHint.doc_type) ? docHint.doc_type : "claim";
         if (!canDoc) { openDocChoice(docTypeId, docHint.doc_label || "документ"); return; }
-        setDocDraft({ label: docHint.doc_label || "документ", docTypeId, details, loadingLabel: false });
+        setDocDraft({ label: docHint.doc_label || "документ", docTypeId, details, loadingLabel: false, aiText, userText });
         return;
       }
 
@@ -109,7 +112,7 @@ export function useCabinetDocFromChat({
       if (extracted) {
         const docTypeId = extracted.matchedTypeId || "claim";
         if (!canDoc) { openDocChoice(docTypeId, extracted.label); return; }
-        setDocDraft({ label: extracted.label, docTypeId, details: baseDetails, loadingLabel: false });
+        setDocDraft({ label: extracted.label, docTypeId, details: baseDetails, loadingLabel: false, aiText, userText });
         return;
       }
 
@@ -118,7 +121,7 @@ export function useCabinetDocFromChat({
       //    и в фоне уточняем тип через отдельный AI-запрос по истории диалога —
       //    пользователь в любом случае видит и может поправить название перед генерацией.
       if (!canDoc) { openDocChoice("claim", "документ"); return; }
-      setDocDraft({ label: "", docTypeId: "claim", details: baseDetails, loadingLabel: true });
+      setDocDraft({ label: "", docTypeId: "claim", details: baseDetails, loadingLabel: true, aiText, userText });
 
       const recentMessages = chat.messages.slice(-5);
       const dialogContext = recentMessages
@@ -153,10 +156,10 @@ export function useCabinetDocFromChat({
           } catch { /* дефолты */ }
         }
         const dt = DOC_TYPES.find(d => d.id === docTypeId) || DOC_TYPES[0];
-        setDocDraft({ label: dt.label, docTypeId, details, loadingLabel: false });
+        setDocDraft({ label: dt.label, docTypeId, details, loadingLabel: false, aiText, userText });
       } catch {
         const dt = DOC_TYPES.find(d => d.id === "claim") || DOC_TYPES[0];
-        setDocDraft({ label: dt.label, docTypeId: "claim", details: baseDetails, loadingLabel: false });
+        setDocDraft({ label: dt.label, docTypeId: "claim", details: baseDetails, loadingLabel: false, aiText, userText });
       }
     } finally {
       setCreatingDocFromChat(false);

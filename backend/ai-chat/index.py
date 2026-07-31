@@ -435,6 +435,53 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
                     "body": json.dumps({"answer": assessment}, ensure_ascii=False)}
 
+        # ── Короткая AI-рекомендация для попапа «Создать документ» ──────────
+        if mode == "doc_hint_suggest":
+            ai_answer = body.get("ai_answer", "").strip()
+            user_text = body.get("user_text", "").strip()
+            if not ai_answer and not user_text:
+                return {"statusCode": 400, "headers": CORS,
+                        "body": json.dumps({"error": "ai_answer or user_text required"})}
+            clean_pair, _ = strip_personal_data([
+                {"role": "user", "content": user_text},
+                {"role": "assistant", "content": ai_answer},
+            ])
+            situation = clean_pair[0].get("content", "")[:1200]
+            prev_answer = clean_pair[1].get("content", "")[:1500]
+            hint_system = (
+                "Ты — AI-юрист. Пользователь открыл окно подготовки документа после твоего "
+                "предыдущего ответа. Дай МАКСИМАЛЬНО короткую подсказку — что за документ нужен "
+                "и что стоит дополнить, прежде чем его создать.\n\n"
+                "СТРОГИЙ ФОРМАТ ОТВЕТА (не более 2-3 коротких предложений, БЕЗ заголовков и списков):\n"
+                "Сначала — точное название документа, который нужен по ситуации. "
+                "Затем — одна фраза о том, какую деталь стоит уточнить или дополнить "
+                "(конкретные данные: суммы, даты, стороны, реквизиты), если это важно для документа.\n\n"
+                "Пиши тепло и по-человечески, как живой юрист-помощник. Без канцелярита. "
+                "Уложись строго в 500 токенов — ответ должен быть завершённым, без обрыва на середине фразы."
+            )
+            hint_prompt = (
+                f"Ситуация пользователя: {situation}\n\n"
+                f"Мой предыдущий ответ: {prev_answer}\n\n"
+                "Дай короткую рекомендацию по документу, который сейчас будет создаваться."
+            )
+            try:
+                hint_answer, was_cut = call_deepseek(
+                    hint_system, [{"role": "user", "content": hint_prompt}],
+                    max_tokens=500, temperature=0.3, timeout=20,
+                )
+            except Exception as e:
+                print(f"[DOC_HINT_SUGGEST] error: {e}")
+                hint_answer, was_cut = "", False
+            hint_answer = hint_answer.strip()
+            # Гарантия от обрыва на середине фразы: если модель упёрлась в лимит токенов
+            # и текст не заканчивается знаком препинания — обрезаем до последнего целого предложения.
+            if hint_answer and (was_cut or not re.search(r'[.!?…»)]\s*$', hint_answer)):
+                last_end = max(hint_answer.rfind("."), hint_answer.rfind("!"), hint_answer.rfind("?"))
+                if last_end > 20:
+                    hint_answer = hint_answer[:last_end + 1]
+            return {"statusCode": 200, "headers": {**CORS, "Content-Type": "application/json"},
+                    "body": json.dumps({"hint": hint_answer}, ensure_ascii=False)}
+
         # ── Продолжение обрезанного ответа ──────────────────────────────────
         if mode == "chat_continue":
             messages = body.get("messages", [])
