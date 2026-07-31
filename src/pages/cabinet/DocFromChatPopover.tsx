@@ -150,7 +150,7 @@ export default function DocFromChatPopover({
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Icon name="Sparkles" size={11} style={{ color: "#1a6bb5" }} />
-                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#1a6bb5" }}>AI-юрист рекомендует</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#1a6bb5" }}>Правосудик рекомендует</p>
               </div>
               {hintLoading ? (
                 <div className="flex items-center gap-2 py-0.5">
