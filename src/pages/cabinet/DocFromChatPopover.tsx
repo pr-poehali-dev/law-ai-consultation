@@ -5,7 +5,8 @@ import { getToken } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 
 const GIGACHAT_URL = (func2url as Record<string, string>)["ai-chat"];
-const ROBOT_VIDEO_URL = "https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/8633f71c-21e2-4159-a7e7-e337a4fe92ec.webm";
+// Локальная копия с удалённым чёрным фоном (chroma key → альфа-канал VP9) — оригинал был на чёрном фоне.
+const ROBOT_VIDEO_URL = "/assets/robot-doc-hint.webm";
 
 interface DocFromChatPopoverProps {
   /** Кнопка-триггер «Создать документ» — попап позиционируется относительно неё */
@@ -169,7 +170,7 @@ export default function DocFromChatPopover({
 
       <div
         ref={popoverRef}
-        className="fixed z-[150] flex flex-col rounded-3xl overflow-hidden bg-white"
+        className="fixed z-[150] flex flex-col rounded-3xl overflow-visible bg-white"
         style={{
           left: geometry?.left ?? -9999,
           top: geometry?.top ?? -9999,
@@ -187,52 +188,48 @@ export default function DocFromChatPopover({
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="shrink-0" style={{ height: 3, background: "linear-gradient(90deg,#0f4c81,#1a6bb5,#e8a820)" }} />
+        {/* Робот — крупный, без фона, выступает за левый верхний край карточки */}
+        <video
+          ref={videoRef}
+          src={ROBOT_VIDEO_URL}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute pointer-events-none select-none"
+          style={{
+            width: 92, height: 85,
+            left: -34, top: -40,
+            filter: "drop-shadow(0 6px 14px rgba(15,23,42,0.18))",
+          }}
+        />
 
-        {/* Шапка: видео-робот слева + заголовок */}
-        <div className="shrink-0 flex items-center justify-between px-4 pt-3.5 pb-2.5" style={{ background: "linear-gradient(180deg,#f8fafc,#ffffff)" }}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="w-11 h-11 rounded-2xl shrink-0 overflow-hidden shadow-md"
-              style={{ background: "linear-gradient(135deg,#0f4c81,#1a6bb5)" }}
-            >
-              <video
-                ref={videoRef}
-                src={ROBOT_VIDEO_URL}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            </div>
+        <div className="rounded-3xl overflow-hidden flex flex-col flex-1 min-h-0">
+          <div className="shrink-0" style={{ height: 3, background: "linear-gradient(90deg,#0f4c81,#1a6bb5,#e8a820)" }} />
+
+          {/* Шапка: отступ слева под робота + заголовок */}
+          <div className="shrink-0 flex items-center justify-between pl-14 pr-4 pt-3.5 pb-2.5" style={{ background: "linear-gradient(180deg,#f8fafc,#ffffff)" }}>
             <div className="min-w-0">
               <p className="font-bold text-navy-800 text-[14px] leading-tight">Подготовка документа</p>
               <p className="text-[10.5px] mt-0.5 truncate text-slate-400">AI-юрист поможет с деталями</p>
             </div>
+            <button
+              onClick={handleClose}
+              disabled={generating}
+              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors hover:bg-slate-100 disabled:opacity-40"
+            >
+              <Icon name="X" size={13} className="text-slate-400" />
+            </button>
           </div>
-          <button
-            onClick={handleClose}
-            disabled={generating}
-            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors hover:bg-slate-100 disabled:opacity-40"
-          >
-            <Icon name="X" size={13} className="text-slate-400" />
-          </button>
-        </div>
 
-        {/* Контент — скроллится если не влезает по высоте */}
-        <div className="overflow-y-auto flex-1 px-4 space-y-3 pb-3.5" style={{ background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" }}>
+          {/* Контент — скроллится если не влезает по высоте */}
+          <div className="overflow-y-auto flex-1 px-4 space-y-3 pb-3.5" style={{ background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)" }}>
 
-          {/* Диалоговое облачко от робота с AI-рекомендацией */}
-          {(hintLoading || hint) && (
-            <div className="flex gap-2 items-start pt-0.5">
-              <div className="w-1 shrink-0" />
-              <div
-                className="relative flex-1 min-w-0 rounded-2xl px-3.5 py-2.5"
-                style={{ background: "rgba(15,76,129,0.06)", border: "1px solid rgba(15,76,129,0.12)" }}
-              >
+            {/* Диалоговое облачко от робота с AI-рекомендацией */}
+            {(hintLoading || hint) && (
+              <div className="relative rounded-2xl px-3.5 py-2.5 mt-0.5" style={{ background: "rgba(15,76,129,0.06)", border: "1px solid rgba(15,76,129,0.12)" }}>
                 <div
-                  className="absolute -top-1.5 left-4 w-3 h-3 rotate-45"
+                  className="absolute -top-1.5 left-6 w-3 h-3 rotate-45"
                   style={{ background: "rgba(15,76,129,0.06)", borderLeft: "1px solid rgba(15,76,129,0.12)", borderTop: "1px solid rgba(15,76,129,0.12)" }}
                 />
                 {hintLoading ? (
@@ -248,10 +245,9 @@ export default function DocFromChatPopover({
                   <p className="text-[12.5px] leading-relaxed text-navy-700">{hint}</p>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Какой документ создаём */}
+            {/* Какой документ создаём */}
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
               <Icon name="FileText" size={10} className="text-slate-400" />
@@ -301,24 +297,25 @@ export default function DocFromChatPopover({
               />
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Футер */}
-        <div className="shrink-0 px-4 pt-2.5 pb-3.5 bg-white" style={{ borderTop: "1px solid #f1f5f9" }}>
-          <button
-            onClick={() => canConfirm && onConfirm(label.trim(), addition.trim())}
-            disabled={!canConfirm}
-            className="w-full py-3 rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-white"
-            style={{
-              background: canConfirm ? "linear-gradient(135deg,#0f4c81,#1a6bb5)" : "#e2e8f0",
-              color: canConfirm ? "#ffffff" : "#94a3b8",
-              boxShadow: canConfirm ? "0 4px 20px rgba(15,76,129,0.3)" : "none",
-            }}
-          >
-            {generating
-              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Готовлю документ...</>
-              : <><Icon name="FilePlus" size={15} /> Создать документ</>}
-          </button>
+          {/* Футер */}
+          <div className="shrink-0 px-4 pt-2.5 pb-3.5 bg-white" style={{ borderTop: "1px solid #f1f5f9" }}>
+            <button
+              onClick={() => canConfirm && onConfirm(label.trim(), addition.trim())}
+              disabled={!canConfirm}
+              className="w-full py-3 rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-white"
+              style={{
+                background: canConfirm ? "linear-gradient(135deg,#0f4c81,#1a6bb5)" : "#e2e8f0",
+                color: canConfirm ? "#ffffff" : "#94a3b8",
+                boxShadow: canConfirm ? "0 4px 20px rgba(15,76,129,0.3)" : "none",
+              }}
+            >
+              {generating
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Готовлю документ...</>
+                : <><Icon name="FilePlus" size={15} /> Создать документ</>}
+            </button>
+          </div>
         </div>
 
         {/* Стрелка-указатель на кнопку-триггер */}
