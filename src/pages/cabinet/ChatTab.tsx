@@ -12,6 +12,7 @@ import PenaltyCalculatorPanel from "@/pages/cabinet/PenaltyCalculatorPanel";
 import DutyCalculatorPanel from "@/pages/cabinet/DutyCalculatorPanel";
 import CaseLawSearchPanel from "@/pages/cabinet/CaseLawSearchPanel";
 import JurisdictionPanel from "@/pages/cabinet/JurisdictionPanel";
+import type { DocFromChatDraft } from "@/pages/cabinet/useCabinetDocFromChat";
 
 export interface DocHint { doc_type: string; details: string; doc_label: string; extracted_text?: string; }
 export interface CaseLawResult { url: string; title: string; snippet: string; source: string; }
@@ -51,6 +52,11 @@ interface ChatTabProps {
   onAssessCaseLaw?: (caseLawMsgIdx: number) => void;
   chatEndRef: React.RefObject<HTMLDivElement>;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  /** Всплывающая карточка подтверждения документа над кнопкой «Создать документ» */
+  docDraft?: DocFromChatDraft | null;
+  docGenerating?: boolean;
+  onConfirmDocDraft?: (label: string, addition: string) => void;
+  onCloseDocDraft?: () => void;
 }
 
 function ReportPopoverChat({ onClose }: { onClose: () => void }) {
@@ -95,6 +101,7 @@ export default function ChatTab({
   onInputChange, onSend, onSendFile, onContinueChat,
   onFileSelect, onFileDrop, onAttachClick, onRemoveFile,
   onPayClick, onTrialClick, onExpertClick, onGoToDocs, onSelectPlan, onCreateDocFromMsg, creatingDocFromChat, onRevealAnswer, onSendToLawyer, onAddFiles, onSearchCaseLaw, onAssessCaseLaw, chatEndRef, fileInputRef,
+  docDraft, docGenerating, onConfirmDocDraft, onCloseDocDraft,
 }: ChatTabProps) {
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
@@ -319,6 +326,10 @@ export default function ChatTab({
         onSendMessage={onSend}
         onSearchCaseLaw={handleSearchCaseLaw}
         onAssessCaseLaw={handleAssessCaseLaw}
+        docDraft={docDraft}
+        docGenerating={docGenerating}
+        onConfirmDocDraft={onConfirmDocDraft}
+        onCloseDocDraft={onCloseDocDraft}
       />
 
       {/* Поле ввода + файл */}

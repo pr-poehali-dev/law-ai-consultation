@@ -75,7 +75,8 @@ export function useCabinetDocFromChat({
 
   /**
    * Шаг 1: клик «Создать документ» — определяем тип/название и открываем
-   * модалку подтверждения (DocFromChatModal), генерация НЕ запускается сразу.
+   * всплывающую карточку подтверждения (DocFromChatPopover) прямо над кнопкой,
+   * генерация НЕ запускается сразу.
    */
   const createDocFromChat = async (aiText: string, userText: string, docHint?: DocHint) => {
     if (creatingDocFromChat || !user) return;

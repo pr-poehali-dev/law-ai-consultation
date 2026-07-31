@@ -10,6 +10,8 @@ import CaseLawAssessmentCard from "@/pages/cabinet/CaseLawAssessmentCard";
 import type { User } from "@/lib/auth";
 import PenaltyCalcPanel from "@/components/PenaltyCalcPanel";
 import PenaltyResultMessage from "@/pages/cabinet/PenaltyResultMessage";
+import DocFromChatPopover from "@/pages/cabinet/DocFromChatPopover";
+import type { DocFromChatDraft } from "@/pages/cabinet/useCabinetDocFromChat";
 
 interface ChatMessageListProps {
   user: User;
@@ -32,6 +34,11 @@ interface ChatMessageListProps {
   onSendMessage?: (text: string) => void;
   onSearchCaseLaw?: (aiText: string, msgIdx: number) => void;
   onAssessCaseLaw?: (caseLawMsgIdx: number) => void;
+  /** Черновик документа — если задан, показывается всплывающая карточка над кнопкой «Создать документ» */
+  docDraft?: DocFromChatDraft | null;
+  docGenerating?: boolean;
+  onConfirmDocDraft?: (label: string, addition: string) => void;
+  onCloseDocDraft?: () => void;
 }
 
 // Ключевые слова для показа кнопки «Сообщить о проблеме»
@@ -145,10 +152,16 @@ export default function ChatMessageList({
   onSendMessage,
   onSearchCaseLaw,
   onAssessCaseLaw,
+  docDraft,
+  docGenerating,
+  onConfirmDocDraft,
+  onCloseDocDraft,
 }: ChatMessageListProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const animatedRef = useRef<number>(-1);
+  // Кнопка «Создать документ», над которой раскрывается всплывающая карточка
+  const [docBtnEl, setDocBtnEl] = useState<HTMLButtonElement | null>(null);
 
   const shouldAnimate = useCallback((idx: number) => {
     if (idx !== lastAiIdx) return false;
@@ -342,13 +355,14 @@ export default function ChatMessageList({
                       <div className="mt-3 flex flex-col gap-1.5">
                         {onCreateDocFromMsg && msg.text.length > 80 && prevUserMsg && (msg.docHint != null || prevUserMsg.isFile || prevUserMsg.text.trim().length > 10) && (
                           <button
+                            ref={setDocBtnEl}
                             onClick={() => { if (!creatingDocFromChat) { ymGoal("create_doc_from_chat"); onCreateDocFromMsg(msg.text, prevUserMsg?.text || "", msg.docHint); } }}
                             disabled={creatingDocFromChat}
                             className="flex items-center gap-2 px-3 py-2.5 rounded-xl w-full justify-center text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-60 border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                             style={{ fontFamily: "'Times New Roman', Times, serif" }}
                           >
                             {creatingDocFromChat
-                              ? <><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />Подготавливаю документ...</>
+                              ? <><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />Определяю документ...</>
                               : <><Icon name="FilePlus" size={12} className="text-slate-500" />Создать документ</>}
                           </button>
                         )}
@@ -404,6 +418,18 @@ export default function ChatMessageList({
         >
           <Icon name="ChevronDown" size={16} className="text-white" />
         </button>
+      )}
+
+      {/* Всплывающая карточка подтверждения документа — раскрывается над кнопкой «Создать документ» */}
+      {docDraft && onConfirmDocDraft && onCloseDocDraft && (
+        <DocFromChatPopover
+          anchorEl={docBtnEl}
+          initialLabel={docDraft.label}
+          loadingLabel={docDraft.loadingLabel}
+          generating={!!docGenerating}
+          onConfirm={onConfirmDocDraft}
+          onClose={onCloseDocDraft}
+        />
       )}
     </div>
   );

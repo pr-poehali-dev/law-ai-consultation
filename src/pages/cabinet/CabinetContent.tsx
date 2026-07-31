@@ -15,6 +15,7 @@ import ExpertTab from "@/pages/cabinet/ExpertTab";
 import AdminTab from "@/pages/cabinet/AdminTab";
 import type { useChatLogic } from "@/pages/cabinet/useChatLogic";
 import type { useDocsLogic } from "@/pages/cabinet/useDocsLogic";
+import type { DocFromChatDraft } from "@/pages/cabinet/useCabinetDocFromChat";
 import { savePendingAction } from "@/pages/cabinet/useCabinetPayment";
 
 type Tab = "chat" | "docs" | "expert" | "history" | "profile" | "admin";
@@ -37,6 +38,9 @@ interface CabinetContentProps {
   openPlanModal: () => void;
   openDocChoice: (docTypeId: string, docLabel: string) => void;
   createDocFromChat: (aiText: string, userText: string, docHint?: DocHint) => void;
+  docDraft?: DocFromChatDraft | null;
+  onConfirmDocDraft?: (label: string, addition: string) => void;
+  onCloseDocDraft?: () => void;
   navigate: (path: string) => void;
   lawyerMsgs: LawyerMessage[];
   lawyerDialogs: LawyerDialog[];
@@ -57,7 +61,7 @@ export default function CabinetContent({
   creatingDocFromChat,
   refreshUser,
   setTab, setPayment, setViewDoc, setPendingDocType,
-  openPlanModal, openDocChoice, createDocFromChat, navigate,
+  openPlanModal, openDocChoice, createDocFromChat, docDraft, onConfirmDocDraft, onCloseDocDraft, navigate,
   lawyerMsgs, lawyerDialogs, lawyerLoading,
   selectedAdminUserId, onSelectAdminDialog,
   onRefreshLawyer, onRefreshDialog, onAddOptimisticMsg, onPausePing, onResumePing, onGoToChat,
@@ -185,11 +189,15 @@ export default function CabinetContent({
             creatingDocFromChat={creatingDocFromChat}
             onRevealAnswer={chat.revealAnswer}
             onSendToLawyer={handleSendToLawyer}
-            onAddFiles={(files) => chat.setAttachedFiles(prev => [...prev, ...files].slice(0, 5))}
+            onAddFiles={(files) => chat.setAttachedFiles(prev => [...prev, ...files].slice(0, 3))}
             onSearchCaseLaw={chat.searchCaseLawForMsg}
             onAssessCaseLaw={chat.assessCaseLawPerspective}
             chatEndRef={chat.chatEndRef}
             fileInputRef={chat.fileInputRef}
+            docDraft={docDraft}
+            docGenerating={docs.docGenerating}
+            onConfirmDocDraft={onConfirmDocDraft}
+            onCloseDocDraft={onCloseDocDraft}
           />
         )}
 

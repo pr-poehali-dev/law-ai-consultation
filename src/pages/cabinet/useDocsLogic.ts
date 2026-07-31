@@ -175,7 +175,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
   const generateDoc = () => _runGenerate();
 
   // fromChat=true — передаём историю чата как контекст (вызов из чата AI).
-  // customLabel — точное название документа из рекомендации AI (см. DocFromChatModal).
+  // customLabel — точное название документа из рекомендации AI (см. DocFromChatPopover).
   const generateDocWith = (dt: DocType, details: string, files?: { name: string; b64: string }[], customLabel?: string) =>
     _runGenerate(dt, details, true, files, customLabel);
 
