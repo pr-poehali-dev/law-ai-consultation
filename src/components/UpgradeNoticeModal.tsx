@@ -12,9 +12,9 @@ interface UpgradeNoticeModalProps {
 const FEATURE_INFO: Record<string, { icon: string; plan: string; desc: string; minPlanId?: string }> = {
   lawyer: {
     icon: "UserCheck",
-    plan: "Старт",
-    desc: "Вы приобрели тариф «Пробный». Чтобы отправить документ на проверку живому юристу — повысьте тариф до «Старт» или выше.",
-    minPlanId: "plan_starter",
+    plan: "Максимум",
+    desc: "Отправка документа на проверку живому юристу доступна с тарифа «Максимум».",
+    minPlanId: "plan_max",
   },
   ai_editor: {
     icon: "BrainCircuit",

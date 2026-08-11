@@ -3,14 +3,13 @@ import Icon from "@/components/ui/icon";
 import { adminSearchUser, adminGrant, type AdminUserFull } from "@/lib/auth";
 
 const SERVICE_LABELS: Record<string, string> = {
-  plan_starter:          "Тариф Старт (+35 запр AI / +1 конс юриста)",
-  plan_starter_discount: "Тариф Старт скидка (+35 запр AI / +1 конс юриста)",
-  plan_pro:              "Тариф Профи (+100 запр AI / +5 вопр юристу)",
-  plan_max:              "Тариф Максимум (+300 запр AI / +30 вопр юристу)",
-  document:              "Тариф Пробный (+7 запр AI)",
-  consultation:          "+5 вопросов юристу",
+  plan_starter:          "Тариф Старт (+35 запр AI / +3 конс юриста)",
+  plan_starter_discount: "Тариф Старт скидка (+35 запр AI / +3 конс юриста)",
+  plan_pro:              "Тариф Профи (+120 запр AI / +5 конс юриста)",
+  plan_max:              "Тариф Максимум (+350 запр AI / +30 конс юриста)",
+  consultation:          "+5 консультаций юриста",
   expert:                "Доступ к юристу",
-  lawyer_questions:      "+5 вопросов юристу (докупить)",
+  lawyer_questions:      "+5 консультаций юриста (докупить)",
 };
 
 function fmtDate(iso: string | null) {

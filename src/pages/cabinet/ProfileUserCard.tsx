@@ -200,13 +200,10 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
 
         <div className="space-y-2">
           {[
-            ...(!user.purchasedPlan
-              ? [{ label: "Тариф «Пробный»", sub: "5 вопросов AI · 2 документа · AI-редактор, калькулятор, подсудность · разово", price: "290 ₽", type: "document" as ServiceType }]
-              : []),
-            { label: "Тариф «Старт»", sub: "30 вопросов AI · 5 документов · 3 вопроса юристу", price: "990 ₽", type: "plan_starter" as ServiceType },
-            { label: "Тариф «Профи»", sub: "100 вопросов AI · 20 документов · 5 вопросов юристу", price: "3 990 ₽", type: "plan_pro" as ServiceType, badge: "Хит" },
-            { label: "Тариф «Максимум»", sub: "300 вопросов AI · 50 документов · 30 вопросов юристу", price: "5 990 ₽", type: "plan_max" as ServiceType },
-            { label: "Тариф «Корпоративный»", sub: "300 вопросов AI · 100 документов · 20 консультаций юриста", price: "9 990 ₽", type: "plan_corporate" as ServiceType },
+            { label: "Тариф «Старт»", sub: "35 запросов к AI", price: "990 ₽", type: "plan_starter" as ServiceType },
+            { label: "Тариф «Профи»", sub: "90 запросов к AI · анализ файлов", price: "3 990 ₽", type: "plan_pro" as ServiceType, badge: "Хит" },
+            { label: "Тариф «Максимум»", sub: "200 запросов к AI · 5 консультаций юриста", price: "5 990 ₽", type: "plan_max" as ServiceType },
+            { label: "Тариф «Корпоративный»", sub: "400 запросов к AI · 5 консультаций юриста", price: "9 990 ₽", type: "plan_corporate" as ServiceType },
           ].map((item) => (
             <button
               key={item.type}

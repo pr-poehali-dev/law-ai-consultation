@@ -163,7 +163,7 @@ export default function ChatTab({
                 <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-3">
                   <Icon name="Sparkles" size={26} color="#fff" />
                 </div>
-                <p className="text-white font-bold text-lg leading-tight">Доступно с тарифа «Пробный»</p>
+                <p className="text-white font-bold text-lg leading-tight">Доступно после подключения тарифа</p>
                 <p className="text-white/75 text-sm mt-1">Судебная практика и подсудность — премиум-инструменты</p>
               </div>
               {/* Список фич */}

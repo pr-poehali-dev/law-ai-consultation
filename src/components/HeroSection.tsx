@@ -92,29 +92,6 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             </div>
           </div>
 
-          {/* Бесплатный тариф: 3 запроса к AI, обновление лимитов каждые 24 часа */}
-          <div className={`w-full max-w-2xl mx-auto mt-3 mb-5 px-0 transition-all duration-600 delay-200 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div
-              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-sm font-semibold relative overflow-hidden"
-              style={{
-                background: "linear-gradient(135deg, #c8901a 0%, #e8a820 40%, #f5cc5a 70%, #e8a820 100%)",
-                color: "#0a1628",
-                boxShadow: "0 4px 24px rgba(232,168,32,0.4), 0 1px 0 rgba(255,255,255,0.2) inset",
-              }}
-            >
-              <span className="relative z-10 flex-1 text-center text-[13px] sm:text-[15px] font-semibold" style={{ fontFamily: "Times New Roman, serif" }}>
-                Бесплатно — 3 запроса к AI-юристу · обновление каждые 24 часа · загрузка документов
-              </span>
-
-              <span
-                className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase whitespace-nowrap"
-                style={{ background: "rgba(10,22,40,0.18)", color: "#0a1628", letterSpacing: "0.06em" }}
-              >
-                Бесплатно
-              </span>
-            </div>
-          </div>
-
           {/* ── Главный чат ─────────────────────────────────────── */}
           <div className={`transition-all duration-600 delay-250 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
             <LandingChat onOpenLogin={handleOpenLogin} />
