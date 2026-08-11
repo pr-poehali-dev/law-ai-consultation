@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
+import aiRobotAvatar from "@/assets/ai-robot-avatar.png";
 import { ymGoal } from "@/lib/metrika";
 import { sendReport } from "@/lib/auth";
 import UpsellCard from "@/pages/cabinet/UpsellCard";
@@ -303,8 +304,8 @@ export default function ChatMessageList({
             return (
               <div key={i} className="flex gap-2.5 items-start" style={{ animation: i === lastAiIdx ? "ai-msg-in 0.38s cubic-bezier(0.22,1,0.36,1) both" : undefined }}>
                 <style>{`@keyframes ai-msg-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
-                <div className="w-8 h-8 gradient-navy rounded-2xl flex items-center justify-center shrink-0 mt-0.5 shadow-md">
-                  <Icon name="Scale" size={13} className="text-gold-400" />
+                <div className="w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                  <img src={aiRobotAvatar} alt="AI-юрист" className="w-full h-full object-contain" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="bg-white px-4 py-3 shadow-sm"

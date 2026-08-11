@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Component, ReactNode, lazy, Suspense } from "react";
 import Index from "./pages/Index";
+import AppUpdateBanner from "@/components/AppUpdateBanner";
 
 // Тяжёлые страницы грузим лениво — не нужны при первом рендере лендинга
 const Cabinet  = lazy(() => import("./pages/Cabinet"));
@@ -61,6 +62,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <AppUpdateBanner />
         <BrowserRouter>
           <Suspense fallback={<PageFallback />}>
             <Routes>

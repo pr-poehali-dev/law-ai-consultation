@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { registerServiceWorkerWithUpdates } from '@/lib/appUpdate'
 
 // Перехватываем beforeinstallprompt ГЛОБАЛЬНО до монтирования React
 // Chrome может выстрелить его очень рано — сохраняем в window
@@ -17,12 +18,9 @@ window.addEventListener("beforeinstallprompt", (e) => {
   window.dispatchEvent(new Event("pwaPromptReady"));
 });
 
-// Регистрируем Service Worker (обязательно для PWA на Android)
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}
+// Регистрируем Service Worker (обязательно для PWA на Android) + отслеживаем обновления,
+// чтобы показать баннер "Доступно обновление" вместо тихого использования старой версии.
+registerServiceWorkerWithUpdates();
 
 // Если чанк не загрузился (старый SW отдал устаревший index.html) — перезагружаем
 // Работает во всех браузерах: Chrome, Яндекс, Safari, Opera, Firefox
