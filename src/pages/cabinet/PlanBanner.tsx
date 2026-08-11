@@ -123,9 +123,7 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
         <p className="text-xs font-bold text-white leading-tight">
           Бесплатно: {dailyFree} запрос{dailyFree === 1 ? "" : dailyFree < 5 ? "а" : "ов"} на сегодня
         </p>
-        <p className="text-[11px] text-white/60 mt-0.5">
-          Обновление каждые 24 часа · Тарифы для больше возможностей — от 990 ₽
-        </p>
+        <p className="text-[11px] text-white/60 mt-0.5">Обновление каждые 24 часа · Расширенный функционал — от 990 ₽</p>
       </div>
       <div className="flex items-center gap-1.5 bg-gold-500 hover:bg-gold-400 text-navy-900 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shrink-0">
         <Icon name="Zap" size={11} />
