@@ -5,12 +5,15 @@ import ExitIntentPopup from "@/pages/cabinet/ExitIntentPopup";
 import DocSavedToast from "@/components/DocSavedToast";
 import DocChoiceModal from "@/components/DocChoiceModal";
 import WelcomeTutorialsModal from "@/components/WelcomeTutorialsModal";
+import BillingMergedModal from "@/components/BillingMergedModal";
 
 interface CabinetOverlaysProps {
   showExitIntent: boolean;
   docSavedToast: string | null;
   showDocChoice: { docTypeId: string; docLabel: string } | null;
   showWelcomeTutorials: boolean;
+  showBillingMerged: boolean;
+  requestsLeft: number;
   docDetails: string;
   userId?: number;
   onCloseExitIntent: () => void;
@@ -18,6 +21,7 @@ interface CabinetOverlaysProps {
   onCloseDocSavedToast: () => void;
   onCloseDocChoice: () => void;
   onCloseWelcomeTutorials: () => void;
+  onCloseBillingMerged: () => void;
   setPayment: (p: { type: ServiceType; name: string }) => void;
   setPendingDocType: (dt: DocType | null) => void;
 }
@@ -27,6 +31,8 @@ export default function CabinetOverlays({
   docSavedToast,
   showDocChoice,
   showWelcomeTutorials,
+  showBillingMerged,
+  requestsLeft,
   docDetails,
   userId,
   onCloseExitIntent,
@@ -34,6 +40,7 @@ export default function CabinetOverlays({
   onCloseDocSavedToast,
   onCloseDocChoice,
   onCloseWelcomeTutorials,
+  onCloseBillingMerged,
   setPayment,
   setPendingDocType,
 }: CabinetOverlaysProps) {
@@ -85,6 +92,10 @@ export default function CabinetOverlays({
 
       {showWelcomeTutorials && (
         <WelcomeTutorialsModal onClose={onCloseWelcomeTutorials} userId={userId} />
+      )}
+
+      {showBillingMerged && (
+        <BillingMergedModal requestsLeft={requestsLeft} onClose={onCloseBillingMerged} userId={userId} />
       )}
     </>
   );

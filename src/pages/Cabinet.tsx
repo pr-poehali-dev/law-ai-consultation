@@ -12,6 +12,7 @@ import CabinetModals from "@/pages/cabinet/CabinetModals";
 import CabinetContent from "@/pages/cabinet/CabinetContent";
 
 import { shouldShowWelcomeTutorials } from "@/components/WelcomeTutorialsModal";
+import { shouldShowBillingMerged } from "@/components/BillingMergedModal";
 
 import { useCabinetInit } from "@/pages/cabinet/useCabinetInit";
 import { useCabinetDocFromChat } from "@/pages/cabinet/useCabinetDocFromChat";
@@ -43,6 +44,7 @@ export default function Cabinet() {
   const [docSavedToast, setDocSavedToast] = useState<string | null>(null);
   const [showDocChoice, setShowDocChoice] = useState<{ docTypeId: string; docLabel: string } | null>(null);
   const [showWelcomeTutorials, setShowWelcomeTutorials] = useState(false);
+  const [showBillingMerged, setShowBillingMerged] = useState(false);
 
   const docsGenerateRef = useRef<((dt: DocType, details: string) => void) | null>(null);
 
@@ -143,6 +145,16 @@ export default function Cabinet() {
     const t = setTimeout(() => setShowWelcomeTutorials(true), 1500);
     return () => clearTimeout(t);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Разовое уведомление об объединении биллинга — только для тех, у кого уже был
+  // куплен тариф на момент миграции. Не показываем одновременно с welcome-туром,
+  // чтобы не наслаивать модалки друг на друга.
+  useEffect(() => {
+    if (!user || showWelcomeTutorials) return;
+    if (!shouldShowBillingMerged(user.id, !!user.purchasedPlan)) return;
+    const t = setTimeout(() => setShowBillingMerged(true), 1500);
+    return () => clearTimeout(t);
+  }, [user?.id, user?.purchasedPlan, showWelcomeTutorials]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   if (!authChecked || !user) {
@@ -245,6 +257,8 @@ export default function Cabinet() {
         docSavedToast={docSavedToast}
         showDocChoice={showDocChoice}
         showWelcomeTutorials={showWelcomeTutorials}
+        showBillingMerged={showBillingMerged}
+        requestsLeft={user.paidRequests ?? 0}
         docDetails={docs.docDetails}
         userId={user.id}
         onCloseExitIntent={() => {}}
@@ -252,6 +266,7 @@ export default function Cabinet() {
         onCloseDocSavedToast={() => setDocSavedToast(null)}
         onCloseDocChoice={() => setShowDocChoice(null)}
         onCloseWelcomeTutorials={() => setShowWelcomeTutorials(false)}
+        onCloseBillingMerged={() => setShowBillingMerged(false)}
         setPayment={pay.setPayment}
         setPendingDocType={pay.setPendingDocType}
       />
