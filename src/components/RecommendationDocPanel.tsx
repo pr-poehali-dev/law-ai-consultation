@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken, canUseDoc, consumeDoc } from "@/lib/auth";
+import { getToken, canUseRequest, consumeRequest } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import func2url from "../../backend/func2url.json";
 
@@ -41,9 +41,9 @@ export default function RecommendationDocPanel({
   const handleGenerate = async () => {
     setErr("");
     setLoading(true);
-    const canDoc = await canUseDoc();
+    const canDoc = await canUseRequest();
     if (!canDoc) { setLoading(false); onPaymentRequired(); return; }
-    const consumed = await consumeDoc();
+    const { ok: consumed } = await consumeRequest();
     if (!consumed) { setLoading(false); onPaymentRequired(); return; }
     try {
       const token = getToken();

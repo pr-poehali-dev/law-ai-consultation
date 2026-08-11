@@ -237,7 +237,7 @@ export default function CabinetContent({
               openDocChoice(dt.id, dt.label);
             }}
             onAnalyzeDoc={(doc) => {
-              const canAsk = user.isAdmin || (user.paidQuestions ?? 0) > 0 ||
+              const canAsk = user.isAdmin || (user.paidRequests ?? 0) > 0 ||
                 (user.subscriptionConsultUntil ? new Date(user.subscriptionConsultUntil) > new Date() : false);
               if (!canAsk) {
                 setPayment({ type: "plan_starter", name: "Пакет «Старт»" });

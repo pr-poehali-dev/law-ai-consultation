@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken, consumeQuestion, consumeDoc, getUser, hasActiveSubscription, getDailyFreeLeft } from "@/lib/auth";
+import { getToken, consumeRequest, getUser, hasActiveSubscription, getDailyFreeLeft } from "@/lib/auth";
 import { downloadDoc } from "@/lib/docUtils";
 import func2url from "../../backend/func2url.json";
 
@@ -100,20 +100,16 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     const isPro = user.isAdmin
       || hasActiveSubscription(user, "consult")
       || hasActiveSubscription(user, "docs")
-      || user.paidQuestions >= 30
-      || user.paidDocs >= 10;
+      || user.paidRequests >= 30;
     if (!isPro) { setLoading(false); onPaymentRequired(); return; }
     const hasQ = user.isAdmin
       || hasActiveSubscription(user, "consult")
+      || hasActiveSubscription(user, "docs")
       || getDailyFreeLeft() > 0
-      || user.paidQuestions > 0;
+      || user.paidRequests > 0;
     if (!hasQ) { setLoading(false); onPaymentRequired(); return; }
-    // Списываем 1 документ + 1 вопрос за расчёт
-    const hasDoc = user.isAdmin || hasActiveSubscription(user, "docs") || user.paidDocs > 0;
-    if (!hasDoc) { setLoading(false); onPaymentRequired(); return; }
-    const docOk = await consumeDoc();
-    if (!docOk) { setLoading(false); onPaymentRequired(); return; }
-    const { ok } = await consumeQuestion();
+    // Списываем 1 запрос за расчёт
+    const { ok } = await consumeRequest();
     if (!ok) { setLoading(false); onPaymentRequired(); return; }
 
     try {

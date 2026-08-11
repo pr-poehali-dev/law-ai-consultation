@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { getToken, consumeQuestion } from "@/lib/auth";
+import { getToken, consumeRequest } from "@/lib/auth";
 import func2url from "../../../backend/func2url.json";
 import type { Step1, Step2, CourtInfo, JurisdictionResult } from "./JurisdictionTypes";
 import { determineJurisdiction } from "./JurisdictionTypes";
@@ -32,7 +32,7 @@ export default function JurisdictionPanel({ onClose, onSendToChat }: Props) {
   const [searching, setSearching] = useState(false);
 
   const runSearch = async () => {
-    consumeQuestion();
+    consumeRequest();
     setStep(3);
     const jr = determineJurisdiction(s1, s2);
     if (jr.error) { setResult(jr); return; }

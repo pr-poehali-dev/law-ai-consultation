@@ -113,7 +113,7 @@ export default function DocsFillingPhase({
             className="w-full py-2.5 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all active:scale-95"
           >
             <Icon name="Bot" size={15} />
-            {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+            {(user.isAdmin || user.paidRequests > 0 || hasActiveSubscription(user, "consult"))
               ? "Проанализировать AI-юристом"
               : "Проанализировать AI · 350 ₽"}
           </button>
@@ -155,7 +155,7 @@ export default function DocsFillingPhase({
           className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 text-sm bg-gradient-to-r from-blue-600 to-navy-700 text-white hover:from-blue-700 hover:to-navy-800 transition-all active:scale-95"
         >
           <Icon name="Bot" size={15} />
-          {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+          {(user.isAdmin || user.paidRequests > 0 || hasActiveSubscription(user, "consult"))
             ? "Проанализировать AI-юристом"
             : "Проанализировать AI · 350 ₽"}
         </button>

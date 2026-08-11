@@ -153,9 +153,9 @@ export default function Cabinet() {
   const isProOrAbove = isPremium || hasActiveSubscription(user, "docs");
   const totalLeft = user.isAdmin || isPremium
     ? 999
-    : getDailyFreeLeft() + (user.paidQuestions ?? 0);
-  // Купленный тариф Старт+ или активные счётчики
-  const hasPaidStarterPlan = !!user.purchasedPlan || (user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5;
+    : getDailyFreeLeft() + (user.paidRequests ?? 0);
+  // Купленный тариф Старт+ или активный счётчик запросов
+  const hasPaidStarterPlan = !!user.purchasedPlan || (user.paidRequests ?? 0) >= 35;
   const canUploadFiles = user.isAdmin || isProOrAbove || hasPaidStarterPlan || user.hasFileAnalysis === true;
 
   return (
@@ -214,8 +214,8 @@ export default function Cabinet() {
         fillValues={docs.fillValues}
         onFillChange={(key, val) => docs.setFillValues((p) => ({ ...p, [key]: val }))}
         onApplyFill={docs.applyFillValues}
-        paidQuestions={user.paidQuestions ?? 0}
-        onPayForQuestions={() => pay.setPayment({ type: "quick_questions", name: "+3 вопроса AI-юристу" })}
+        paidQuestions={user.paidRequests ?? 0}
+        onPayForQuestions={pay.openPlanModal}
         onClosePayment={pay.closePayment}
         onPaySuccess={pay.handlePaySuccess}
         onCloseViewDoc={() => { setViewDoc(null); setViewDocAutoOpenEditor(false); }}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canUseDoc, consumeDoc, getToken, invalidateUserCache, fetchSafe, refundDoc } from "@/lib/auth";
+import { canUseRequest, consumeRequest, getToken, invalidateUserCache, fetchSafe, refundRequest } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type DocPhase, type GenDoc } from "@/pages/cabinet/DocsTab";
@@ -59,7 +59,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     if (!activeDetails.trim()) { setDocErr("Опишите ситуацию"); return; }
 
     invalidateUserCache();
-    const canDoc = await canUseDoc();
+    const canDoc = await canUseRequest();
     if (!canDoc) {
       onPaymentRequired(activeType.serviceType, displayLabel, activeType);
       return;
@@ -70,11 +70,11 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     setDocPhase("generating");
     setDocErr("");
 
-    // КРИТИЧНО: списываем документ ДО генерации.
-    const consumed = await consumeDoc();
+    // КРИТИЧНО: списываем запрос ДО генерации.
+    const { ok: consumed } = await consumeRequest();
     if (!consumed) {
       invalidateUserCache();
-      const stillCan = await canUseDoc();
+      const stillCan = await canUseRequest();
       if (!stillCan) {
         onPaymentRequired(activeType.serviceType, displayLabel, activeType);
         setDocGenerating(false);
@@ -159,7 +159,7 @@ export function useDocsLogic({ refreshUser, onPaymentRequired, onDocGenerated, o
     } catch (e) {
       // Генерация упала — возвращаем слот (best-effort, без таймаута не блокируем UI)
       // refund-doc — auth action, идёт через auth-handler
-      refundDoc().catch(() => {});
+      refundRequest().catch(() => {});
 
       const errMsg = e instanceof Error ? e.message : "Ошибка генерации. Попробуйте ещё раз.";
       setDocErr(errMsg);

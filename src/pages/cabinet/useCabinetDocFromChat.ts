@@ -86,7 +86,7 @@ export function useCabinetDocFromChat({
     setCreatingDocFromChat(true);
 
     try {
-      const canDoc = user.isAdmin || (user.paidDocs ?? 0) > 0 ||
+      const canDoc = user.isAdmin || (user.paidRequests ?? 0) > 0 ||
         (user.subscriptionDocsUntil ? new Date(user.subscriptionDocsUntil) > new Date() : false);
 
       // Базовые данные ситуации — история диалога передаётся отдельно на генерацию

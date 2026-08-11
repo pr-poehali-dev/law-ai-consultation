@@ -4,11 +4,9 @@ import Icon from "@/components/ui/icon";
 // ── UpsellBlock ────────────────────────────────────────────────────────────────
 export function UpsellBlock({
   onBuyPlan,
-  onBuyQuickQuestions,
   onLogin,
 }: {
   onBuyPlan: () => void;
-  onBuyQuickQuestions: () => void;
   onLogin: () => void;
 }) {
   return (
@@ -60,7 +58,7 @@ export function UpsellBlock({
                 </div>
                 <div className="text-left">
                   <p className="text-[12px] font-semibold leading-tight" style={{ color: "#0a1628" }}>Пакет «Старт»</p>
-                  <p className="text-[10px] font-normal leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.55)" }}>30 вопросов · 5 документов · .doc</p>
+                  <p className="text-[10px] font-normal leading-tight mt-0.5" style={{ color: "rgba(10,22,40,0.55)" }}>35 запросов к AI · .doc</p>
                   <p className="text-[10px] font-normal leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 1 консультация юриста</p>
                 </div>
               </div>
@@ -70,35 +68,6 @@ export function UpsellBlock({
             </div>
           </button>
 
-          {/* Разделитель */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-            <span className="text-[10px] font-normal" style={{ color: "rgba(255,255,255,0.2)" }}>или быстрее</span>
-            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-          </div>
-
-          {/* +3 вопроса */}
-          <button onClick={onBuyQuickQuestions}
-            className="w-full rounded-xl transition-all active:scale-[0.98]"
-            style={{
-              padding: "10px 14px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.09)",
-            }}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(232,168,32,0.1)", border: "1px solid rgba(232,168,32,0.18)" }}>
-                  <Icon name="MessageCircle" size={11} color="#f0c060" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[12px] font-medium text-white leading-tight">Ещё 3 вопроса сейчас</p>
-                  <p className="text-[10px] font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.28)" }}>диалог продолжится в кабинете</p>
-                </div>
-              </div>
-              <p className="text-[13px] font-medium shrink-0" style={{ color: "#f0c060" }}>35 ₽</p>
-            </div>
-          </button>
 
           {/* Футер */}
           <div className="flex items-center justify-between">

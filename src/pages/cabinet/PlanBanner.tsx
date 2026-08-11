@@ -14,8 +14,7 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
 
-  const questions = user.paidQuestions ?? 0;
-  const docs = user.paidDocs ?? 0;
+  const requests = user.paidRequests ?? 0;
 
   // Если есть активный тариф — компактный зелёный баннер
   if (activePlan) {
@@ -29,10 +28,7 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
             <span className="text-xs font-bold text-emerald-800">Тариф «{activePlan.name}»</span>
             <div className="flex items-center gap-3 mt-0.5">
               <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                <Icon name="MessageCircle" size={10} />{questions} вопр.
-              </span>
-              <span className="text-[11px] text-emerald-700 flex items-center gap-1">
-                <Icon name="FileText" size={10} />{docs} доку.
+                <Icon name="MessageCircle" size={10} />{requests} запр.
               </span>
             </div>
           </div>
@@ -61,9 +57,7 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
           Подключите выгодный тариф
         </p>
         <p className="text-[11px] text-white/60 mt-0.5">
-          {mode === "chat"
-            ? `Доступно ${questions} вопрос${questions === 1 ? "" : questions < 5 ? "а" : "ов"} · Тарифы от 290 ₽`
-            : `Документов: ${docs} · Тарифы от 290 ₽`}
+          Доступно {requests} запрос{requests === 1 ? "" : requests < 5 ? "а" : "ов"} к AI · Тарифы от 290 ₽
         </p>
       </div>
       <div className="flex items-center gap-1.5 bg-gold-500 hover:bg-gold-400 text-navy-900 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shrink-0">

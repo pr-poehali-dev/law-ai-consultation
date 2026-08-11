@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import type { User } from "@/lib/auth";
-import { sendReport, consumeQuestion, hasPurchasedPlan } from "@/lib/auth";
+import { sendReport, hasPurchasedPlan } from "@/lib/auth";
 import OrganizerPanel from "@/pages/cabinet/OrganizerPanel";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 import PlanBanner from "@/pages/cabinet/PlanBanner";
@@ -234,7 +234,7 @@ export default function ChatTab({
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all hover:bg-slate-50"
                 style={{ background: "rgba(16,185,129,0.07)", color: "#059669", border: "1px solid rgba(16,185,129,0.2)" }}>
                 <Icon name="MessageCircle" size={11} color="#059669" />
-                {user.paidQuestions} вопр.
+                {user.paidRequests} запр.
               </button>
             ) : totalLeft === 0 ? (
               <button onClick={onPayClick}

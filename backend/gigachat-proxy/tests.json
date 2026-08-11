@@ -78,10 +78,10 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "refund-doc — unauthorized",
+      "name": "refund-request — unauthorized",
       "method": "POST",
       "path": "/",
-      "body": {"action": "refund-doc"},
+      "body": {"action": "refund-request"},
       "expectedStatus": 401,
       "expectedBody": {"error": "Не авторизован"},
       "bodyMatcher": "partial"

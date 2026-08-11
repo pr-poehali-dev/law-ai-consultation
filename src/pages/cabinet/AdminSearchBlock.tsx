@@ -3,11 +3,11 @@ import Icon from "@/components/ui/icon";
 import { adminSearchUser, adminGrant, type AdminUserFull } from "@/lib/auth";
 
 const SERVICE_LABELS: Record<string, string> = {
-  plan_starter:          "Тариф Старт (+30 вопр AI / +5 докум / +1 конс юриста)",
-  plan_starter_discount: "Тариф Старт скидка (+30 вопр AI / +5 докум / +1 конс юриста)",
-  plan_pro:              "Тариф Профи (+100 вопр AI / +20 докум / +5 вопр юристу)",
-  plan_max:              "Тариф Максимум (+300 вопр AI / +50 докум / +30 вопр юристу)",
-  document:              "Тариф Пробный (+5 вопр AI / +2 докум)",
+  plan_starter:          "Тариф Старт (+35 запр AI / +1 конс юриста)",
+  plan_starter_discount: "Тариф Старт скидка (+35 запр AI / +1 конс юриста)",
+  plan_pro:              "Тариф Профи (+100 запр AI / +5 вопр юристу)",
+  plan_max:              "Тариф Максимум (+300 запр AI / +30 вопр юристу)",
+  document:              "Тариф Пробный (+7 запр AI)",
   consultation:          "+5 вопросов юристу",
   expert:                "Доступ к юристу",
   lawyer_questions:      "+5 вопросов юристу (докупить)",
@@ -30,10 +30,10 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 function planLabel(u: AdminUserFull) {
-  if (u.paid_questions >= 300 || u.paid_docs >= 50) return { label: "Максимум", color: "bg-purple-100 text-purple-700" };
-  if (u.paid_questions >= 100 || u.paid_docs >= 20) return { label: "Профи", color: "bg-blue-100 text-blue-700" };
-  if (u.paid_questions >= 30  || u.paid_docs >= 5)  return { label: "Старт", color: "bg-emerald-100 text-emerald-700" };
-  if (u.paid_questions > 0    || u.paid_docs > 0)   return { label: "Частичный", color: "bg-amber-100 text-amber-700" };
+  if (u.paid_requests >= 200) return { label: "Максимум", color: "bg-purple-100 text-purple-700" };
+  if (u.paid_requests >= 90)  return { label: "Профи", color: "bg-blue-100 text-blue-700" };
+  if (u.paid_requests >= 35)  return { label: "Старт", color: "bg-emerald-100 text-emerald-700" };
+  if (u.paid_requests > 0)    return { label: "Частичный", color: "bg-amber-100 text-amber-700" };
   return { label: "Бесплатный", color: "bg-slate-100 text-slate-500" };
 }
 
@@ -48,8 +48,7 @@ export default function AdminSearchBlock() {
 
   // Форма — все поля независимые, можно заполнять любые комбинации
   const [grantSvc, setGrantSvc]   = useState("");
-  const [setQ, setSetQ]           = useState("");   // установить вопросы точно
-  const [setD, setSetD]           = useState("");   // установить документы точно
+  const [setR, setSetR]           = useState("");   // установить запросы точно
   const [setLQ, setSetLQ]         = useState("");   // установить вопросы к юристу точно
   const [comment, setComment]     = useState("");
 
@@ -57,7 +56,7 @@ export default function AdminSearchBlock() {
   const [saveResult, setSaveResult] = useState<{ ok?: boolean; msg?: string; error?: string } | null>(null);
 
   const resetForm = () => {
-    setGrantSvc(""); setSetQ(""); setSetD(""); setSetLQ(""); setComment(""); setSaveResult(null);
+    setGrantSvc(""); setSetR(""); setSetLQ(""); setComment(""); setSaveResult(null);
   };
 
   const handleSearch = async () => {
@@ -74,11 +73,10 @@ export default function AdminSearchBlock() {
     if (!selected) return;
 
     const hasService  = !!grantSvc;
-    const hasSetQ     = setQ !== "" && setQ !== null;
-    const hasSetD     = setD !== "" && setD !== null;
+    const hasSetR     = setR !== "" && setR !== null;
     const hasSetLQ    = setLQ !== "" && setLQ !== null;
 
-    if (!hasService && !hasSetQ && !hasSetD && !hasSetLQ) {
+    if (!hasService && !hasSetR && !hasSetLQ) {
       setSaveResult({ error: "Заполните хотя бы одно поле: тариф или количество" });
       return;
     }
@@ -88,8 +86,7 @@ export default function AdminSearchBlock() {
       comment: comment.trim() || undefined,
     };
     if (hasService)  params.grant_service = grantSvc;
-    if (hasSetQ)     params.set_questions = Math.max(0, parseInt(setQ));
-    if (hasSetD)     params.set_docs      = Math.max(0, parseInt(setD));
+    if (hasSetR)      params.set_requests  = Math.max(0, parseInt(setR));
     if (hasSetLQ)    params.set_lawyer_questions = Math.max(0, parseInt(setLQ));
 
     setSaving(true); setSaveResult(null);
@@ -102,8 +99,7 @@ export default function AdminSearchBlock() {
       setSaveResult({ ok: true, msg: res.changes?.join(" · ") || "Применено" });
       setSelected(prev => prev ? {
         ...prev,
-        paid_questions: res.paid_questions ?? prev.paid_questions,
-        paid_docs:      res.paid_docs      ?? prev.paid_docs,
+        paid_requests: res.paid_requests ?? prev.paid_requests,
         paid_expert:    res.paid_expert    ?? prev.paid_expert,
         lawyer_questions_left: res.lawyer_questions_left ?? prev.lawyer_questions_left,
       } : prev);
@@ -175,7 +171,7 @@ export default function AdminSearchBlock() {
       {/* Карточка пользователя */}
       {sel && (() => {
         const pl = planLabel(sel);
-        const canFiles = sel.paid_questions >= 100 || sel.paid_expert;
+        const canFiles = sel.paid_requests >= 100 || sel.paid_expert;
         return (
           <div className="space-y-3">
             {/* Шапка */}
@@ -192,20 +188,16 @@ export default function AdminSearchBlock() {
                 <Badge label={pl.label} color={pl.color} />
                 <span className={`text-[10px] flex items-center gap-0.5 font-medium ${canFiles ? "text-emerald-600" : "text-slate-400"}`}>
                   <Icon name="Paperclip" size={10} />
-                  {canFiles ? "Файлы в чат: ✓" : "Файлы: нет (нужно 100+ вопр)"}
+                  {canFiles ? "Файлы в чат: ✓" : "Файлы: нет (нужно 100+ запр)"}
                 </span>
               </div>
             </div>
 
             {/* Баланс */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="bg-blue-50 rounded-xl p-2.5 text-center">
-                <p className="text-xl font-bold text-blue-700">{sel.paid_questions}</p>
-                <p className="text-[10px] text-blue-500 font-medium">Вопр AI</p>
-              </div>
-              <div className="bg-amber-50 rounded-xl p-2.5 text-center">
-                <p className="text-xl font-bold text-amber-700">{sel.paid_docs}</p>
-                <p className="text-[10px] text-amber-500 font-medium">Докум</p>
+                <p className="text-xl font-bold text-blue-700">{sel.paid_requests}</p>
+                <p className="text-[10px] text-blue-500 font-medium">Запр к AI</p>
               </div>
               <div className={`rounded-xl p-2.5 text-center ${sel.lawyer_questions_left ? "bg-emerald-50" : "bg-slate-50"}`}>
                 <p className={`text-xl font-bold ${sel.lawyer_questions_left ? "text-emerald-700" : "text-slate-400"}`}>
@@ -305,24 +297,14 @@ export default function AdminSearchBlock() {
                     <Icon name="SlidersHorizontal" size={12} className="text-navy-500" />
                     Итоговое количество после начисления (необязательно)
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Вопросов AI (итого =)</label>
+                      <label className="text-[10px] text-muted-foreground mb-1 block">Запросов к AI (итого =)</label>
                       <input
                         type="number" min="0"
-                        value={setQ}
-                        onChange={e => setSetQ(e.target.value)}
-                        placeholder={`сейчас: ${sel.paid_questions}`}
-                        className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Документов (итого =)</label>
-                      <input
-                        type="number" min="0"
-                        value={setD}
-                        onChange={e => setSetD(e.target.value)}
-                        placeholder={`сейчас: ${sel.paid_docs}`}
+                        value={setR}
+                        onChange={e => setSetR(e.target.value)}
+                        placeholder={`сейчас: ${sel.paid_requests}`}
                         className="w-full text-sm border border-border rounded-xl px-3 py-2 outline-none focus:border-navy-400"
                       />
                     </div>
@@ -338,12 +320,12 @@ export default function AdminSearchBlock() {
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Устанавливает точное значение после начисления тарифа. Например: дать Профи (+100 вопр), но ограничить итог до 30.
+                    Устанавливает точное значение после начисления тарифа. Например: дать Профи (+100 запр), но ограничить итог до 30.
                   </p>
                 </div>
 
                 {/* Пример для ситуации как с Екатериной */}
-                {grantSvc && (setQ !== "" || setD !== "") && (
+                {grantSvc && setR !== "" && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-[10px] text-blue-700">
                     💡 Будет начислен тариф <strong>{SERVICE_LABELS[grantSvc]}</strong>, затем баланс будет установлен в итоговое значение, которое вы указали.
                   </div>

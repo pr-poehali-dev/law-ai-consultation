@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   getToken,
-  checkProAccess,
-  checkAndConsumeEditResources,
+  checkEditorAccess,
+  consumeRequest,
 } from "@/lib/auth";
 import { type DocRecommendationItem } from "@/pages/cabinet/DocsTab";
 import func2url from "../../backend/func2url.json";
@@ -127,7 +127,7 @@ export default function DocAiChatPanel({
 
   useEffect(() => {
     const check = async () => {
-      const result = await checkProAccess();
+      const result = await checkEditorAccess();
       if (!result.ok) { onPaymentRequired(); return; }
       setAccessChecked(true);
       const h = loadHistory(docId);
@@ -197,8 +197,8 @@ export default function DocAiChatPanel({
     setPendingMultiStage(null);
 
     if (!isResume) {
-      // 5 вопросов за одну правку
-      const result = await checkAndConsumeEditResources(0);
+      // 1 запрос за сообщение в AI-чате редактора (правка сама по себе не списывается)
+      const result = await consumeRequest();
       if (!result.ok) { setEditLoading(false); onPaymentRequired(); return; }
     }
 

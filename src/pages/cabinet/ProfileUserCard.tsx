@@ -4,11 +4,10 @@ import { hasActiveSubscription } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 
 function getActivePlanInfo(user: User): { id: string; name: string; color: string } | null {
-  const q = user.paidQuestions ?? 0;
-  const d = user.paidDocs ?? 0;
-  if (q >= 300 || d >= 50) return { id: "plan_max", name: "Максимум", color: "from-slate-700 to-navy-800" };
-  if (q >= 100 || d >= 20) return { id: "plan_pro", name: "Профи", color: "from-navy-700 to-navy-900" };
-  if (q >= 30 || d >= 5)   return { id: "plan_starter", name: "Старт", color: "from-navy-600 to-navy-800" };
+  const r = user.paidRequests ?? 0;
+  if (r >= 200) return { id: "plan_max", name: "Максимум", color: "from-slate-700 to-navy-800" };
+  if (r >= 90)  return { id: "plan_pro", name: "Профи", color: "from-navy-700 to-navy-900" };
+  if (r >= 35)  return { id: "plan_starter", name: "Старт", color: "from-navy-600 to-navy-800" };
   return null;
 }
 
@@ -42,10 +41,9 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
         </div>
 
         {/* Остатки — тёмные карточки */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {([
-            { label: "Вопросов AI",     value: user.isAdmin ? "∞" : (user.paidQuestions ?? 0),   icon: "MessageCircle", accent: "#60a5fa" },
-            { label: "Документов",      value: user.isAdmin ? "∞" : (user.paidDocs ?? 0),         icon: "FileText",      accent: "#fbbf24" },
+            { label: "Запросов к AI",  value: user.isAdmin ? "∞" : (user.paidRequests ?? 0),   icon: "Sparkles", accent: "#60a5fa" },
             { label: "Консультаций", value: user.isAdmin ? "∞" : lawyerQ, icon: "UserCheck", accent: lawyerQ > 0 || user.isAdmin ? "#34d399" : "#64748b" },
             { label: "Бизнес",          value: user.isAdmin ? "∞" : (bizSubActive ? (user.businessActionsLeft ?? 0) : "—"), icon: "Briefcase", accent: bizSubActive || user.isAdmin ? "#a78bfa" : "#64748b" },
           ] as const).map((stat) => (
@@ -88,14 +86,10 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
                 <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/15 text-white">Активен</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-bold text-white">{user.paidQuestions ?? 0}</p>
-                  <p className="text-[9px] text-white/60 font-medium mt-0.5">вопросов AI</p>
-                </div>
-                <div className="rounded-xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-bold text-white">{user.paidDocs ?? 0}</p>
-                  <p className="text-[9px] text-white/60 font-medium mt-0.5">документов</p>
+                  <p className="text-lg font-bold text-white">{user.paidRequests ?? 0}</p>
+                  <p className="text-[9px] text-white/60 font-medium mt-0.5">запросов к AI</p>
                 </div>
                 <div className={`rounded-xl p-2.5 text-center ${lawyerQ > 0 ? "bg-gold-400/20 border border-gold-400/30" : "bg-white/10"}`}>
                   <p className={`text-lg font-bold ${lawyerQ > 0 ? "text-gold-300" : "text-white"}`}>{lawyerQ}</p>

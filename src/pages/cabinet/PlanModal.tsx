@@ -7,8 +7,8 @@ interface Plan {
   name: string;
   price: string;
   oldPrice?: string;
-  questions: number;
-  docs: number;
+  /** Единое количество запросов к AI (объединяет прежние "вопросы" и "документы") */
+  requests: number;
   features: string[];
   lawyerFeature?: string;
   popular: boolean;
@@ -21,11 +21,9 @@ export const PLANS: Plan[] = [
     id: "document",
     name: "Пробный",
     price: "290",
-    questions: 5,
-    docs: 2,
+    requests: 7,
     features: [
-      "5 вопросов AI-юристу",
-      "2 документа через систему",
+      "7 запросов к AI",
       "AI-редактор документов",
       "Поиск судебной практики",
       "Калькулятор неустойки",
@@ -41,12 +39,10 @@ export const PLANS: Plan[] = [
     name: "Старт",
     price: "990",
     oldPrice: "1 490",
-    questions: 30,
-    docs: 5,
+    requests: 35,
     lawyerFeature: "1 полная консультация юриста-эксперта",
     features: [
-      "30 вопросов AI-юристу",
-      "До 5 документов через систему",
+      "35 запросов к AI",
       "1 полная консультация юриста-эксперта",
       "Загрузка PDF, DOCX, фото для анализа",
       "AI-редактор и уточнение у AI-юриста",
@@ -66,13 +62,11 @@ export const PLANS: Plan[] = [
     name: "Профи",
     price: "3 990",
     oldPrice: "5 990",
-    questions: 70,
-    docs: 20,
+    requests: 90,
     lawyerFeature: "3 полные консультации юриста-эксперта",
     features: [
       "Всё из тарифа «Старт»",
-      "70 вопросов AI-юристу",
-      "До 20 документов через систему",
+      "90 запросов к AI",
       "3 полные консультации юриста-эксперта",
       "Консультация юриста с анализом документов",
       "Поиск судебной практики",
@@ -88,13 +82,11 @@ export const PLANS: Plan[] = [
     name: "Максимум",
     price: "5 990",
     oldPrice: "8 990",
-    questions: 150,
-    docs: 50,
+    requests: 200,
     lawyerFeature: "10 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Профи»",
-      "150 вопросов AI-юристу",
-      "До 50 документов через систему",
+      "200 запросов к AI",
       "10 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
@@ -113,13 +105,11 @@ export const PLANS: Plan[] = [
     name: "Корпоративный",
     price: "9 990",
     oldPrice: "",
-    questions: 300,
-    docs: 100,
+    requests: 400,
     lawyerFeature: "20 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Максимум»",
-      "300 вопросов AI-юристу",
-      "До 100 документов через систему",
+      "400 запросов к AI",
       "20 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
@@ -135,9 +125,9 @@ export const PLANS: Plan[] = [
 ];
 
 export function getActivePlan(user: User): string | null {
-  if ((user.paidQuestions ?? 0) >= 150 || (user.paidDocs ?? 0) >= 50) return "plan_max";
-  if ((user.paidQuestions ?? 0) >= 70 || (user.paidDocs ?? 0) >= 20) return "plan_pro";
-  if ((user.paidQuestions ?? 0) >= 30 || (user.paidDocs ?? 0) >= 5) return "plan_starter";
+  if ((user.paidRequests ?? 0) >= 200) return "plan_max";
+  if ((user.paidRequests ?? 0) >= 90) return "plan_pro";
+  if ((user.paidRequests ?? 0) >= 35) return "plan_starter";
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
   if (user.purchasedPlan === "starter") return "plan_starter";
@@ -172,28 +162,23 @@ const PLAN_ICONS: Record<string, string> = {
 // Ключевые метрики по тарифу (для визуальных пилюль)
 const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
   document: [
-    { icon: "MessageCircle", label: "5 вопросов AI" },
-    { icon: "FileText", label: "2 документа" },
+    { icon: "MessageCircle", label: "7 запросов к AI" },
     { icon: "Rocket", label: "Доступ к «Старт»" },
   ],
   plan_starter: [
-    { icon: "MessageCircle", label: "30 вопросов AI" },
-    { icon: "FileText", label: "5 документов" },
+    { icon: "MessageCircle", label: "35 запросов к AI" },
     { icon: "UserCheck", label: "1 консультация" },
   ],
   plan_pro: [
-    { icon: "MessageCircle", label: "70 вопросов AI" },
-    { icon: "FileText", label: "20 документов" },
+    { icon: "MessageCircle", label: "90 запросов к AI" },
     { icon: "UserCheck", label: "3 консультации" },
   ],
   plan_max: [
-    { icon: "MessageCircle", label: "150 вопросов AI" },
-    { icon: "FileText", label: "50 документов" },
+    { icon: "MessageCircle", label: "200 запросов к AI" },
     { icon: "UserCheck", label: "10 консультаций" },
   ],
   plan_corporate: [
-    { icon: "MessageCircle", label: "300 вопросов AI" },
-    { icon: "FileText", label: "100 документов" },
+    { icon: "MessageCircle", label: "400 запросов к AI" },
     { icon: "UserCheck", label: "20 консультаций" },
   ],
 };
@@ -348,9 +333,9 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                             </span>
                           )}
                         </div>
-                        {/* Счётчик вопросов/документов — маленький */}
+                        {/* Счётчик запросов — маленький */}
                         <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
-                          {plan.questions} вопр. · {plan.docs} докум.
+                          {plan.requests} запр. к AI
                         </p>
                       </div>
                     </div>
@@ -424,7 +409,7 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                     >
                       <Icon name="CheckCircle" size={13} color="#34d399" />
                       <span className="text-xs font-semibold">
-                        Активен · {user.paidQuestions ?? 0} вопр. · {user.paidDocs ?? 0} докум.
+                        Активен · {user.paidRequests ?? 0} запр.
                       </span>
                     </div>
                   ) : (

@@ -112,7 +112,7 @@ export function useCabinetInit({
                   freshUser.isAdmin ||
                   hasActiveSubscription(freshUser, "consult") ||
                   freshUser.hasFileAnalysis ||
-                  (freshUser.paidQuestions ?? 0) > 0
+                  (freshUser.paidRequests ?? 0) > 0
                 );
                 if (canRun) {
                   analyzeFileDirectly({ name, b64 }, comment || "");
@@ -130,7 +130,6 @@ export function useCabinetInit({
 
       // Подхватываем контекст диалога с лендинга
       const pendingDocType = localStorage.getItem("landing_pending_doc");
-      const pendingServiceType = localStorage.getItem("landing_pending_service");
       const pendingDocDetails = localStorage.getItem("landing_pending_doc_details");
       const pendingDocFilesRaw = localStorage.getItem("landing_pending_doc_files");
       const rawHist = localStorage.getItem("landing_chat_history");
@@ -140,9 +139,7 @@ export function useCabinetInit({
       localStorage.removeItem("landing_pending_doc_details");
       localStorage.removeItem("landing_pending_doc_files");
 
-      if (pendingServiceType === "quick_questions") {
-        setTab("chat");
-      } else if (pendingDocType || rawHist) {
+      if (pendingDocType || rawHist) {
         try {
           // Приоритет: явные детали из DocDetailsModal, иначе — история чата
           let details: string;

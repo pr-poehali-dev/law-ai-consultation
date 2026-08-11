@@ -22,8 +22,8 @@ CORS = {
 }
 
 _SELECT_COLS = (
-    "id, email, name, phone, free_questions_used, paid_questions, "
-    "paid_docs, paid_expert, paid_business, is_admin, "
+    "id, email, name, phone, free_questions_used, paid_requests, "
+    "paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
     "lawyer_questions_left, has_file_analysis, purchased_plan, lawyer_consultations_left"
@@ -71,21 +71,20 @@ def _format_user(row) -> dict:
         "name": row[2],
         "phone": row[3],
         "freeQuestionsUsed": row[4],
-        "paidQuestions": row[5],
-        "paidDocs": row[6],
-        "paidExpert": row[7],
-        "paidBusiness": row[8],
-        "isAdmin": bool(row[9]),
-        "subscriptionConsultUntil": _fmt_dt(row[10]),
-        "subscriptionDocsUntil": _fmt_dt(row[11]),
-        "businessSubscriptionUntil": _fmt_dt(row[12]) if len(row) > 12 else None,
-        "businessActionsLeft": row[13] if len(row) > 13 else 0,
-        "businessOrgName": row[14] if len(row) > 14 else "",
-        "referralCode": row[15] if len(row) > 15 else "",
-        "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
-        "hasFileAnalysis": bool(row[17]) if len(row) > 17 else False,
-        "purchasedPlan": row[18] if len(row) > 18 else None,
-        "lawyerConsultationsLeft": row[19] if len(row) > 19 else 0,
+        "paidRequests": row[5],
+        "paidExpert": row[6],
+        "paidBusiness": row[7],
+        "isAdmin": bool(row[8]),
+        "subscriptionConsultUntil": _fmt_dt(row[9]),
+        "subscriptionDocsUntil": _fmt_dt(row[10]),
+        "businessSubscriptionUntil": _fmt_dt(row[11]) if len(row) > 11 else None,
+        "businessActionsLeft": row[12] if len(row) > 12 else 0,
+        "businessOrgName": row[13] if len(row) > 13 else "",
+        "referralCode": row[14] if len(row) > 14 else "",
+        "lawyerQuestionsLeft": row[15] if len(row) > 15 else 0,
+        "hasFileAnalysis": bool(row[16]) if len(row) > 16 else False,
+        "purchasedPlan": row[17] if len(row) > 17 else None,
+        "lawyerConsultationsLeft": row[18] if len(row) > 18 else 0,
     }
 
 

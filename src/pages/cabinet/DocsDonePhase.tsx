@@ -72,7 +72,7 @@ export default function DocsDonePhase({
           className="text-sm px-5 py-2.5 rounded-xl flex items-center gap-2 bg-gradient-to-r from-blue-600 to-navy-700 hover:from-blue-700 hover:to-navy-800 text-white transition-all shadow-sm active:scale-95"
         >
           <Icon name="Bot" size={15} />
-          {(user.isAdmin || user.paidQuestions > 0 || hasActiveSubscription(user, "consult"))
+          {(user.isAdmin || user.paidRequests > 0 || hasActiveSubscription(user, "consult"))
             ? "Проанализировать AI"
             : "Проанализировать · 290 ₽"}
         </button>

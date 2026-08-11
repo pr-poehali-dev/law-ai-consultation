@@ -15,8 +15,8 @@ ADMIN_EMAIL = "ilya.povarchuk@mail.ru"
 REPORT_EMAIL = "povpartner@mail.ru"
 
 _SELECT_COLS = (
-    "id, email, name, phone, free_questions_used, paid_questions, "
-    "paid_docs, paid_expert, paid_business, is_admin, "
+    "id, email, name, phone, free_questions_used, paid_requests, "
+    "paid_expert, paid_business, is_admin, "
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
     "lawyer_questions_left, has_file_analysis, purchased_plan, "
@@ -153,18 +153,6 @@ def _normalize_phone(phone: str) -> str:
     return digits
 
 
-GRANT_SERVICE_MAP = {
-    "consultation":          ("paid_expert", None, None),
-    "document":              (None, "paid_docs", 1),
-    "expert":                ("paid_expert", None, None),
-    "plan_starter":          (None, None, None),
-    "plan_starter_discount": (None, None, None),
-    "plan_pro":              (None, None, None),
-    "plan_max":              ("paid_expert", None, None),
-    "plan_max_expert":       ("paid_expert", None, None),
-}
-
-
 def _credit_pending_orders(conn, user_id: int, email: str) -> int:
     """Зачисляет незакрытые оплаченные ордера по email. Возвращает кол-во зачисленных.
     Атомарное обновление через RETURNING защищает от двойного зачисления при параллельных запросах.
@@ -217,11 +205,10 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s", (user_id,))
         elif service_type == "document":
-            # Тариф «Пробный»: +5 вопросов, +2 документа, разово
+            # Тариф «Пробный»: +7 запросов к AI (было 5 вопросов + 2 документа), разово
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 5,
-                        paid_docs = paid_docs + 2,
+                    SET paid_requests = paid_requests + 7,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
                             ELSE 'trial'
@@ -234,8 +221,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 30,
-                        paid_docs = paid_docs + 5,
+                    SET paid_requests = paid_requests + 35,
                         paid_expert = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
@@ -248,8 +234,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type == "plan_pro":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 70,
-                        paid_docs = paid_docs + 20,
+                    SET paid_requests = paid_requests + 90,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 3,
@@ -263,8 +248,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type in ("plan_max", "plan_max_expert"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 150,
-                        paid_docs = paid_docs + 50,
+                    SET paid_requests = paid_requests + 200,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 10,
@@ -275,8 +259,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
         elif service_type == "plan_corporate":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 300,
-                        paid_docs = paid_docs + 100,
+                    SET paid_requests = paid_requests + 400,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 20,
@@ -338,14 +321,14 @@ def handle_register(body: dict) -> dict:
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
 
-        # 1 бесплатный вопрос всем новым пользователям при регистрации
+        # 1 бесплатный запрос всем новым пользователям при регистрации
         trial_questions = 0 if is_admin else 1
 
         # Реферальный код — если указан, начислим бонус после создания
         ref_code = sanitize_str(body.get("ref_code") or "", max_len=32)
 
         cur.execute(
-            f"""INSERT INTO {SCHEMA}.users (email, name, phone, phone_norm, password_hash, agreed_to_terms, is_admin, paid_questions, last_login_at)
+            f"""INSERT INTO {SCHEMA}.users (email, name, phone, phone_norm, password_hash, agreed_to_terms, is_admin, paid_requests, last_login_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id""",
             (email, name, phone, phone_norm, pw_hash, agreed, is_admin, trial_questions)
         )
@@ -369,14 +352,14 @@ def handle_register(body: dict) -> dict:
                 ref_row = cur.fetchone()
                 if ref_row:
                     referrer_id = ref_row[0]
-                    # +2 вопроса рефереру
+                    # +2 запроса рефереру
                     cur.execute(
-                        f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s",
+                        f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 2 WHERE id = %s",
                         (referrer_id,)
                     )
-                    # +2 вопроса новому пользователю (дополнительно к trial)
+                    # +2 запроса новому пользователю (дополнительно к trial)
                     cur.execute(
-                        f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s",
+                        f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 2 WHERE id = %s",
                         (user_id,)
                     )
                     conn.commit()
@@ -579,13 +562,15 @@ def handle_update_profile(token: str, body: dict) -> dict:
     return _ok({"user": user})
 
 
-def handle_consume_question(token: str) -> dict:
+def handle_consume_request(token: str) -> dict:
+    """Списывает 1 запрос к AI (объединяет прежние 'вопрос' и 'документ' в одну сущность).
+    Активная подписка (consult ИЛИ docs) даёт безлимит — списание не требуется."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    if user.get("isAdmin", False) or _has_active_subscription(user, "consult"):
+    if user.get("isAdmin", False) or _has_active_subscription(user, "consult") or _has_active_subscription(user, "docs"):
         return _ok({"ok": True, "is_last_question": False})
-    # has_file_analysis — разовый анализ документа, не списываем вопрос из пула
+    # has_file_analysis — разовый анализ документа, не списываем запрос из пула
     if user.get("hasFileAnalysis", False):
         conn = get_conn()
         cur = conn.cursor()
@@ -599,49 +584,30 @@ def handle_consume_question(token: str) -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
-        q = user.get("paidQuestions", 0)
+        q = user.get("paidRequests", 0)
         if q > 0:
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions - 1 WHERE id = %s", (user["id"],))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests - 1 WHERE id = %s", (user["id"],))
             conn.commit()
-            # is_last_question = True только когда у пользователя был ровно 1 вопрос (последний)
+            # is_last_question = True только когда у пользователя был ровно 1 запрос (последний)
             return _ok({"ok": True, "is_last_question": q == 1})
         else:
-            return _err(403, "Нет доступных вопросов")
+            return _err(403, "Нет доступных запросов")
     finally:
         cur.close()
         conn.close()
 
 
-def handle_consume_doc(token: str) -> dict:
+def handle_refund_request(token: str) -> dict:
+    """Возврат 1 запроса если генерация документа упала на стороне AI — best-effort."""
     user = get_user_by_token(token)
     if not user:
         return _err(401, "Не авторизован")
-    if user.get("isAdmin", False) or _has_active_subscription(user, "docs"):
-        return _ok({"ok": True})
-    if user.get("paidDocs", 0) <= 0:
-        return _err(403, "Нет доступных документов")
-    conn = get_conn()
-    cur = conn.cursor()
-    try:
-        cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs - 1 WHERE id = %s", (user["id"],))
-        conn.commit()
-        return _ok({"ok": True})
-    finally:
-        cur.close()
-        conn.close()
-
-
-def handle_refund_doc(token: str) -> dict:
-    """Возврат 1 слота документа если генерация упала на стороне AI — best-effort."""
-    user = get_user_by_token(token)
-    if not user:
-        return _err(401, "Не авторизован")
-    if user.get("isAdmin", False) or _has_active_subscription(user, "docs"):
+    if user.get("isAdmin", False) or _has_active_subscription(user, "consult") or _has_active_subscription(user, "docs"):
         return _ok({"ok": True})
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute(f"UPDATE {SCHEMA}.users SET paid_docs = paid_docs + 1 WHERE id = %s", (user["id"],))
+        cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 1 WHERE id = %s", (user["id"],))
         conn.commit()
         return _ok({"ok": True})
     finally:
@@ -669,15 +635,14 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                 return _ok({"ok": True, "skipped": True})
 
         if service_type == "consultation":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 3 WHERE id = %s", (user["id"],))
         elif service_type == "trial":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 2 WHERE id = %s", (user["id"],))
+            cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 2 WHERE id = %s", (user["id"],))
         elif service_type == "document":
-            # Тариф «Пробный»: +5 вопросов, +2 документа, разово
+            # Тариф «Пробный»: +7 запросов к AI (было 5 вопросов + 2 документа), разово
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 5,
-                        paid_docs = paid_docs + 2,
+                    SET paid_requests = paid_requests + 7,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
                             ELSE 'trial'
@@ -687,15 +652,13 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             )
         elif service_type == "doc_analysis":
             cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s", (user["id"],))
-        elif service_type == "quick_questions":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_questions = paid_questions + 3 WHERE id = %s", (user["id"],))
         elif service_type == "expert":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_expert = TRUE,
-                        paid_questions = CASE
-                            WHEN paid_questions = 0 AND (subscription_consult_until IS NULL OR subscription_consult_until < NOW()) THEN 3
-                            ELSE paid_questions
+                        paid_requests = CASE
+                            WHEN paid_requests = 0 AND (subscription_consult_until IS NULL OR subscription_consult_until < NOW()) THEN 3
+                            ELSE paid_requests
                         END
                     WHERE id = %s""",
                 (user["id"],)
@@ -706,8 +669,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 30,
-                        paid_docs = paid_docs + 5,
+                    SET paid_requests = paid_requests + 35,
                         paid_expert = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
@@ -720,8 +682,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "plan_pro":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 70,
-                        paid_docs = paid_docs + 20,
+                    SET paid_requests = paid_requests + 90,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 3,
@@ -733,11 +694,10 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                 (user["id"],)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
-            # Тариф Максимум: 150 вопросов, 50 документов, доступ к юристу
+            # Тариф Максимум: 200 запросов, доступ к юристу
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 150,
-                        paid_docs = paid_docs + 50,
+                    SET paid_requests = paid_requests + 200,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 10,
@@ -748,8 +708,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
         elif service_type == "plan_corporate":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
-                    SET paid_questions = paid_questions + 300,
-                        paid_docs = paid_docs + 100,
+                    SET paid_requests = paid_requests + 400,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
                         lawyer_consultations_left = lawyer_consultations_left + 20,
@@ -1341,21 +1300,20 @@ def _format_user(row) -> dict:
         "name": row[2],
         "phone": row[3],
         "freeQuestionsUsed": row[4],
-        "paidQuestions": row[5],
-        "paidDocs": row[6],
-        "paidExpert": row[7],
-        "paidBusiness": row[8],
-        "isAdmin": bool(row[9]),
-        "subscriptionConsultUntil": _fmt_dt(row[10]),
-        "subscriptionDocsUntil": _fmt_dt(row[11]),
-        "businessSubscriptionUntil": _fmt_dt(row[12]) if len(row) > 12 else None,
-        "businessActionsLeft": row[13] if len(row) > 13 else 0,
-        "businessOrgName": row[14] if len(row) > 14 else "",
-        "referralCode": row[15] if len(row) > 15 else "",
-        "lawyerQuestionsLeft": row[16] if len(row) > 16 else 0,
-        "hasFileAnalysis": bool(row[17]) if len(row) > 17 else False,
-        "purchasedPlan": row[18] if len(row) > 18 else None,
-        "lawyerConsultationsLeft": row[19] if len(row) > 19 else 0,
+        "paidRequests": row[5],
+        "paidExpert": row[6],
+        "paidBusiness": row[7],
+        "isAdmin": bool(row[8]),
+        "subscriptionConsultUntil": _fmt_dt(row[9]),
+        "subscriptionDocsUntil": _fmt_dt(row[10]),
+        "businessSubscriptionUntil": _fmt_dt(row[11]) if len(row) > 11 else None,
+        "businessActionsLeft": row[12] if len(row) > 12 else 0,
+        "businessOrgName": row[13] if len(row) > 13 else "",
+        "referralCode": row[14] if len(row) > 14 else "",
+        "lawyerQuestionsLeft": row[15] if len(row) > 15 else 0,
+        "hasFileAnalysis": bool(row[16]) if len(row) > 16 else False,
+        "purchasedPlan": row[17] if len(row) > 17 else None,
+        "lawyerConsultationsLeft": row[18] if len(row) > 18 else 0,
     }
 
 
@@ -1920,7 +1878,7 @@ def handle_get_new_users(token: str, body: dict) -> dict:
             placeholders = ",".join(["%s"] * len(seen_ids))
             cur.execute(
                 f"""SELECT id, email, name, phone, created_at,
-                           paid_questions, paid_docs, is_admin
+                           paid_requests, is_admin
                     FROM {SCHEMA}.users
                     WHERE id NOT IN ({placeholders})
                     ORDER BY created_at DESC
@@ -1930,7 +1888,7 @@ def handle_get_new_users(token: str, body: dict) -> dict:
         else:
             cur.execute(
                 f"""SELECT id, email, name, phone, created_at,
-                           paid_questions, paid_docs, is_admin
+                           paid_requests, is_admin
                     FROM {SCHEMA}.users
                     ORDER BY created_at DESC
                     LIMIT %s""",
@@ -1945,9 +1903,8 @@ def handle_get_new_users(token: str, body: dict) -> dict:
                 "name": r[2] or "",
                 "phone": r[3] or "",
                 "created_at": r[4].isoformat() if r[4] else None,
-                "paid_questions": r[5] or 0,
-                "paid_docs": r[6] or 0,
-                "is_admin": r[7] or False,
+                "paid_requests": r[5] or 0,
+                "is_admin": r[6] or False,
             })
 
         cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.users")
@@ -1971,7 +1928,7 @@ def handle_admin_search_user(token: str, body: dict) -> dict:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"""SELECT id, email, name, phone, paid_questions, paid_docs, paid_expert,
+            f"""SELECT id, email, name, phone, paid_requests, paid_expert,
                        paid_business, is_admin, created_at, last_login_at,
                        subscription_consult_until, subscription_docs_until,
                        business_subscription_until, business_actions_left,
@@ -2015,16 +1972,16 @@ def handle_admin_search_user(token: str, body: dict) -> dict:
             ]
             users.append({
                 "id": uid, "email": r[1], "name": r[2] or "", "phone": r[3] or "",
-                "paid_questions": r[4] or 0, "paid_docs": r[5] or 0,
-                "paid_expert": bool(r[6]), "paid_business": r[7] or 0,
-                "is_admin": bool(r[8]),
-                "created_at": r[9].isoformat() if r[9] else None,
-                "last_login_at": r[10].isoformat() if r[10] else None,
-                "subscription_consult_until": r[11].isoformat() if r[11] else None,
-                "subscription_docs_until": r[12].isoformat() if r[12] else None,
-                "business_subscription_until": r[13].isoformat() if r[13] else None,
-                "business_actions_left": r[14] or 0,
-                "lawyer_questions_left": r[15] if len(r) > 15 else 0,
+                "paid_requests": r[4] or 0,
+                "paid_expert": bool(r[5]), "paid_business": r[6] or 0,
+                "is_admin": bool(r[7]),
+                "created_at": r[8].isoformat() if r[8] else None,
+                "last_login_at": r[9].isoformat() if r[9] else None,
+                "subscription_consult_until": r[10].isoformat() if r[10] else None,
+                "subscription_docs_until": r[11].isoformat() if r[11] else None,
+                "business_subscription_until": r[12].isoformat() if r[12] else None,
+                "business_actions_left": r[13] or 0,
+                "lawyer_questions_left": r[14] if len(r) > 14 else 0,
                 "orders": orders,
                 "billing": billing,
             })
@@ -2035,7 +1992,7 @@ def handle_admin_search_user(token: str, body: dict) -> dict:
 
 
 def handle_admin_grant(token: str, body: dict) -> dict:
-    """Начисление/списание вопросов, документов, тарифа пользователю — только для админа."""
+    """Начисление/списание запросов к AI, тарифа пользователю — только для админа."""
     admin = get_user_by_token(token)
     if not admin or not admin.get("isAdmin", False):
         return _err(403, "Доступ запрещён")
@@ -2045,92 +2002,62 @@ def handle_admin_grant(token: str, body: dict) -> dict:
         return _err(400, "Укажите target_user_id")
     target_user_id = int(target_user_id)
 
-    # Поддерживаем дельту (положительную и отрицательную) и прямую установку
-    questions_delta = int(body.get("questions", 0))   # +/- к текущему
-    docs_delta = int(body.get("docs", 0))             # +/- к текущему
-    set_questions = body.get("set_questions")          # установить точное значение
-    set_docs = body.get("set_docs")                    # установить точное значение
+    # Поддерживаем дельту (положительную и отрицательную) и прямую установку.
+    # questions/docs — legacy-имена полей с фронтенда, оба идут в единый paid_requests.
+    requests_delta = int(body.get("questions", 0)) + int(body.get("docs", 0))   # +/- к текущему
+    set_requests_raw = body.get("set_questions")
+    set_requests = None if set_requests_raw is None else int(set_requests_raw) + int(body.get("set_docs", 0) or 0)
     grant_service = sanitize_str(body.get("grant_service", ""), max_len=50)  # начислить тариф
     comment = sanitize_str(body.get("comment", "Ручное действие администратора"), max_len=200)
 
     set_lawyer_questions = body.get("set_lawyer_questions")  # установить точное значение консультаций
     lawyer_questions_delta = int(body.get("lawyer_questions", 0))  # +/- к текущему
 
-    if questions_delta == 0 and docs_delta == 0 and set_questions is None and set_docs is None and set_lawyer_questions is None and lawyer_questions_delta == 0 and not grant_service:
-        return _err(400, "Укажите изменение: вопросы, документы или тариф")
+    if requests_delta == 0 and set_requests is None and set_lawyer_questions is None and lawyer_questions_delta == 0 and not grant_service:
+        return _err(400, "Укажите изменение: запросы к AI или тариф")
 
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute(
-            f"SELECT id, email, name, paid_questions, paid_docs FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT id, email, name, paid_requests FROM {SCHEMA}.users WHERE id = %s",
             (target_user_id,)
         )
         row = cur.fetchone()
         if not row:
             return _err(404, "Пользователь не найден")
         target_email = row[1]
-        cur_q = row[3] or 0
-        cur_d = row[4] or 0
+        cur_r = row[3] or 0
 
         changes = []
 
-        # Дельта вопросов
-        if questions_delta != 0:
-            new_q = max(0, cur_q + questions_delta)
+        # Дельта запросов
+        if requests_delta != 0:
+            new_r = max(0, cur_r + requests_delta)
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = %s WHERE id = %s",
-                (new_q, target_user_id)
+                f"UPDATE {SCHEMA}.users SET paid_requests = %s WHERE id = %s",
+                (new_r, target_user_id)
             )
-            sign = "+" if questions_delta > 0 else ""
-            changes.append(f"{sign}{questions_delta} вопр. (итого {new_q})")
+            sign = "+" if requests_delta > 0 else ""
+            changes.append(f"{sign}{requests_delta} запр. (итого {new_r})")
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'consultation', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"{sign}{questions_delta} вопр. · {comment}")
+                (target_user_id, target_email, f"{sign}{requests_delta} запр. · {comment}")
             )
 
-        # Прямая установка вопросов
-        if set_questions is not None:
-            sq = max(0, int(set_questions))
+        # Прямая установка запросов
+        if set_requests is not None:
+            sr = max(0, set_requests)
             cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_questions = %s WHERE id = %s",
-                (sq, target_user_id)
+                f"UPDATE {SCHEMA}.users SET paid_requests = %s WHERE id = %s",
+                (sr, target_user_id)
             )
-            changes.append(f"вопросов установлено: {sq}")
+            changes.append(f"запросов установлено: {sr}")
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
                     VALUES (%s, %s, 'consultation', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"Установлено {sq} вопр. · {comment}")
-            )
-
-        # Дельта документов
-        if docs_delta != 0:
-            new_d = max(0, cur_d + docs_delta)
-            cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_docs = %s WHERE id = %s",
-                (new_d, target_user_id)
-            )
-            sign = "+" if docs_delta > 0 else ""
-            changes.append(f"{sign}{docs_delta} докум. (итого {new_d})")
-            cur.execute(
-                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
-                    VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"{sign}{docs_delta} докум. · {comment}")
-            )
-
-        # Прямая установка документов
-        if set_docs is not None:
-            sd = max(0, int(set_docs))
-            cur.execute(
-                f"UPDATE {SCHEMA}.users SET paid_docs = %s WHERE id = %s",
-                (sd, target_user_id)
-            )
-            changes.append(f"документов установлено: {sd}")
-            cur.execute(
-                f"""INSERT INTO {SCHEMA}.billing_log (user_id, user_email, service_type, amount, description, source)
-                    VALUES (%s, %s, 'document', 0, %s, 'admin_grant')""",
-                (target_user_id, target_email, f"Установлено {sd} докум. · {comment}")
+                (target_user_id, target_email, f"Установлено {sr} запр. · {comment}")
             )
 
         # Дельта консультаций юриста (+/-)
@@ -2170,11 +2097,11 @@ def handle_admin_grant(token: str, body: dict) -> dict:
 
         # Начисление тарифа
         SERVICE_GRANTS = {
-            "plan_starter":          ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт: +30 вопр +5 докум +3 консульт юриста"),
-            "plan_starter_discount": ("paid_questions = paid_questions + 30, paid_docs = paid_docs + 5, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт (скидка): +30 вопр +5 докум +3 консульт юриста"),
-            "plan_pro":              ("paid_questions = paid_questions + 100, paid_docs = paid_docs + 20, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "Тариф Профи: +100 вопр +20 докум +5 консульт юриста"),
-            "plan_max":              ("paid_questions = paid_questions + 300, paid_docs = paid_docs + 50, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 30", "Тариф Максимум: +300 вопр +50 докум +30 консульт юриста"),
-            "document":              ("paid_questions = paid_questions + 5, paid_docs = paid_docs + 2, purchased_plan = CASE WHEN purchased_plan IN ('trial','starter','pro','max') THEN purchased_plan ELSE 'trial' END", "Тариф «Пробный»: +5 вопр +2 докум"),
+            "plan_starter":          ("paid_requests = paid_requests + 35, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт: +35 запр +3 консульт юриста"),
+            "plan_starter_discount": ("paid_requests = paid_requests + 35, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт (скидка): +35 запр +3 консульт юриста"),
+            "plan_pro":              ("paid_requests = paid_requests + 120, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "Тариф Профи: +120 запр +5 консульт юриста"),
+            "plan_max":              ("paid_requests = paid_requests + 350, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 30", "Тариф Максимум: +350 запр +30 консульт юриста"),
+            "document":              ("paid_requests = paid_requests + 7, purchased_plan = CASE WHEN purchased_plan IN ('trial','starter','pro','max') THEN purchased_plan ELSE 'trial' END", "Тариф «Пробный»: +7 запр"),
             "consultation":          ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
             "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
             "lawyer_questions":      ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
@@ -2198,7 +2125,7 @@ def handle_admin_grant(token: str, body: dict) -> dict:
 
         # Возвращаем обновлённые данные пользователя
         cur.execute(
-            f"SELECT paid_questions, paid_docs, paid_expert, lawyer_consultations_left FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT paid_requests, paid_expert, lawyer_consultations_left FROM {SCHEMA}.users WHERE id = %s",
             (target_user_id,)
         )
         upd = cur.fetchone()
@@ -2220,10 +2147,9 @@ def handle_admin_grant(token: str, body: dict) -> dict:
         return _ok({
             "ok": True,
             "changes": changes,
-            "paid_questions": upd[0] if upd else 0,
-            "paid_docs": upd[1] if upd else 0,
-            "paid_expert": bool(upd[2]) if upd else False,
-            "lawyer_questions_left": upd[3] if upd else 0,
+            "paid_requests": upd[0] if upd else 0,
+            "paid_expert": bool(upd[1]) if upd else False,
+            "lawyer_questions_left": upd[2] if upd else 0,
         })
     except Exception as e:
         conn.rollback()

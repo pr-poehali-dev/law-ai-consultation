@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { consumeQuestion, getToken, getQuestionsLeft, invalidateUserCache, hasActiveSubscription, getUser, getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
+import { consumeRequest, getToken, getRequestsLeft, invalidateUserCache, hasActiveSubscription, getUser, getDailyFreeLeft, incrementDailyFreeCount, fetchSafe } from "@/lib/auth";
 import { ServiceType } from "@/components/PaymentModal";
 import func2url from "../../../backend/func2url.json";
 import { type ChatMsg, type DocHint } from "@/pages/cabinet/ChatTab";
@@ -93,7 +93,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
   // При маунте: если вопросов 0 и есть история сообщений — показываем upsell с анимацией
   useEffect(() => {
     const check = async () => {
-      const left = await getQuestionsLeft();
+      const left = await getRequestsLeft();
       if (left === 0) {
         // Небольшая задержка чтобы чат успел отрендериться и анимация была видна
         setTimeout(() => {
@@ -182,7 +182,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
     const canAsk = isPremium ||
       canUseDailyFree ||
-      currentUser.paidQuestions > 0;
+      currentUser.paidRequests > 0;
 
     if (!canAsk) {
       setMessages((p) => {
@@ -193,7 +193,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     }
 
     // Определяем тип вопроса: бесплатный дневной или платный
-    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidRequests === 0;
 
     // Если это бесплатный дневной вопрос — инкрементируем счётчик (не списываем платное)
     if (usingDailyFree) {
@@ -269,7 +269,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       // Списываем вопрос только после успешного ответа — не теряем при ошибке
       let isLastQuestion = false;
       if (!usingDailyFree && !isPremium) {
-        const consumeResult = await consumeQuestion();
+        const consumeResult = await consumeRequest();
         isLastQuestion = consumeResult.isLastQuestion;
       }
 
@@ -287,7 +287,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       }]);
 
       invalidateUserCache();
-      const left = await getQuestionsLeft();
+      const left = await getRequestsLeft();
       refreshUser();
       if (left === 0) {
         setTimeout(() => {
@@ -360,7 +360,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
     const hasPurchasedPlan = !!currentUser.purchasedPlan;
     const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
-    const canAsk = isPremium || canUseDailyFree || currentUser.paidQuestions > 0;
+    const canAsk = isPremium || canUseDailyFree || currentUser.paidRequests > 0;
 
     if (!canAsk) {
       setMessages((p) => {
@@ -369,7 +369,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       });
       return;
     }
-    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidRequests === 0;
 
     // Добавляем карточку поиска сразу после сообщения — со статусом загрузки
     setMessages((p) => [
@@ -411,11 +411,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (usingDailyFree) {
         incrementDailyFreeCount();
       } else if (!isPremium) {
-        await consumeQuestion();
+        await consumeRequest();
       }
       invalidateUserCache();
       refreshUser();
-      const left = await getQuestionsLeft();
+      const left = await getRequestsLeft();
       if (left === 0) {
         setTimeout(() => {
           setMessages((p) => {
@@ -446,7 +446,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const isPremium = currentUser.isAdmin || hasActiveSubscription(currentUser, "consult");
     const hasPurchasedPlan = !!currentUser.purchasedPlan;
     const canUseDailyFree = hasDailyFree && !hasPurchasedPlan;
-    const canAsk = isPremium || canUseDailyFree || currentUser.paidQuestions > 0;
+    const canAsk = isPremium || canUseDailyFree || currentUser.paidRequests > 0;
 
     if (!canAsk) {
       setMessages((p) => {
@@ -455,7 +455,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       });
       return;
     }
-    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidQuestions === 0;
+    const usingDailyFree = !isPremium && canUseDailyFree && currentUser.paidRequests === 0;
 
     // Помечаем карточку поиска как «оценка запущена» — прячем кнопку
     setMessages((p) => p.map((m, i) => i === caseLawMsgIdx ? { ...m, caseLawAssessed: true } : m));
@@ -491,11 +491,11 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       if (usingDailyFree) {
         incrementDailyFreeCount();
       } else if (!isPremium) {
-        await consumeQuestion();
+        await consumeRequest();
       }
       invalidateUserCache();
       refreshUser();
-      const left = await getQuestionsLeft();
+      const left = await getRequestsLeft();
       if (left === 0) {
         setTimeout(() => {
           setMessages((p) => {
@@ -645,7 +645,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
       currentUser.hasFileAnalysis ||
-      currentUser.paidQuestions > 0;
+      currentUser.paidRequests > 0;
     if (!canAsk) {
       setMessages((p) => {
         if (p.some(m => m.isUpsell)) return p;
@@ -682,7 +682,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus(hasQuestion ? "Почти готово..." : "Выявляю правовые риски..."), 16000);
 
     try {
-      const consumeResult = await consumeQuestion();
+      const consumeResult = await consumeRequest();
       if (!consumeResult.ok) {
         setTyping(false);
         setTypingStatus("");
@@ -771,7 +771,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       } else {
         setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
         invalidateUserCache();
-        const left = await getQuestionsLeft();
+        const left = await getRequestsLeft();
         refreshUser();
         if (left === 0) {
           setTimeout(() => {
@@ -814,7 +814,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     if (!currentUser) return;
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
-      currentUser.paidQuestions > 0;
+      currentUser.paidRequests > 0;
     if (!canAsk) {
       setMessages((p) => {
         if (p.some(m => m.isUpsell)) return p;
@@ -833,7 +833,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
 
     try {
-      const consumeResult = await consumeQuestion();
+      const consumeResult = await consumeRequest();
       if (!consumeResult.ok) {
         clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
         setTyping(false);
@@ -876,7 +876,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
       } else {
         setMessages((p) => [...p, { role: "ai", text: aiText, docHint }]);
         invalidateUserCache();
-        const left = await getQuestionsLeft();
+        const left = await getRequestsLeft();
         refreshUser();
         if (left === 0) {
           setTimeout(() => {
@@ -911,7 +911,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const canAsk = currentUser.isAdmin ||
       hasActiveSubscription(currentUser, "consult") ||
       currentUser.hasFileAnalysis ||
-      currentUser.paidQuestions > 0;
+      currentUser.paidRequests > 0;
     if (!canAsk) return;
 
     const files = [{ ...file, size: "" }];
@@ -933,7 +933,7 @@ export function useChatLogic({ refreshUser, onPaymentRequired }: UseChatLogicPro
     const t3 = setTimeout(() => setTypingStatus("Выявляю правовые риски..."), 16000);
 
     try {
-      const consumeResult = await consumeQuestion();
+      const consumeResult = await consumeRequest();
       if (!consumeResult.ok) {
         setMessages((p) => {
           if (p.some(m => m.isUpsell)) return p;

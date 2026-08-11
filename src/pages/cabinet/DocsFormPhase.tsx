@@ -197,7 +197,7 @@ export default function DocsFormPhase({
           >
             {docGenerating ? (
               <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
-            ) : user && !user.isAdmin && user.paidDocs === 0 ? (
+            ) : user && !user.isAdmin && user.paidRequests === 0 ? (
               <><Icon name="Lock" size={15} />Оплатить · {docType.price} ₽</>
             ) : (
               <><Icon name="Zap" size={15} />Сгенерировать</>
@@ -307,7 +307,7 @@ export default function DocsFormPhase({
           >
             {docGenerating ? (
               <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
-            ) : user && !user.isAdmin && user.paidDocs === 0 ? (
+            ) : user && !user.isAdmin && user.paidRequests === 0 ? (
               <><Icon name="Lock" size={16} />Оплатить и сгенерировать · {docType.price} ₽</>
             ) : (
               <><Icon name="Zap" size={16} />Сгенерировать документ</>

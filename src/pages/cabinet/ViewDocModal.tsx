@@ -248,8 +248,7 @@ ${docTextClean}
     // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
     const hasAccess = user?.isAdmin
       || !!user?.purchasedPlan
-      || (user?.paidQuestions ?? 0) >= 30
-      || (user?.paidDocs ?? 0) >= 5
+      || (user?.paidRequests ?? 0) >= 35
       || hasActiveSubscription(user!, "consult")
       || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
@@ -327,8 +326,7 @@ ${docTextClean}
     // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
     const hasAccess = user?.isAdmin
       || !!user?.purchasedPlan
-      || (user?.paidQuestions ?? 0) >= 30
-      || (user?.paidDocs ?? 0) >= 5
+      || (user?.paidRequests ?? 0) >= 35
       || hasActiveSubscription(user!, "consult")
       || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {

@@ -36,8 +36,8 @@ export interface User {
   name: string;
   phone: string;
   freeQuestionsUsed: number;
-  paidQuestions: number;
-  paidDocs: number;
+  /** Единый счётчик запросов к AI (объединяет прежние "вопросы" и "документы") */
+  paidRequests: number;
   paidExpert: boolean;
   paidBusiness: number;
   isAdmin: boolean;
@@ -58,11 +58,11 @@ export function hasPurchasedPlan(user: User): boolean {
   return !!user.purchasedPlan;
 }
 
-/** Оба счётчика на нуле — функции недоступны, нужно продление */
+/** Счётчик запросов на нуле — функции недоступны, нужно продление */
 export function isPlanExhausted(user: User): boolean {
   if (user.isAdmin) return false;
   if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return false;
-  return user.paidQuestions <= 0 && user.paidDocs <= 0;
+  return user.paidRequests <= 0;
 }
 
 export function getToken(): string {
@@ -349,8 +349,9 @@ export async function updateProfile(name: string, phone?: string): Promise<User 
   return data.user || null;
 }
 
-export async function consumeQuestion(): Promise<{ ok: boolean; isLastQuestion: boolean }> {
-  const res = await apiCall({ action: "consume-question" });
+/** Списывает 1 запрос к AI (единая сущность — раньше были отдельно "вопрос" и "документ") */
+export async function consumeRequest(): Promise<{ ok: boolean; isLastQuestion: boolean }> {
+  const res = await apiCall({ action: "consume-request" });
   if (!res.ok) return { ok: false, isLastQuestion: false };
   try {
     const data = await res.json();
@@ -358,11 +359,6 @@ export async function consumeQuestion(): Promise<{ ok: boolean; isLastQuestion: 
   } catch {
     return { ok: true, isLastQuestion: false };
   }
-}
-
-export async function consumeDoc(): Promise<boolean> {
-  const res = await apiCall({ action: "consume-doc" });
-  return res.ok;
 }
 
 /** Проверить доступ к AI-функциям (Старт и выше, независимо от остатков) */
@@ -374,31 +370,26 @@ export async function checkProAccess(): Promise<{ ok: boolean; reason?: string }
   // Купленный тариф — доступ сохраняется даже при нулевых счётчиках
   if (user.purchasedPlan) return { ok: true };
   const isActive = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")
-    || user.paidQuestions >= 30 || user.paidDocs >= 5;
+    || user.paidRequests >= 35;
   if (!isActive) return { ok: false, reason: "not_pro" };
   return { ok: true };
 }
 
-/** Проверить и списать 5 вопросов за правку AI (документы не списываются) */
-export async function checkAndConsumeEditResources(_docsNeeded: number): Promise<{ ok: boolean; reason?: string }> {
+/** Проверить доступ к AI-редактору документа. Сама правка запросы не списывает —
+ * платным является только обращение в чат с AI внутри редактора (1 запрос за сообщение). */
+export async function checkEditorAccess(): Promise<{ ok: boolean; reason?: string }> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
-  const QUESTIONS_PER_EDIT = 5;
-  // Проверяем что достаточно вопросов
-  const hasQ = hasActiveSubscription(user, "consult") || user.paidQuestions >= QUESTIONS_PER_EDIT;
-  if (!hasQ) return { ok: false, reason: "insufficient" };
-  // Списываем 5 вопросов поштучно
-  for (let i = 0; i < QUESTIONS_PER_EDIT; i++) {
-    const { ok } = await consumeQuestion();
-    if (!ok) return { ok: false, reason: "insufficient" };
-  }
+  const hasAccess = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")
+    || !!user.purchasedPlan || user.paidRequests > 0;
+  if (!hasAccess) return { ok: false, reason: "insufficient" };
   return { ok: true };
 }
 
-export async function refundDoc(): Promise<boolean> {
-  const res = await apiCall({ action: "refund-doc" });
+export async function refundRequest(): Promise<boolean> {
+  const res = await apiCall({ action: "refund-request" });
   return res.ok;
 }
 
@@ -430,34 +421,26 @@ export function getDailyFreeLeft(): number {
   return Math.max(0, FREE_DAILY_LIMIT - getDailyFreeCount());
 }
 
-export async function canAskQuestion(): Promise<boolean> {
-  const user = await getUser();
-  if (!user) return false;
-  if (user.isAdmin) return true;
-  if (hasActiveSubscription(user, "consult")) return true;
-  // Бесплатные дневные вопросы — только для пользователей без купленного тарифа
-  if (!user.purchasedPlan && getDailyFreeLeft() > 0) return true;
-  return user.paidQuestions > 0;
-}
-
-export async function getQuestionsLeft(): Promise<number> {
+/** Оставшиеся запросы к AI: подписка = 999 (безлимит), иначе дневной бесплатный + платные */
+export async function getRequestsLeft(): Promise<number> {
   const user = await getUser();
   if (!user) return 0;
   if (user.isAdmin) return 999;
-  if (hasActiveSubscription(user, "consult")) return 999;
-  const paid = user.paidQuestions ?? 0;
+  if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return 999;
+  const paid = user.paidRequests ?? 0;
   // Бесплатный дневной лимит — только для пользователей без купленного тарифа
   const dailyFree = user.purchasedPlan ? 0 : getDailyFreeLeft();
   return dailyFree + paid;
 }
 
-export async function canUseDoc(): Promise<boolean> {
+/** Доступен ли хотя бы 1 запрос к AI (для генерации документа) */
+export async function canUseRequest(): Promise<boolean> {
   invalidateUserCache();
   const user = await getUser();
   if (!user) return false;
   if (user.isAdmin) return true;
-  if (hasActiveSubscription(user, "docs")) return true;
-  return user.paidDocs > 0;
+  if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return true;
+  return user.paidRequests > 0;
 }
 
 export async function addPaidService(serviceType: string, invId?: number): Promise<void> {
@@ -610,7 +593,7 @@ export async function reindexLegalDocs(category: string, docId?: number): Promis
 }
 
 export function getFreeLeft(user: User): number {
-  return user.isAdmin ? 999 : user.paidQuestions;
+  return user.isAdmin ? 999 : user.paidRequests;
 }
 
 export interface LawyerMessage {
@@ -790,8 +773,7 @@ export interface AdminUserEntry {
   name: string;
   phone: string;
   created_at: string;
-  paid_questions: number;
-  paid_docs: number;
+  paid_requests: number;
   is_admin: boolean;
 }
 
@@ -803,16 +785,23 @@ export async function getNewUsers(opts?: { seen_ids?: number[] }): Promise<{ use
 
 export async function adminGrant(params: {
   target_user_id: number;
-  questions?: number;
-  docs?: number;
+  requests?: number;
   lawyer_questions?: number;
-  set_questions?: number;
-  set_docs?: number;
+  set_requests?: number;
   set_lawyer_questions?: number;
   grant_service?: string;
   comment?: string;
-}): Promise<{ ok?: boolean; changes?: string[]; paid_questions?: number; paid_docs?: number; paid_expert?: boolean; lawyer_questions_left?: number; error?: string }> {
-  const res = await apiCall({ action: "admin-grant", ...params });
+}): Promise<{ ok?: boolean; changes?: string[]; paid_requests?: number; paid_expert?: boolean; lawyer_questions_left?: number; error?: string }> {
+  const res = await apiCall({
+    action: "admin-grant",
+    target_user_id: params.target_user_id,
+    questions: params.requests,
+    set_questions: params.set_requests,
+    lawyer_questions: params.lawyer_questions,
+    set_lawyer_questions: params.set_lawyer_questions,
+    grant_service: params.grant_service,
+    comment: params.comment,
+  });
   const data = await res.json();
   if (!res.ok) return { error: data.error || "Ошибка начисления" };
   return data;
@@ -823,8 +812,7 @@ export interface AdminUserFull {
   email: string;
   name: string;
   phone: string;
-  paid_questions: number;
-  paid_docs: number;
+  paid_requests: number;
   paid_expert: boolean;
   lawyer_questions_left: number;
   paid_business: number;

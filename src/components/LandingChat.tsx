@@ -113,14 +113,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
     setShowPayment(true);
   }, []);
 
-  const openQuickQuestionsPayment = useCallback(() => {
-    saveHistoryToStorage(history.current);
-    localStorage.setItem(PENDING_SERVICE_KEY, "quick_questions");
-    setPaymentService({ type: "quick_questions", name: "+3 вопроса AI-юристу" });
-    setPendingDocType(null);
-    setShowPayment(true);
-  }, []);
-
   const sendMessage = useCallback(async (text?: string) => {
     const msgText = (text ?? input).trim();
     if (!msgText || typing) return;
@@ -265,7 +257,7 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
   const handlePaymentSuccess = () => {
     setShowPayment(false);
     const pendingService = localStorage.getItem(PENDING_SERVICE_KEY);
-    if (pendingService === "file_analysis" || pendingService === "quick_questions") {
+    if (pendingService === "file_analysis") {
       navigate("/cabinet?from=payment&tab=chat");
     } else {
       navigate("/cabinet?from=payment&tab=" + (pendingService === "doc" ? "docs" : "docs"));
@@ -291,7 +283,6 @@ export default function LandingChat({ onOpenLogin }: LandingChatProps) {
           chatEndRef={chatEndRef}
           onCreateDoc={handleCreateDoc}
           onBuyPlan={openPlanPayment}
-          onBuyQuickQuestions={openQuickQuestionsPayment}
           onSendToLawyer={handleSendToLawyer}
         />
 

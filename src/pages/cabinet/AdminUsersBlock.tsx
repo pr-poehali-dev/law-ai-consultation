@@ -98,11 +98,8 @@ export default function AdminUsersBlock() {
                 {u.phone && <p className="text-[11px] text-slate-400">{u.phone}</p>}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-[10px] text-slate-400">{fmtDt(u.created_at)}</span>
-                  {u.paid_questions > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md">{u.paid_questions} вопр.</span>
-                  )}
-                  {u.paid_docs > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md">{u.paid_docs} докум.</span>
+                  {u.paid_requests > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md">{u.paid_requests} запр.</span>
                   )}
                 </div>
               </div>

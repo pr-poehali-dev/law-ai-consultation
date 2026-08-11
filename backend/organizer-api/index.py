@@ -51,14 +51,14 @@ def get_user_id(headers, conn):
 def has_active_plan(user_id, conn):
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT purchased_plan, paid_questions, paid_docs FROM {SCHEMA}.users WHERE id = %s",
+            f"SELECT purchased_plan, paid_requests FROM {SCHEMA}.users WHERE id = %s",
             (user_id,)
         )
         row = cur.fetchone()
     if not row:
         return False
-    purchased_plan, paid_q, paid_d = row
-    return purchased_plan is not None or (paid_q or 0) > 0 or (paid_d or 0) > 0
+    purchased_plan, paid_r = row
+    return purchased_plan is not None or (paid_r or 0) > 0
 
 
 def handler(event: dict, context) -> dict:
