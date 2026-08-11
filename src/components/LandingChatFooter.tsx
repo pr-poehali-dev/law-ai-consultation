@@ -55,9 +55,7 @@ export default function LandingChatFooter() {
         </div>
       </div>
 
-      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>
-        Бесплатно: 3 запроса/24ч · Пакет «Старт» 35 запросов + документы за 990 ₽
-      </p>
+      <p className="text-center text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.3)" }}>Бесплатно — 3 запроса в сутки. Или пакет «Старт»: 35 запросов за 990 ₽</p>
     </>
   );
 }
