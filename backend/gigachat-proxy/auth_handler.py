@@ -20,8 +20,28 @@ _SELECT_COLS = (
     "subscription_consult_until, subscription_docs_until, "
     "business_subscription_until, business_actions_left, business_org_name, referral_code, "
     "lawyer_questions_left, has_file_analysis, purchased_plan, "
-    "lawyer_consultations_left"
+    "lawyer_consultations_left, daily_free_left, daily_free_reset_at"
 )
+
+DAILY_FREE_LIMIT = 3
+
+
+def _refresh_daily_free(conn, user_id: int):
+    """Сбрасывает дневной бесплатный лимит до 3, если срок истёк (24 часа с прошлого сброса)."""
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            f"""UPDATE {SCHEMA}.users
+                SET daily_free_left = {DAILY_FREE_LIMIT},
+                    daily_free_reset_at = NOW() + INTERVAL '24 hours'
+                WHERE id = %s AND daily_free_reset_at <= NOW()""",
+            (user_id,)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        cur.close()
 
 MAX_LOGIN_ATTEMPTS = 10
 LOGIN_WINDOW_MINUTES = 15
@@ -129,6 +149,13 @@ def get_user_by_token(token: str) -> dict | None:
     cur = conn.cursor()
     try:
         cur.execute(
+            f"SELECT user_id FROM {SCHEMA}.sessions WHERE token = %s AND expires_at > NOW()",
+            (token,)
+        )
+        srow = cur.fetchone()
+        if srow:
+            _refresh_daily_free(conn, srow[0])
+        cur.execute(
             f"""SELECT {_SELECT_COLS} FROM {SCHEMA}.users
                 WHERE id = (
                     SELECT user_id FROM {SCHEMA}.sessions
@@ -204,26 +231,12 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
     try:
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s", (user_id,))
-        elif service_type == "document":
-            # Тариф «Пробный»: +7 запросов к AI (было 5 вопросов + 2 документа), разово
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET paid_requests = paid_requests + 7,
-                        purchased_plan = CASE
-                            WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
-                            ELSE 'trial'
-                        END
-                    WHERE id = %s""",
-                (user_id,)
-            )
         elif service_type == "expert":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_expert = TRUE WHERE id = %s", (user_id,))
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 35,
-                        paid_expert = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
                             ELSE 'starter'
@@ -235,9 +248,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 90,
-                        paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 3,
                         purchased_plan = CASE
                             WHEN purchased_plan = 'max' THEN purchased_plan
                             ELSE 'pro'
@@ -246,12 +257,13 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
                 (user_id,)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
+            # Тариф Максимум: 200 запросов + 5 консультаций живого юриста
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 200,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 10,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
@@ -262,7 +274,7 @@ def _apply_service_grant(conn, user_id: int, service_type: str):
                     SET paid_requests = paid_requests + 400,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 20,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
@@ -295,6 +307,7 @@ def handle_register(body: dict) -> dict:
     password = body.get("password") or ""
     agreed = body.get("agreed_to_terms", False)
     free_trial = bool(body.get("free_trial", False))
+    otp_code = sanitize_str(body.get("otp_code") or "")
 
     if not name:
         return _err(400, "Введите имя")
@@ -308,6 +321,8 @@ def handle_register(body: dict) -> dict:
         return _err(400, "Пароль слишком длинный")
     if not agreed:
         return _err(400, "Необходимо согласие на обработку персональных данных")
+    if email != ADMIN_EMAIL and not otp_code:
+        return _err(400, "Подтвердите email кодом из письма")
 
     pw_hash = hash_password(password)
     is_admin = email == ADMIN_EMAIL
@@ -320,6 +335,19 @@ def handle_register(body: dict) -> dict:
         cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
         if cur.fetchone():
             return _err(409, "Пользователь с таким email уже зарегистрирован")
+
+        # Подтверждение email обязательно (кроме админа) — проверяем актуальный код
+        if not is_admin:
+            cur.execute(
+                f"""SELECT id FROM {SCHEMA}.otp_codes
+                    WHERE email = %s AND code = %s AND used = FALSE AND expires_at > NOW()
+                    ORDER BY created_at DESC LIMIT 1""",
+                (email, otp_code)
+            )
+            otp_row = cur.fetchone()
+            if not otp_row:
+                return _err(400, "Неверный или истёкший код подтверждения")
+            cur.execute(f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE id = %s", (otp_row[0],))
 
         # 1 бесплатный запрос всем новым пользователям при регистрации
         trial_questions = 0 if is_admin else 1
@@ -584,6 +612,13 @@ def handle_consume_request(token: str) -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
+        # Дневной бесплатный лимит — только для пользователей без купленного тарифа.
+        # Списываем его ПЕРЕД платным пулом.
+        daily_free = user.get("dailyFreeLeft", 0)
+        if not user.get("purchasedPlan") and daily_free > 0:
+            cur.execute(f"UPDATE {SCHEMA}.users SET daily_free_left = daily_free_left - 1 WHERE id = %s", (user["id"],))
+            conn.commit()
+            return _ok({"ok": True, "is_last_question": False, "used_daily_free": True})
         q = user.get("paidRequests", 0)
         if q > 0:
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests - 1 WHERE id = %s", (user["id"],))
@@ -636,20 +671,6 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
 
         if service_type == "consultation":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 3 WHERE id = %s", (user["id"],))
-        elif service_type == "trial":
-            cur.execute(f"UPDATE {SCHEMA}.users SET paid_requests = paid_requests + 2 WHERE id = %s", (user["id"],))
-        elif service_type == "document":
-            # Тариф «Пробный»: +7 запросов к AI (было 5 вопросов + 2 документа), разово
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET paid_requests = paid_requests + 7,
-                        purchased_plan = CASE
-                            WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
-                            ELSE 'trial'
-                        END
-                    WHERE id = %s""",
-                (user["id"],)
-            )
         elif service_type == "doc_analysis":
             cur.execute(f"UPDATE {SCHEMA}.users SET has_file_analysis = TRUE WHERE id = %s", (user["id"],))
         elif service_type == "expert":
@@ -665,13 +686,11 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             )
         elif service_type == "business":
             cur.execute(f"UPDATE {SCHEMA}.users SET paid_business = paid_business + 1 WHERE id = %s", (user["id"],))
-        # ── Новые пользовательские тарифы ──
+        # ── Новые пользовательские тарифы (консультации живого юриста — только с тарифа «Максимум») ──
         elif service_type in ("plan_starter", "plan_starter_discount"):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 35,
-                        paid_expert = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
                             ELSE 'starter'
@@ -683,9 +702,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 90,
-                        paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 3,
                         purchased_plan = CASE
                             WHEN purchased_plan = 'max' THEN purchased_plan
                             ELSE 'pro'
@@ -694,13 +711,13 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                 (user["id"],)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
-            # Тариф Максимум: 200 запросов, доступ к юристу
+            # Тариф Максимум: 200 запросов + 5 консультаций живого юриста
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 200,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 10,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user["id"],)
@@ -711,7 +728,7 @@ def handle_add_paid_service(token: str, body: dict) -> dict:
                     SET paid_requests = paid_requests + 400,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 20,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user["id"],)
@@ -881,7 +898,7 @@ def handle_forgot_password(body: dict) -> dict:
 
 
 def handle_send_otp(body: dict) -> dict:
-    """Генерирует 6-значный OTP и отправляет на email."""
+    """Генерирует 6-значный OTP и отправляет на email (шаг подтверждения перед регистрацией)."""
     email = sanitize_str(body.get("email") or "").lower()
     if not email or "@" not in email:
         return _err(400, "Некорректный email")
@@ -890,6 +907,9 @@ def handle_send_otp(body: dict) -> dict:
     conn = get_conn()
     cur = conn.cursor()
     try:
+        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
+        if cur.fetchone():
+            return _err(409, "Пользователь с таким email уже зарегистрирован")
         # Инвалидируем старые коды
         cur.execute(
             f"UPDATE {SCHEMA}.otp_codes SET used = TRUE WHERE email = %s AND used = FALSE",
@@ -1314,6 +1334,8 @@ def _format_user(row) -> dict:
         "hasFileAnalysis": bool(row[16]) if len(row) > 16 else False,
         "purchasedPlan": row[17] if len(row) > 17 else None,
         "lawyerConsultationsLeft": row[18] if len(row) > 18 else 0,
+        "dailyFreeLeft": row[19] if len(row) > 19 else 0,
+        "dailyFreeResetAt": _fmt_dt(row[20]) if len(row) > 20 else None,
     }
 
 
@@ -2101,7 +2123,6 @@ def handle_admin_grant(token: str, body: dict) -> dict:
             "plan_starter_discount": ("paid_requests = paid_requests + 35, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 3", "Тариф Старт (скидка): +35 запр +3 консульт юриста"),
             "plan_pro":              ("paid_requests = paid_requests + 120, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "Тариф Профи: +120 запр +5 консульт юриста"),
             "plan_max":              ("paid_requests = paid_requests + 350, paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 30", "Тариф Максимум: +350 запр +30 консульт юриста"),
-            "document":              ("paid_requests = paid_requests + 7, purchased_plan = CASE WHEN purchased_plan IN ('trial','starter','pro','max') THEN purchased_plan ELSE 'trial' END", "Тариф «Пробный»: +7 запр"),
             "consultation":          ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),
             "expert":                ("paid_expert = TRUE", "Доступ к юристу активирован"),
             "lawyer_questions":      ("paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 5", "+5 консультаций юриста"),

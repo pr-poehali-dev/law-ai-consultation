@@ -1,11 +1,9 @@
-import { useRef, useCallback, useEffect, useState, type ReactNode } from "react";
+import { useRef, useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/icon";
 import { parseDocBlocks } from "./ViewDocUtils";
 
 interface DocEditorPanelProps {
   content: string;
-  onApply: (newContent: string) => void;
-  onClose: () => void;
   onOpenAiChat?: () => void;
   onAutoSave?: (newContent: string) => void;
 }
@@ -159,7 +157,7 @@ function Sep() {
 
 // ── Основной компонент ─────────────────────────────────────────────────────
 
-export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat, onAutoSave }: DocEditorPanelProps) {
+export default function DocEditorPanel({ content, onOpenAiChat, onAutoSave }: DocEditorPanelProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [autoSaved, setAutoSaved] = useState(false);
   const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
@@ -170,10 +168,11 @@ export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat
     editorRef.current.focus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Автосохранение каждые 15 секунд
+  // Автосохранение каждые 15 секунд + при закрытии/размонтировании редактора —
+  // изменения сохраняются в документе автоматически, без ручного подтверждения
   useEffect(() => {
     if (!onAutoSave) return;
-    const interval = setInterval(() => {
+    const doSave = () => {
       if (!editorRef.current) return;
       const newContent = collectContent(editorRef.current);
       onAutoSave(newContent);
@@ -181,14 +180,10 @@ export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat
       setAutoSavedAt(`${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`);
       setAutoSaved(true);
       setTimeout(() => setAutoSaved(false), 2000);
-    }, 15000);
-    return () => clearInterval(interval);
+    };
+    const interval = setInterval(doSave, 15000);
+    return () => { clearInterval(interval); doSave(); };
   }, [onAutoSave]);
-
-  const handleApply = useCallback(() => {
-    if (!editorRef.current) return;
-    onApply(collectContent(editorRef.current));
-  }, [onApply]);
 
   const exec = (cmd: string, val?: string) => {
     editorRef.current?.focus();
@@ -289,24 +284,6 @@ export default function DocEditorPanel({ content, onApply, onClose, onOpenAiChat
             color: "#1e2d4a",
           }}
         />
-      </div>
-
-      {/* Нижняя панель */}
-      <div className="shrink-0 px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center gap-2">
-        <button
-          onClick={handleApply}
-          className="flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg,#0a1628,#162d5a)", color: "#f0c060", border: "1px solid rgba(232,168,32,0.3)" }}
-        >
-          <Icon name="Check" size={14} color="#f0c060" />
-          Применить изменения
-        </button>
-        <button
-          onClick={onClose}
-          className="py-2.5 px-4 rounded-2xl text-sm font-medium text-slate-500 hover:text-slate-700 border border-slate-200 hover:bg-white transition-colors"
-        >
-          Отмена
-        </button>
       </div>
     </div>
   );

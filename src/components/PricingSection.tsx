@@ -8,38 +8,16 @@ interface PricingSectionProps {
 
 const USER_PLANS = [
   {
-    id: "document",
-    name: "Пробный",
-    price: "290",
-    oldPrice: "",
-    period: "",
-    desc: "Познакомьтесь с сервисом — минимальный старт",
-    badge: null,
-    lawyerFeature: "",
-    features: [
-      "5 вопросов AI-юристу",
-      "2 документа через систему",
-      "AI-редактор документов",
-      "Поиск судебной практики",
-      "Калькулятор неустойки",
-      "Расчёт госпошлины",
-      "Определение подсудности",
-    ],
-    popular: false,
-    gradient: "",
-    border: "border-border hover:border-navy-200",
-  },
-  {
     id: "plan_starter",
     name: "Старт",
     price: "990",
     oldPrice: "1 490",
     period: "",
-    desc: "Консультации AI + живой юрист + документы",
+    desc: "Знакомство с сервисом — вопросы AI и документы",
     badge: null,
-    lawyerFeature: "1 консультация живого юриста",
+    lawyerFeature: "",
     features: [
-      "30 вопросов AI-юристу",
+      "35 запросов AI-юристу",
       "До 5 документов через систему",
       "Анализ судебной практики при подготовке документа",
       "Рекомендации по документу от AI-юриста",
@@ -60,10 +38,10 @@ const USER_PLANS = [
     period: "",
     desc: "Оптимальный выбор для активного использования",
     badge: "Хит",
-    lawyerFeature: "3 консультации живого юриста с анализом документов",
+    lawyerFeature: "",
     features: [
       "Всё из тарифа «Старт»",
-      "70 вопросов AI-юристу",
+      "90 запросов AI-юристу",
       "До 20 документов через систему",
       "Загрузка PDF, DOCX, фото для анализа",
       "Определение перспективы дела",
@@ -84,10 +62,10 @@ const USER_PLANS = [
     period: "",
     desc: "Для частых юридических задач",
     badge: "Рекомендуем",
-    lawyerFeature: "10 консультаций живого юриста + 2 документа от юриста",
+    lawyerFeature: "5 консультаций живого юриста",
     features: [
       "Всё из тарифа «Профи»",
-      "150 вопросов AI-юристу",
+      "200 запросов AI-юристу",
       "До 50 документов через систему",
       "Анализ нескольких документов сразу",
       "Приоритетный доступ к AI",
@@ -104,15 +82,14 @@ const USER_PLANS = [
 ];
 
 const CORP_FEATURES = [
-  { icon: "MessageCircle", text: "300 вопросов AI-юристу" },
+  { icon: "MessageCircle", text: "400 вопросов AI-юристу" },
   { icon: "FileText", text: "100 юридических документов" },
-  { icon: "UserCheck", text: "20 консультаций живого юриста" },
+  { icon: "UserCheck", text: "5 консультаций живого юриста" },
   { icon: "BookOpen", text: "Поиск судебной практики" },
   { icon: "Calculator", text: "Калькулятор неустойки" },
   { icon: "MapPin", text: "Определение подсудности" },
   { icon: "Upload", text: "Загрузка PDF, DOCX, фото для анализа" },
   { icon: "Shield", text: "Приоритетная поддержка" },
-  { icon: "PenLine", text: "2 документа от живого юриста" },
   { icon: "Download", text: "Скачивание документов в .doc" },
 ];
 
@@ -320,7 +297,7 @@ export default function PricingSection({ onSelectPlan, onSelectMax }: PricingSec
           </div>
         </div>
         <p className="text-xs text-center text-muted-foreground mt-4 opacity-70">
-          * Подгрузка документов в чат доступна начиная с тарифа «Профи» и выше
+          * Бесплатно — 3 запроса к AI и загрузка документов, обновление лимита каждые 24 часа
         </p>
       </div>
     </section>

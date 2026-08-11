@@ -162,13 +162,13 @@ export default function Cabinet() {
   }
 
   const isPremium = hasActiveSubscription(user, "consult");
-  const isProOrAbove = isPremium || hasActiveSubscription(user, "docs");
   const totalLeft = user.isAdmin || isPremium
     ? 999
-    : getDailyFreeLeft() + (user.paidRequests ?? 0);
-  // Купленный тариф Старт+ или активный счётчик запросов
-  const hasPaidStarterPlan = !!user.purchasedPlan || (user.paidRequests ?? 0) >= 35;
-  const canUploadFiles = user.isAdmin || isProOrAbove || hasPaidStarterPlan || user.hasFileAnalysis === true;
+    : getDailyFreeLeft(user) + (user.paidRequests ?? 0);
+  // Загрузка документов в чат и открытие AI-редактора доступны всем зарегистрированным
+  // пользователям в пределах их лимита запросов (дневного бесплатного или платного) —
+  // за анализ файла/сообщение в редакторе списывается 1 запрос, тариф не обязателен.
+  const canUploadFiles = true;
 
   return (
     <div className="pwa-page flex flex-col bg-slate-50 font-golos">

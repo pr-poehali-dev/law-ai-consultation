@@ -51,6 +51,9 @@ export interface User {
   hasFileAnalysis: boolean;
   purchasedPlan: "trial" | "starter" | "pro" | "max" | null;
   lawyerConsultationsLeft: number;
+  /** Дневной бесплатный лимит запросов (3/24ч), хранится на сервере — общий для всех устройств */
+  dailyFreeLeft: number;
+  dailyFreeResetAt: string | null;
 }
 
 /** Купил ли пользователь хотя бы тариф Старт или выше (независимо от остатков) */
@@ -383,7 +386,7 @@ export async function checkEditorAccess(): Promise<{ ok: boolean; reason?: strin
   if (!user) return { ok: false, reason: "auth" };
   if (user.isAdmin) return { ok: true };
   const hasAccess = hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")
-    || !!user.purchasedPlan || user.paidRequests > 0;
+    || user.paidRequests > 0 || getDailyFreeLeft(user) > 0;
   if (!hasAccess) return { ok: false, reason: "insufficient" };
   return { ok: true };
 }
@@ -393,32 +396,14 @@ export async function refundRequest(): Promise<boolean> {
   return res.ok;
 }
 
-// ── Дневной лимит бесплатных вопросов (1/день, только для пользователей без тарифа) ──────
-const FREE_DAILY_KEY = "landing_daily_questions";
-const FREE_DAILY_LIMIT = 1;
+// ── Дневной лимит бесплатных вопросов (3/24ч, только для пользователей без тарифа) ──────
+// Хранится на сервере (users.daily_free_left/daily_free_reset_at) — общий для всех устройств
+// и браузеров пользователя, сгорает и обновляется на бэкенде при каждом обращении к профилю.
 
-function getTodayStr(): string {
-  return new Date().toLocaleDateString("ru-RU");
-}
-
-export function getDailyFreeCount(): number {
-  try {
-    const raw = localStorage.getItem(FREE_DAILY_KEY);
-    if (!raw) return 0;
-    const d = JSON.parse(raw);
-    if (d.date !== getTodayStr()) return 0;
-    return d.count || 0;
-  } catch { return 0; }
-}
-
-export function incrementDailyFreeCount(): number {
-  const count = getDailyFreeCount() + 1;
-  localStorage.setItem(FREE_DAILY_KEY, JSON.stringify({ date: getTodayStr(), count }));
-  return count;
-}
-
-export function getDailyFreeLeft(): number {
-  return Math.max(0, FREE_DAILY_LIMIT - getDailyFreeCount());
+/** Оставшиеся бесплатные запросы за текущие 24 часа (0 для пользователей с тарифом) */
+export function getDailyFreeLeft(user: User | null): number {
+  if (!user || user.purchasedPlan) return 0;
+  return Math.max(0, user.dailyFreeLeft ?? 0);
 }
 
 /** Оставшиеся запросы к AI: подписка = 999 (безлимит), иначе дневной бесплатный + платные */
@@ -428,9 +413,7 @@ export async function getRequestsLeft(): Promise<number> {
   if (user.isAdmin) return 999;
   if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return 999;
   const paid = user.paidRequests ?? 0;
-  // Бесплатный дневной лимит — только для пользователей без купленного тарифа
-  const dailyFree = user.purchasedPlan ? 0 : getDailyFreeLeft();
-  return dailyFree + paid;
+  return getDailyFreeLeft(user) + paid;
 }
 
 /** Доступен ли хотя бы 1 запрос к AI (для генерации документа) */
@@ -440,7 +423,7 @@ export async function canUseRequest(): Promise<boolean> {
   if (!user) return false;
   if (user.isAdmin) return true;
   if (hasActiveSubscription(user, "consult") || hasActiveSubscription(user, "docs")) return true;
-  return user.paidRequests > 0;
+  return user.paidRequests > 0 || getDailyFreeLeft(user) > 0;
 }
 
 export async function addPaidService(serviceType: string, invId?: number): Promise<void> {

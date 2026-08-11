@@ -21,7 +21,6 @@ YM_COLLECT_URL = "https://mc.yandex.ru/collect"
 # Для остальных тарифов (не входящих в этот список) отправляется только общая
 # цель payment_success — её достаточно, т.к. она уже несёт service_type и order_price.
 YM_GOALS = {
-    "document":              "purchase_document",
     "plan_starter":          "purchase_plan_starter",
     "plan_starter_discount": "purchase_plan_starter",
     "plan_pro":               "purchase_plan_pro",
@@ -37,17 +36,16 @@ CORS = {
 
 DESCRIPTIONS = {
     "consultation":          "Консультация живого юриста активирована",
-    "document":              "Тариф «Пробный»: +7 запросов к AI",
     "expert":                "Экспертная проверка юристом",
     "business":              "Бизнес-пакет",
     "subscription_consult":  "Подписка: консультации на 31 день",
     "subscription_docs":     "Подписка: документы на 31 день",
     "plan_starter":          "Тариф Старт: +35 запросов к AI",
     "plan_starter_discount": "Тариф Старт со скидкой 50%: +35 запросов к AI",
-    "plan_pro":              "Тариф Профи: +90 запросов к AI, +20 вопросов юристу",
-    "plan_max":              "Тариф Максимум: +200 запросов к AI, +50 вопросов юристу",
-    "plan_max_expert":       "Тариф Максимум: +200 запросов к AI, +50 вопросов юристу",
-    "plan_corporate":        "Корпоративный тариф: +400 запросов к AI, +50 вопросов юристу",
+    "plan_pro":              "Тариф Профи: +90 запросов к AI",
+    "plan_max":              "Тариф Максимум: +200 запросов к AI, +5 консультаций юриста",
+    "plan_max_expert":       "Тариф Максимум: +200 запросов к AI, +5 консультаций юриста",
+    "plan_corporate":        "Корпоративный тариф: +400 запросов к AI, +5 консультаций юриста",
     "lawyer_questions":      "+5 вопросов живому юристу",
     "business_subscription": "Бизнес-подписка: +150 действий на 31 день",
     "business_actions_10":   "+10 бизнес-действий",
@@ -63,7 +61,6 @@ SITE_URL = "https://ии-право.рф"
 # Что получает пользователь по каждому тарифу
 GRANT_DETAILS = {
     "consultation":          "✅ Консультация живого юриста активирована",
-    "document":              "✅ Тариф «Пробный» активирован\n   • +7 запросов к AI\n   • AI-редактор онлайн, калькулятор неустойки, госпошлина, судебная практика, подсудность",
     "expert":                "✅ Экспертная проверка юристом активирована",
     "business":              "✅ Бизнес-пакет активирован",
     "subscription_consult":  "✅ Подписка на консультации активирована на 31 день",
@@ -71,8 +68,8 @@ GRANT_DETAILS = {
     "plan_starter":          "✅ Тариф «Старт» активирован\n   • +35 запросов к AI",
     "plan_starter_discount": "✅ Тариф «Старт» активирован\n   • +35 запросов к AI",
     "plan_pro":              "✅ Тариф «Профи» активирован\n   • +90 запросов к AI\n   • Анализ файлов",
-    "plan_max":              "✅ Тариф «Максимум» активирован\n   • +200 запросов к AI\n   • Консультация юриста",
-    "plan_max_expert":       "✅ Тариф «Максимум» активирован\n   • +200 запросов к AI\n   • Консультация юриста",
+    "plan_max":              "✅ Тариф «Максимум» активирован\n   • +200 запросов к AI\n   • 5 консультаций юриста",
+    "plan_max_expert":       "✅ Тариф «Максимум» активирован\n   • +200 запросов к AI\n   • 5 консультаций юриста",
     "business_subscription": "✅ Бизнес-подписка активирована\n   • +150 бизнес-действий\n   • Подписка на 31 день",
     "business_actions_10":   "✅ +10 бизнес-действий добавлено",
     "business_actions_30":   "✅ +30 бизнес-действий добавлено",
@@ -83,7 +80,6 @@ GRANT_DETAILS = {
 
 PLAN_TITLES = {
     "consultation":          "Консультация юриста",
-    "document":              "Тариф «Пробный»",
     "expert":                "Экспертная проверка",
     "business":              "Бизнес-пакет",
     "subscription_consult":  "Подписка на консультации",
@@ -248,18 +244,6 @@ def grant_service(conn, user_id: int, service_type: str):
                 f"UPDATE {SCHEMA}.users SET paid_expert = TRUE, lawyer_consultations_left = lawyer_consultations_left + 1 WHERE id = %s",
                 (user_id,)
             )
-        elif service_type == "document":
-            # Тариф «Пробный»: +7 запросов к AI (было 5 вопросов + 2 документа), разово
-            cur.execute(
-                f"""UPDATE {SCHEMA}.users
-                    SET paid_requests = paid_requests + 7,
-                        purchased_plan = CASE
-                            WHEN purchased_plan IN ('trial', 'starter', 'pro', 'max') THEN purchased_plan
-                            ELSE 'trial'
-                        END
-                    WHERE id = %s""",
-                (user_id,)
-            )
         elif service_type == "expert":
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
@@ -294,8 +278,6 @@ def grant_service(conn, user_id: int, service_type: str):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 35,
-                        paid_expert = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 1,
                         purchased_plan = CASE
                             WHEN purchased_plan IN ('pro', 'max') THEN purchased_plan
                             ELSE 'starter'
@@ -307,9 +289,7 @@ def grant_service(conn, user_id: int, service_type: str):
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 90,
-                        paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 3,
                         purchased_plan = CASE
                             WHEN purchased_plan = 'max' THEN purchased_plan
                             ELSE 'pro'
@@ -318,12 +298,13 @@ def grant_service(conn, user_id: int, service_type: str):
                 (user_id,)
             )
         elif service_type in ("plan_max", "plan_max_expert"):
+            # Тариф Максимум: 200 запросов + 5 консультаций живого юриста
             cur.execute(
                 f"""UPDATE {SCHEMA}.users
                     SET paid_requests = paid_requests + 200,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 10,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)
@@ -334,7 +315,7 @@ def grant_service(conn, user_id: int, service_type: str):
                     SET paid_requests = paid_requests + 400,
                         paid_expert = TRUE,
                         has_file_analysis = TRUE,
-                        lawyer_consultations_left = lawyer_consultations_left + 20,
+                        lawyer_consultations_left = lawyer_consultations_left + 5,
                         purchased_plan = 'max'
                     WHERE id = %s""",
                 (user_id,)

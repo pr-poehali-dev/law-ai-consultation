@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import Icon from "@/components/ui/icon";
 
 // ─── parseInline: жирный + статьи закона ─────────────────────────────
 function parseInline(text: string): React.ReactNode {
@@ -301,11 +300,21 @@ export function AnimatedMessage({ text, animate }: { text: string; animate: bool
 export { parseInline as renderInline };
 
 // ─── TypingIndicator ──────────────────────────────────────────────────
+const AI_ROBOT_VIDEO = "https://cdn.poehali.dev/projects/3f0ef70d-a78f-4ee8-b1bc-a70a6b86cef1/bucket/644befaa-a371-48bd-ab13-7a140960c04f.webm";
+
 export function TypingIndicator({ status }: { status: string }) {
   return (
     <div className="flex gap-2.5 items-start">
-      <div className="w-8 h-8 gradient-navy rounded-2xl flex items-center justify-center shrink-0 shadow-md">
-        <Icon name="Scale" size={13} className="text-gold-400" />
+      <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden p-1"
+        style={{ background: "linear-gradient(145deg,#f8fafc,#eef2f7)", border: "1px solid rgba(226,232,240,0.9)", boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }}>
+        <video
+          src={AI_ROBOT_VIDEO}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-contain"
+        />
       </div>
       <div className="px-4 py-3 bg-white shadow-sm"
         style={{ borderRadius: "4px 18px 18px 18px", border: "1px solid rgba(226,232,240,0.8)", boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>

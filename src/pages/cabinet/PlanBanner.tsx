@@ -1,11 +1,21 @@
 import Icon from "@/components/ui/icon";
-import { hasActiveSubscription, type User } from "@/lib/auth";
+import { hasActiveSubscription, getDailyFreeLeft, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 interface PlanBannerProps {
   user: User;
   mode: "chat" | "docs";
   onSelectPlan: () => void;
+}
+
+function formatResetIn(resetAt: string | null): string {
+  if (!resetAt) return "24 часа";
+  const diffMs = new Date(resetAt).getTime() - Date.now();
+  if (diffMs <= 0) return "скоро";
+  const hours = Math.floor(diffMs / 3_600_000);
+  const minutes = Math.floor((diffMs % 3_600_000) / 60_000);
+  if (hours <= 0) return `${minutes} мин`;
+  return `${hours} ч ${minutes} мин`;
 }
 
 export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps) {
@@ -15,6 +25,7 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
   const activePlan = PLANS.find(p => p.id === activePlanId);
 
   const requests = user.paidRequests ?? 0;
+  const dailyFree = getDailyFreeLeft(user);
   // Тариф куплен, но лимит запросов исчерпан и нет безлимитной подписки — нужно продлить
   const isExhausted = !!activePlan
     && requests <= 0
@@ -73,7 +84,33 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
     );
   }
 
-  // Нет тарифа — яркий призыв
+  // Лимит бесплатных запросов на сегодня исчерпан — предлагаем подождать или купить тариф
+  if (requests <= 0 && dailyFree <= 0) {
+    return (
+      <div
+        onClick={onSelectPlan}
+        className="flex items-center gap-3 px-4 py-3 mb-3 bg-gradient-to-r from-navy-800 to-navy-900 rounded-2xl cursor-pointer hover:from-navy-700 hover:to-navy-800 transition-all group"
+      >
+        <div className="w-8 h-8 bg-gold-500/20 rounded-xl flex items-center justify-center shrink-0">
+          <Icon name="Clock" size={16} className="text-gold-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-white leading-tight">
+            Бесплатные запросы на сегодня закончились
+          </p>
+          <p className="text-[11px] text-white/60 mt-0.5">
+            Обновятся через {formatResetIn(user.dailyFreeResetAt)} · или подключите тариф «Старт»
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 bg-gold-500 hover:bg-gold-400 text-navy-900 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shrink-0">
+          <Icon name="Zap" size={11} />
+          Тариф
+        </div>
+      </div>
+    );
+  }
+
+  // Нет тарифа, но есть бесплатные запросы на сегодня — мягкое напоминание
   return (
     <div
       onClick={onSelectPlan}
@@ -84,10 +121,10 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-white leading-tight">
-          Подключите выгодный тариф
+          Бесплатно: {dailyFree} запрос{dailyFree === 1 ? "" : dailyFree < 5 ? "а" : "ов"} на сегодня
         </p>
         <p className="text-[11px] text-white/60 mt-0.5">
-          Доступно {requests} запрос{requests === 1 ? "" : requests < 5 ? "а" : "ов"} к AI · Тарифы от 290 ₽
+          Обновление каждые 24 часа · Тарифы для больше возможностей — от 990 ₽
         </p>
       </div>
       <div className="flex items-center gap-1.5 bg-gold-500 hover:bg-gold-400 text-navy-900 text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shrink-0">

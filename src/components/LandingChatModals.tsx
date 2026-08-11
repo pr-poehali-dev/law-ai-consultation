@@ -95,7 +95,6 @@ export default function LandingChatModals({
       {showDocChoice && (
         <DocChoiceModal
           docLabel={showDocChoice.docLabel}
-          onChooseDoc={onDocChooseDoc}
           onChoosePlan={(planId) => {
             const dtId = showDocChoice.docTypeId;
             saveHistoryToStorage(historyRef.current);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { login, register, forgotPassword, adminLoginOtp } from "@/lib/auth";
+import { login, register, forgotPassword, adminLoginOtp, sendOtp } from "@/lib/auth";
 import { ymGoal } from "@/lib/metrika";
 
 interface LoginModalProps {
@@ -10,7 +10,7 @@ interface LoginModalProps {
   initialMode?: "login" | "register";
 }
 
-type Mode = "login" | "register" | "forgot" | "admin-otp";
+type Mode = "login" | "register" | "register-otp" | "forgot" | "admin-otp";
 
 export default function LoginModal({ onClose, onSuccess, freeTrial = false, initialMode }: LoginModalProps) {
   const [mode, setMode] = useState<Mode>(initialMode ?? (freeTrial ? "register" : "login"));
@@ -43,6 +43,10 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
   const [adminOtpEmail, setAdminOtpEmail] = useState("");
   const [adminOtpCode, setAdminOtpCode] = useState("");
   const [adminOtpHint, setAdminOtpHint] = useState("");
+
+  // Register OTP — подтверждение email кодом перед созданием аккаунта
+  const [regOtpCode, setRegOtpCode] = useState("");
+  const [regOtpResending, setRegOtpResending] = useState(false);
 
   const switchMode = (m: Mode) => { setMode(m); setError(""); setForgotSent(false); };
 
@@ -88,13 +92,24 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
     onSuccess();
   };
 
-  // ── Регистрация ──
+  // ── Регистрация: шаг 1 — проверяем поля и отправляем код подтверждения на email ──
   const handleRegister = async () => {
     if (!regEmail || !regEmail.includes("@")) { setError("Введите корректный email"); return; }
     if (regPassword.length < 6) { setError("Пароль — не менее 6 символов"); return; }
     if (regPassword !== regPasswordConfirm) { setError("Пароли не совпадают"); return; }
     if (!agreed) { setError("Необходимо согласие на обработку персональных данных"); return; }
 
+    setLoading(true); setError("");
+    const res = await sendOtp(regEmail);
+    setLoading(false);
+    if (res.error) { setError(res.error); return; }
+    setRegOtpCode("");
+    setMode("register-otp");
+  };
+
+  // ── Регистрация: шаг 2 — подтверждаем код и создаём аккаунт ──
+  const handleConfirmRegisterOtp = async () => {
+    if (!regOtpCode.trim()) { setError("Введите код из письма"); return; }
     setLoading(true); setError("");
     const savedRefCode = localStorage.getItem("ref_code") || "";
     const res = await register({
@@ -104,6 +119,7 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
       password: regPassword,
       agreed_to_terms: true,
       free_trial: freeTrial,
+      otp_code: regOtpCode.trim(),
       ref_code: savedRefCode || undefined,
     });
     if (savedRefCode) localStorage.removeItem("ref_code");
@@ -112,6 +128,14 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
     if (freeTrial && (res as { free_trial_granted?: boolean }).free_trial_granted) setTrialGranted(true);
     ymGoal("register");
     setSuccess(true);
+  };
+
+  // ── Регистрация: повторная отправка кода ──
+  const handleResendRegisterOtp = async () => {
+    setRegOtpResending(true); setError("");
+    const res = await sendOtp(regEmail);
+    setRegOtpResending(false);
+    if (res.error) { setError(res.error); return; }
   };
 
   const inputCls = "w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy-100 transition-all";
@@ -155,15 +179,21 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
                   <Icon name="Scale" size={24} className="text-gold-400" />
                 </div>
                 <h3 className="font-cormorant font-bold text-2xl text-navy-800">
-                  {mode === "login" ? "Вход в кабинет" : mode === "admin-otp" ? "Подтверждение входа" : "Регистрация"}
+                  {mode === "login" ? "Вход в кабинет"
+                    : mode === "admin-otp" ? "Подтверждение входа"
+                    : mode === "register-otp" ? "Подтвердите email"
+                    : "Регистрация"}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {mode === "login" ? "Введите email и пароль" : mode === "admin-otp" ? "Введите код из письма" : "Создайте аккаунт и задайте вопрос AI-юристу"}
+                  {mode === "login" ? "Введите email и пароль"
+                    : mode === "admin-otp" ? "Введите код из письма"
+                    : mode === "register-otp" ? `Мы отправили код на ${regEmail}`
+                    : "Создайте аккаунт и задайте вопрос AI-юристу"}
                 </p>
               </div>
 
               {/* Переключатель — только для login/register */}
-              {mode !== "admin-otp" && mode !== "forgot" && (
+              {mode !== "admin-otp" && mode !== "forgot" && mode !== "register-otp" && (
                 <div className="flex rounded-xl border border-border overflow-hidden mb-6 bg-slate-50">
                   <button
                     onClick={() => switchMode("login")}
@@ -293,6 +323,66 @@ export default function LoginModal({ onClose, onSuccess, freeTrial = false, init
                     className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center"
                   >
                     ← Назад к входу
+                  </button>
+                </div>
+              )}
+
+              {/* ── ПОДТВЕРЖДЕНИЕ EMAIL ПРИ РЕГИСТРАЦИИ ── */}
+              {mode === "register-otp" && (
+                <div className="space-y-4 animate-modal-section">
+                  <div className="flex items-center gap-3 p-3.5 bg-navy-50 border border-navy-200 rounded-2xl">
+                    <div className="w-9 h-9 bg-navy-100 rounded-xl flex items-center justify-center shrink-0">
+                      <Icon name="Mail" size={16} className="text-navy-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-navy-800">Проверка почты</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Код отправлен на {regEmail}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-navy-700 mb-1.5 block">Код из письма <span className="text-red-400">*</span></label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={regOtpCode}
+                      onChange={(e) => setRegOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className={`${inputCls} text-center text-2xl tracking-[0.5em] font-bold`}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && handleConfirmRegisterOtp()}
+                    />
+                    <p className="text-[11px] text-slate-400 text-center mt-1.5">Код действителен 10 минут</p>
+                  </div>
+                  {error && (
+                    <div className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2">
+                      <Icon name="AlertCircle" size={13} />{error}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleConfirmRegisterOtp}
+                    disabled={loading || regOtpCode.length < 6}
+                    className="w-full btn-gold py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {loading
+                      ? <><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /><span className="typing-dot w-2 h-2 bg-navy-800 rounded-full" /></>
+                      : <><Icon name="UserPlus" size={16} />Создать аккаунт</>
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendRegisterOtp}
+                    disabled={regOtpResending}
+                    className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center disabled:opacity-50"
+                  >
+                    {regOtpResending ? "Отправляем..." : "Отправить код повторно"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { switchMode("register"); setRegOtpCode(""); }}
+                    className="w-full text-xs text-muted-foreground hover:text-navy-700 transition-colors text-center"
+                  >
+                    ← Изменить данные
                   </button>
                 </div>
               )}

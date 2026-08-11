@@ -16,7 +16,6 @@ YUKASSA_AGENT_ID = "515407"
 PRICES = {
     "consultation":         "990.00",
     "lawyer_questions":     "990.00",
-    "document":             "290.00",
     "doc_analysis":         "99.00",
     "expert":               "990.00",
     "business":             "1000.00",
@@ -41,7 +40,6 @@ PRICES = {
 DESCRIPTIONS = {
     "consultation":         "Консультация живого юриста",
     "lawyer_questions":     "+1 консультация живого юриста",
-    "document":             "Тариф «Пробный»: 7 запросов к AI + AI-редактор, калькулятор неустойки, подсудность",
     "doc_analysis":         "Разовый анализ документа",
     "expert":               "Консультация живого юриста · разбор ситуации",
     "business":             "Бизнес-пакет (договор + документы)",
@@ -49,10 +47,10 @@ DESCRIPTIONS = {
     "subscription_docs":    "Подписка: безлимитные документы (1 мес.)",
     "plan_starter":          "Пакет Старт: 35 запросов к AI",
     "plan_starter_discount": "Пакет Старт (акция): 35 запросов к AI",
-    "plan_pro":              "Тариф Профи: 90 запросов к AI + 20 вопросов юристу",
-    "plan_max":              "Тариф Максимум: 200 запросов к AI + 50 вопросов юристу",
-    "plan_max_expert":       "Тариф Максимум: 200 запросов к AI + 50 вопросов юристу",
-    "plan_corporate":        "Корпоративный тариф: 400 запросов к AI + 50 вопросов юристу",
+    "plan_pro":              "Тариф Профи: 90 запросов к AI",
+    "plan_max":              "Тариф Максимум: 200 запросов к AI + 5 консультаций юриста",
+    "plan_max_expert":       "Тариф Максимум: 200 запросов к AI + 5 консультаций юриста",
+    "plan_corporate":        "Корпоративный тариф: 400 запросов к AI + 5 консультаций юриста",
     "business_subscription": "Бизнес-тариф: 150 действий/мес · PDF/DOC анализ · .doc выгрузка",
     "business_actions_10":   "Бизнес: +10 дополнительных действий",
     "business_actions_30":   "Бизнес: +30 дополнительных действий",
@@ -110,25 +108,6 @@ def _handle(event: dict, context) -> dict:
     description = DESCRIPTIONS[service_type]
 
     conn = get_conn()
-
-    # Тариф «Пробный» — только для знакомства с сервисом, доступен 1 раз на пользователя.
-    # Повторно купить его нельзя — только «Старт» и выше.
-    if service_type == "document" and user_id:
-        cur0 = conn.cursor()
-        try:
-            cur0.execute(
-                f"SELECT purchased_plan FROM {SCHEMA}.users WHERE id = %s",
-                (user_id,)
-            )
-            row = cur0.fetchone()
-            if row and row[0] is not None:
-                return {
-                    "statusCode": 400,
-                    "headers": {**CORS, "Content-Type": "application/json"},
-                    "body": json.dumps({"error": "Тариф «Пробный» уже был использован. Выберите тариф «Старт» или выше."}, ensure_ascii=False),
-                }
-        finally:
-            cur0.close()
 
     cur = conn.cursor()
     try:

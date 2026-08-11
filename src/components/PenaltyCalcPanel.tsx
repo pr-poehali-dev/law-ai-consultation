@@ -105,7 +105,7 @@ export default function PenaltyCalcPanel({ onClose, onPaymentRequired, embedded 
     const hasQ = user.isAdmin
       || hasActiveSubscription(user, "consult")
       || hasActiveSubscription(user, "docs")
-      || getDailyFreeLeft() > 0
+      || getDailyFreeLeft(user) > 0
       || user.paidRequests > 0;
     if (!hasQ) { setLoading(false); onPaymentRequired(); return; }
     // Списываем 1 запрос за расчёт

@@ -92,28 +92,19 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
             </div>
           </div>
 
-          {/* Кнопка бесплатной консультации юриста */}
+          {/* Бесплатный тариф: 3 запроса к AI, обновление лимитов каждые 24 часа */}
           <div className={`w-full max-w-2xl mx-auto mt-3 mb-5 px-0 transition-all duration-600 delay-200 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <button
-              onClick={() => handleOpenLogin({ freeTrial: false, pendingTab: "expert" })}
-              className="group w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 hover:-translate-y-[2px] active:scale-[0.99] overflow-hidden relative"
+            <div
+              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl text-sm font-semibold relative overflow-hidden"
               style={{
                 background: "linear-gradient(135deg, #c8901a 0%, #e8a820 40%, #f5cc5a 70%, #e8a820 100%)",
                 color: "#0a1628",
                 boxShadow: "0 4px 24px rgba(232,168,32,0.4), 0 1px 0 rgba(255,255,255,0.2) inset",
               }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 36px rgba(232,168,32,0.6), 0 1px 0 rgba(255,255,255,0.2) inset";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 24px rgba(232,168,32,0.4), 0 1px 0 rgba(255,255,255,0.2) inset";
-              }}
             >
-              {/* Блик */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)" }} />
-
-              <span className="relative z-10 flex-1 text-center text-[14px] sm:text-[15px] font-semibold" style={{ fontFamily: "Times New Roman, serif" }}>Получить предварительную консультацию юриста-эксперта</span>
+              <span className="relative z-10 flex-1 text-center text-[13px] sm:text-[15px] font-semibold" style={{ fontFamily: "Times New Roman, serif" }}>
+                Бесплатно — 3 запроса к AI-юристу · обновление каждые 24 часа · загрузка документов
+              </span>
 
               <span
                 className="relative z-10 shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase whitespace-nowrap"
@@ -121,10 +112,8 @@ function HeroSection({ onConsult, onDocument, onPricingClick, onRegister, onOpen
               >
                 Бесплатно
               </span>
-            </button>
+            </div>
           </div>
-
-
 
           {/* ── Главный чат ─────────────────────────────────────── */}
           <div className={`transition-all duration-600 delay-250 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>

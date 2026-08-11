@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocRecommendationItem } from "@/pages/cabinet/DocsTab";
-import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, hasActiveSubscription } from "@/lib/auth";
+import { sendReport, getUser, invalidateUserCache, lawyerSend, getToken, hasActiveSubscription, getDailyFreeLeft } from "@/lib/auth";
 import ExpertMaxOfferModal from "@/components/ExpertMaxOfferModal";
 import DocRecsPanel from "@/components/DocRecsPanel";
 import DocAiChatPanel from "@/components/DocAiChatPanel";
@@ -245,10 +245,11 @@ ${docTextClean}
 
   const handleOpenAiFillChat = async () => {
     const user = await getUser();
-    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
+    // Доступно всем зарегистрированным в пределах их лимита (дневного бесплатного или
+    // платного пула) — тариф для этого не обязателен, только запросы должны быть в наличии
     const hasAccess = user?.isAdmin
-      || !!user?.purchasedPlan
-      || (user?.paidRequests ?? 0) >= 35
+      || (user?.paidRequests ?? 0) > 0
+      || getDailyFreeLeft(user ?? null) > 0
       || hasActiveSubscription(user!, "consult")
       || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
@@ -276,10 +277,25 @@ ${docTextClean}
     setTimeout(() => aiFillEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   }, [chat.messages]);
 
-  // Автооткрытие редактора + чата сразу после генерации документа — без промежуточного клика
+  // Автооткрытие редактора + чата сразу после генерации документа — без промежуточного клика.
+  // Содержимое документа отправляется в чат от имени пользователя ОДИН РАЗ — при первом
+  // открытии предпросмотра только что созданного документа (словно пользователь сам
+  // скопировал и вставил текст с пометкой). При повторном открытии документа — повторно
+  // ничего не отправляется, AI уже видит его в истории переписки.
   useEffect(() => {
     if (autoOpenEditor) {
-      handleOpenAiFillChat();
+      const sentKey = `doc_sent_to_chat_${doc.id}`;
+      const alreadySent = localStorage.getItem(sentKey) === "1";
+      if (!alreadySent) {
+        localStorage.setItem(sentKey, "1");
+        const docTextClean = getCleanDocText();
+        setShowAiFillChat(true);
+        setTimeout(() => {
+          chat.sendMessage(`Проверь шаблон документа:\n\n${docTextClean}`);
+        }, 200);
+      } else {
+        handleOpenAiFillChat();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -323,10 +339,11 @@ ${docTextClean}
 
   const handleAiEditorClick = async () => {
     const user = await getUser();
-    // Доступно с тарифа Старт — purchasedPlan сохраняет доступ даже при 0 остатке
+    // Доступно всем зарегистрированным в пределах их лимита (дневного бесплатного или
+    // платного пула) — тариф для этого не обязателен
     const hasAccess = user?.isAdmin
-      || !!user?.purchasedPlan
-      || (user?.paidRequests ?? 0) >= 35
+      || (user?.paidRequests ?? 0) > 0
+      || getDailyFreeLeft(user ?? null) > 0
       || hasActiveSubscription(user!, "consult")
       || hasActiveSubscription(user!, "docs");
     if (!hasAccess) {
@@ -405,21 +422,17 @@ ${docTextClean}
               onApplyFill={handleApplyFill}
             />
 
-            {/* Контент документа / Редактор */}
+            {/* Контент документа / Редактор — изменения сохраняются автоматически,
+                без ручного подтверждения (кнопки «Применить»/«Закрыть» не нужны) */}
             {showEditor ? (
               <DocEditorPanel
                 content={currentDocContent}
-                onApply={(newContent) => {
+                onOpenAiChat={showAiFillChat ? () => { setShowEditor(false); } : undefined}
+                onAutoSave={(newContent) => {
                   setPrevDocContent(currentDocContent);
                   setCurrentDocContent(newContent);
-                  setDocFlash(true);
-                  setTimeout(() => setDocFlash(false), 3000);
-                  setShowEditor(false);
                   onSaveEdit?.(newContent);
                 }}
-                onClose={() => setShowEditor(false)}
-                onOpenAiChat={showAiFillChat ? () => { setShowEditor(false); } : undefined}
-                onAutoSave={(newContent) => onSaveEdit?.(newContent)}
               />
             ) : (
               <ViewDocContent

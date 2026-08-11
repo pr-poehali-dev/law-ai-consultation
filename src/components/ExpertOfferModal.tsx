@@ -11,16 +11,15 @@ interface ExpertOfferModalProps {
 }
 
 const MAX_FEATURES = [
-  { text: "10 полных консультаций юриста-эксперта" },
-  { text: "150 вопросов AI-юристу · 50 документов AI" },
+  { text: "5 полных консультаций юриста-эксперта" },
+  { text: "200 запросов к AI-юристу" },
   { text: "Загрузка нескольких файлов (PDF, DOCX, фото)" },
   { text: "Анализ документов AI и юристом" },
   { text: "Приоритетный доступ · Всё включено" },
 ];
 
 const PRO_FEATURES = [
-  { text: "3 полные консультации юриста-эксперта" },
-  { text: "70 вопросов AI-юристу · 20 документов" },
+  { text: "90 запросов к AI-юристу" },
   { text: "Загрузка файлов — PDF, DOCX, фото" },
   { text: "Анализ документов в диалоге с AI" },
   { text: "История консультаций · Генерация .doc" },
@@ -153,7 +152,7 @@ export default function ExpertOfferModal({ onClose, onSelectOffer, mode = "exper
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xl font-bold text-navy-800">3 990 <span className="text-sm font-normal text-muted-foreground">₽</span></div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">100 вопросов · 20 документов</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">90 запросов к AI</div>
                   </div>
                   <button
                     onClick={() => { onSelectOffer("plan_pro", "Тариф «Профи»"); handleClose(); }}

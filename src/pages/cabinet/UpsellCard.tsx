@@ -8,9 +8,18 @@ interface UpsellCardProps {
   onSelectPlan: () => void;
 }
 
-export default function UpsellCard({ user, onTrialClick, onPayClick, onSelectPlan }: UpsellCardProps) {
-  // Тариф «Пробный» показываем только тем, кто ещё ничего не покупал — это их первый шаг в сервис
-  const showTrial = !user.purchasedPlan;
+function formatResetIn(resetAt: string | null): string {
+  if (!resetAt) return "24 часа";
+  const diffMs = new Date(resetAt).getTime() - Date.now();
+  if (diffMs <= 0) return "скоро";
+  const hours = Math.floor(diffMs / 3_600_000);
+  const minutes = Math.floor((diffMs % 3_600_000) / 60_000);
+  if (hours <= 0) return `${minutes} мин`;
+  return `${hours} ч ${minutes} мин`;
+}
+
+export default function UpsellCard({ user, onPayClick, onSelectPlan }: UpsellCardProps) {
+  const noPlan = !user.purchasedPlan;
 
   return (
     <div className="upsell-animate">
@@ -43,78 +52,49 @@ export default function UpsellCard({ user, onTrialClick, onPayClick, onSelectPla
               <div className="flex items-center gap-2 mb-2.5">
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: "rgba(232,168,32,0.15)" }}>
-                  <Icon name="MessageSquare" size={12} className="text-gold-400" />
+                  <Icon name="Clock" size={12} className="text-gold-400" />
                 </div>
                 <p className="text-[13px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.95)" }}>
-                  Ваша консультация продолжается
+                  Лимиты на сегодня использованы
                 </p>
               </div>
 
               {/* Текст */}
               <p className="text-[12.5px] leading-relaxed mb-4" style={{ color: "rgba(255,255,255,0.68)" }}>
-                Бесплатные вопросы израсходованы, а ситуация требует более
-                глубокого разбора. Откройте{" "}
+                Бесплатные запросы на сегодня закончились. Обновятся автоматически через{" "}
+                <span style={{ color: "rgba(255,255,255,0.92)", fontWeight: 500 }}>24 часа</span>
+                {" "}— либо откройте{" "}
                 <span style={{ color: "rgba(255,255,255,0.92)", fontWeight: 500 }}>полный доступ</span>
-                {" "}к сервису: вопросы AI-юристу, создание документов, AI-редактор,
-                калькулятор неустойки и поиск судебной практики — всё в одном
-                месте, дешевле чашки кофе.
+                {" "}сразу: вопросы AI-юристу, создание документов, AI-редактор,
+                калькулятор неустойки и поиск судебной практики.
               </p>
 
               {/* Разделитель */}
               <div className="mb-4" style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-              {/* Кнопка 1 — тариф Пробный (только для новых) либо Старт */}
-              {showTrial ? (
-                <button
-                  onClick={onTrialClick}
-                  className="w-full rounded-xl mb-2.5 btn-gold active:scale-95 relative"
-                  style={{ padding: "11px 16px" }}
-                >
-                  <span className="absolute -top-2 left-3 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
-                    style={{ background: "#dc2626", color: "#fff" }}>
-                    Самый выгодный старт
-                  </span>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ background: "rgba(10,22,40,0.2)" }}>
-                        <Icon name="Sparkles" size={13} className="text-navy-900" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[12px] font-bold text-navy-900 leading-tight">Тариф «Пробный» · 5 вопросов</p>
-                        <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 2 документа · AI-редактор · калькулятор</p>
-                      </div>
+              {/* Кнопка — тариф Старт */}
+              <button
+                onClick={onPayClick}
+                className="w-full rounded-xl mb-2.5 btn-gold active:scale-95"
+                style={{ padding: "11px 16px" }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(10,22,40,0.2)" }}>
+                      <Icon name="Zap" size={13} className="text-navy-900" />
                     </div>
-                    <div className="flex items-baseline gap-0.5">
-                      <span className="text-[20px] font-bold text-navy-900 leading-none">290</span>
-                      <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
+                    <div className="text-left">
+                      <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 35 запросов</p>
+                      <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
                     </div>
                   </div>
-                </button>
-              ) : (
-                <button
-                  onClick={onPayClick}
-                  className="w-full rounded-xl mb-2.5 btn-gold active:scale-95"
-                  style={{ padding: "11px 16px" }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ background: "rgba(10,22,40,0.2)" }}>
-                        <Icon name="Zap" size={13} className="text-navy-900" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[12px] font-bold text-navy-900 leading-tight">Пакет «Старт» · 30 вопросов</p>
-                        <p className="text-[10.5px] leading-tight" style={{ color: "rgba(10,22,40,0.6)" }}>+ 5 документов · скачивание .doc</p>
-                      </div>
-                    </div>
-                    <div className="flex items-baseline gap-0.5">
-                      <span className="text-[20px] font-bold text-navy-900 leading-none">990</span>
-                      <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
-                    </div>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-[20px] font-bold text-navy-900 leading-none">990</span>
+                    <span className="text-[11px] font-semibold" style={{ color: "rgba(10,22,40,0.7)" }}>₽</span>
                   </div>
-                </button>
-              )}
+                </div>
+              </button>
 
               {/* Кнопка 2 — тарифы */}
               <button
@@ -139,7 +119,7 @@ export default function UpsellCard({ user, onTrialClick, onPayClick, onSelectPla
                         Тарифы с максимальной выгодой
                       </p>
                       <p className="text-[10.5px] leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        {showTrial ? "От 290 ₽ · вопросы + документы" : "30–300 вопросов + документы"}
+                        35–400 запросов + документы
                       </p>
                     </div>
                   </div>
@@ -149,8 +129,8 @@ export default function UpsellCard({ user, onTrialClick, onPayClick, onSelectPla
 
               {/* Подпись */}
               <p className="mt-3 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {showTrial
-                  ? "Без риска: попробуйте сервис за 290 ₽ · Доступ сразу после оплаты"
+                {noPlan
+                  ? `Бесплатный лимит обновится через ${formatResetIn(user.dailyFreeResetAt)} · или подключите тариф сразу`
                   : "Оплата через защищённый шлюз · Доступ сразу после оплаты"}
               </p>
 

@@ -63,16 +63,6 @@ export default function CabinetOverlays({
       {showDocChoice && (
         <DocChoiceModal
           docLabel={showDocChoice.docLabel}
-          onChooseDoc={() => {
-            const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
-            onCloseDocChoice();
-            // docCustomLabel сохраняет ТОЧНОЕ название документа из рекомендации AI —
-            // даже если docTypeId не нашёлся в каталоге (dt тогда = DOC_TYPES[0]),
-            // после оплаты сгенерируется документ именно под этим названием.
-            savePendingAction({ tab: "docs", docTypeId: dt.id, docDetails, docCustomLabel: showDocChoice.docLabel });
-            setPayment({ type: "document", name: showDocChoice.docLabel });
-            setPendingDocType(dt);
-          }}
           onChoosePlan={(planId) => {
             const dt = DOC_TYPES.find(d => d.id === showDocChoice.docTypeId) || DOC_TYPES[0];
             onCloseDocChoice();

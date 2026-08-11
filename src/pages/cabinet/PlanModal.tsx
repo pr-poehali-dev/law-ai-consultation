@@ -18,32 +18,13 @@ interface Plan {
 
 export const PLANS: Plan[] = [
   {
-    id: "document",
-    name: "Пробный",
-    price: "290",
-    requests: 7,
-    features: [
-      "7 запросов к AI",
-      "AI-редактор документов",
-      "Поиск судебной практики",
-      "Калькулятор неустойки",
-      "Расчёт госпошлины",
-      "Определение подсудности",
-    ],
-    popular: false,
-    badge: null,
-    color: "light",
-  },
-  {
     id: "plan_starter",
     name: "Старт",
     price: "990",
     oldPrice: "1 490",
     requests: 35,
-    lawyerFeature: "1 полная консультация юриста-эксперта",
     features: [
       "35 запросов к AI",
-      "1 полная консультация юриста-эксперта",
       "Загрузка PDF, DOCX, фото для анализа",
       "AI-редактор и уточнение у AI-юриста",
       "Анализ судебной практики при подготовке документа",
@@ -63,12 +44,10 @@ export const PLANS: Plan[] = [
     price: "3 990",
     oldPrice: "5 990",
     requests: 90,
-    lawyerFeature: "3 полные консультации юриста-эксперта",
     features: [
       "Всё из тарифа «Старт»",
       "90 запросов к AI",
-      "3 полные консультации юриста-эксперта",
-      "Консультация юриста с анализом документов",
+      "Анализ файлов и документов",
       "Поиск судебной практики",
       "Калькулятор неустойки",
       "Определение подсудности",
@@ -83,11 +62,11 @@ export const PLANS: Plan[] = [
     price: "5 990",
     oldPrice: "8 990",
     requests: 200,
-    lawyerFeature: "10 полных консультаций юриста-эксперта",
+    lawyerFeature: "5 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Профи»",
       "200 запросов к AI",
-      "10 полных консультаций юриста-эксперта",
+      "5 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
       "Редактор документов через AI-юриста",
@@ -106,11 +85,11 @@ export const PLANS: Plan[] = [
     price: "9 990",
     oldPrice: "",
     requests: 400,
-    lawyerFeature: "20 полных консультаций юриста-эксперта",
+    lawyerFeature: "5 полных консультаций юриста-эксперта",
     features: [
       "Всё из тарифа «Максимум»",
       "400 запросов к AI",
-      "20 полных консультаций юриста-эксперта",
+      "5 полных консультаций юриста-эксперта",
       "Анализ нескольких документов одновременно",
       "Загрузка PDF, DOCX, фото для анализа",
       "Поиск судебной практики",
@@ -131,7 +110,8 @@ export function getActivePlan(user: User): string | null {
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
   if (user.purchasedPlan === "starter") return "plan_starter";
-  if (user.purchasedPlan === "trial") return "document";
+  // Тариф «Пробный» убран из продажи, но у пользователей, купивших его ранее,
+  // остаётся текущий остаток запросов — просто нет активной карточки тарифа.
   return null;
 }
 
@@ -152,7 +132,6 @@ interface PlanModalProps {
 
 // Иконки для каждого тарифа
 const PLAN_ICONS: Record<string, string> = {
-  document: "Sparkles",
   plan_starter: "Rocket",
   plan_pro: "Zap",
   plan_max: "Crown",
@@ -161,25 +140,19 @@ const PLAN_ICONS: Record<string, string> = {
 
 // Ключевые метрики по тарифу (для визуальных пилюль)
 const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
-  document: [
-    { icon: "MessageCircle", label: "7 запросов к AI" },
-    { icon: "Rocket", label: "Доступ к «Старт»" },
-  ],
   plan_starter: [
     { icon: "MessageCircle", label: "35 запросов к AI" },
-    { icon: "UserCheck", label: "1 консультация" },
   ],
   plan_pro: [
     { icon: "MessageCircle", label: "90 запросов к AI" },
-    { icon: "UserCheck", label: "3 консультации" },
   ],
   plan_max: [
     { icon: "MessageCircle", label: "200 запросов к AI" },
-    { icon: "UserCheck", label: "10 консультаций" },
+    { icon: "UserCheck", label: "5 консультаций" },
   ],
   plan_corporate: [
     { icon: "MessageCircle", label: "400 запросов к AI" },
-    { icon: "UserCheck", label: "20 консультаций" },
+    { icon: "UserCheck", label: "5 консультаций" },
   ],
 };
 
@@ -193,12 +166,9 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
     && !hasActiveSubscription(user, "consult")
     && !hasActiveSubscription(user, "docs");
 
-  const planOrder = ["document", "plan_starter", "plan_pro", "plan_max", "plan_corporate"];
+  const planOrder = ["plan_starter", "plan_pro", "plan_max", "plan_corporate"];
   const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
-  // Тариф «Пробный» — только для знакомства с сервисом, доступен один раз.
-  // Если пользователь уже что-то покупал — скрываем его из списка.
-  const basePlans = user.purchasedPlan ? PLANS.filter(p => p.id !== "document") : PLANS;
-  const visiblePlans = minIdx > 0 ? basePlans.filter(p => planOrder.indexOf(p.id) >= minIdx) : basePlans;
+  const visiblePlans = minIdx > 0 ? PLANS.filter(p => planOrder.indexOf(p.id) >= minIdx) : PLANS;
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10);

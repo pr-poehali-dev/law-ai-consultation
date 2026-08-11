@@ -5,7 +5,6 @@ import Icon from "@/components/ui/icon";
 
 interface DocChoiceModalProps {
   docLabel: string;
-  onChooseDoc: () => void;
   onChoosePlan: (planId?: string) => void;
   onClose: () => void;
   onLoginClick?: () => void;
@@ -15,7 +14,7 @@ const GOLD = "#e8a820";
 const GOLD_LIGHT = "#f0c060";
 const BG = "#0a1628";
 
-export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, onClose, onLoginClick }: DocChoiceModalProps) {
+export default function DocChoiceModal({ docLabel, onChoosePlan, onClose, onLoginClick }: DocChoiceModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-sm" onClick={onClose} />
@@ -103,7 +102,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             </div>
 
             <div className="flex items-center justify-between pt-2 mb-2.5" style={{ borderTop: "1px solid rgba(232,168,32,0.2)" }}>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Тариф «Пробный» = 290 ₽</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Бесплатно: 3 запроса/24ч</span>
               <span className="text-[10px] font-bold" style={{ color: "#4ade80" }}>Больше вопросов и функций</span>
             </div>
 
@@ -118,7 +117,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
 
         </div>
 
-        {/* ── Липкий футер: Тариф «Пробный» ── */}
+        {/* ── Липкий футер ── */}
         <div
           className="shrink-0 px-4 sm:px-6 pt-2.5 pb-3 sm:pb-4"
           style={{
@@ -127,18 +126,7 @@ export default function DocChoiceModal({ docLabel, onChooseDoc, onChoosePlan, on
             background: BG,
           }}
         >
-          <button
-            onClick={onChooseDoc}
-            className="w-full flex flex-col px-4 py-3 rounded-xl transition-all active:scale-[0.99] text-left"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.65)" }}>Тариф «Пробный»</span>
-              <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>290 ₽</span>
-            </div>
-            <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>5 вопросов AI · 2 документа · Доступ ко всем функциям сервиса</span>
-          </button>
-          <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>
+          <p className="text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
             Защищённая оплата · ЮКасса · Доступ сразу после оплаты
           </p>
           <p className="text-center text-[11px] mt-2">
