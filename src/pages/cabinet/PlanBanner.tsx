@@ -1,5 +1,5 @@
 import Icon from "@/components/ui/icon";
-import type { User } from "@/lib/auth";
+import { hasActiveSubscription, type User } from "@/lib/auth";
 import { getActivePlan, PLANS } from "@/pages/cabinet/PlanModal";
 
 interface PlanBannerProps {
@@ -15,8 +15,38 @@ export default function PlanBanner({ user, mode, onSelectPlan }: PlanBannerProps
   const activePlan = PLANS.find(p => p.id === activePlanId);
 
   const requests = user.paidRequests ?? 0;
+  // Тариф куплен, но лимит запросов исчерпан и нет безлимитной подписки — нужно продлить
+  const isExhausted = !!activePlan
+    && requests <= 0
+    && !hasActiveSubscription(user, "consult")
+    && !hasActiveSubscription(user, "docs");
 
-  // Если есть активный тариф — компактный зелёный баннер
+  // Тариф куплен, но лимит исчерпан — тревожный баннер с призывом продлить
+  if (activePlan && isExhausted) {
+    return (
+      <div
+        onClick={onSelectPlan}
+        className="flex items-center justify-between gap-3 px-4 py-2.5 mb-3 bg-red-50 border border-red-200 rounded-2xl cursor-pointer hover:bg-red-100/70 transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-7 h-7 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+            <Icon name="AlertCircle" size={14} className="text-red-600" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-red-800">Тариф «{activePlan.name}» — лимит исчерпан</span>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className="text-[11px] text-red-600">Запросы закончились, продлите тариф</span>
+            </div>
+          </div>
+        </div>
+        <span className="text-[11px] font-bold text-white bg-red-600 hover:bg-red-700 transition-colors px-3 py-1.5 rounded-xl shrink-0">
+          Продлить
+        </span>
+      </div>
+    );
+  }
+
+  // Если есть активный тариф с остатком — компактный зелёный баннер
   if (activePlan) {
     return (
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 mb-3 bg-emerald-50 border border-emerald-200 rounded-2xl">

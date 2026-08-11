@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import type { User } from "@/lib/auth";
+import { hasActiveSubscription, type User } from "@/lib/auth";
 
 interface Plan {
   id: string;
@@ -124,10 +124,10 @@ export const PLANS: Plan[] = [
   },
 ];
 
+/** Тариф определяется ТОЛЬКО по факту покупки (purchasedPlan) — не по остатку запросов.
+ * Так пользователь, истративший весь баланс, по-прежнему видит купленный тариф
+ * (просто с пометкой "лимит исчерпан"), а не "тариф не подключён". */
 export function getActivePlan(user: User): string | null {
-  if ((user.paidRequests ?? 0) >= 200) return "plan_max";
-  if ((user.paidRequests ?? 0) >= 90) return "plan_pro";
-  if ((user.paidRequests ?? 0) >= 35) return "plan_starter";
   if (user.purchasedPlan === "max") return "plan_max";
   if (user.purchasedPlan === "pro") return "plan_pro";
   if (user.purchasedPlan === "starter") return "plan_starter";
@@ -186,6 +186,12 @@ const PLAN_PILLS: Record<string, { icon: string; label: string }[]> = {
 export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: PlanModalProps) {
   const [visible, setVisible] = useState(false);
   const activePlanId = getActivePlan(user);
+  // Тариф куплен, но лимит запросов исчерпан и нет безлимитной подписки —
+  // в этом случае карточка активного тарифа не блокирует клик, а предлагает продлить.
+  const isExhausted = !!activePlanId
+    && (user.paidRequests ?? 0) <= 0
+    && !hasActiveSubscription(user, "consult")
+    && !hasActiveSubscription(user, "docs");
 
   const planOrder = ["document", "plan_starter", "plan_pro", "plan_max", "plan_corporate"];
   const minIdx = minPlanId ? planOrder.indexOf(minPlanId) : 0;
@@ -202,7 +208,9 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
 
   const handleClose = () => { setVisible(false); setTimeout(onClose, 250); };
   const handleSelect = (plan: Plan) => {
-    if (activePlanId === plan.id) return;
+    // Активный тариф с остатком — клик по нему ничего не делает (уже подключён).
+    // Но если лимит исчерпан — разрешаем нажать и купить/продлить тот же тариф.
+    if (activePlanId === plan.id && !isExhausted) return;
     onSelectPlan(plan.name, plan.price, plan.id);
     handleClose();
   };
@@ -243,7 +251,9 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
         {/* Карточки тарифов */}
         <div className="overflow-y-auto px-4 sm:px-5 pb-4 space-y-3 flex-1">
           {visiblePlans.map((plan, idx) => {
-            const isActive = activePlanId === plan.id;
+            const isActiveWithBalance = activePlanId === plan.id && !isExhausted;
+            const isActiveExhausted = activePlanId === plan.id && isExhausted;
+            const isActive = isActiveWithBalance; // используется ниже только для "зелёного" вида
             const isPro = plan.color === "dark";
             const isMax = plan.color === "max";
             const isLight = plan.color === "light";
@@ -254,35 +264,43 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
             // Градиенты и акценты по типу
             const accentColor = isActive
               ? "#10b981"
-              : isMax
-                ? "#f0c060"
-                : isPro
-                  ? "#a78bfa"
-                  : "#60a5fa";
+              : isActiveExhausted
+                ? "#f87171"
+                : isMax
+                  ? "#f0c060"
+                  : isPro
+                    ? "#a78bfa"
+                    : "#60a5fa";
 
             const cardGradient = isActive
               ? "linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.04) 100%)"
-              : isMax
-                ? "linear-gradient(135deg, rgba(240,192,96,0.1) 0%, rgba(232,168,32,0.04) 100%)"
-                : isPro
-                  ? "linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(109,40,217,0.04) 100%)"
-                  : "linear-gradient(135deg, rgba(96,165,250,0.08) 0%, rgba(59,130,246,0.02) 100%)";
+              : isActiveExhausted
+                ? "linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(248,113,113,0.04) 100%)"
+                : isMax
+                  ? "linear-gradient(135deg, rgba(240,192,96,0.1) 0%, rgba(232,168,32,0.04) 100%)"
+                  : isPro
+                    ? "linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(109,40,217,0.04) 100%)"
+                    : "linear-gradient(135deg, rgba(96,165,250,0.08) 0%, rgba(59,130,246,0.02) 100%)";
 
             const cardBorder = isActive
               ? "1.5px solid rgba(16,185,129,0.45)"
-              : isMax
-                ? "1.5px solid rgba(240,192,96,0.45)"
-                : isPro
-                  ? "1.5px solid rgba(139,92,246,0.35)"
-                  : "1.5px solid rgba(96,165,250,0.2)";
+              : isActiveExhausted
+                ? "1.5px solid rgba(248,113,113,0.45)"
+                : isMax
+                  ? "1.5px solid rgba(240,192,96,0.45)"
+                  : isPro
+                    ? "1.5px solid rgba(139,92,246,0.35)"
+                    : "1.5px solid rgba(96,165,250,0.2)";
 
             const btnStyle = isActive
               ? { background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)", cursor: "default" }
-              : isMax
-                ? { background: "linear-gradient(135deg, #e8a820, #f0c060)", color: "#0a1628" }
-                : isPro
-                  ? { background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff" }
-                  : { background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", color: "#fff" };
+              : isActiveExhausted
+                ? { background: "linear-gradient(135deg, #dc2626, #f87171)", color: "#fff" }
+                : isMax
+                  ? { background: "linear-gradient(135deg, #e8a820, #f0c060)", color: "#0a1628" }
+                  : isPro
+                    ? { background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", color: "#fff" }
+                    : { background: "linear-gradient(135deg, #1d4ed8, #3b82f6)", color: "#fff" };
 
             return (
               <div
@@ -293,12 +311,12 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                   background: cardGradient,
                   border: cardBorder,
                   cursor: isActive ? "default" : "pointer",
-                  ...(isMax && !isActive ? { boxShadow: "0 4px 24px rgba(240,192,96,0.12)" } : {}),
-                  ...(isPro && !isActive ? { boxShadow: "0 4px 24px rgba(139,92,246,0.12)" } : {}),
+                  ...(isMax && !isActive && !isActiveExhausted ? { boxShadow: "0 4px 24px rgba(240,192,96,0.12)" } : {}),
+                  ...(isPro && !isActive && !isActiveExhausted ? { boxShadow: "0 4px 24px rgba(139,92,246,0.12)" } : {}),
                 }}
               >
                 {/* Популярный — тонкая линия акцента сверху */}
-                {(isPro || isMax) && !isActive && (
+                {(isPro || isMax) && !isActive && !isActiveExhausted && (
                   <div className="h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }} />
                 )}
 
@@ -322,7 +340,13 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                               <Icon name="CheckCircle" size={8} color="#34d399" />Активен
                             </span>
                           )}
-                          {!isActive && plan.badge && (
+                          {isActiveExhausted && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                              style={{ background: "rgba(248,113,113,0.2)", color: "#f87171" }}>
+                              <Icon name="AlertCircle" size={8} color="#f87171" />Лимит исчерпан
+                            </span>
+                          )}
+                          {!isActive && !isActiveExhausted && plan.badge && (
                             <span
                               className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                               style={{ background: `${accentColor}25`, color: accentColor }}
@@ -412,6 +436,14 @@ export default function PlanModal({ user, onClose, onSelectPlan, minPlanId }: Pl
                         Активен · {user.paidRequests ?? 0} запр.
                       </span>
                     </div>
+                  ) : isActiveExhausted ? (
+                    <button
+                      className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90 flex items-center justify-center gap-2"
+                      style={btnStyle}
+                    >
+                      <Icon name="RotateCw" size={13} color="#fff" />
+                      Продлить «{plan.name}»
+                    </button>
                   ) : (
                     <button
                       className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90"

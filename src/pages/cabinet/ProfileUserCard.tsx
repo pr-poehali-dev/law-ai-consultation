@@ -3,11 +3,13 @@ import type { User } from "@/lib/auth";
 import { hasActiveSubscription } from "@/lib/auth";
 import type { ServiceType } from "@/components/PaymentModal";
 
+/** Тариф определяется по факту покупки (purchasedPlan), а не по остатку запросов —
+ * так пользователь, истративший весь баланс, по-прежнему видит купленный тариф. */
 function getActivePlanInfo(user: User): { id: string; name: string; color: string } | null {
-  const r = user.paidRequests ?? 0;
-  if (r >= 200) return { id: "plan_max", name: "Максимум", color: "from-slate-700 to-navy-800" };
-  if (r >= 90)  return { id: "plan_pro", name: "Профи", color: "from-navy-700 to-navy-900" };
-  if (r >= 35)  return { id: "plan_starter", name: "Старт", color: "from-navy-600 to-navy-800" };
+  if (user.purchasedPlan === "max")     return { id: "plan_max", name: "Максимум", color: "from-slate-700 to-navy-800" };
+  if (user.purchasedPlan === "pro")     return { id: "plan_pro", name: "Профи", color: "from-navy-700 to-navy-900" };
+  if (user.purchasedPlan === "starter") return { id: "plan_starter", name: "Старт", color: "from-navy-600 to-navy-800" };
+  if (user.purchasedPlan === "trial")   return { id: "document", name: "Пробный", color: "from-navy-600 to-navy-800" };
   return null;
 }
 
@@ -22,6 +24,8 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
   const bizSubActive = !!(user.businessSubscriptionUntil && new Date(user.businessSubscriptionUntil) > new Date());
   const activePlan = user.isAdmin ? null : getActivePlanInfo(user);
   const lawyerQ = user.lawyerConsultationsLeft ?? 0;
+  // Тариф куплен, но лимит запросов исчерпан и нет безлимитной подписки — нужно продлить
+  const isExhausted = !!activePlan && (user.paidRequests ?? 0) <= 0 && !consultSubActive && !docsSubActive;
 
   return (
     <>
@@ -74,7 +78,7 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
         <div className="space-y-3">
           {/* Активный тариф */}
           {activePlan && (
-            <div className={`rounded-2xl p-4 bg-gradient-to-br ${activePlan.color} text-white`}>
+            <div className={`rounded-2xl p-4 bg-gradient-to-br ${isExhausted ? "from-red-700 to-red-900" : activePlan.color} text-white`}>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
@@ -83,7 +87,13 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
                   </div>
                   <p className="text-lg font-bold text-white">«{activePlan.name}»</p>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/15 text-white">Активен</span>
+                {isExhausted ? (
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/15 text-white flex items-center gap-1">
+                    <Icon name="AlertCircle" size={10} />Лимит исчерпан
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/15 text-white">Активен</span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -97,7 +107,16 @@ export default function ProfileUserCard({ user, onPay }: ProfileUserCardProps) {
                 </div>
               </div>
 
-              {lawyerQ === 0 && (
+              {isExhausted && (
+                <button
+                  onClick={() => onPay((activePlan.id as ServiceType), `Тариф «${activePlan.name}»`)}
+                  className="mt-3 w-full py-2 rounded-xl text-xs font-bold bg-white text-red-700 hover:bg-red-50 transition-colors active:scale-[0.98] flex items-center justify-center gap-1.5"
+                >
+                  <Icon name="RotateCw" size={12} />Продлить тариф «{activePlan.name}»
+                </button>
+              )}
+
+              {!isExhausted && lawyerQ === 0 && (
                 <button
                   onClick={() => onPay("lawyer_questions", "+1 консультация юриста")}
                   className="mt-3 w-full py-2 rounded-xl text-xs font-bold bg-gold-500 hover:bg-gold-400 text-navy-900 transition-colors active:scale-[0.98]"

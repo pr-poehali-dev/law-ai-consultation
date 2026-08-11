@@ -104,7 +104,9 @@ export default function CabinetHeader({ user, tab, totalLeft, unreadLawyerCount 
   const navigate = useNavigate();
   const activePlanId = getActivePlan(user);
   const activePlan = PLANS.find(p => p.id === activePlanId);
-  const exhausted = isPlanExhausted(user);
+  // "Продлить тариф" показываем только тем, кто реально покупал тариф — не просто
+  // исчерпавшим бесплатный дневной лимит без покупок.
+  const exhausted = isPlanExhausted(user) && !!activePlan;
   const [showReport, setShowReport] = useState(false);
 
   return (
